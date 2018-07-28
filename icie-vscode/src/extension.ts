@@ -65,8 +65,10 @@ class ICIE {
                         }
                     });
                 });
-            }).then(() => {
-                callback();
+            }).then(good => {
+                if (good) {
+                    callback();
+                }
             });
         });
     }
