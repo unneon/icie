@@ -1,0 +1,40 @@
+{
+    "name": "icie",
+    "displayName": "icie",
+    "description": "",
+    "version": "0.0.1",
+    "publisher": "pustaczek",
+    "engines": {
+        "vscode": "^1.25.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:extension.icieBuild",
+        "onCommand:extension:icieTest"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [{
+            "command": "extension.icieBuild",
+            "title": "ICIE Build"
+        }, {
+            "command": "extension.icieTest",
+            "title": "ICIE Test"
+        }]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.6",
+        "@types/node": "^7.0.43",
+        "@types/mocha": "^2.2.42"
+    }
+}
