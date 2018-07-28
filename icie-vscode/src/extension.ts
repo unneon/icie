@@ -33,17 +33,31 @@ export function deactivate() {
 class ICIE {
 
     public triggerBuild(callback: () => void) {
-        console.log('ICIE Build triggered.');
-        let source = this.getMainSource();
-        console.log(`ICIE Build: source = ${source}`);
-        cp.execFile(this.getCiPath(), ['build', source], (err, stdout, stderr) => {
-            console.log(`ICIE Build: err = ${err}`);
-            if (err) {
-                throw 'ICIE Build failed.';
-            } else {
-                console.log('ICIE Build finished.');
-                callback();
-            }
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "ICIE Build",
+            cancellable: false
+        }, (progress, token) => {
+            progress.report({ increment: 0, message: 'Saving changes' });
+            let source = this.getMainSource();
+            console.log(`ICIE.triggerBuild,source = ${source}`);
+            return new Promise(resolve => {
+                this.assureAllSaved(() => {
+                    progress.report({ increment: 50, message: 'Compiling' });
+                    cp.execFile(this.getCiPath(), ['build', source], (err, stdout, stderr) => {
+                        if (!err) {
+                            progress.report({ increment: 50, message: 'Finished' });
+                            vscode.window.showInformationMessage('ICIE Build finished');
+                            resolve(true);
+                        } else {
+                            progress.report({ increment: 50, message: 'Failed' });
+                            console.log(`ICIE.triggerBuild,err = ${err}`);
+                            vscode.window.showErrorMessage('ICIE Build failed');
+                            resolve(false);
+                        }
+                    });
+                });
+            });
         });
     }
     public triggerTest(callback: (success: boolean) => void) {
@@ -78,6 +92,13 @@ class ICIE {
                     callback();
                 }
             });
+        });
+    }
+    private assureAllSaved(callback: () => void) {
+        vscode.workspace.saveAll(false).then((whatisthis) => {
+            callback();
+        }, (whatisthis) => {
+            callback();
         });
     }
 
