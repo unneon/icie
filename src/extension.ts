@@ -14,16 +14,16 @@ export function activate(context: vscode.ExtensionContext) {
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('extension.icieBuild', () => {
+    let disposable = vscode.commands.registerCommand('icie.build', () => {
         icie.triggerBuild(() => {});
     });
-    let disposable2 = vscode.commands.registerCommand('extension.icieTest', () => {
+    let disposable2 = vscode.commands.registerCommand('icie.test', () => {
         icie.triggerTest((success) => {});
     });
-    let disposable3 = vscode.commands.registerCommand('extension.icieInit', () => {
+    let disposable3 = vscode.commands.registerCommand('icie.init', () => {
         icie.triggerInit(() => {});
     });
-    let disposable4 = vscode.commands.registerCommand('extension.icieSubmit', () => {
+    let disposable4 = vscode.commands.registerCommand('icie.submit', () => {
         icie.triggerSubmit(() => {});
     });
 
