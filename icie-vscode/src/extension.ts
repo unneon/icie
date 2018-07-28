@@ -23,6 +23,9 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable3 = vscode.commands.registerCommand('extension.icieInit', () => {
         icie.triggerInit(() => {});
     });
+    let disposable4 = vscode.commands.registerCommand('extension.icieSubmit', () => {
+        icie.triggerSubmit(() => {});
+    });
 
     context.subscriptions.push(icie);
     context.subscriptions.push(disposable);
@@ -97,6 +100,22 @@ class ICIE {
                     });
                 });
             });
+        });
+    }
+    public triggerSubmit(callback: () => void) {
+        console.log('ICIE Submit triggered');
+        this.triggerTest(tests_succeded => {
+            if (tests_succeded) {
+                ICIEManifest.load(manifest => {
+                    cp.execFile(this.getCiPath(), ['submit', this.getMainSource(), manifest.task_url], (err1, stdout, stderr) => {
+                        if (err1) {
+                            vscode.window.showErrorMessage('ICIE Submit failed to submit solution');
+                            throw 'ICIE Submit failed to submit solution';
+                        }
+                        callback();
+                    });
+                });
+            }
         });
     }
 
@@ -195,6 +214,37 @@ class ICIE {
     }
     private getPreferredMainSource(): string {
         return "main.cpp";
+    }
+
+}
+
+class ICIEManifest {
+
+    public task_url: string;
+
+    private constructor(task_url: string) {
+        this.task_url = task_url;
+    }
+
+    static load(callback: (manifest: ICIEManifest) => void) {
+        fs.readFile(vscode.workspace.rootPath + "/.icie", (err1, data) => {
+            // console.log('ICIEManifest.load,err1 = ' + err1);
+            if (err1) {
+                vscode.window.showErrorMessage('ICIE Submit has not found .icie file, use ICIE Init first');
+                throw 'ICIE Submit has not found .icie file, use ICIE Init first';
+            }
+            let json = JSON.parse(data.toString());
+            callback(new ICIEManifest(json.task_url));
+        });
+    }
+    public save(callback: () => void) {
+        fs.writeFile(vscode.workspace.rootPath + './icie', JSON.stringify(this), err1 => {
+            if (err1) {
+                vscode.window.showErrorMessage('failed to save .icie file');
+                throw 'failed to save .icie file';
+            }
+            callback();
+        });
     }
 
 }
