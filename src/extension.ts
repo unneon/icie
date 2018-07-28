@@ -94,7 +94,7 @@ class ICIE {
 
     public triggerInit(callback: () => void) {
         this.askDescriptionURL(task_url => {
-            this.randomProjectName(5, project_name => {
+            this.randomProjectName(5).then(project_name => {
                 let project_dir = homedir() + '/' + project_name;
                 fs.mkdir(project_dir, err1 => {
                     cp.execFile(this.getCiPath(), ['init', task_url], {cwd: project_dir}, (err2, stdout, stderr) => {
@@ -172,18 +172,14 @@ class ICIE {
         })
     }
 
-    private randomProjectName(tries: number, callback: (project_name: string) => void) {
-        if (tries === 0) {
-            throw "ICIE Init: failed to find free project name";
-        }
-        let name = this.randomName();
-        fs.exists(homedir + '/' + name, already_exists => {
-            if (already_exists) {
-                this.randomProjectName(tries - 1, callback);
-            } else {
-                callback(name);
+    private async randomProjectName(tries: number): Promise<string> {
+        for (; tries>0; --tries) {
+            let name = this.randomName();
+            if (!await file_exists(homedir() + '/' + name)) {
+                return name;
             }
-        });
+        }
+        return Promise.reject('failed to find free project name');
     }
     private randomName(): string {
         let adjectives = [
@@ -278,4 +274,9 @@ class ICIEManifest {
 
 function choice<T>(xs: T[]): T {
     return xs[Math.floor(Math.random() * xs.length)];
+}
+function file_exists(path: string): Promise<boolean> {
+    return new Promise(resolve => {
+        fs.exists(path, resolve);
+    });
 }
