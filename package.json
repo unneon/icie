@@ -4,6 +4,7 @@
     "description": "",
     "version": "0.0.1",
     "publisher": "pustaczek",
+	"repository": "https://github.com/matcegla/icie",
     "engines": {
         "vscode": "^1.25.0"
     },
