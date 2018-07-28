@@ -12,6 +12,7 @@
     ],
     "activationEvents": [
         "onCommand:extension.icieBuild",
+        "onCommand:extension.icieInit",
         "onCommand:extension.icieTest"
     ],
     "main": "./out/extension",
@@ -19,6 +20,9 @@
         "commands": [{
             "command": "extension.icieBuild",
             "title": "ICIE Build"
+        }, {
+            "command": "extension.icieInit",
+            "title": "ICIE Init"
         }, {
             "command": "extension.icieTest",
             "title": "ICIE Test"

@@ -20,10 +20,14 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable2 = vscode.commands.registerCommand('extension.icieTest', () => {
         icie.triggerTest((success) => {});
     });
+    let disposable3 = vscode.commands.registerCommand('extension.icieInit', () => {
+        icie.triggerInit(() => {});
+    });
 
     context.subscriptions.push(icie);
     context.subscriptions.push(disposable);
     context.subscriptions.push(disposable2);
+    context.subscriptions.push(disposable3);
 }
 
 // this method is called when your extension is deactivated
@@ -77,6 +81,25 @@ class ICIE {
         })
     }
 
+    public triggerInit(callback: () => void) {
+        this.askDescriptionURL(task_url => {
+            this.randomProjectName(5, project_name => {
+                let project_dir = homedir() + '/' + project_name;
+                fs.mkdir(project_dir, err1 => {
+                    cp.execFile(this.getCiPath(), ['init', task_url], {cwd: project_dir}, (err2, stdout, stderr) => {
+                        cp.execFile('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], (err3, stdout2, stderr3) => {
+                            if (err3) {
+                                vscode.window.showErrorMessage('ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp');
+                                throw 'ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp';
+                            }
+                            vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     public dispose() {
 
     }
@@ -102,6 +125,48 @@ class ICIE {
         });
     }
 
+    private askDescriptionURL(callback: (answer: string) => void) {
+        let options: vscode.InputBoxOptions = {
+            prompt: 'Task description URL: '
+        };
+        vscode.window.showInputBox(options).then(value => {
+            if (value) {
+                callback(value);
+            }
+        })
+    }
+
+    private randomProjectName(tries: number, callback: (project_name: string) => void) {
+        if (tries === 0) {
+            throw "ICIE Init: failed to find free project name";
+        }
+        let name = this.randomName();
+        fs.exists(homedir + '/' + name, already_exists => {
+            if (already_exists) {
+                this.randomProjectName(tries - 1, callback);
+            } else {
+                callback(name);
+            }
+        });
+    }
+    private randomName(): string {
+        let adjectives = [
+            "playful",
+            "shining",
+            "sparkling",
+            "rainbow",
+            "kawaii",
+            "superb",
+        ];
+        let animals = [
+            "capybara",
+            "chipmunk",
+            "squirrel",
+            "spider",
+        ];
+        return choice(adjectives) + '-' + choice(animals);
+    }
+
     private getMainSource(): string {
         let editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -125,5 +190,15 @@ class ICIE {
     private getCiPath(): string {
         return homedir() + '/.cargo/bin/ci';
     }
+    private getTemplateMainPath(): string {
+        return homedir() + '/.config/icie/template-main.cpp'
+    }
+    private getPreferredMainSource(): string {
+        return "main.cpp";
+    }
 
+}
+
+function choice<T>(xs: T[]): T {
+    return xs[Math.floor(Math.random() * xs.length)];
 }
