@@ -193,12 +193,22 @@ class ICIE {
             "rainbow",
             "kawaii",
             "superb",
+            "amazing",
+            "glowing",
+            "blessed",
+            "smiling",
         ];
         let animals = [
             "capybara",
-            "chipmunk",
             "squirrel",
             "spider",
+            "anteater",
+            "hamster",
+            "whale",
+            "eagle",
+            "zebra",
+            "dolphin",
+            "hedgehog",
         ];
         return choice(adjectives) + '-' + choice(animals);
     }
