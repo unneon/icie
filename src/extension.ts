@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
         icie.triggerTest((success) => {});
     });
     let disposable3 = vscode.commands.registerCommand('icie.init', () => {
-        icie.triggerInit(() => {});
+        icie.triggerInit();
     });
     let disposable4 = vscode.commands.registerCommand('icie.submit', () => {
         icie.triggerSubmit(() => {});
@@ -92,25 +92,16 @@ class ICIE {
         })
     }
 
-    public triggerInit(callback: () => void) {
-        this.askDescriptionURL(task_url => {
-            this.randomProjectName(5).then(project_name => {
-                let project_dir = homedir() + '/' + project_name;
-                fs.mkdir(project_dir, err1 => {
-                    cp.execFile(this.getCiPath(), ['init', task_url], {cwd: project_dir}, (err2, stdout, stderr) => {
-                        new ICIEManifest(task_url).save(project_dir + '/.icie', () => {
-                            cp.execFile('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], (err3, stdout2, stderr3) => {
-                                if (err3) {
-                                    vscode.window.showErrorMessage('ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp');
-                                    throw 'ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp';
-                                }
-                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
-                            });
-                        });
-                    });
-                });
-            });
-        });
+    public async triggerInit(): Promise<void> {
+        let task_url = await this.askDescriptionURL();
+        let project_name = await this.randomProjectName(5);
+        let project_dir = homedir() + '/' + project_name;
+        await mkdir(project_dir);
+        await exec(this.getCiPath(), ['init', task_url], {cwd: project_dir});
+        let manifest = new ICIEManifest(task_url);
+        await manifest.save(project_dir + '/.icie');
+        await exec('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], {});
+        await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
     public triggerSubmit(callback: () => void) {
         console.log('ICIE Submit triggered');
@@ -162,15 +153,19 @@ class ICIE {
         return vscode.workspace.saveAll(false).then(something => {});
     }
 
-    private askDescriptionURL(callback: (answer: string) => void) {
+    private askDescriptionURL(): Promise<string> {
         let options: vscode.InputBoxOptions = {
             prompt: 'Task description URL: '
         };
-        vscode.window.showInputBox(options).then(value => {
-            if (value) {
-                callback(value);
-            }
-        })
+        return new Promise((resolve, reject) => {
+            vscode.window.showInputBox(options).then(value => {
+                if (value) {
+                    resolve(value);
+                } else {
+                    reject('problem description url not entered');
+                }
+            });
+        });
     }
 
     private async randomProjectName(tries: number): Promise<string> {
@@ -261,14 +256,14 @@ class ICIEManifest {
             callback(new ICIEManifest(json.task_url));
         });
     }
-    public save(path: string, callback: () => void) {
-        fs.writeFile(path, JSON.stringify(this), err1 => {
+    public save(path: string): Promise<void> {
+        return new Promise((resolve, reject) => fs.writeFile(path, JSON.stringify(this), err1 => {
             if (err1) {
-                vscode.window.showErrorMessage('failed to save .icie file');
-                throw 'failed to save .icie file';
+                reject(err1);
+            } else {
+                resolve();
             }
-            callback();
-        });
+        }));
     }
 
 }
@@ -291,4 +286,28 @@ function file_stat(path: string): Promise<fs.Stats> {
             }
         })
     });
+}
+function mkdir(path: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        fs.mkdir(path, err => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+interface ExecOutput {
+    stdout: string,
+    stderr: string,
+}
+function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
+    return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
+        if (err) {
+            reject(err);
+        } else {
+            resolve({ stdout: stdout, stderr: stderr });
+        }
+    }));
 }
