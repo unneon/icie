@@ -76,8 +76,10 @@ class ICIE {
                 console.log(stderr);
                 console.log('triggerTest.err = ' + err);
                 if (err) {
+                    vscode.window.showErrorMessage('ICIE Test: some tests failed');
                     callback(false);
                 } else {
+                    vscode.window.showInformationMessage('ICIE Test: all tests passed');
                     callback(true);
                 }
             });
@@ -90,12 +92,14 @@ class ICIE {
                 let project_dir = homedir() + '/' + project_name;
                 fs.mkdir(project_dir, err1 => {
                     cp.execFile(this.getCiPath(), ['init', task_url], {cwd: project_dir}, (err2, stdout, stderr) => {
-                        cp.execFile('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], (err3, stdout2, stderr3) => {
-                            if (err3) {
-                                vscode.window.showErrorMessage('ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp');
-                                throw 'ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp';
-                            }
-                            vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
+                        new ICIEManifest(task_url).save(project_dir + '/.icie', () => {
+                            cp.execFile('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], (err3, stdout2, stderr3) => {
+                                if (err3) {
+                                    vscode.window.showErrorMessage('ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp');
+                                    throw 'ICIE Init not found C++ template code at ~/.config/icie/template-main.cpp';
+                                }
+                                vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
+                            });
                         });
                     });
                 });
@@ -222,7 +226,7 @@ class ICIEManifest {
 
     public task_url: string;
 
-    private constructor(task_url: string) {
+    public constructor(task_url: string) {
         this.task_url = task_url;
     }
 
@@ -237,8 +241,8 @@ class ICIEManifest {
             callback(new ICIEManifest(json.task_url));
         });
     }
-    public save(callback: () => void) {
-        fs.writeFile(vscode.workspace.rootPath + './icie', JSON.stringify(this), err1 => {
+    public save(path: string, callback: () => void) {
+        fs.writeFile(path, JSON.stringify(this), err1 => {
             if (err1) {
                 vscode.window.showErrorMessage('failed to save .icie file');
                 throw 'failed to save .icie file';
