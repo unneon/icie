@@ -31,7 +31,17 @@
         }, {
             "command": "icie.test",
             "title": "ICIE Test"
-        }]
+        }],
+        "keybindings": [
+            {
+                "command": "icie.init",
+                "key": "alt+f11"
+            },
+            {
+                "command": "icie.submit",
+                "key": "alt+f12"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
