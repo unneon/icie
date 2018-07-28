@@ -50,7 +50,7 @@ class ICIE {
             let source = this.getMainSource();
             console.log(`ICIE.triggerBuild,source = ${source}`);
             return new Promise(resolve => {
-                this.assureAllSaved(() => {
+                this.assureAllSaved().then(() => {
                     progress.report({ increment: 50, message: 'Compiling' });
                     cp.execFile(this.getCiPath(), ['build', source], (err, stdout, stderr) => {
                         if (!err) {
@@ -73,7 +73,7 @@ class ICIE {
         });
     }
     public triggerTest(callback: (success: boolean) => void) {
-        this.assureCompiled(() => {
+        this.assureCompiled().then(() => {
             let executable = this.getMainExecutable();
             let testdir = this.getTestDirectory();
             console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
@@ -133,32 +133,33 @@ class ICIE {
 
     }
 
-    private assureCompiled(callback: () => void) {
+    private async requiresCompilation(): Promise<boolean> {
         let src = this.getMainSource();
         console.log(`[ICIE.assureCompiled] Checking whether ${src} is compiled`);
         let exe = this.getMainExecutable();
-        this.assureAllSaved(() => {
-            fs.stat(src, (e1, statsrc) => {
-                console.log(`[ICIE.assureCompiled] stat(src) ran, e1 = ${e1}`);
-                fs.stat(exe, (e2, statexe) => {
-                    console.log(`[ICIE.assureCompiled] stat(exe) ran, e2 = ${e2}`);
-                    if (!e2 && statsrc.mtime <= statexe.mtime) {
-                        console.log(`[ICIE.assureCompiled] ${src} was compiled already`);
-                        callback();
-                    } else {
-                        console.log(`[ICIE.assureCompiled] ${src} needs compiling`);
-                        this.triggerBuild(() => callback());
-                    }
-                });
-            });
-        });
+        await this.assureAllSaved();
+        let statsrc = await file_stat(src);
+        try {
+            var statexe = await file_stat(exe);
+        } catch (err) {
+            return true;
+        }
+        if (statsrc.mtime <= statexe.mtime) {
+            console.log(`[ICIE.assureCompiled] ${src} was compiled already`);
+            return false;
+        } else {
+            console.log(`[ICIE.assureCompiled] ${src} needs compiling`);
+            return true;
+        }
     }
-    private assureAllSaved(callback: () => void) {
-        vscode.workspace.saveAll(false).then((whatisthis) => {
-            callback();
-        }, (whatisthis) => {
-            callback();
-        });
+
+    private async assureCompiled(): Promise<void> {
+        if (await this.requiresCompilation()) {
+            await new Promise(resolve => this.triggerBuild(resolve));
+        }
+    }
+    private async assureAllSaved(): Promise<void> {
+        return vscode.workspace.saveAll(false).then(something => {});
     }
 
     private askDescriptionURL(callback: (answer: string) => void) {
@@ -278,5 +279,16 @@ function choice<T>(xs: T[]): T {
 function file_exists(path: string): Promise<boolean> {
     return new Promise(resolve => {
         fs.exists(path, resolve);
+    });
+}
+function file_stat(path: string): Promise<fs.Stats> {
+    return new Promise((resolve, reject) => {
+        fs.stat(path, (err, stats) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(stats);
+            }
+        })
     });
 }
