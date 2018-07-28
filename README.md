@@ -1,65 +1,31 @@
-# icie README
+# Icie
 
-This is the README for your extension "icie". After writing up a brief description, we recommend including the following sections.
+Icie is intended to be a VS Code plugin which changes it into a fully-functional IDE focused on competitive programming. It aims to cover every step from the typical workflow, including downloading example test cases, building code, automatically testing it, and submitting. Every action should be available under keyboard shortcuts, in order to shave off important seconds from your time penalty. Aside from time-saving-IDE aspect, I eventually plan to introduce convenient integration with automated searching for test cases, profiling, debugging, working with multiple solutions and more.
+
+Most of the functionality is achieved using [ci](https://github.com/matcegla/ci). In constrast to it, this plugin does store state and aims to be a complete IDE that does everything for you, rather than a flexible set of commands line utilities.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- [x] Set up a project from task description URL
+- [x] Build solutions written in C++
+- [x] Test solutions against provided example test cases, as well as your own tests
+- [x] Quickly submit solutions to programming contest sites
+- [ ] Run solutions and automatically save entered tests
+- [ ] Check the status of your submissions
+- [ ] Provide customizable solution templates
+- [ ] Select first/smallest failing test out of already saved ones and show its output/debug it
+- [ ] Find first/smallest failing test using a test generator program
+- [ ] Allow using third-party header-only libraries in submissions
+- [ ] Browse task descriptions and other contest info inside of the editor
+- [ ] Set up a project from existing code
+- [ ] Support popular competitive programming sites
+    - [x] Codeforces
+    - [x] OIOIOI-based sites
+    - [ ] Kattis-based sites
+    - [ ] Sphere Online Judge
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- [ci](https://github.com/matcegla/ci) has to be installed and in PATH
+- In order for setup/submit to work, you must first run them manually from ci in order to log in to sites, as the responsible interface is not ready yet
+- POSIX conformance is required temporarily
