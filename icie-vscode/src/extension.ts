@@ -137,17 +137,19 @@ class ICIE {
         let src = this.getMainSource();
         console.log(`[ICIE.assureCompiled] Checking whether ${src} is compiled`);
         let exe = this.getMainExecutable();
-        fs.stat(src, (e1, statsrc) => {
-            console.log(`[ICIE.assureCompiled] stat(src) ran, e1 = ${e1}`);
-            fs.stat(exe, (e2, statexe) => {
-                console.log(`[ICIE.assureCompiled] stat(exe) ran, e2 = ${e2}`);
-                if (!e2 && statsrc.mtime <= statexe.mtime) {
-                    console.log(`[ICIE.assureCompiled] ${src} was compiled already`);
-                    callback();
-                } else {
-                    console.log(`[ICIE.assureCompiled] ${src} needs compiling`);
-                    this.triggerBuild(() => callback());
-                }
+        this.assureAllSaved(() => {
+            fs.stat(src, (e1, statsrc) => {
+                console.log(`[ICIE.assureCompiled] stat(src) ran, e1 = ${e1}`);
+                fs.stat(exe, (e2, statexe) => {
+                    console.log(`[ICIE.assureCompiled] stat(exe) ran, e2 = ${e2}`);
+                    if (!e2 && statsrc.mtime <= statexe.mtime) {
+                        console.log(`[ICIE.assureCompiled] ${src} was compiled already`);
+                        callback();
+                    } else {
+                        console.log(`[ICIE.assureCompiled] ${src} needs compiling`);
+                        this.triggerBuild(() => callback());
+                    }
+                });
             });
         });
     }
