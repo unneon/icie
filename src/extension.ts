@@ -15,16 +15,16 @@ export function activate(context: vscode.ExtensionContext) {
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
     let disposable = vscode.commands.registerCommand('icie.build', () => {
-        icie.triggerBuild(() => {});
+        icie.triggerBuild();
     });
     let disposable2 = vscode.commands.registerCommand('icie.test', () => {
-        icie.triggerTest((success) => {});
+        icie.triggerTest();
     });
     let disposable3 = vscode.commands.registerCommand('icie.init', () => {
         icie.triggerInit();
     });
     let disposable4 = vscode.commands.registerCommand('icie.submit', () => {
-        icie.triggerSubmit(() => {});
+        icie.triggerSubmit();
     });
 
     context.subscriptions.push(icie);
@@ -40,56 +40,30 @@ export function deactivate() {
 
 class ICIE {
 
-    public triggerBuild(callback: () => void) {
-        vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: "ICIE Build",
-            cancellable: false
-        }, (progress, token) => {
-            progress.report({ increment: 0, message: 'Saving changes' });
-            let source = this.getMainSource();
-            console.log(`ICIE.triggerBuild,source = ${source}`);
-            return new Promise(resolve => {
-                this.assureAllSaved().then(() => {
-                    progress.report({ increment: 50, message: 'Compiling' });
-                    cp.execFile(this.getCiPath(), ['build', source], (err, stdout, stderr) => {
-                        if (!err) {
-                            progress.report({ increment: 50, message: 'Finished' });
-                            vscode.window.showInformationMessage('ICIE Build finished');
-                            resolve(true);
-                        } else {
-                            progress.report({ increment: 50, message: 'Failed' });
-                            console.log(`ICIE.triggerBuild,err = ${err}`);
-                            vscode.window.showErrorMessage('ICIE Build failed');
-                            resolve(false);
-                        }
-                    });
-                });
-            }).then(good => {
-                if (good) {
-                    callback();
-                }
-            });
-        });
+    public async triggerBuild(): Promise<void> {
+        let source = this.getMainSource();
+        await this.assureAllSaved();
+        try {
+            await exec(this.getCiPath(), ['build', source], {});
+            vscode.window.showInformationMessage('ICIE Build finished');
+        } catch (err) {
+            vscode.window.showErrorMessage('ICIE Build failed');
+            return Promise.reject('ICIE build failed: ' + err);
+        }
     }
-    public triggerTest(callback: (success: boolean) => void) {
-        this.assureCompiled().then(() => {
-            let executable = this.getMainExecutable();
-            let testdir = this.getTestDirectory();
-            console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
-            cp.execFile(this.getCiPath(), ['test', executable, testdir], (err, stdout, stderr) => {
-                console.log(stdout);
-                console.log(stderr);
-                console.log('triggerTest.err = ' + err);
-                if (err) {
-                    vscode.window.showErrorMessage('ICIE Test: some tests failed');
-                    callback(false);
-                } else {
-                    vscode.window.showInformationMessage('ICIE Test: all tests passed');
-                    callback(true);
-                }
-            });
-        })
+    public async triggerTest(): Promise<boolean> {
+        await this.assureCompiled();
+        let executable = this.getMainExecutable();
+        let testdir = this.getTestDirectory();
+        console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
+        try {
+            await exec(this.getCiPath(), ['test', executable, testdir], {});
+            vscode.window.showInformationMessage('ICIE Test: all tests passed');
+            return true;
+        } catch (err) {
+            vscode.window.showErrorMessage('ICIE Test: some tests failed');
+            return false;
+        }
     }
 
     public async triggerInit(): Promise<void> {
@@ -103,21 +77,13 @@ class ICIE {
         await exec('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], {});
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
-    public triggerSubmit(callback: () => void) {
+    public async triggerSubmit(): Promise<void> {
         console.log('ICIE Submit triggered');
-        this.triggerTest(tests_succeded => {
-            if (tests_succeded) {
-                ICIEManifest.load(manifest => {
-                    cp.execFile(this.getCiPath(), ['submit', this.getMainSource(), manifest.task_url], (err1, stdout, stderr) => {
-                        if (err1) {
-                            vscode.window.showErrorMessage('ICIE Submit failed to submit solution');
-                            throw 'ICIE Submit failed to submit solution';
-                        }
-                        callback();
-                    });
-                });
-            }
-        });
+        let tests_succeded = await this.triggerTest();
+        if (tests_succeded) {
+            let manifest = await ICIEManifest.load();
+            await exec(this.getCiPath(), ['submit', this.getMainSource(), manifest.task_url], {});
+        }
     }
 
     public dispose() {
@@ -146,7 +112,7 @@ class ICIE {
 
     private async assureCompiled(): Promise<void> {
         if (await this.requiresCompilation()) {
-            await new Promise(resolve => this.triggerBuild(resolve));
+            await this.triggerBuild();
         }
     }
     private async assureAllSaved(): Promise<void> {
@@ -245,16 +211,10 @@ class ICIEManifest {
         this.task_url = task_url;
     }
 
-    static load(callback: (manifest: ICIEManifest) => void) {
-        fs.readFile(vscode.workspace.rootPath + "/.icie", (err1, data) => {
-            // console.log('ICIEManifest.load,err1 = ' + err1);
-            if (err1) {
-                vscode.window.showErrorMessage('ICIE Submit has not found .icie file, use ICIE Init first');
-                throw 'ICIE Submit has not found .icie file, use ICIE Init first';
-            }
-            let json = JSON.parse(data.toString());
-            callback(new ICIEManifest(json.task_url));
-        });
+    static async load(): Promise<ICIEManifest> {
+        let data = await readFile(vscode.workspace.rootPath + '/.icie', 'utf8');
+        let json = JSON.parse(data.toString());
+        return new ICIEManifest(json.task_url);
     }
     public save(path: string): Promise<void> {
         return new Promise((resolve, reject) => fs.writeFile(path, JSON.stringify(this), err1 => {
@@ -310,4 +270,15 @@ function exec(file: string, args: string[], options: cp.ExecFileOptions): Promis
             resolve({ stdout: stdout, stderr: stderr });
         }
     }));
+}
+function readFile(filename: string, encoding: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        fs.readFile(filename, encoding, (err, data) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(data);
+            }
+        })
+    });
 }
