@@ -12,12 +12,18 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 - [x] Quickly submit solutions to programming contest sites
 - [ ] Run solutions and automatically save entered tests
 - [ ] Check the status of your submissions
+- [ ] Nice configuration UI
 - [ ] Provide customizable solution templates
 - [ ] Select first/smallest failing test out of already saved ones and show its output/debug it
 - [ ] Find first/smallest failing test using a test generator program
+- [ ] An automated snippet inclusion system
 - [ ] Allow using third-party header-only libraries in submissions
 - [ ] Browse task descriptions and other contest info inside of the editor
+- [ ] Provide warnings related to competitive programming
 - [ ] Set up a project from existing code
+- [ ] Allow working with multiple solutions
+- [ ] Add profiler integration
+- [ ] Add debugger integration
 - [ ] Support popular competitive programming sites
     - [x] Codeforces
     - [x] OIOIOI-based sites
