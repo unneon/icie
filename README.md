@@ -32,6 +32,5 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 
 ## Requirements
 
-- [ci](https://github.com/matcegla/ci) has to be installed and in PATH
-- In order for setup/submit to work, you must first run them manually from ci in order to log in to sites, as the responsible interface is not ready yet
+- [ci](https://github.com/matcegla/ci) has to be installed and in `~/.cargo/bin`
 - POSIX conformance is required temporarily

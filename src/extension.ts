@@ -71,7 +71,7 @@ class ICIE {
         let project_name = await this.randomProjectName(5);
         let project_dir = homedir() + '/' + project_name;
         await mkdir(project_dir);
-        await exec(this.getCiPath(), ['init', task_url], {cwd: project_dir});
+        await execInteractive(this.getCiPath(), ['--format', 'json', 'init', task_url], {cwd: project_dir}, kid => this.respondToAuthreq(kid));
         let manifest = new ICIEManifest(task_url);
         await manifest.save(project_dir + '/.icie');
         await exec('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], {});
@@ -84,6 +84,28 @@ class ICIE {
             let manifest = await ICIEManifest.load();
             await exec(this.getCiPath(), ['submit', this.getMainSource(), manifest.task_url], {});
         }
+    }
+    private respondToAuthreq(kid: cp.ChildProcess) {
+        // TODO this is wrong, but node sucks and I can't be bothered
+        kid.stdout.on('data', chunk => {
+            console.log(`ICIE.@respondToAuthreq.kid.stdout.#data.chunk = ${chunk}`);
+            this.respondToAuthreqLine(kid, chunk.toString());
+        });
+    }
+    private async respondToAuthreqLine(kid: cp.ChildProcess, line: string): Promise<void> {
+        let authreq = JSON.parse(line);
+        let domain = authreq.domain;
+        console.log('ICIE.@respondToAuthreqLine.domain:', domain);
+        let username = await inputbox({ prompt: `Username at ${domain}` });
+        console.log('username:', username);
+        let password = await inputbox({ prompt: `Password for ${username} at ${domain}` });
+        let authresp = JSON.stringify({
+            'username': username,
+            'password': password
+        });
+        kid.stdin.write(authresp, 'utf8', () => {
+            kid.stdin.end();
+        });
     }
 
     public dispose() {
@@ -271,6 +293,16 @@ function exec(file: string, args: string[], options: cp.ExecFileOptions): Promis
         }
     }));
 }
+function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+        let kid = cp.spawn(file, args, options);
+        kid.on('exit', (code, signal) => {
+            console.log('sigh exit');
+            resolve();
+        });
+        while_running(kid);
+    });
+}
 function readFile(filename: string, encoding: string): Promise<string> {
     return new Promise((resolve, reject) => {
         fs.readFile(filename, encoding, (err, data) => {
@@ -281,4 +313,12 @@ function readFile(filename: string, encoding: string): Promise<string> {
             }
         })
     });
+}
+function then2promise<T>(t: Thenable<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+        t.then(val => resolve(val), reason => reject(reason));
+    });
+}
+function inputbox(options: vscode.InputBoxOptions): Promise<string | undefined> {
+    return then2promise(vscode.window.showInputBox(options));
 }
