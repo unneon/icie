@@ -42,25 +42,14 @@ export function deactivate() {
 class ICIE {
 
     public async launch(): Promise<void> {
-        console.log(`ICIE.@launch`);
-        let manifest_exists = await file_exists(this.getManifest());
-        console.log(`ICIE.@launch.#manifest_exists = ${manifest_exists}`);
-        if (manifest_exists) {
-            try {
-                let source = await then2promise(vscode.workspace.openTextDocument(this.getMainSource()));
-                console.log(`ICIE.@launch Source has been opened ${source.fileName}`);
+        let _config: Promise<ICIEConfig> = ICIEConfig.load();
+        let source = await then2promise(vscode.workspace.openTextDocument(this.getMainSource()));
                 let editor = await then2promise(vscode.window.showTextDocument(source));
-                console.log(`ICIE.@launch Source has been shown ${source.fileName}`);
-                let config = await ICIEConfig.load();
-                console.log(`ICIE.@launch.#config = ${JSON.stringify(config)}`);
                 let oldPosition = editor.selection.active;
+                let config = await _config;
                 let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
                 let newSelection = new vscode.Selection(newPosition, newPosition);
                 editor.selection = newSelection;
-            } catch (e) {
-                console.log(`ICIE.@launch Errored ${e}`);
-            }
-        }
     }
     public async triggerBuild(): Promise<void> {
         let source = this.getMainSource();
