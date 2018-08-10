@@ -1,60 +1,68 @@
 {
-    "name": "icie",
-    "displayName": "icie",
-    "description": "",
-    "version": "0.1.1",
-    "publisher": "pustaczek",
-	"repository": "https://github.com/matcegla/icie",
-    "engines": {
-        "vscode": "^1.25.0"
-    },
-    "categories": [
-        "Other"
+  "name": "icie",
+  "displayName": "icie",
+  "description": "",
+  "version": "0.1.1",
+  "publisher": "pustaczek",
+  "repository": "https://github.com/matcegla/icie",
+  "engines": {
+    "vscode": "^1.25.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.icie",
+    "onCommand:icie.build",
+    "onCommand:icie.init",
+    "onCommand:icie.submit",
+    "onCommand:icie.test"
+  ],
+  "main": "./out/extension",
+  "contributes": {
+    "commands": [
+      {
+        "command": "icie.build",
+        "title": "ICIE Build"
+      },
+      {
+        "command": "icie.init",
+        "title": "ICIE Init"
+      },
+      {
+        "command": "icie.submit",
+        "title": "ICIE Submit"
+      },
+      {
+        "command": "icie.test",
+        "title": "ICIE Test"
+      }
     ],
-    "activationEvents": [
-        "workspaceContains:.icie",
-        "onCommand:icie.build",
-        "onCommand:icie.init",
-        "onCommand:icie.submit",
-        "onCommand:icie.test"
-    ],
-    "main": "./out/extension",
-    "contributes": {
-        "commands": [{
-            "command": "icie.build",
-            "title": "ICIE Build"
-        }, {
-            "command": "icie.init",
-            "title": "ICIE Init"
-        }, {
-            "command": "icie.submit",
-            "title": "ICIE Submit"
-        }, {
-            "command": "icie.test",
-            "title": "ICIE Test"
-        }],
-        "keybindings": [
-            {
-                "command": "icie.init",
-                "key": "alt+f11"
-            },
-            {
-                "command": "icie.submit",
-                "key": "alt+f12"
-            }
-        ]
-    },
-    "scripts": {
-        "vscode:prepublish": "npm run compile",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install",
-        "test": "npm run compile && node ./node_modules/vscode/bin/test"
-    },
-    "devDependencies": {
-        "typescript": "^2.6.1",
-        "vscode": "^1.1.6",
-        "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
-    }
+    "keybindings": [
+      {
+        "command": "icie.init",
+        "key": "alt+f11"
+      },
+      {
+        "command": "icie.submit",
+        "key": "alt+f12"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test": "npm run compile && node ./node_modules/vscode/bin/test"
+  },
+  "devDependencies": {
+    "typescript": "^2.6.1",
+    "vscode": "^1.1.6",
+    "@types/node": "^7.0.43",
+    "@types/mocha": "^2.2.42"
+  },
+  "dependencies": {
+    "fs-extra": "^7.0.0"
+  }
 }

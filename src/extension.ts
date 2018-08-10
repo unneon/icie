@@ -1,8 +1,9 @@
 'use strict';
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
 import { homedir } from 'os';
 import * as fs from 'fs';
+import * as fs2 from 'fs-extra';
+import * as ci from './ci';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -41,40 +42,34 @@ export function deactivate() {
 
 class ICIE {
 
+    ci: ci.Ci;
+
+    public constructor() {
+        this.ci = new ci.Ci;
+    }
+
     public async launch(): Promise<void> {
         let _config: Promise<ICIEConfig> = ICIEConfig.load();
         let source = await then2promise(vscode.workspace.openTextDocument(this.getMainSource()));
-                let editor = await then2promise(vscode.window.showTextDocument(source));
-                let oldPosition = editor.selection.active;
-                let config = await _config;
-                let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
-                let newSelection = new vscode.Selection(newPosition, newPosition);
-                editor.selection = newSelection;
+            let editor = await then2promise(vscode.window.showTextDocument(source));
+            let oldPosition = editor.selection.active;
+            let config = await _config;
+            let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
+            let newSelection = new vscode.Selection(newPosition, newPosition);
+            editor.selection = newSelection;
     }
     public async triggerBuild(): Promise<void> {
-        let source = this.getMainSource();
+        console.log(`ICIE.@triggerBuild`);
         await this.assureAllSaved();
-        try {
-            await exec(this.getCiPath(), ['build', source], {});
-            vscode.window.showInformationMessage('ICIE Build finished');
-        } catch (err) {
-            vscode.window.showErrorMessage('ICIE Build failed');
-            return Promise.reject('ICIE build failed: ' + err);
-        }
+        let source = this.getMainSource();
+        await this.ci.build(source);
     }
     public async triggerTest(): Promise<boolean> {
         await this.assureCompiled();
         let executable = this.getMainExecutable();
         let testdir = this.getTestDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
-        try {
-            await exec(this.getCiPath(), ['test', executable, testdir], {});
-            vscode.window.showInformationMessage('ICIE Test: all tests passed');
-            return true;
-        } catch (err) {
-            vscode.window.showErrorMessage('ICIE Test: some tests failed');
-            return false;
-        }
+        return await this.ci.test(executable, testdir);
     }
 
     public async triggerInit(): Promise<void> {
@@ -82,11 +77,11 @@ class ICIE {
         let project_name = await this.randomProjectName(5);
         let project_dir = homedir() + '/' + project_name;
         await mkdir(project_dir);
-        await execInteractive(this.getCiPath(), ['--format', 'json', 'init', task_url], {cwd: project_dir}, kid => this.respondToAuthreq(kid));
+        await this.ci.init(task_url, project_dir, domain => this.respondAuthreq(domain));
         let manifest = new ICIEManifest(task_url);
         await manifest.save(project_dir + '/.icie');
         let config = await ICIEConfig.load();
-        await exec('cp', [config.template.path, project_dir + '/' + this.getPreferredMainSource()], {});
+        await fs2.copy(config.template.path, project_dir + '/' + this.getPreferredMainSource());
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
     public async triggerSubmit(): Promise<void> {
@@ -94,30 +89,14 @@ class ICIE {
         let tests_succeded = await this.triggerTest();
         if (tests_succeded) {
             let manifest = await ICIEManifest.load();
-            await exec(this.getCiPath(), ['submit', this.getMainSource(), manifest.task_url], {});
+            console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
+            await this.ci.submit(this.getMainSource(), manifest.task_url, authreq => this.respondAuthreq(authreq));
         }
     }
-    private respondToAuthreq(kid: cp.ChildProcess) {
-        // TODO this is wrong, but node sucks and I can't be bothered
-        kid.stdout.on('data', chunk => {
-            console.log(`ICIE.@respondToAuthreq.kid.stdout.#data.chunk = ${chunk}`);
-            this.respondToAuthreqLine(kid, chunk.toString());
-        });
-    }
-    private async respondToAuthreqLine(kid: cp.ChildProcess, line: string): Promise<void> {
-        let authreq = JSON.parse(line);
-        let domain = authreq.domain;
-        console.log('ICIE.@respondToAuthreqLine.domain:', domain);
-        let username = await inputbox({ prompt: `Username at ${domain}` });
-        console.log('username:', username);
-        let password = await inputbox({ prompt: `Password for ${username} at ${domain}` });
-        let authresp = JSON.stringify({
-            'username': username,
-            'password': password
-        });
-        kid.stdin.write(authresp, 'utf8', () => {
-            kid.stdin.end();
-        });
+    private async respondAuthreq(authreq: ci.AuthRequest): Promise<ci.AuthResponse> {
+        let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
+        let password = await inputbox({ prompt: `Password for ${username} at ${authreq.domain}`});
+        return { username, password };
     }
 
     public dispose() {
@@ -125,14 +104,17 @@ class ICIE {
     }
 
     private async requiresCompilation(): Promise<boolean> {
+        console.log(`ICIE.@assureCompiled`);
         let src = this.getMainSource();
         console.log(`[ICIE.assureCompiled] Checking whether ${src} is compiled`);
         let exe = this.getMainExecutable();
         await this.assureAllSaved();
+        console.log(`ICIE.@assureCompiled All files have been saved`);
         let statsrc = await file_stat(src);
         try {
             var statexe = await file_stat(exe);
         } catch (err) {
+            console.log(`ICIE.@assureCompiled ${src} needs compiling`);
             return true;
         }
         if (statsrc.mtime <= statexe.mtime) {
@@ -145,6 +127,7 @@ class ICIE {
     }
 
     private async assureCompiled(): Promise<void> {
+        console.log(`ICIE.@assureCompiled`);
         if (await this.requiresCompilation()) {
             await this.triggerBuild();
         }
@@ -225,17 +208,8 @@ class ICIE {
         }
         return path;
     }
-    private getCiPath(): string {
-        return homedir() + '/.cargo/bin/ci';
-    }
-    private getTemplateMainPath(): string {
-        return homedir() + '/.config/icie/template-main.cpp'
-    }
     private getPreferredMainSource(): string {
         return "main.cpp";
-    }
-    private getManifest(): string {
-        return vscode.workspace.rootPath + '/.icie';
     }
 
 }
@@ -321,11 +295,15 @@ function file_exists(path: string): Promise<boolean> {
     });
 }
 function file_stat(path: string): Promise<fs.Stats> {
+    console.log(`@file_stat`);
     return new Promise((resolve, reject) => {
+        console.log(`@file_stat Promise started`);
         fs.stat(path, (err, stats) => {
             if (err) {
+                console.log(`@file_stat.#err = ${err}`);
                 reject(err);
             } else {
+                console.log(`@file_stat.#stats = ${stats}`);
                 resolve(stats);
             }
         })
@@ -340,29 +318,6 @@ function mkdir(path: string): Promise<void> {
                 resolve();
             }
         });
-    });
-}
-interface ExecOutput {
-    stdout: string,
-    stderr: string,
-}
-function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
-    return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
-        if (err) {
-            reject(err);
-        } else {
-            resolve({ stdout: stdout, stderr: stderr });
-        }
-    }));
-}
-function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => void): Promise<void> {
-    return new Promise((resolve, reject) => {
-        let kid = cp.spawn(file, args, options);
-        kid.on('exit', (code, signal) => {
-            console.log('sigh exit');
-            resolve();
-        });
-        while_running(kid);
     });
 }
 function readFile(filename: string, encoding: string): Promise<string> {
@@ -381,6 +336,11 @@ function then2promise<T>(t: Thenable<T>): Promise<T> {
         t.then(val => resolve(val), reason => reject(reason));
     });
 }
-function inputbox(options: vscode.InputBoxOptions): Promise<string | undefined> {
-    return then2promise(vscode.window.showInputBox(options));
+async function inputbox(options: vscode.InputBoxOptions): Promise<string> {
+    let maybe = await then2promise(vscode.window.showInputBox(options));
+    if (maybe !== undefined) {
+        return maybe;
+    } else {
+        throw new Error("did not get input on input box");
+    }
 }
