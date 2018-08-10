@@ -32,6 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable2);
     context.subscriptions.push(disposable3);
     context.subscriptions.push(disposable4);
+    icie.launch();
 }
 
 // this method is called when your extension is deactivated
@@ -40,6 +41,27 @@ export function deactivate() {
 
 class ICIE {
 
+    public async launch(): Promise<void> {
+        console.log(`ICIE.@launch`);
+        let manifest_exists = await file_exists(this.getManifest());
+        console.log(`ICIE.@launch.#manifest_exists = ${manifest_exists}`);
+        if (manifest_exists) {
+            try {
+                let source = await then2promise(vscode.workspace.openTextDocument(this.getMainSource()));
+                console.log(`ICIE.@launch Source has been opened ${source.fileName}`);
+                let editor = await then2promise(vscode.window.showTextDocument(source));
+                console.log(`ICIE.@launch Source has been shown ${source.fileName}`);
+                let config = await ICIEConfig.load();
+                console.log(`ICIE.@launch.#config = ${JSON.stringify(config)}`);
+                let oldPosition = editor.selection.active;
+                let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
+                let newSelection = new vscode.Selection(newPosition, newPosition);
+                editor.selection = newSelection;
+            } catch (e) {
+                console.log(`ICIE.@launch Errored ${e}`);
+            }
+        }
+    }
     public async triggerBuild(): Promise<void> {
         let source = this.getMainSource();
         await this.assureAllSaved();
@@ -74,7 +96,8 @@ class ICIE {
         await execInteractive(this.getCiPath(), ['--format', 'json', 'init', task_url], {cwd: project_dir}, kid => this.respondToAuthreq(kid));
         let manifest = new ICIEManifest(task_url);
         await manifest.save(project_dir + '/.icie');
-        await exec('cp', [this.getTemplateMainPath(), project_dir + '/' + this.getPreferredMainSource()], {});
+        let config = await ICIEConfig.load();
+        await exec('cp', [config.template.path, project_dir + '/' + this.getPreferredMainSource()], {});
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
     public async triggerSubmit(): Promise<void> {
@@ -196,7 +219,7 @@ class ICIE {
     private getMainSource(): string {
         let editor = vscode.window.activeTextEditor;
         if (!editor) {
-            throw "ICIE Build: editor not found";
+            return vscode.workspace.rootPath + '/' + this.getPreferredMainSource();
         }
         let doc = editor.document;
         return doc.fileName.toString();
@@ -222,6 +245,9 @@ class ICIE {
     private getPreferredMainSource(): string {
         return "main.cpp";
     }
+    private getManifest(): string {
+        return vscode.workspace.rootPath + '/.icie';
+    }
 
 }
 
@@ -246,6 +272,53 @@ class ICIEManifest {
                 resolve();
             }
         }));
+    }
+
+}
+
+class TextFilePos {
+    public row: number;
+    public column: number;
+    public constructor(row: number, column: number) {
+        this.row = row;
+        this.column = column;
+    }
+}
+
+class ICIEConfigTemplate {
+    public path: string;
+    public start: TextFilePos;
+    public constructor(path: string, start: TextFilePos) {
+        this.path = path;
+        this.start = start;
+    }
+}
+
+class ICIEConfig {
+
+    public template: ICIEConfigTemplate;
+
+    public constructor(template: ICIEConfigTemplate) {
+        this.template = template;
+    }
+
+    static async load(): Promise<ICIEConfig> {
+        let data = await readFile(ICIEConfig.prototype.getConfigPath(), 'utf8');
+        let json = JSON.parse(data.toString());
+        return new ICIEConfig(new ICIEConfigTemplate(json.template.path, new TextFilePos(json.template.start.row, json.template.start.column)));
+    }
+    public save(path: string): Promise<void> {
+        return new Promise((resolve, reject) => fs.writeFile(path, JSON.stringify(this), err1 => {
+            if (err1) {
+                reject(err1);
+            } else {
+                resolve();
+            }
+        }));
+    }
+
+    private getConfigPath(): string {
+        return homedir() + '/.config/icie/config.json';
     }
 
 }

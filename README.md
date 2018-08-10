@@ -34,3 +34,32 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 
 - [ci](https://github.com/matcegla/ci) has to be installed and in `~/.cargo/bin`
 - POSIX conformance is required temporarily
+- Config should be created at `~/.config/icie/config.json` (example config provided below)
+
+## Example config
+
+```json
+{
+	"template": {
+		"path": "/home/matcegla/.config/icie/template-main.cpp",
+		"start": {
+			"row": 10,
+			"column": 5
+		}
+	}
+}
+```
+
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+template <typename T> T load() { T r; cin >> r; return r; }
+template <typename T> vector<T> loadMany(int n) { vector<T> rs(n); generate(rs.begin(), rs.end(), &load<T>); return rs; }
+
+int main() {
+	ios::sync_with_stdio(false);
+	cin.tie(nullptr);
+	
+}
+```

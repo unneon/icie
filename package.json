@@ -12,6 +12,7 @@
         "Other"
     ],
     "activationEvents": [
+        "workspaceContains:.icie",
         "onCommand:icie.build",
         "onCommand:icie.init",
         "onCommand:icie.submit",
