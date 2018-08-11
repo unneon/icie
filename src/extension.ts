@@ -44,14 +44,16 @@ export function deactivate() {
 class ICIE {
 
     ci: ci.Ci;
+    dir: Directory;
 
     public constructor() {
         this.ci = new ci.Ci;
+        this.dir = new Directory(unwrap(vscode.workspace.rootPath));
     }
 
     public async launch(): Promise<void> {
         let _config: Promise<conf.Config> = conf.load();
-        let source = await vscode.workspace.openTextDocument(this.getMainSource());
+        let source = await vscode.workspace.openTextDocument(this.dir.source());
         let editor = await vscode.window.showTextDocument(source);
         let oldPosition = editor.selection.active;
         let config = await _config;
@@ -62,13 +64,13 @@ class ICIE {
     public async triggerBuild(): Promise<void> {
         console.log(`ICIE.@triggerBuild`);
         await this.assureAllSaved();
-        let source = this.getMainSource();
+        let source = this.dir.source();
         await this.ci.build(source);
     }
     public async triggerTest(): Promise<boolean> {
         await this.assureCompiled();
-        let executable = this.getMainExecutable();
-        let testdir = this.getTestDirectory();
+        let executable = this.dir.executable();
+        let testdir = this.dir.testsDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
         return await this.ci.test(executable, testdir);
     }
@@ -82,7 +84,8 @@ class ICIE {
         let manifest: mnfst.Manifest = { task_url };
         await mnfst.save(project_dir + '/.icie', manifest);
         let config = await conf.load();
-        await afs.copy(config.template.path, project_dir + '/' + this.getPreferredMainSource());
+        let dir2 = new Directory(project_dir);
+        await afs.copy(config.template.path, dir2.source());
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
     public async triggerSubmit(): Promise<void> {
@@ -90,7 +93,7 @@ class ICIE {
         await this.assureTested();
         let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
         console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
-        await this.ci.submit(this.getMainSource(), manifest.task_url, authreq => this.respondAuthreq(authreq));
+        await this.ci.submit(this.dir.source(), manifest.task_url, authreq => this.respondAuthreq(authreq));
     }
     private async respondAuthreq(authreq: ci.AuthRequest): Promise<ci.AuthResponse> {
         let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
@@ -104,9 +107,9 @@ class ICIE {
 
     private async requiresCompilation(): Promise<boolean> {
         console.log(`ICIE.@assureCompiled`);
-        let src = this.getMainSource();
+        let src = this.dir.source();
         console.log(`[ICIE.assureCompiled] Checking whether ${src} is compiled`);
-        let exe = this.getMainExecutable();
+        let exe = this.dir.executable();
         await this.assureAllSaved();
         console.log(`ICIE.@assureCompiled All files have been saved`);
         let statsrc = await afs.stat(src);
@@ -181,28 +184,25 @@ class ICIE {
         return choice(adjectives) + '-' + choice(animals);
     }
 
-    private getMainSource(): string {
-        let editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return vscode.workspace.rootPath + '/' + this.getPreferredMainSource();
-        }
-        let doc = editor.document;
-        return doc.fileName.toString();
+}
+
+class Directory {
+
+    base: string;
+
+    public constructor(base: string) {
+        this.base = base;
     }
-    private getMainExecutable(): string {
-        let source = this.getMainSource();
+
+    public source(): string {
+        return this.base + '/main.cpp';
+    }
+    public executable(): string {
+        let source = this.source();
         return source.substr(0, source.length - 4) + '.e';
     }
-    private getTestDirectory(): string {
-        let path = vscode.workspace.rootPath;
-        console.log('ICIE Build: getTestDirectory.path = ' + path);
-        if (!path) {
-            throw 'ICIE Build: path not found';
-        }
-        return path;
-    }
-    private getPreferredMainSource(): string {
-        return "main.cpp";
+    public testsDirectory(): string {
+        return this.base + '/tests';
     }
 
 }
@@ -216,5 +216,12 @@ async function inputbox(options: vscode.InputBoxOptions): Promise<string> {
         return maybe;
     } else {
         throw new Error("did not get input on input box");
+    }
+}
+function unwrap<T>(x: T | undefined): T {
+    if (x !== undefined) {
+        return x;
+    } else {
+        throw "unwrap of undefined";
     }
 }
