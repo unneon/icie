@@ -48,7 +48,7 @@ class ICIE {
 
     public constructor() {
         this.ci = new ci.Ci;
-        this.dir = new Directory(unwrap(vscode.workspace.rootPath));
+        this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
     }
 
     public async launch(): Promise<void> {
@@ -216,12 +216,5 @@ async function inputbox(options: vscode.InputBoxOptions): Promise<string> {
         return maybe;
     } else {
         throw new Error("did not get input on input box");
-    }
-}
-function unwrap<T>(x: T | undefined): T {
-    if (x !== undefined) {
-        return x;
-    } else {
-        throw "unwrap of undefined";
     }
 }
