@@ -52,12 +52,12 @@ class ICIE {
     public async launch(): Promise<void> {
         let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.getMainSource());
-            let editor = await vscode.window.showTextDocument(source);
-            let oldPosition = editor.selection.active;
-            let config = await _config;
-            let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
-            let newSelection = new vscode.Selection(newPosition, newPosition);
-            editor.selection = newSelection;
+        let editor = await vscode.window.showTextDocument(source);
+        let oldPosition = editor.selection.active;
+        let config = await _config;
+        let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
+        let newSelection = new vscode.Selection(newPosition, newPosition);
+        editor.selection = newSelection;
     }
     public async triggerBuild(): Promise<void> {
         console.log(`ICIE.@triggerBuild`);
@@ -87,12 +87,10 @@ class ICIE {
     }
     public async triggerSubmit(): Promise<void> {
         console.log('ICIE Submit triggered');
-        let tests_succeded = await this.triggerTest();
-        if (tests_succeded) {
-            let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
-            console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
-            await this.ci.submit(this.getMainSource(), manifest.task_url, authreq => this.respondAuthreq(authreq));
-        }
+        await this.assureTested();
+        let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
+        console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
+        await this.ci.submit(this.getMainSource(), manifest.task_url, authreq => this.respondAuthreq(authreq));
     }
     private async respondAuthreq(authreq: ci.AuthRequest): Promise<ci.AuthResponse> {
         let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
@@ -127,6 +125,11 @@ class ICIE {
         }
     }
 
+    private async assureTested(): Promise<void> {
+        if (!await this.triggerTest()) {
+            throw "Not all tests passed";
+        }
+    }
     private async assureCompiled(): Promise<void> {
         console.log(`ICIE.@assureCompiled`);
         if (await this.requiresCompilation()) {
