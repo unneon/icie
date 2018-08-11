@@ -1,8 +1,7 @@
 'use strict';
 import * as vscode from 'vscode';
 import { homedir } from 'os';
-import * as fs from 'fs';
-import * as fs2 from 'fs-extra';
+import * as afs from './afs';
 import * as ci from './ci';
 
 // this method is called when your extension is activated
@@ -76,12 +75,12 @@ class ICIE {
         let task_url = await this.askDescriptionURL();
         let project_name = await this.randomProjectName(5);
         let project_dir = homedir() + '/' + project_name;
-        await mkdir(project_dir);
+        await afs.mkdir(project_dir);
         await this.ci.init(task_url, project_dir, domain => this.respondAuthreq(domain));
         let manifest = new ICIEManifest(task_url);
         await manifest.save(project_dir + '/.icie');
         let config = await ICIEConfig.load();
-        await fs2.copy(config.template.path, project_dir + '/' + this.getPreferredMainSource());
+        await afs.copy(config.template.path, project_dir + '/' + this.getPreferredMainSource());
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
     public async triggerSubmit(): Promise<void> {
@@ -110,9 +109,9 @@ class ICIE {
         let exe = this.getMainExecutable();
         await this.assureAllSaved();
         console.log(`ICIE.@assureCompiled All files have been saved`);
-        let statsrc = await file_stat(src);
+        let statsrc = await afs.stat(src);
         try {
-            var statexe = await file_stat(exe);
+            var statexe = await afs.stat(exe);
         } catch (err) {
             console.log(`ICIE.@assureCompiled ${src} needs compiling`);
             return true;
@@ -143,7 +142,7 @@ class ICIE {
     private async randomProjectName(tries: number): Promise<string> {
         for (; tries>0; --tries) {
             let name = this.randomName();
-            if (!await file_exists(homedir() + '/' + name)) {
+            if (!await afs.exists(homedir() + '/' + name)) {
                 return name;
             }
         }
@@ -212,18 +211,12 @@ class ICIEManifest {
     }
 
     static async load(): Promise<ICIEManifest> {
-        let data = await readFile(vscode.workspace.rootPath + '/.icie', 'utf8');
+        let data = await afs.read(vscode.workspace.rootPath + '/.icie', 'utf8');
         let json = JSON.parse(data.toString());
         return new ICIEManifest(json.task_url);
     }
     public save(path: string): Promise<void> {
-        return new Promise((resolve, reject) => fs.writeFile(path, JSON.stringify(this), err1 => {
-            if (err1) {
-                reject(err1);
-            } else {
-                resolve();
-            }
-        }));
+        return afs.write(path, JSON.stringify(this));
     }
 
 }
@@ -255,18 +248,12 @@ class ICIEConfig {
     }
 
     static async load(): Promise<ICIEConfig> {
-        let data = await readFile(ICIEConfig.prototype.getConfigPath(), 'utf8');
+        let data = await afs.read(ICIEConfig.prototype.getConfigPath(), 'utf8');
         let json = JSON.parse(data.toString());
         return new ICIEConfig(new ICIEConfigTemplate(json.template.path, new TextFilePos(json.template.start.row, json.template.start.column)));
     }
     public save(path: string): Promise<void> {
-        return new Promise((resolve, reject) => fs.writeFile(path, JSON.stringify(this), err1 => {
-            if (err1) {
-                reject(err1);
-            } else {
-                resolve();
-            }
-        }));
+        return afs.write(path, JSON.stringify(this));
     }
 
     private getConfigPath(): string {
@@ -277,48 +264,6 @@ class ICIEConfig {
 
 function choice<T>(xs: T[]): T {
     return xs[Math.floor(Math.random() * xs.length)];
-}
-function file_exists(path: string): Promise<boolean> {
-    return new Promise(resolve => {
-        fs.exists(path, resolve);
-    });
-}
-function file_stat(path: string): Promise<fs.Stats> {
-    console.log(`@file_stat`);
-    return new Promise((resolve, reject) => {
-        console.log(`@file_stat Promise started`);
-        fs.stat(path, (err, stats) => {
-            if (err) {
-                console.log(`@file_stat.#err = ${err}`);
-                reject(err);
-            } else {
-                console.log(`@file_stat.#stats = ${stats}`);
-                resolve(stats);
-            }
-        })
-    });
-}
-function mkdir(path: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        fs.mkdir(path, err => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve();
-            }
-        });
-    });
-}
-function readFile(filename: string, encoding: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        fs.readFile(filename, encoding, (err, data) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(data);
-            }
-        })
-    });
 }
 async function inputbox(options: vscode.InputBoxOptions): Promise<string> {
     let maybe = await vscode.window.showInputBox(options);
