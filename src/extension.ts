@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import { homedir } from 'os';
 import * as afs from './afs';
 import * as ci from './ci';
+import * as conf from './conf';
+import * as mnfst from './manifest';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -48,7 +50,7 @@ class ICIE {
     }
 
     public async launch(): Promise<void> {
-        let _config: Promise<ICIEConfig> = ICIEConfig.load();
+        let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.getMainSource());
             let editor = await vscode.window.showTextDocument(source);
             let oldPosition = editor.selection.active;
@@ -77,9 +79,9 @@ class ICIE {
         let project_dir = homedir() + '/' + project_name;
         await afs.mkdir(project_dir);
         await this.ci.init(task_url, project_dir, domain => this.respondAuthreq(domain));
-        let manifest = new ICIEManifest(task_url);
-        await manifest.save(project_dir + '/.icie');
-        let config = await ICIEConfig.load();
+        let manifest: mnfst.Manifest = { task_url };
+        await mnfst.save(project_dir + '/.icie', manifest);
+        let config = await conf.load();
         await afs.copy(config.template.path, project_dir + '/' + this.getPreferredMainSource());
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
@@ -87,7 +89,7 @@ class ICIE {
         console.log('ICIE Submit triggered');
         let tests_succeded = await this.triggerTest();
         if (tests_succeded) {
-            let manifest = await ICIEManifest.load();
+            let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
             console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
             await this.ci.submit(this.getMainSource(), manifest.task_url, authreq => this.respondAuthreq(authreq));
         }
@@ -198,66 +200,6 @@ class ICIE {
     }
     private getPreferredMainSource(): string {
         return "main.cpp";
-    }
-
-}
-
-class ICIEManifest {
-
-    public task_url: string;
-
-    public constructor(task_url: string) {
-        this.task_url = task_url;
-    }
-
-    static async load(): Promise<ICIEManifest> {
-        let data = await afs.read(vscode.workspace.rootPath + '/.icie', 'utf8');
-        let json = JSON.parse(data.toString());
-        return new ICIEManifest(json.task_url);
-    }
-    public save(path: string): Promise<void> {
-        return afs.write(path, JSON.stringify(this));
-    }
-
-}
-
-class TextFilePos {
-    public row: number;
-    public column: number;
-    public constructor(row: number, column: number) {
-        this.row = row;
-        this.column = column;
-    }
-}
-
-class ICIEConfigTemplate {
-    public path: string;
-    public start: TextFilePos;
-    public constructor(path: string, start: TextFilePos) {
-        this.path = path;
-        this.start = start;
-    }
-}
-
-class ICIEConfig {
-
-    public template: ICIEConfigTemplate;
-
-    public constructor(template: ICIEConfigTemplate) {
-        this.template = template;
-    }
-
-    static async load(): Promise<ICIEConfig> {
-        let data = await afs.read(ICIEConfig.prototype.getConfigPath(), 'utf8');
-        let json = JSON.parse(data.toString());
-        return new ICIEConfig(new ICIEConfigTemplate(json.template.path, new TextFilePos(json.template.start.row, json.template.start.column)));
-    }
-    public save(path: string): Promise<void> {
-        return afs.write(path, JSON.stringify(this));
-    }
-
-    private getConfigPath(): string {
-        return homedir() + '/.config/icie/config.json';
     }
 
 }
