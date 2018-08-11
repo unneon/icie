@@ -50,8 +50,8 @@ class ICIE {
 
     public async launch(): Promise<void> {
         let _config: Promise<ICIEConfig> = ICIEConfig.load();
-        let source = await then2promise(vscode.workspace.openTextDocument(this.getMainSource()));
-            let editor = await then2promise(vscode.window.showTextDocument(source));
+        let source = await vscode.workspace.openTextDocument(this.getMainSource());
+            let editor = await vscode.window.showTextDocument(source);
             let oldPosition = editor.selection.active;
             let config = await _config;
             let newPosition = oldPosition.with(config.template.start.row - 1, config.template.start.column - 1);
@@ -137,18 +137,7 @@ class ICIE {
     }
 
     private askDescriptionURL(): Promise<string> {
-        let options: vscode.InputBoxOptions = {
-            prompt: 'Task description URL: '
-        };
-        return new Promise((resolve, reject) => {
-            vscode.window.showInputBox(options).then(value => {
-                if (value) {
-                    resolve(value);
-                } else {
-                    reject('problem description url not entered');
-                }
-            });
-        });
+        return inputbox({ prompt: 'Task description URL: ' });
     }
 
     private async randomProjectName(tries: number): Promise<string> {
@@ -331,13 +320,8 @@ function readFile(filename: string, encoding: string): Promise<string> {
         })
     });
 }
-function then2promise<T>(t: Thenable<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-        t.then(val => resolve(val), reason => reject(reason));
-    });
-}
 async function inputbox(options: vscode.InputBoxOptions): Promise<string> {
-    let maybe = await then2promise(vscode.window.showInputBox(options));
+    let maybe = await vscode.window.showInputBox(options);
     if (maybe !== undefined) {
         return maybe;
     } else {
