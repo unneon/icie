@@ -5,6 +5,8 @@ import * as afs from './afs';
 import * as ci from './ci';
 import * as conf from './conf';
 import * as mnfst from './manifest';
+import { PanelRun, TestCase } from './panel_run';
+import * as os from 'os';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -28,12 +30,16 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable4 = vscode.commands.registerCommand('icie.submit', () => {
         icie.triggerSubmit();
     });
+    let disposable5 = vscode.commands.registerCommand('icie.run', () => {
+        icie.triggerRun();
+    });
 
     context.subscriptions.push(icie);
     context.subscriptions.push(disposable);
     context.subscriptions.push(disposable2);
     context.subscriptions.push(disposable3);
     context.subscriptions.push(disposable4);
+    context.subscriptions.push(disposable5);
     icie.launch();
 }
 
@@ -45,10 +51,12 @@ class ICIE {
 
     ci: ci.Ci;
     dir: Directory;
+    panel_run: PanelRun;
 
     public constructor() {
         this.ci = new ci.Ci;
         this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
+        this.panel_run = new PanelRun(testCase => this.saveTest(testCase));
     }
 
     public async launch(): Promise<void> {
@@ -73,6 +81,9 @@ class ICIE {
         let testdir = this.dir.testsDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
         return await this.ci.test(executable, testdir);
+    }
+    public async triggerRun(): Promise<void> {
+        this.panel_run.show();
     }
 
     public async triggerInit(): Promise<void> {
@@ -103,6 +114,16 @@ class ICIE {
 
     public dispose() {
 
+    }
+
+    public async saveTest(testCase: TestCase): Promise<void> {
+        await this.assureCustomTestsDirectory();
+        await this.assureCompiled();
+        let i = 1;
+        for (; await afs.exists(`${this.dir.customTests()}/${i}.in`); ++i) {
+        }
+        await afs.write(`${this.dir.customTests()}/${i}.in`, testCase.input);
+        await afs.write(`${this.dir.customTests()}/${i}.out`, testCase.desired);
     }
 
     private async requiresCompilation(): Promise<boolean> {
@@ -141,6 +162,11 @@ class ICIE {
     }
     private async assureAllSaved(): Promise<void> {
         return vscode.workspace.saveAll(false).then(something => {});
+    }
+    private async assureCustomTestsDirectory(): Promise<void> {
+        if (!await afs.exists(this.dir.customTests())) {
+            await afs.mkdir(this.dir.customTests());
+        }
     }
 
     private askDescriptionURL(): Promise<string> {
@@ -203,6 +229,9 @@ class Directory {
     }
     public testsDirectory(): string {
         return this.base + '/tests';
+    }
+    public customTests(): string {
+        return this.testsDirectory() + '/' + os.userInfo().username;
     }
 
 }
