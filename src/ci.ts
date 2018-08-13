@@ -12,13 +12,11 @@ export class Ci {
         }
         console.log(`Ci.@build finished`);
     }
-    public async test(executable: string, testdir: string): Promise<boolean> {
-        try {
-            await exec(this.exepath(), ['test', executable, testdir], {});
-            return true;
-        } catch (e) {
-            return false;
-        }
+    public async test(executable: string, testdir: string, collect_outs: boolean): Promise<Test[]> {
+        let ciout = await exec(this.exepath(), ['--format', 'json', 'test'].concat(collect_outs ? ['--print-output'] : []).concat([executable, testdir]), {});
+        let outs = ciout.stdout.split('\n');
+        outs.pop();
+        return outs.map(line => JSON.parse(line));
     }
     public async init(task_url: string, project_dir: string, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
         console.log(`Ci.@init`);
@@ -68,19 +66,20 @@ export interface AuthResponse {
     username: string;
     password: string;
 }
+export type TestOutcome = "Accept" | "WrongAnswer" | "RuntimeError" | "IgnoredNoOut";
+export interface Test {
+    outcome: TestOutcome,
+    in_path: string,
+    output: string | undefined,
+}
 
 interface ExecOutput {
+    err: Error,
     stdout: string,
     stderr: string,
 }
 function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
-    return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
-        if (err) {
-            reject(err);
-        } else {
-            resolve({ stdout: stdout, stderr: stderr });
-        }
-    }));
+    return new Promise(resolve => cp.execFile(file, args, options, (err, stdout, stderr) => resolve({ err, stdout, stderr })));
 }
 function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => void): Promise<void> {
     return new Promise((resolve, reject) => {

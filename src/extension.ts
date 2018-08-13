@@ -80,7 +80,8 @@ class ICIE {
         let executable = this.dir.executable();
         let testdir = this.dir.testsDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
-        return await this.ci.test(executable, testdir);
+        let tests = await this.ci.test(executable, testdir, false);
+        return tests.every(test => test.outcome == "Accept");
     }
     public async triggerRun(): Promise<void> {
         this.panel_run.show();
