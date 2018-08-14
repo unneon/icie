@@ -52,13 +52,16 @@ class ICIE {
     ci: ci.Ci;
     dir: Directory;
     panel_run: PanelRun;
+    status: Status;
 
     public constructor() {
         this.ci = new ci.Ci;
         this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
         this.panel_run = new PanelRun(testCase => this.saveTest(testCase));
+        this.status = new Status;
     }
 
+    @astatus('Lauching')
     public async launch(): Promise<void> {
         let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.dir.source());
@@ -69,12 +72,14 @@ class ICIE {
         let newSelection = new vscode.Selection(newPosition, newPosition);
         editor.selection = newSelection;
     }
+    @astatus('Building')
     public async triggerBuild(): Promise<void> {
         console.log(`ICIE.@triggerBuild`);
         await this.assureAllSaved();
         let source = this.dir.source();
         await this.ci.build(source);
     }
+    @astatus('Testing')
     public async triggerTest(): Promise<boolean> {
         await this.assureCompiled();
         let executable = this.dir.executable();
@@ -87,6 +92,7 @@ class ICIE {
         this.panel_run.show();
     }
 
+    @astatus('Preparing project')
     public async triggerInit(): Promise<void> {
         let task_url = await this.askDescriptionURL();
         let project_name = await this.randomProjectName(5);
@@ -100,6 +106,7 @@ class ICIE {
         await afs.copy(config.template.path, dir2.source());
         await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project_dir), false);
     }
+    @astatus('Submitting')
     public async triggerSubmit(): Promise<void> {
         console.log('ICIE Submit triggered');
         await this.assureTested();
@@ -235,6 +242,52 @@ class Directory {
         return this.testsDirectory() + '/' + os.userInfo().username;
     }
 
+}
+
+class Status {
+
+    stack: string[];
+    item: vscode.StatusBarItem;
+
+    constructor() {
+        this.stack = [];
+        this.item = vscode.window.createStatusBarItem();
+    }
+
+    public push(name: string) {
+        this.stack.push(name);
+        this.update();
+    }
+    public pop() {
+        this.stack.pop();
+        this.update();
+    }
+
+    private update() {
+        if (this.stack.length > 0) {
+            let message = this.stack[this.stack.length-1];
+            this.item.text = `ICIE ${message}`;
+            this.item.show();
+        } else {
+            this.item.hide();
+        }
+    }
+
+}
+
+function astatus(message: string) {
+    return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+        let oldf = descriptor.value;
+        descriptor.value = async function (...args) {
+            let this2: ICIE = this as any;
+            this2.status.push(message);
+            try {
+                return await oldf.apply(this, args);
+            } finally {
+                this2.status.pop();
+            }
+        };
+    };
 }
 
 function choice<T>(xs: T[]): T {
