@@ -14,33 +14,23 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Congratulations, your extension "icie" is now active!');
 
     let icie = new ICIE();
-
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with  registerCommand
-    // The commandId parameter must match the command field in package.json
-    let disposable = vscode.commands.registerCommand('icie.build', () => {
-        icie.triggerBuild();
-    });
-    let disposable2 = vscode.commands.registerCommand('icie.test', () => {
-        icie.triggerTest();
-    });
-    let disposable3 = vscode.commands.registerCommand('icie.init', () => {
-        icie.triggerInit();
-    });
-    let disposable4 = vscode.commands.registerCommand('icie.submit', () => {
-        icie.triggerSubmit();
-    });
-    let disposable5 = vscode.commands.registerCommand('icie.run', () => {
-        icie.triggerRun();
-    });
-
-    context.subscriptions.push(icie);
-    context.subscriptions.push(disposable);
-    context.subscriptions.push(disposable2);
-    context.subscriptions.push(disposable3);
-    context.subscriptions.push(disposable4);
-    context.subscriptions.push(disposable5);
+    register('icie.build', 'Build', context, () => icie.triggerBuild());
+    register('icie.test', 'Test', context, () => icie.triggerTest());
+    register('icie.init', 'Init', context, () => icie.triggerInit());
+    register('icie.submit', 'Submit', context, () => icie.triggerSubmit());
+    context.subscriptions.push(vscode.commands.registerCommand('icie.run', () => icie.triggerRun()));
     icie.launch();
+}
+function register(command_name: string, human_name: string, context: vscode.ExtensionContext, f: () => Promise<void>) {
+    let disposable = vscode.commands.registerCommand(command_name, async () => {
+        try {
+            await f();
+            vscode.window.showInformationMessage(`ICIE ${human_name} succeded`);
+        } catch (e) {
+            vscode.window.showErrorMessage(`ICIE ${human_name} failed: ${e}`);
+        }
+    });
+    context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated
@@ -80,13 +70,16 @@ class ICIE {
         await this.ci.build(source);
     }
     @astatus('Testing')
-    public async triggerTest(): Promise<boolean> {
+    public async triggerTest(): Promise<void> {
         await this.assureCompiled();
         let executable = this.dir.executable();
         let testdir = this.dir.testsDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
         let tests = await this.ci.test(executable, testdir, false);
-        return tests.every(test => test.outcome == "Accept");
+        let all_accepted = tests.every(test => test.outcome == "Accept");
+        if (!all_accepted) {
+            throw 'Some tests failed';
+        }
     }
     public async triggerRun(): Promise<void> {
         this.panel_run.show();
@@ -158,9 +151,7 @@ class ICIE {
     }
 
     private async assureTested(): Promise<void> {
-        if (!await this.triggerTest()) {
-            throw "Not all tests passed";
-        }
+        await this.triggerTest();
     }
     private async assureCompiled(): Promise<void> {
         console.log(`ICIE.@assureCompiled`);
