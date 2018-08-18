@@ -32,8 +32,7 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 
 ## Requirements
 
-- [ci](https://github.com/matcegla/ci) has to be installed and in `~/.cargo/bin`
-- POSIX conformance is required temporarily
+- [ci](https://github.com/matcegla/ci) has to be installed and in `~/.cargo/bin`. Make sure to use the newest version from the master branch
 - Config should be created at `~/.config/icie/config.json` (example config provided below)
 
 ## Example config

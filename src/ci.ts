@@ -5,12 +5,8 @@ export class Ci {
 
     public async build(source: string): Promise<void> {
         console.log(`Ci.@build`);
-        try {
-            await exec(this.exepath(), ['build', source], {});
-        } catch (err) {
-            console.log(`Ci.@build.#err = ${err}`);
-        }
-        console.log(`Ci.@build finished`);
+        let out = await exec(this.exepath(), ['build', source], {});
+        console.log(`Ci.@build ${JSON.stringify(out)}`);
     }
     public async test(executable: string, testdir: string, collect_outs: boolean): Promise<Test[]> {
         let ciout = await exec(this.exepath(), ['--format', 'json', 'test'].concat(collect_outs ? ['--print-output'] : []).concat([executable, testdir]), {});
@@ -32,6 +28,10 @@ export class Ci {
             console.log(`Ci.@submit.#err = ${err}`);
         }
         console.log(`Ci.@submit Finished`);
+    }
+    public async version(): Promise<string> {
+        let ciout = await exec(this.exepath(), ['--version'], {});
+        return ciout.stdout.slice(2).trim();
     }
     private handleAuthRequests(kid: cp.ChildProcess, auth: (authreq: AuthRequest) => Promise<AuthResponse>) {
         console.log(`Ci.@handleAuthRequests`);
@@ -79,7 +79,13 @@ interface ExecOutput {
     stderr: string,
 }
 function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
-    return new Promise(resolve => cp.execFile(file, args, options, (err, stdout, stderr) => resolve({ err, stdout, stderr })));
+    return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
+        if (err !== null && err.message.endsWith('ENOENT')) {
+            reject(new Error(`ci is not installed in ~/.cargo/bin/. Check the README for ICIE installation instructions.`));
+        } else {
+            resolve({ err, stdout, stderr })
+        }
+    }));
 }
 function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => void): Promise<void> {
     return new Promise((resolve, reject) => {

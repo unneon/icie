@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
     register('icie.init', 'Init', context, () => icie.triggerInit());
     register('icie.submit', 'Submit', context, () => icie.triggerSubmit());
     context.subscriptions.push(vscode.commands.registerCommand('icie.run', () => icie.triggerRun()));
-    icie.launch();
+    icie.launch().catch(reason => vscode.window.showErrorMessage(`ICIE: ${reason}`));
 }
 function register(command_name: string, human_name: string, context: vscode.ExtensionContext, f: () => Promise<void>) {
     let disposable = vscode.commands.registerCommand(command_name, async () => {
@@ -53,6 +53,11 @@ class ICIE {
 
     @astatus('Lauching')
     public async launch(): Promise<void> {
+        let version = await this.ci.version();
+        let required_version = '1.2.0-alpha.1';
+        if (version !== required_version) {
+            throw new Error(`Found ci version ${version}, but version ${required_version} is required. Intall appropriate version from https://github.com/matcegla/ci`);
+        }
         let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.dir.source());
         let editor = await vscode.window.showTextDocument(source);
