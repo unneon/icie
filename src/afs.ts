@@ -19,3 +19,8 @@ export function write(filename: string, content: string): Promise<void> {
 export function copy(from: string, to: string): Promise<void> {
     return fs2.copy(from, to);
 }
+export async function assureDir(path: string): Promise<void> {
+    if (!await exists(path)) {
+        await mkdir(path);
+    }
+}
