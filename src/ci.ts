@@ -1,5 +1,6 @@
 import { homedir } from "os";
 import * as cp from 'child_process';
+import { Writable, Readable } from "stream";
 
 export class Ci {
 
@@ -22,35 +23,24 @@ export class Ci {
         console.log(`Ci.@submit`);
         console.log(`Ci.@submit.#source = ${source}`);
         console.log(`Ci.@submit.#task_url = ${task_url}`);
-        try {
-            await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, kid => this.handleAuthRequests(kid, auth));
-        } catch (err) {
-            console.log(`Ci.@submit.#err = ${err}`);
-        }
+        await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, kid => this.handleAuthRequests(kid, auth));
         console.log(`Ci.@submit Finished`);
     }
     public async version(): Promise<string> {
         let ciout = await exec(this.exepath(), ['--version'], {});
         return ciout.stdout.slice(2).trim();
     }
-    private handleAuthRequests(kid: cp.ChildProcess, auth: (authreq: AuthRequest) => Promise<AuthResponse>) {
+    private async handleAuthRequests(kid: cp.ChildProcess, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
         console.log(`Ci.@handleAuthRequests`);
-        kid.stdout.on('data', async chunk => {
+        await ondata(kid.stdout, async chunk => {
             console.log(`Ci.@handleAuthRequests.#chunk = ${chunk}`);
-            let line = chunk.toString(); // TODO this is wrong, but node sucks and I can't be bothered
-            let req = JSON.parse(line);
-            let resp: AuthResponse = await (async () => { try {
-                return await auth(req);
-            } catch (err) {
-                console.log(`Ci.@handleAuthRequests.#err ${err}`);
-                throw err;
-            } })();
+            let req = JSON.parse(chunk);
+            let resp = await auth(req);
             console.log(`Ci.@handleAuthRequests.#resp = ${JSON.stringify(resp)}`);
-            kid.stdin.write(JSON.stringify(resp), 'utf8', () => {
-                console.log(`Ci.@handleAuthRequests All written`);
-                kid.stdin.end(); // TODO this is a horrible way to flush, but node sucks and I can't be botherd
-            }); 
-        })
+            await write(kid.stdin, JSON.stringify(resp), "utf8");
+            console.log(`Ci.@handleAuthRequests All written`);
+            kid.stdin.end(); // TODO this is a horrible way to flush, but node sucks and I can't be bothered
+        });
     }
 
     private exepath() {
@@ -87,7 +77,7 @@ function exec(file: string, args: string[], options: cp.ExecFileOptions): Promis
         }
     }));
 }
-function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => void): Promise<void> {
+function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => Promise<void>): Promise<void> {
     return new Promise((resolve, reject) => {
         let kid = cp.spawn(file, args, options);
         kid.on('exit', (code, signal) => {
@@ -96,6 +86,13 @@ function execInteractive(file: string, args: string[], options: cp.ExecFileOptio
             resolve();
         });
         kid.stderr.pipe(process.stdout);
-        while_running(kid);
+        while_running(kid).catch(reason => reject(reason));
     });
+}
+type WriteEncoding = "utf8";
+function write(file: Writable, chunk: any, encoding: WriteEncoding | undefined): Promise<void> {
+    return new Promise(resolve => file.write(chunk, encoding, () => resolve()));
+}
+function ondata(file: Readable, callback: (chunk: string) => Promise<void>): Promise<void> {
+    return new Promise((resolve, reject) => file.on('data', chunk => callback(chunk.toString()).catch(reason => reject(reason))));
 }
