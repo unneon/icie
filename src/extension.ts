@@ -5,7 +5,7 @@ import * as afs from './afs';
 import * as ci from './ci';
 import * as conf from './conf';
 import * as mnfst from './manifest';
-import { PanelRun, TestCase } from './panel_run';
+import { PanelRun } from './panel_run';
 import * as os from 'os';
 
 // this method is called when your extension is activated
@@ -18,7 +18,6 @@ export function activate(context: vscode.ExtensionContext) {
     register('icie.test', 'Test', context, () => icie.triggerTest());
     register('icie.init', 'Init', context, () => icie.triggerInit());
     register('icie.submit', 'Submit', context, () => icie.triggerSubmit());
-    context.subscriptions.push(vscode.commands.registerCommand('icie.run', () => icie.triggerRun()));
     icie.launch().catch(reason => vscode.window.showErrorMessage(`ICIE: ${reason}`));
 }
 function register(command_name: string, human_name: string, context: vscode.ExtensionContext, f: () => Promise<void>) {
@@ -47,7 +46,7 @@ class ICIE {
     public constructor() {
         this.ci = new ci.Ci;
         this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
-        this.panel_run = new PanelRun(testCase => this.saveTest(testCase));
+        this.panel_run = new PanelRun;
         this.status = new Status;
     }
 
@@ -80,14 +79,15 @@ class ICIE {
         let executable = this.dir.executable();
         let testdir = this.dir.testsDirectory();
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
-        let tests = await this.ci.test(executable, testdir, false);
+        let tests = await this.ci.test(executable, testdir);
         let all_accepted = tests.every(test => test.outcome == "Accept");
         if (!all_accepted) {
+            this.triggerRun(tests); // in background
             throw 'Some tests failed';
         }
     }
-    public async triggerRun(): Promise<void> {
-        this.panel_run.show();
+    public async triggerRun(tests: ci.Test[]): Promise<void> {
+        this.panel_run.show(tests);
     }
 
     @astatus('Preparing project')
@@ -120,16 +120,6 @@ class ICIE {
 
     public dispose() {
 
-    }
-
-    public async saveTest(testCase: TestCase): Promise<void> {
-        await this.assureCustomTestsDirectory();
-        await this.assureCompiled();
-        let i = 1;
-        for (; await afs.exists(`${this.dir.customTests()}/${i}.in`); ++i) {
-        }
-        await afs.write(`${this.dir.customTests()}/${i}.in`, testCase.input);
-        await afs.write(`${this.dir.customTests()}/${i}.out`, testCase.desired);
     }
 
     private async requiresCompilation(): Promise<boolean> {
@@ -166,11 +156,6 @@ class ICIE {
     }
     private async assureAllSaved(): Promise<void> {
         return vscode.workspace.saveAll(false).then(something => {});
-    }
-    private async assureCustomTestsDirectory(): Promise<void> {
-        if (!await afs.exists(this.dir.customTests())) {
-            await afs.mkdir(this.dir.customTests());
-        }
     }
 
     private askDescriptionURL(): Promise<string> {

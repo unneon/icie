@@ -16,7 +16,6 @@
     "onCommand:icie.build",
     "onCommand:icie.init",
     "onCommand:icie.submit",
-    "onCommand:icie.run",
     "onCommand:icie.test"
   ],
   "main": "./out/extension",
@@ -35,19 +34,11 @@
         "title": "ICIE Submit"
       },
       {
-        "command": "icie.run",
-        "title": "ICIE Run"
-      },
-      {
         "command": "icie.test",
         "title": "ICIE Test"
       }
     ],
     "keybindings": [
-      {
-        "command": "icie.run",
-        "key": "alt+="
-      },
       {
         "command": "icie.init",
         "key": "alt+f11"

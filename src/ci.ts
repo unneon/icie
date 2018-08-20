@@ -11,8 +11,8 @@ export class Ci {
             throw new Error('Compiler error');
         }
     }
-    public async test(executable: string, testdir: string, collect_outs: boolean): Promise<Test[]> {
-        let ciout = await exec(this.exepath(), ['--format', 'json', 'test'].concat(collect_outs ? ['--print-output'] : []).concat([executable, testdir]), {});
+    public async test(executable: string, testdir: string): Promise<Test[]> {
+        let ciout = await exec(this.exepath(), ['--format', 'json', 'test', '--print-output', executable, testdir], {});
         let outs = ciout.stdout.split('\n');
         outs.pop();
         return outs.map(line => JSON.parse(line));
@@ -62,7 +62,7 @@ export type TestOutcome = "Accept" | "WrongAnswer" | "RuntimeError" | "IgnoredNo
 export interface Test {
     outcome: TestOutcome,
     in_path: string,
-    output: string | undefined,
+    output: string,
 }
 
 interface ExecOutput {
