@@ -7,7 +7,9 @@ export class Ci {
     public async build(source: string): Promise<void> {
         console.log(`Ci.@build`);
         let out = await exec(this.exepath(), ['build', source], {});
-        console.log(`Ci.@build ${JSON.stringify(out)}`);
+        if (out.err !== null && out.err.message.startsWith('Command failed:')) {
+            throw new Error('Compiler error');
+        }
     }
     public async test(executable: string, testdir: string, collect_outs: boolean): Promise<Test[]> {
         let ciout = await exec(this.exepath(), ['--format', 'json', 'test'].concat(collect_outs ? ['--print-output'] : []).concat([executable, testdir]), {});
@@ -64,7 +66,7 @@ export interface Test {
 }
 
 interface ExecOutput {
-    err: Error,
+    err: Error | null,
     stdout: string,
     stderr: string,
 }
