@@ -39,12 +39,12 @@ export class Ci {
             console.log(`Ci.@handleAuthRequests.#chunk = ${chunk}`);
             let line = chunk.toString(); // TODO this is wrong, but node sucks and I can't be bothered
             let req = JSON.parse(line);
-            let resp: AuthResponse[] = [];
-            try {
-                resp.push(await auth(req));
+            let resp: AuthResponse = await (async () => { try {
+                return await auth(req);
             } catch (err) {
                 console.log(`Ci.@handleAuthRequests.#err ${err}`);
-            }
+                throw err;
+            } })();
             console.log(`Ci.@handleAuthRequests.#resp = ${JSON.stringify(resp)}`);
             kid.stdin.write(JSON.stringify(resp), 'utf8', () => {
                 console.log(`Ci.@handleAuthRequests All written`);
