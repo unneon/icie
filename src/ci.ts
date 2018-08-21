@@ -25,8 +25,10 @@ export class Ci {
         console.log(`Ci.@submit`);
         console.log(`Ci.@submit.#source = ${source}`);
         console.log(`Ci.@submit.#task_url = ${task_url}`);
-        await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, kid => this.handleAuthRequests(kid, auth));
-        console.log(`Ci.@submit Finished`);
+        let out = await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, kid => this.handleAuthRequests(kid, auth));
+        if (out.code !== 0) {
+            throw new Error(`Submit failed (code ${out.code})`);
+        }
     }
     public async version(): Promise<string> {
         let ciout = await exec(this.exepath(), ['--version'], {});
@@ -70,6 +72,11 @@ interface ExecOutput {
     stdout: string,
     stderr: string,
 }
+interface ExecInteractiveOutput {
+    kid: cp.ChildProcess,
+    code: number,
+    signal: string,
+}
 function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
     return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
         if (err !== null && err.message.endsWith('ENOENT')) {
@@ -79,15 +86,14 @@ function exec(file: string, args: string[], options: cp.ExecFileOptions): Promis
         }
     }));
 }
-function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => Promise<void>): Promise<void> {
+function execInteractive(file: string, args: string[], options: cp.ExecFileOptions, while_running: (kid: cp.ChildProcess) => Promise<void>): Promise<ExecInteractiveOutput> {
     return new Promise((resolve, reject) => {
         let kid = cp.spawn(file, args, options);
         kid.on('exit', (code, signal) => {
             console.log(`@execInteractive.#code = ${code}`);
             console.log(`@execInteractive.#signal = ${signal}`);
-            resolve();
+            resolve({ kid, code, signal });
         });
-        kid.stderr.pipe(process.stdout);
         while_running(kid).catch(reason => reject(reason));
     });
 }
