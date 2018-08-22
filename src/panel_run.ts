@@ -10,16 +10,23 @@ export interface TestCase {
 export class PanelRun {
 
     private panel: vscode.WebviewPanel | undefined;
+    private onSaveAndRun: (testCase: TestCase) => void;
 
-    public async show(tests: Test[]): Promise<void> {
-        await this.update(tests);
-        this.get().reveal();
+    public constructor(onSaveAndRun: (testCase: TestCase) => void) {
+        this.onSaveAndRun = onSaveAndRun;
+    }
+
+    public show() {
+        let panel = this.get();
+        if (!panel.visible) {
+            panel.reveal();
+        }
     }
 
     private get(): vscode.WebviewPanel {
         return this.panel || this.create();
     }
-    private async update(tests: Test[]): Promise<void> {
+    public async update(tests: Test[]): Promise<void> {
         this.get().webview.html = await this.view(tests);
     }
     private create() {
@@ -32,7 +39,12 @@ export class PanelRun {
                 localResourceRoots: []
             }
         );
+        this.panel.onDidDispose(() => this.panel = undefined);
+        this.panel.webview.onDidReceiveMessage(message => this.onSaveAndRun(message));
         return this.panel;
+    }
+    public isOpen(): boolean {
+        return this.panel !== undefined;
     }
 
     private async view(tests: Test[]): Promise<string> {
@@ -52,6 +64,7 @@ export class PanelRun {
                         font-size: 24px;
                         font-family: Ubuntu Mono;
                         width: 100%;
+                        resize: vertical;
                     }
                     .output-good {
                         background-color: #C0FFC0;
@@ -61,6 +74,14 @@ export class PanelRun {
                     }
                     .large-button {
                         width: 100%;
+                        height: 50%;
+                    }
+                    #newtest-div {
+                        padding: 10px;
+                        background-color: rgba(128, 128, 128, 0.5);
+                    }
+                    .inline-header {
+                        display: inline-block;
                     }
                 </style>
             </head>
@@ -70,8 +91,29 @@ export class PanelRun {
                     <h2>Output</h2>
                     <h2>Desired output</h2>
                 </div>
+                <div id="newtest-div">
+                    <div>
+                        <h3 class="inline-header">Creating new test</h3>
+                        <button id="runandsave" type="button">Run & Save</button>
+                    </div>
+                    <div class="wrapper">
+                        <textarea id="newtest-input" class="stringarea"></textarea>
+                        <textarea disabled class="stringarea"></textarea>
+                        <textarea id="newtest-desired" class="stringarea"></textarea>
+                    </div>
+                </div>
                 ${(await this.viewTests(tests)).join('')}
                 <br />
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    function runandsave() {
+                        console.log('Hello, world!');
+                        let input = document.getElementById('newtest-input').value;
+                        let desired = document.getElementById('newtest-desired').value;
+                        vscode.postMessage({ input, desired });
+                    }
+                    document.getElementById('runandsave').onclick = runandsave;
+                </script>
             </body>
         </html>
         `;

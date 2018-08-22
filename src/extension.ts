@@ -5,12 +5,15 @@ import * as afs from './afs';
 import * as ci from './ci';
 import * as conf from './conf';
 import * as mnfst from './manifest';
-import { PanelRun } from './panel_run';
+import { PanelRun, TestCase } from './panel_run';
 import * as os from 'os';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+    for (let i=0; i<5; ++i) {
+        console.log('');
+    }
     console.log('Congratulations, your extension "icie" is now active!');
 
     let icie = new ICIE();
@@ -18,6 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
     register('icie.test', 'Test', context, () => icie.triggerTest());
     register('icie.init', 'Init', context, () => icie.triggerInit());
     register('icie.submit', 'Submit', context, () => icie.triggerSubmit());
+    register('icie.run', 'Run', context, () => icie.triggerRun());
     icie.launch().catch(reason => vscode.window.showErrorMessage(`ICIE: ${reason}`));
 }
 function register(command_name: string, human_name: string, context: vscode.ExtensionContext, f: () => Promise<void>) {
@@ -46,7 +50,7 @@ class ICIE {
     public constructor() {
         this.ci = new ci.Ci;
         this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
-        this.panel_run = new PanelRun;
+        this.panel_run = new PanelRun(testCase => this.addTest(testCase));
         this.status = new Status;
     }
 
@@ -81,13 +85,16 @@ class ICIE {
         console.log(`[ICIE.triggerTest] Checking ${executable} agains ${testdir}`);
         let tests = await this.ci.test(executable, testdir);
         let all_accepted = tests.every(test => test.outcome == "Accept");
-        if (!all_accepted) {
-            this.triggerRun(tests); // in background
-            throw 'Some tests failed';
+        if (!all_accepted || this.panel_run.isOpen()) {
+            let _run_update = this.panel_run.update(tests);
+            if (!all_accepted) {
+                _run_update.then(() => this.panel_run.show());
+                throw 'Some tests failed';
+            }
         }
     }
-    public async triggerRun(tests: ci.Test[]): Promise<void> {
-        this.panel_run.show(tests);
+    public async triggerRun(): Promise<void> {
+        this.panel_run.show();
     }
 
     @astatus('Preparing project')
@@ -143,6 +150,18 @@ class ICIE {
             console.log(`[ICIE.assureCompiled] ${src} needs compiling`);
             return true;
         }
+    }
+    private async addTest(testCase: TestCase): Promise<void> {
+        await this.saveTest(testCase);
+        await this.triggerTest();
+    }
+    private async saveTest(testCase: TestCase): Promise<void> {
+        let i = 1;
+        while (await afs.exists(`${this.dir.customTests()}/${i}.in`))
+            ++i;
+        await afs.assureDir(this.dir.customTests());
+        await afs.write(`${this.dir.customTests()}/${i}.in`, testCase.input);
+        await afs.write(`${this.dir.customTests()}/${i}.out`, testCase.desired);
     }
 
     private async assureTested(): Promise<void> {
