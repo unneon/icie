@@ -21,36 +21,71 @@ export class Ci {
         console.log(`Ci.@init`);
         await execInteractive(this.exepath(), ['--format', 'json', 'init', task_url], { cwd: project_dir }, kid => this.handleAuthRequests(kid, auth));
     }
-    public async submit(source: string, task_url: string, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
+    public async submit(source: string, task_url: string, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<string> {
         console.log(`Ci.@submit`);
         console.log(`Ci.@submit.#source = ${source}`);
         console.log(`Ci.@submit.#task_url = ${task_url}`);
-        let out = await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, kid => this.handleAuthRequests(kid, auth));
+        let id: string|undefined = undefined;
+        let out = await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, async kid => {
+            handleStdin(kid, async msg => {
+                if (msg.id === undefined) {
+                    this.handleAuthRequest(kid, msg, auth);
+                } else {
+                    id = msg.id;
+                }
+            });
+        });
         if (out.code !== 0) {
             throw new Error(`Submit failed (code ${out.code})`);
         }
+        if (id === undefined) {
+            throw new Error(`Submit did not return submission id`);
+        }
+        return id;
+    }
+    public async trackSubmit(task_url: string, id: string, callback: (msg: Track) => Promise<void>): Promise<void> {
+        await execInteractive(this.exepath(), ['--format', 'json', 'track-submit', task_url, id, '5s'], {}, async kid => {
+            handleStdin(kid, async msg => {
+                callback(msg);
+            });
+        });
     }
     public async version(): Promise<string> {
         let ciout = await exec(this.exepath(), ['--version'], {});
         return ciout.stdout.slice(2).trim();
     }
     private async handleAuthRequests(kid: cp.ChildProcess, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
-        console.log(`Ci.@handleAuthRequests`);
-        await ondata(kid.stdout, async chunk => {
-            console.log(`Ci.@handleAuthRequests.#chunk = ${chunk}`);
-            let req = JSON.parse(chunk);
-            let resp = await auth(req);
-            console.log(`Ci.@handleAuthRequests.#resp = ${JSON.stringify(resp)}`);
-            await write(kid.stdin, JSON.stringify(resp), "utf8");
-            console.log(`Ci.@handleAuthRequests All written`);
-            kid.stdin.end(); // TODO this is a horrible way to flush, but node sucks and I can't be bothered
+        await handleStdin(kid, async msg => {
+            await this.handleAuthRequest(kid, msg, auth);
         });
+    }
+    private async handleAuthRequest(kid: cp.ChildProcess, msg: AuthRequest, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
+        let resp = await auth(msg);
+        console.log(`Ci.@handleAuthRequests.#resp = ${JSON.stringify(resp)}`);
+        await write(kid.stdin, JSON.stringify(resp), "utf8");
+        console.log(`Ci.@handleAuthRequests All written`);
+        kid.stdin.end(); // TODO this is a horrible way to flush, but node sucks and I can't be bothered
     }
 
     private exepath() {
         return homedir() + '/.cargo/bin/ci';
     }
 
+}
+
+async function handleStdin(kid: cp.ChildProcess, callback: (msg: any) => Promise<void>): Promise<void> {
+    console.log(`Ci.@handleAuthRequests`);
+    await ondata(kid.stdout, async chunk => {
+        console.log(`Ci.@handleAuthRequests.#chunk = ${chunk}`);
+        let req = JSON.parse(chunk);
+        await callback(req);
+    });
+}
+
+export interface Track {
+    status: "InitialPending" | "ScorePending" | "ScoreReady",
+    examples_succeded: boolean | null,
+    score: number | null,
 }
 
 export interface AuthRequest {

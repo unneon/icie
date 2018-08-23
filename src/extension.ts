@@ -57,7 +57,7 @@ class ICIE {
     @astatus('Lauching')
     public async launch(): Promise<void> {
         let version = await this.ci.version();
-        let required_version = '1.2.0-alpha.1';
+        let required_version = '1.2.0-alpha.2';
         if (version !== required_version) {
             throw new Error(`Found ci version ${version}, but version ${required_version} is required. Intall appropriate version from https://github.com/matcegla/ci`);
         }
@@ -117,7 +117,8 @@ class ICIE {
         await this.assureTested();
         let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
         console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
-        await this.ci.submit(this.dir.source(), manifest.task_url, authreq => this.respondAuthreq(authreq));
+        let id = await this.ci.submit(this.dir.source(), manifest.task_url, authreq => this.respondAuthreq(authreq));
+        this.trackSubmit(manifest.task_url, id); // in background
     }
     private async respondAuthreq(authreq: ci.AuthRequest): Promise<ci.AuthResponse> {
         let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
@@ -162,6 +163,38 @@ class ICIE {
         await afs.assureDir(this.dir.customTests());
         await afs.write(`${this.dir.customTests()}/${i}.in`, testCase.input);
         await afs.write(`${this.dir.customTests()}/${i}.out`, testCase.desired);
+    }
+    private async trackSubmit(task_url: string, id: string): Promise<void> {
+        let last_message: string | undefined = undefined;
+        await vscode.window.withProgress({
+            cancellable: false,
+            location: vscode.ProgressLocation.Notification,
+            title: `Tracking submit ${id}...`
+        }, async (progress, token) => {
+            await this.ci.trackSubmit(task_url, id, async track => {
+                console.log(`ICIE.@trackSubmit ${JSON.stringify(track)}`);
+                if (track.status == "InitialPending") {
+                    let message = `Tracking submit ${id}. Initial tests pending...`;
+                    progress.report({ message });
+                    last_message = message;
+                } else if (track.status == "ScorePending") {
+                    let inir = track.examples_succeded === null ? '\' status is unknown' : track.examples_succeded ? ' passed' : ' failed';
+                    let message = `Tracking submit ${id}. Initial tests${inir}. Score pending...`;
+                    progress.report({ message });
+                    last_message = message;
+                } else if (track.status == "ScoreReady") {
+                    let inir = track.examples_succeded === null ? '\' status is unknown' : track.examples_succeded ? ' passed' : ' failed';
+                    let message = `Tracking submit ${id}. Initial tests${inir}. Scored ${track.score}!`;
+                    progress.report({ message });
+                    last_message = message;
+                }
+            });
+        });
+        if (last_message !== undefined) {
+            vscode.window.showInformationMessage(last_message);
+        } else {
+            console.log('Tracking submit FAILED');
+        }
     }
 
     private async assureTested(): Promise<void> {
