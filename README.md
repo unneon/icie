@@ -10,10 +10,10 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 - [x] Build solutions written in C++
 - [x] Test solutions against provided example test cases, as well as your own tests
 - [x] Quickly submit solutions to programming contest sites
-- [ ] Run solutions and automatically save entered tests
+- [x] Run solutions and automatically save entered tests
 - [ ] Check the status of your submissions
 - [ ] Nice configuration UI
-- [ ] Provide customizable solution templates
+- [x] Provide customizable solution templates
 - [ ] Select first/smallest failing test out of already saved ones and show its output/debug it
 - [ ] Find first/smallest failing test using a test generator program
 - [ ] An automated snippet inclusion system
@@ -33,32 +33,3 @@ Most of the functionality is achieved using [ci](https://github.com/matcegla/ci)
 ## Requirements
 
 - [ci](https://github.com/matcegla/ci) has to be installed and in `~/.cargo/bin`. Make sure to use the newest version from the master branch
-- Config should be created at `~/.config/icie/config.json` (example config provided below)
-
-## Example config
-
-```json
-{
-	"template": {
-		"path": "/home/matcegla/.config/icie/template-main.cpp",
-		"start": {
-			"row": 10,
-			"column": 5
-		}
-	}
-}
-```
-
-```cpp
-#include <bits/stdc++.h>
-using namespace std;
-
-template <typename T> T load() { T r; cin >> r; return r; }
-template <typename T> vector<T> loadMany(int n) { vector<T> rs(n); generate(rs.begin(), rs.end(), &load<T>); return rs; }
-
-int main() {
-	ios::sync_with_stdio(false);
-	cin.tie(nullptr);
-	
-}
-```
