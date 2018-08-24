@@ -235,6 +235,7 @@ class ICIE {
             "glowing",
             "blessed",
             "smiling",
+            "exquisite", // suggested by Xeoeen
         ];
         let animals = [
             "capybara",
@@ -247,6 +248,7 @@ class ICIE {
             "zebra",
             "dolphin",
             "hedgehog",
+            "penguin", // suggested by Xeoeen
         ];
         return choice(adjectives) + '-' + choice(animals);
     }
