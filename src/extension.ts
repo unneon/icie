@@ -57,7 +57,7 @@ class ICIE {
     @astatus('Lauching')
     public async launch(): Promise<void> {
         let version = await this.ci.version();
-        let required_version = '1.2.0-alpha.2';
+        let required_version = '1.2.0-alpha.3';
         if (version !== required_version) {
             throw new Error(`Found ci version ${version}, but version ${required_version} is required. Intall appropriate version from https://github.com/matcegla/ci`);
         }
@@ -75,7 +75,8 @@ class ICIE {
         console.log(`ICIE.@triggerBuild`);
         await this.assureAllSaved();
         let source = this.dir.source();
-        await this.ci.build(source);
+        let library = await afs.exists(this.dir.library()) ? this.dir.library() : undefined;
+        await this.ci.build(source, library);
     }
     @astatus('Testing')
     public async triggerTest(): Promise<void> {
@@ -275,6 +276,9 @@ class Directory {
     }
     public customTests(): string {
         return this.testsDirectory() + '/' + os.userInfo().username;
+    }
+    public library(): string {
+        return this.base + '/lib.cpp';
     }
 
 }
