@@ -95,7 +95,10 @@ class ICIE {
         }
     }
     public async triggerRun(): Promise<void> {
-        this.panel_run.show();
+        if (!this.panel_run.isOpen()) {
+            this.panel_run.show();
+            await this.triggerTest();
+        }
     }
 
     @astatus('Preparing project')
