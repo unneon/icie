@@ -7,6 +7,8 @@ import * as conf from './conf';
 import * as mnfst from './manifest';
 import { PanelRun, TestCase } from './panel_run';
 import * as os from 'os';
+import * as https from 'https';
+import * as fs from 'fs';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -40,6 +42,8 @@ function register(command_name: string, human_name: string, context: vscode.Exte
 export function deactivate() {
 }
 
+const requiredCiVersion = "1.2.0-alpha.3";
+
 class ICIE {
 
     ci: ci.Ci;
@@ -48,7 +52,7 @@ class ICIE {
     status: Status;
 
     public constructor() {
-        this.ci = new ci.Ci;
+        this.ci = new ci.Ci(""); // TODO handle lack of ci properly
         this.dir = new Directory(vscode.workspace.rootPath || ""); // TODO handle undefined properly
         this.panel_run = new PanelRun(testCase => this.addTest(testCase));
         this.status = new Status;
@@ -56,11 +60,8 @@ class ICIE {
 
     @astatus('Lauching')
     public async launch(): Promise<void> {
-        let version = await this.ci.version();
-        let required_version = '1.2.0-alpha.3';
-        if (version !== required_version) {
-            throw new Error(`Found ci version ${version}, but version ${required_version} is required. Intall appropriate version from https://github.com/matcegla/ci`);
-        }
+        let installation = await this.assureInstalled(await ci.Ci.findCiPath());
+        console.log(`Ci detected, ${installation.type} install at ${installation.path} with version ${installation.version}`);
         let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.dir.source());
         let editor = await vscode.window.showTextDocument(source);
@@ -128,6 +129,45 @@ class ICIE {
         let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
         let password = await inputbox({ prompt: `Password for ${username} at ${authreq.domain}`});
         return { username, password };
+    }
+    private async assureInstalled(installation: ci.Installation | undefined): Promise<ci.Installation> {
+        console.log(`ICIE.@assureInstalled.#installation ${JSON.stringify(installation)}`);
+        if (installation === undefined) {
+            return await this.askInstall('Ci is not installed', 'Install');
+        } else if (installation.version !== requiredCiVersion) {
+            if (installation.type === "Managed") {
+                return await this.askInstall('Ci installation is outdated', 'Update');
+            } else {
+                return await this.askInstall(`Ci version ${installation.version} was found, but version ${requiredCiVersion} is required`, 'Install ICIE-managed Ci');
+            }
+        } else {
+            return installation;
+        }
+    }
+    private async askInstall(message: string, action_name: string): Promise<ci.Installation> {
+        let action = await vscode.window.showErrorMessage(message, action_name);
+        if (action === undefined) {
+            throw new Error('User decided not to install/update Ci');
+        }
+        return await this.install();
+    }
+    private async install(): Promise<ci.Installation> {
+        let version = requiredCiVersion;
+        let platform = recognizePlatform();
+        let url = `https://github.com/matcegla/ci/releases/download/v${version}/ci-${version}-${platform}`;
+        console.log(`ICIE.@install.#url ${url}`);
+        await afs.assureDir(`${homedir()}/.local`);
+        await afs.assureDir(`${homedir()}/.local/share`);
+        await afs.assureDir(`${homedir()}/.local/share/icie`);
+        await ci.exec('/usr/bin/wget', ['-O', `${homedir()}/.local/share/icie/ci`, url], {}); // TODO: I looooooove javascript
+        await afs.chmod(`${homedir()}/.local/share/icie/ci`, 0o700);
+        console.log(`ICIE.@install after request`);
+        vscode.window.showInformationMessage(`ICIE has been installed`);
+        return {
+            path: `${homedir()}/.local/share/icie/ci`,
+            type: "Managed",
+            version: await new ci.Ci(`${homedir()}/.local/share/icie/ci`).version(),
+        };
     }
 
     public dispose() {
@@ -339,6 +379,17 @@ function astatus(message: string) {
             }
         };
     };
+}
+
+type Platform = "linux-amd64";
+function recognizePlatform(): Platform {
+    let plat = os.platform();
+    let arch = os.arch();
+    if (plat === 'linux' && arch === 'x64') {
+        return 'linux-amd64';
+    } else {
+        throw new Error(`Unrecognized platform (${plat}, ${arch})`);
+    }
 }
 
 function choice<T>(xs: T[]): T {

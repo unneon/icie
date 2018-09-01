@@ -1,33 +1,40 @@
 import { homedir } from "os";
 import * as cp from 'child_process';
 import { Writable, Readable } from "stream";
+import * as afs from './afs';
 
 export class Ci {
+
+    private exepath: string;
+
+    public constructor(exepath: string) {
+        this.exepath = exepath;
+    }
 
     public async build(source: string, library: string | undefined): Promise<void> {
         console.log(`Ci.@build`);
         let libopts = library !== undefined ? ['--lib', library] : [];
-        let out = await exec(this.exepath(), ['build', source].concat(libopts), {});
+        let out = await exec(this.exepath, ['build', source].concat(libopts), {});
         if (out.err !== null && out.err.message.startsWith('Command failed:')) {
             throw new Error('Compiler error');
         }
     }
     public async test(executable: string, testdir: string): Promise<Test[]> {
-        let ciout = await exec(this.exepath(), ['--format', 'json', 'test', '--print-output', executable, testdir], {});
+        let ciout = await exec(this.exepath, ['--format', 'json', 'test', '--print-output', executable, testdir], {});
         let outs = ciout.stdout.split('\n');
         outs.pop();
         return outs.map(line => JSON.parse(line));
     }
     public async init(task_url: string, project_dir: string, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
         console.log(`Ci.@init`);
-        await execInteractive(this.exepath(), ['--format', 'json', 'init', task_url], { cwd: project_dir }, kid => this.handleAuthRequests(kid, auth));
+        await execInteractive(this.exepath, ['--format', 'json', 'init', task_url], { cwd: project_dir }, kid => this.handleAuthRequests(kid, auth));
     }
     public async submit(source: string, task_url: string, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<string> {
         console.log(`Ci.@submit`);
         console.log(`Ci.@submit.#source = ${source}`);
         console.log(`Ci.@submit.#task_url = ${task_url}`);
         let id: string|undefined = undefined;
-        let out = await execInteractive(this.exepath(), ['--format', 'json', 'submit', source, task_url], {}, async kid => {
+        let out = await execInteractive(this.exepath, ['--format', 'json', 'submit', source, task_url], {}, async kid => {
             handleStdin(kid, async msg => {
                 if (msg.id === undefined) {
                     this.handleAuthRequest(kid, msg, auth);
@@ -45,15 +52,25 @@ export class Ci {
         return id;
     }
     public async trackSubmit(task_url: string, id: string, callback: (msg: Track) => Promise<void>): Promise<void> {
-        await execInteractive(this.exepath(), ['--format', 'json', 'track-submit', task_url, id, '5s'], {}, async kid => {
+        await execInteractive(this.exepath, ['--format', 'json', 'track-submit', task_url, id, '5s'], {}, async kid => {
             handleStdin(kid, async msg => {
                 callback(msg);
             });
         });
     }
     public async version(): Promise<string> {
-        let ciout = await exec(this.exepath(), ['--version'], {});
+        let ciout = await exec(this.exepath, ['--version'], {});
         return ciout.stdout.slice(2).trim();
+    }
+    public static async findCiPath(): Promise<Installation | undefined> {
+        let candidates: { path: string, type: InstallationType }[] = [
+            { path: `${homedir()}/.local/share/icie/ci`, type: "Managed" },
+            { path: `${homedir()}/.cargo/bin/ci`, type: "System" }
+        ];
+        for (let candidate of candidates)
+            if (await afs.exists(candidate.path))
+                return Object.assign(candidate, { version: await new Ci(candidate.path).version() });
+        return undefined;
     }
     private async handleAuthRequests(kid: cp.ChildProcess, auth: (authreq: AuthRequest) => Promise<AuthResponse>): Promise<void> {
         await handleStdin(kid, async msg => {
@@ -68,10 +85,6 @@ export class Ci {
         kid.stdin.end(); // TODO this is a horrible way to flush, but node sucks and I can't be bothered
     }
 
-    private exepath() {
-        return homedir() + '/.cargo/bin/ci';
-    }
-
 }
 
 async function handleStdin(kid: cp.ChildProcess, callback: (msg: any) => Promise<void>): Promise<void> {
@@ -83,6 +96,12 @@ async function handleStdin(kid: cp.ChildProcess, callback: (msg: any) => Promise
     });
 }
 
+export type InstallationType = "System" | "Managed" | "None";
+export interface Installation {
+    path: string,
+    type: InstallationType,
+    version: string,
+}
 export interface Track {
     status: "InitialPending" | "ScorePending" | "ScoreReady",
     examples_succeded: boolean | null,
@@ -113,7 +132,7 @@ interface ExecInteractiveOutput {
     code: number,
     signal: string,
 }
-function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
+export function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
     return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {
         if (err !== null && err.message.endsWith('ENOENT')) {
             reject(new Error(`ci is not installed in ~/.cargo/bin/. Check the README for ICIE installation instructions.`));

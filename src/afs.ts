@@ -24,3 +24,6 @@ export async function assureDir(path: string): Promise<void> {
         await mkdir(path);
     }
 }
+export function chmod(filename: string, mode: number): Promise<void> {
+    return new Promise((resolve, reject) => fs.chmod(filename, mode, err => err ? reject(err) : resolve()));
+}
