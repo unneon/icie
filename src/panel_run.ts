@@ -83,6 +83,13 @@ export class PanelRun {
                     .inline-header {
                         display: inline-block;
                     }
+                    .test-data-hidden {
+                        display: none;
+                    }
+                    .test-header {
+                        padding: 10px;
+                        color: black;
+                    }
                 </style>
             </head>
             <body>
@@ -129,9 +136,10 @@ export class PanelRun {
         let desired_path = `${test.in_path.slice(undefined, test.in_path.length-3)}.out`;
         let text_desired_output = await afs.read(desired_path, 'utf8');
         let rows = Math.max(...[text_input, text_output, text_desired_output].map(docrows));
+        let hidden_class = test.outcome == "Accept" ? 'test-data-hidden' : '';
         return `
-            <h3>Test ${test.in_path}</h3>
-            <div class="wrapper">
+            <h3 class="test-header ${output_class}">Test ${test.in_path}</h3>
+            <div class="test-data ${hidden_class} wrapper">
                 <textarea rows="${rows}" class="stringarea">${trailendl(text_input)}</textarea>
                 <textarea rows="${rows}" class="stringarea ${output_class}">${trailendl(text_output)}</textarea>
                 <textarea rows="${rows}" class="stringarea">${trailendl(text_desired_output)}</textarea>
