@@ -52,7 +52,7 @@ export class Ci {
         return id;
     }
     public async trackSubmit(task_url: string, id: string, callback: (msg: Track) => Promise<void>): Promise<void> {
-        await execInteractive(this.exepath, ['--format', 'json', 'track-submit', task_url, id, '5s'], {}, async kid => {
+        await execInteractive(this.exepath, ['--format', 'json', 'track-submit', task_url, id, '3s'], {}, async kid => {
             handleStdin(kid, async msg => {
                 callback(msg);
             });
@@ -102,10 +102,13 @@ export interface Installation {
     type: InstallationType,
     version: string,
 }
+export type TrackScore = { Score: number; };
+export type TrackCompilation = "Pending" | "Success" | "Failure";
+export type TrackOutcome = "Unsupported" | "Skipped" | "Waiting" | "Pending" | "Success" | "Failure" | TrackScore;
 export interface Track {
-    status: "InitialPending" | "ScorePending" | "ScoreReady",
-    examples_succeded: boolean | null,
-    score: number | null,
+    compilation: TrackCompilation,
+    initial: TrackOutcome,
+    full: TrackOutcome,
 }
 
 export interface AuthRequest {

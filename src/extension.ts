@@ -40,7 +40,7 @@ function register(command_name: string, human_name: string, context: vscode.Exte
 export function deactivate() {
 }
 
-const requiredCiVersion = "1.2.0-alpha.3";
+const requiredCiVersion = "1.2.0-alpha.4";
 
 class ICIE {
 
@@ -216,27 +216,55 @@ class ICIE {
         }, async (progress, token) => {
             await this.ci.trackSubmit(task_url, id, async track => {
                 console.log(`ICIE.@trackSubmit ${JSON.stringify(track)}`);
-                if (track.status == "InitialPending") {
-                    let message = `Tracking submit ${id}. Initial tests pending...`;
-                    progress.report({ message });
-                    last_message = message;
-                } else if (track.status == "ScorePending") {
-                    let inir = track.examples_succeded === null ? '\' status is unknown' : track.examples_succeded ? ' passed' : ' failed';
-                    let message = `Tracking submit ${id}. Initial tests${inir}. Score pending...`;
-                    progress.report({ message });
-                    last_message = message;
-                } else if (track.status == "ScoreReady") {
-                    let inir = track.examples_succeded === null ? '\' status is unknown' : track.examples_succeded ? ' passed' : ' failed';
-                    let message = `Tracking submit ${id}. Initial tests${inir}. Scored ${track.score}!`;
-                    progress.report({ message });
-                    last_message = message;
-                }
+                let message = this.formatTrack(track);
+                progress.report({ message });
+                last_message = message;
             });
         });
         if (last_message !== undefined) {
             vscode.window.showInformationMessage(last_message);
         } else {
             console.log('Tracking submit FAILED');
+        }
+    }
+    private formatTrack(track: ci.Track): string {
+        if (track.compilation === "Pending") {
+            return `Compilation pending...`;
+        } else if (track.compilation === "Failure") {
+            return `Compilation error`;
+        } else if (track.initial === "Pending") {
+            return `Initial tests pending...`;
+        } else if (track.full === "Pending") {
+            return `${this.formatInitial(track.initial)}Score pending...`;
+        } else {
+            return this.formatFull(track.full);
+        }
+    }
+    private formatInitial(outcome: ci.TrackOutcome): string {
+        if ((<ci.TrackScore>outcome).Score !== undefined) {
+            return `Initial tests scored ${(<ci.TrackScore>outcome).Score}. `;
+        } else if (outcome === "Failure") {
+            return `Initial tests failed. `;
+        } else if (outcome === "Success") {
+            return `Initial tests passed. `;
+        } else if (outcome === "Unsupported") {
+            return ``;
+        } else if (outcome === "Skipped") {
+            return ``;
+        } else {
+            throw new Error(`Invalid initial tests outcome ${JSON.stringify(outcome)}`);
+        }
+    }
+    private formatFull(outcome: ci.TrackOutcome): string {
+        if ((<ci.TrackScore>outcome).Score !== undefined) {
+            return `Scored ${(<ci.TrackScore>outcome).Score}!`;
+        } else if (outcome === "Failure") {
+            return `Rejected`;
+        } else if (outcome === "Success") {
+            return `Accepted`;
+        } else {
+            console.log(`ICIE.@formatFull ${JSON.stringify(outcome)}`);
+            throw new Error(`Invalid tests outcome ${JSON.stringify(outcome)}`);
         }
     }
 
