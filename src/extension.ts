@@ -7,8 +7,6 @@ import * as conf from './conf';
 import * as mnfst from './manifest';
 import { PanelRun, TestCase } from './panel_run';
 import * as os from 'os';
-import * as https from 'https';
-import * as fs from 'fs';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -62,6 +60,7 @@ class ICIE {
     public async launch(): Promise<void> {
         let installation = await this.assureInstalled(await ci.Ci.findCiPath());
         console.log(`Ci detected, ${installation.type} install at ${installation.path} with version ${installation.version}`);
+        this.ci = new ci.Ci(installation.path);
         let _config: Promise<conf.Config> = conf.load();
         let source = await vscode.workspace.openTextDocument(this.dir.source());
         let editor = await vscode.window.showTextDocument(source);
