@@ -39,6 +39,10 @@
         "title": "ICIE Run"
       },
       {
+        "command": "icie.download",
+        "title": "ICIE Download"
+      },
+      {
         "command": "icie.test",
         "title": "ICIE Test"
       }

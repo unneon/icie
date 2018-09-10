@@ -2,6 +2,7 @@ import { homedir } from "os";
 import * as cp from 'child_process';
 import { Writable, Readable } from "stream";
 import * as afs from './afs';
+import { createWriteStream } from "fs";
 
 export class Ci {
 
@@ -58,6 +59,20 @@ export class Ci {
             });
         });
     }
+    public async listResources(task_url: string): Promise<Resource[]> {
+        let result: Resource[] = [];
+        await execInteractive(this.exepath, ['--format', 'json', 'list-resources', task_url], {}, async kid => {
+            handleStdin(kid, async msg => {
+                result = msg;
+            });
+        });
+        return result;
+    }
+    public async downloadToFile(task_url: string, id: string, redirect: string): Promise<void> {
+        console.log(`Ci.@downloadToFile ${task_url} ${id} ${redirect}`);
+        let out = await exec(this.exepath, ['--format', 'json', 'download', task_url, id, redirect], {});
+        console.log(`Ci.@downloadToFile ${JSON.stringify(out)}`);
+    }
     public async version(): Promise<string> {
         let ciout = await exec(this.exepath, ['--version'], {});
         return ciout.stdout.slice(2).trim();
@@ -110,6 +125,12 @@ export interface Track {
     initial: TrackOutcome,
     full: TrackOutcome,
 }
+export interface Resource {
+    name: string,
+    description: string,
+    filename: string,
+    id: string
+}
 
 export interface AuthRequest {
     domain: string;
@@ -134,6 +155,12 @@ interface ExecInteractiveOutput {
     kid: cp.ChildProcess,
     code: number,
     signal: string,
+}
+export function execToFile(file: string, args: string[], redirect: string, options: cp.ExecFileOptions): Promise<Error | null> {
+    return new Promise((resolve, reject) => {
+        let kid = cp.execFile(file, args, options, (err, stdout, stderr) => resolve(err));
+        kid.stdout.pipe(createWriteStream(redirect));
+    });
 }
 export function exec(file: string, args: string[], options: cp.ExecFileOptions): Promise<ExecOutput> {
     return new Promise((resolve, reject) => cp.execFile(file, args, options, (err, stdout, stderr) => {

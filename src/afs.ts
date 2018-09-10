@@ -13,7 +13,7 @@ export function mkdir(path: string): Promise<void> {
 export function read(filename: string, encoding: string): Promise<string> {
     return new Promise((resolve, reject) => fs.readFile(filename, encoding, (err, data) => err ? reject(err) : resolve(data)));
 }
-export function write(filename: string, content: string): Promise<void> {
+export function write(filename: string, content: string | Buffer): Promise<void> {
     return new Promise((resolve, reject) => fs.writeFile(filename, content, err => err ? reject(err) : resolve()));
 }
 export function copy(from: string, to: string): Promise<void> {

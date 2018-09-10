@@ -22,6 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
     register('icie.init', 'Init', context, () => icie.triggerInit());
     register('icie.submit', 'Submit', context, () => icie.triggerSubmit());
     register('icie.run', 'Run', context, () => icie.triggerRun());
+    register('icie.download', 'Download', context, () => icie.triggerDownload());
     icie.launch().catch(reason => vscode.window.showErrorMessage(`ICIE: ${reason}`));
 }
 function register(command_name: string, human_name: string, context: vscode.ExtensionContext, f: () => Promise<void>) {
@@ -40,7 +41,7 @@ function register(command_name: string, human_name: string, context: vscode.Exte
 export function deactivate() {
 }
 
-const requiredCiVersion = "1.2.0-alpha.4";
+const requiredCiVersion = "1.2.0";
 
 class ICIE {
 
@@ -123,6 +124,29 @@ class ICIE {
         console.log(`ICIE.@triggerSubmit.#manifest = ${manifest}`);
         let id = await this.ci.submit(this.dir.source(), manifest.task_url, authreq => this.respondAuthreq(authreq));
         this.trackSubmit(manifest.task_url, id); // in background
+    }
+    @astatus('Downloading')
+    public async triggerDownload(): Promise<void> {
+        let manifest = await mnfst.load(vscode.workspace.rootPath + '/.icie');
+        let resources = await this.ci.listResources(manifest.task_url);
+        for (let resource of resources) {
+            console.log(`ICIE.@triggerDownload ${JSON.stringify(resource)}`);
+        }
+        let choice = await vscode.window.showQuickPick(resources.map(resource => { return {
+            label: resource.name,
+            detail: resource.description,
+            resource: resource
+        }; }), {
+            matchOnDescription: true,
+            matchOnDetail: true
+        }, undefined);
+        if (choice === undefined) {
+            throw new Error('Did not choose file to download');
+        }
+        let resource = choice.resource;
+        console.log(`ICIE.@triggerDownload Chosen ${JSON.stringify(choice)}`);
+        await this.ci.downloadToFile(manifest.task_url, resource.id, `${this.dir.base}/${resource.filename}`);
+        // TODO check filename for malicious stuff
     }
     private async respondAuthreq(authreq: ci.AuthRequest): Promise<ci.AuthResponse> {
         let username = await inputbox({ prompt: `Username at ${authreq.domain}` });
