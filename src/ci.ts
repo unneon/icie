@@ -15,7 +15,7 @@ export class Ci {
     public async build(source: string, library: string | undefined): Promise<void> {
         console.log(`Ci.@build`);
         let libopts = library !== undefined ? ['--lib', library] : [];
-        let out = await exec(this.exepath, ['build', source].concat(libopts), {});
+        let out = await exec(this.exepath, ['--format', 'json', 'build', source].concat(libopts), {});
         if (out.err !== null && out.err.message.startsWith('Command failed:')) {
             throw new Error('Compiler error');
         }
