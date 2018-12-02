@@ -29,7 +29,9 @@ function register(command_name: string, human_name: string, context: vscode.Exte
     let disposable = vscode.commands.registerCommand(command_name, async () => {
         try {
             await f();
-            vscode.window.showInformationMessage(`ICIE ${human_name} succeded`);
+            if (human_name !== "Submit") {
+                vscode.window.showInformationMessage(`ICIE ${human_name} succeded`);
+            }
         } catch (e) {
             vscode.window.showErrorMessage(`ICIE ${human_name} failed: ${e}`);
         }
@@ -238,7 +240,7 @@ class ICIE {
             location: vscode.ProgressLocation.Notification,
             title: `Tracking submit ${id}...`
         }, async (progress, token) => {
-            await this.ci.trackSubmit(task_url, id, async track => {
+            await this.ci.trackSubmit(task_url, id, '1s', async track => {
                 console.log(`ICIE.@trackSubmit ${JSON.stringify(track)}`);
                 let message = this.formatTrack(track);
                 progress.report({ message });

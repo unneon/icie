@@ -52,8 +52,8 @@ export class Ci {
         }
         return id;
     }
-    public async trackSubmit(task_url: string, id: string, callback: (msg: Track) => Promise<void>): Promise<void> {
-        await execInteractive(this.exepath, ['--format', 'json', 'track-submit', task_url, id, '3s'], {}, async kid => {
+    public async trackSubmit(task_url: string, id: string, pause: string, callback: (msg: Track) => Promise<void>): Promise<void> {
+        await execInteractive(this.exepath, ['--format', 'json', 'track-submit', task_url, id, pause], {}, async kid => {
             handleStdin(kid, async msg => {
                 callback(msg);
             });
