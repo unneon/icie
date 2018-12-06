@@ -1,0 +1,7 @@
+icie-ui/out
+icie-ui/node_modules
+icie-logic/target
+icie-logic/.idea
+icie-wrap/native/.idea
+icie-wrap/native
+icie-wrap/node_modules

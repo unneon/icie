@@ -1,0 +1,19 @@
+[package]
+name = "icie-wrap"
+version = "0.1.0"
+authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
+license = "UNLICENSED"
+build = "build.rs"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "icie_wrap"
+crate-type = ["dylib"]
+
+[build-dependencies]
+neon-build = "0.2.0"
+
+[dependencies]
+neon = "0.2.0"
+icie-logic = { path = "../../icie-logic" }
+lazy_static = "1.0"

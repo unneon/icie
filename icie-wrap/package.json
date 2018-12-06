@@ -1,0 +1,14 @@
+{
+  "name": "icie-wrap",
+  "version": "0.1.0",
+  "description": "",
+  "main": "lib/index.js",
+  "author": "Mateusz Cegiełka <mateusz@cegla.net>",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "neon-cli": "^0.2.0"
+  },
+  "scripts": {
+    "install": "neon build"
+  }
+}
