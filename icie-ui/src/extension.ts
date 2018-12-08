@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
     let callback = (err: any, reaction: icie_wrap.Reaction) => {
         console.log(`${JSON.stringify(reaction)}`);
         if (reaction.tag === "status") {
-            if (reaction.message !== null) {
+            if (reaction.message !== undefined) {
                 status.text = `${reaction.message}`;
                 status.show();
             } else {
@@ -37,13 +37,19 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage(reaction.message);
         } else if (reaction.tag === "quick_pick") {
             vscode.window.showQuickPick(reaction.items).then(item => {
-                let r = null;
                 if (item !== undefined) {
-                    r = icie_wrap.message_send({ tag: "quick_pick", response: item.id });
+                    icie_wrap.message_send({ tag: "quick_pick", response: item.id });
                 } else {
-                    r = icie_wrap.message_send({ tag: "quick_pick", response: null });
+                    icie_wrap.message_send({ tag: "quick_pick", response: null });
                 }
-                console.log(`message_send({ tag: "quick_pick", ... }) -> ${JSON.stringify(r)}`);
+            });
+        } else if (reaction.tag === "input_box") {
+            vscode.window.showInputBox(reaction).then(value => {
+                if (value !== undefined) {
+                    icie_wrap.message_send({ tag: "input_box", response: value });
+                } else {
+                    icie_wrap.message_send({ tag: "input_box", response: null });
+                }
             });
         }
         icie_wrap.message_recv(callback);

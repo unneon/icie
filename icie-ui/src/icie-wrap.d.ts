@@ -9,7 +9,7 @@ declare module 'icie-wrap' {
 
     export interface ReactionStatus {
         tag: "status",
-        message: string | null,
+        message?: string,
     }
     export interface ReactionInfoMessage {
         tag: "info_message",
@@ -23,6 +23,13 @@ declare module 'icie-wrap' {
         tag: "quick_pick",
         items: QuickPickItem[],
     }
+    export interface ReactionInputBox {
+        tag: "input_box",
+        prompt?: string,
+        placeholder?: string,
+        password: boolean,
+        ignoreFocusOut: boolean,
+    }
 
     export interface ImpulsePing {
         tag: "ping",
@@ -31,9 +38,13 @@ declare module 'icie-wrap' {
         tag: "quick_pick",
         response: string | null,
     }
+    export interface ImpulseInputBox {
+        tag: "input_box",
+        response: string | null,
+    }
 
-    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick;
-    export type Impulse = ImpulsePing | ImpulseQuickPick;
+    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox;
+    export type Impulse = ImpulsePing | ImpulseQuickPick | ImpulseInputBox;
 
     export function message_recv(callback: (error: any, reaction: Reaction) => void): void;
     export function message_send(impulse: Impulse): string;
