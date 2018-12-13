@@ -56,6 +56,10 @@ impl Task for MessageRecvTask {
 				set_bool(&obj, "ignoreFocusOut", options.ignore_focus_out, &mut cx);
 				"input_box"
 			},
+			icie_logic::Reaction::ConsoleLog { message } => {
+				maybe_set_string(&obj, "message", message, &mut cx);
+				"console_log"
+			},
 		};
 		let tag = cx.string(tag);
 		obj.set(&mut cx, "tag", tag)?;
@@ -100,6 +104,10 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 		"input_box" => icie_logic::Impulse::InputBox {
 			response: get_string_or_bool(&obj, "response", &mut cx),
 		},
+		"workspace_info" => icie_logic::Impulse::WorkspaceInfo {
+			root_path: get_string_or_bool(&obj, "root_path", &mut cx),
+		},
+		"trigger_build" => icie_logic::Impulse::TriggerBuild,
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);

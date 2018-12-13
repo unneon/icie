@@ -1,4 +1,4 @@
-use super::{Impulse, Reaction, ICIE};
+use super::{Directory, Impulse, Reaction, ICIE};
 use std::{
 	sync::{
 		mpsc::{self, Receiver, Sender}, Mutex
@@ -13,7 +13,14 @@ impl Handle {
 	pub fn spawn() -> Handle {
 		let (es, er) = mpsc::channel();
 		let (is, ir) = mpsc::channel();
-		thread::spawn(move || ICIE { input: er, output: is }.main_loop());
+		thread::spawn(move || {
+			ICIE {
+				input: er,
+				output: is,
+				directory: Directory::new_empty(),
+			}
+			.main_loop()
+		});
 		Handle {
 			input: Mutex::new(es),
 			output: Mutex::new(ir),

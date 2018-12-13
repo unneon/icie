@@ -12,13 +12,13 @@ impl std::error::Error for Error {}
 pub type R<T> = Result<T, Error>;
 
 macro_rules! er {
-	($args:tt) => {
-		return Err(crate::error::Error::ManualDescription(format!($args)));
+	($($args:expr),*) => {
+		return Err(crate::error::Error::ManualDescription(format!($($args),*)));
 	};
 }
 #[allow(unused)]
 macro_rules! eo {
-	($args:tt) => {
-		crate::error::Error::ManualDescription(format!($args))
+	($($args:expr),*) => {
+		crate::error::Error::ManualDescription(format!($($args),*))
 	};
 }

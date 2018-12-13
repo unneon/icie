@@ -30,6 +30,10 @@ declare module 'icie-wrap' {
         password: boolean,
         ignoreFocusOut: boolean,
     }
+    export interface ReactionConsoleLog {
+        tag: "console_log",
+        message: string,
+    }
 
     export interface ImpulsePing {
         tag: "ping",
@@ -42,9 +46,16 @@ declare module 'icie-wrap' {
         tag: "input_box",
         response: string | null,
     }
+    export interface ImpulseTriggerBuild {
+        tag: "trigger_build",
+    }
+    export interface ImpulseWorkspaceInfo {
+        tag: "workspace_info",
+        root_path: string | null,
+    }
 
-    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox;
-    export type Impulse = ImpulsePing | ImpulseQuickPick | ImpulseInputBox;
+    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog;
+    export type Impulse = ImpulsePing | ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo;
 
     export function message_recv(callback: (error: any, reaction: Reaction) => void): void;
     export function message_send(impulse: Impulse): string;

@@ -5,3 +5,4 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+ci = { path = "../../ci" }

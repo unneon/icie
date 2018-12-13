@@ -2,7 +2,7 @@
     "name": "icie",
     "displayName": "ICIE",
     "description": "",
-    "version": "0.0.1",
+    "version": "0.3.0",
     "engines": {
         "vscode": "^1.29.0"
     },
@@ -10,14 +10,19 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.sayHello"
+        "onCommand:icie.hello",
+        "onCommand:icie.build"
     ],
     "main": "./out/extension",
     "contributes": {
         "commands": [
             {
-                "command": "extension.sayHello",
+                "command": "icie.hello",
                 "title": "Hello World"
+            },
+            {
+                "command": "icie.build",
+                "title": "ICIE Build"
             }
         ]
     },
