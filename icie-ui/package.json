@@ -11,7 +11,8 @@
     ],
     "activationEvents": [
         "onCommand:icie.hello",
-        "onCommand:icie.build"
+        "onCommand:icie.build",
+        "onCommand:icie.test"
     ],
     "main": "./out/extension",
     "contributes": {
@@ -23,6 +24,10 @@
             {
                 "command": "icie.build",
                 "title": "ICIE Build"
+            },
+            {
+                "command": "icie.test",
+                "title": "ICIE Test"
             }
         ]
     },

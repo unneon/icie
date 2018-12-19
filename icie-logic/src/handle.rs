@@ -13,10 +13,12 @@ impl Handle {
 	pub fn spawn() -> Handle {
 		let (es, er) = mpsc::channel();
 		let (is, ir) = mpsc::channel();
+		let es2 = es.clone();
 		thread::spawn(move || {
 			ICIE {
 				input: er,
 				output: is,
+				input_sender: es2,
 				directory: Directory::new_empty(),
 			}
 			.main_loop()

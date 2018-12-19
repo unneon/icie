@@ -3,21 +3,38 @@ extern crate ci;
 #[macro_use]
 mod error;
 mod handle;
+mod impulse_ui;
 mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, vscode::*};
 use std::{
-	path::PathBuf, sync::mpsc::{Receiver, Sender}
+	path::PathBuf, sync::mpsc::{Receiver, Sender}, thread, time::Duration
 };
 
 #[derive(Debug)]
 pub enum Impulse {
 	Ping,
 	TriggerBuild,
-	WorkspaceInfo { root_path: Option<String> },
-	QuickPick { response: Option<String> },
-	InputBox { response: Option<String> },
+	TriggerTest,
+	WorkspaceInfo {
+		root_path: Option<String>,
+	},
+	QuickPick {
+		response: Option<String>,
+	},
+	InputBox {
+		response: Option<String>,
+	},
+	SavedAll,
+	CiTestSingle {
+		outcome: ci::testing::TestResult,
+		timing: Option<Duration>,
+		in_path: PathBuf,
+	},
+	CiTestFinish {
+		success: bool,
+	},
 }
 pub enum Reaction {
 	Status { message: Option<String> },
@@ -26,6 +43,7 @@ pub enum Reaction {
 	QuickPick { items: Vec<QuickPickItem> },
 	InputBox { options: InputBoxOptions },
 	ConsoleLog { message: String },
+	SaveAll,
 }
 
 macro_rules! dbg {
@@ -37,6 +55,7 @@ macro_rules! dbg {
 struct ICIE {
 	input: Receiver<Impulse>,
 	output: Sender<Reaction>,
+	input_sender: Sender<Impulse>,
 
 	directory: Directory,
 }
@@ -59,26 +78,85 @@ impl ICIE {
 		match self.input.recv().unwrap() {
 			Impulse::Ping => self.info(dbg!(std::env::current_dir()))?,
 			Impulse::WorkspaceInfo { root_path } => self.directory.set_root_path(root_path),
-			Impulse::TriggerBuild => {
-				let source = self.directory.get_source();
-				let codegen = ci::commands::build::Codegen::Debug;
-				let cppver = ci::commands::build::CppVer::Cpp17;
-				let library = self.directory.get_library_source();
-				let library: Option<&std::path::Path> = library.as_ref().map(|p| p.as_ref());
-				self.info(dbg!(source))?;
-				self.info(dbg!(codegen))?;
-				self.info(dbg!(cppver))?;
-				self.info(dbg!(library))?;
-				ci::commands::build::run(&source, &codegen, &cppver, library).unwrap();
-				self.info("Compilation successful!")?;
-			},
+			Impulse::TriggerBuild => self.build()?,
+			Impulse::TriggerTest => self.test()?,
 			imp => er!("Unexpected impulse {:?}", imp),
 		}
 		Ok(())
 	}
 
+	fn build(&mut self) -> R<()> {
+		let source = self.directory.get_source();
+		let codegen = ci::commands::build::Codegen::Debug;
+		let cppver = ci::commands::build::CppVer::Cpp17;
+		let library = self.directory.get_library_source();
+		let library: Option<&std::path::Path> = library.as_ref().map(|p| p.as_ref());
+		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library))?;
+		ci::commands::build::run(&source, &codegen, &cppver, library).unwrap();
+		self.info("Compilation successful!")?;
+		Ok(())
+	}
+
+	fn test(&mut self) -> R<()> {
+		self.assure_compiled()?;
+		let executable = self.directory.get_executable();
+		let testdir = self.directory.get_tests();
+		let mut ui = impulse_ui::ImpulseCiUi(self.input_sender.clone());
+		let t1 = thread::spawn(move || {
+			let _ = ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui);
+		});
+		let success = loop {
+			match self.input.recv().unwrap() {
+				Impulse::CiTestSingle { outcome, timing, in_path } => self.log(format!("{:?} {:?} {:?}", outcome, timing, in_path))?,
+				Impulse::CiTestFinish { success } => break success,
+				imp => er!("Unexpected impulse {:?}", imp),
+			}
+		};
+		if success {
+			self.info("Tests run successfully")?;
+		} else {
+			self.output
+				.send(Reaction::ErrorMessage {
+					message: "Some tests failed".to_owned(),
+				})
+				.unwrap();
+		}
+		t1.join().unwrap();
+		Ok(())
+	}
+
+	fn assure_compiled(&mut self) -> R<()> {
+		if self.requires_compilation()? {
+			self.build()?;
+		}
+		Ok(())
+	}
+
+	fn assure_all_saved(&mut self) -> R<()> {
+		self.output.send(Reaction::SaveAll).unwrap();
+		match self.input.recv().unwrap() {
+			Impulse::SavedAll => {},
+			imp => er!("Unexpected impulse {:?}", imp),
+		}
+		Ok(())
+	}
+
+	fn requires_compilation(&mut self) -> R<bool> {
+		let src = self.directory.get_source();
+		let exe = self.directory.get_executable();
+		self.assure_all_saved()?;
+		let metasrc = src.metadata().unwrap();
+		let metaexe = exe.metadata().unwrap();
+		Ok(metasrc.modified().unwrap() >= metaexe.modified().unwrap())
+	}
+
 	fn info(&mut self, message: impl Into<String>) -> R<()> {
 		self.output.send(Reaction::InfoMessage { message: message.into() }).unwrap();
+		Ok(())
+	}
+
+	fn log(&mut self, message: impl Into<String>) -> R<()> {
+		self.output.send(Reaction::ConsoleLog { message: message.into() }).unwrap();
 		Ok(())
 	}
 }
@@ -106,5 +184,13 @@ impl Directory {
 		} else {
 			None
 		}
+	}
+
+	fn get_executable(&self) -> PathBuf {
+		PathBuf::from(format!("{}/main.e", self.root.as_ref().unwrap()))
+	}
+
+	fn get_tests(&self) -> PathBuf {
+		PathBuf::from(format!("{}/tests", self.root.as_ref().unwrap()))
 	}
 }

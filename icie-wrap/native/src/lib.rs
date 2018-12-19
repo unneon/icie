@@ -60,6 +60,7 @@ impl Task for MessageRecvTask {
 				maybe_set_string(&obj, "message", message, &mut cx);
 				"console_log"
 			},
+			icie_logic::Reaction::SaveAll => "save_all",
 		};
 		let tag = cx.string(tag);
 		obj.set(&mut cx, "tag", tag)?;
@@ -108,6 +109,8 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 			root_path: get_string_or_bool(&obj, "root_path", &mut cx),
 		},
 		"trigger_build" => icie_logic::Impulse::TriggerBuild,
+		"trigger_test" => icie_logic::Impulse::TriggerTest,
+		"saved_all" => icie_logic::Impulse::SavedAll,
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);
