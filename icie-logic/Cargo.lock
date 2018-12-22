@@ -487,6 +487,7 @@ name = "icie-logic"
 version = "0.1.0"
 dependencies = [
  "ci 1.2.0",
+ "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

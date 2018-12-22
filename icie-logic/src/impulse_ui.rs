@@ -2,13 +2,22 @@ use crate::Impulse;
 use ci::{
 	self, commands::{list_resources::Resource, tracksubmit::Status}, error::Error, strres::StrRes, testing::TestResult
 };
-use std::{path::Path, sync::mpsc::Sender, time::Duration};
+use std::{
+	path::Path, sync::mpsc::{self, Sender}, time::Duration
+};
 
 pub struct ImpulseCiUi(pub Sender<Impulse>);
 
 impl ci::ui::Ui for ImpulseCiUi {
-	fn read_auth(&mut self, _domain: &str) -> (String, String) {
-		unimplemented!()
+	fn read_auth(&mut self, domain: &str) -> (String, String) {
+		let (tx, rx) = mpsc::channel();
+		self.0
+			.send(Impulse::CiAuthRequest {
+				domain: domain.to_owned(),
+				channel: tx,
+			})
+			.unwrap();
+		rx.recv().unwrap().unwrap()
 	}
 
 	fn track_progress(&mut self, _status: &Status) {
@@ -39,6 +48,10 @@ impl ci::ui::Ui for ImpulseCiUi {
 
 	fn print_finish_test(&mut self, success: bool) {
 		self.0.send(Impulse::CiTestFinish { success }).unwrap();
+	}
+
+	fn print_finish_init(&mut self) {
+		self.0.send(Impulse::CiInitFinish).unwrap();
 	}
 
 	fn print_transpiled(&mut self, _compiled: &str) {
@@ -85,7 +98,5 @@ impl ci::ui::Ui for ImpulseCiUi {
 		unimplemented!()
 	}
 
-	fn notice(&mut self, _message: &str) {
-		unimplemented!()
-	}
+	fn notice(&mut self, _message: &str) {}
 }

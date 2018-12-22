@@ -51,7 +51,7 @@ impl Task for MessageRecvTask {
 			},
 			icie_logic::Reaction::InputBox { options } => {
 				maybe_set_string(&obj, "prompt", options.prompt, &mut cx);
-				maybe_set_string(&obj, "placeholder", options.placeholder, &mut cx);
+				maybe_set_string(&obj, "placeHolder", options.placeholder, &mut cx);
 				set_bool(&obj, "password", options.password, &mut cx);
 				set_bool(&obj, "ignoreFocusOut", options.ignore_focus_out, &mut cx);
 				"input_box"
@@ -61,6 +61,11 @@ impl Task for MessageRecvTask {
 				"console_log"
 			},
 			icie_logic::Reaction::SaveAll => "save_all",
+			icie_logic::Reaction::OpenFolder { path, in_new_window } => {
+				maybe_set_string(&obj, "path", path.to_str().unwrap().to_owned(), &mut cx);
+				set_bool(&obj, "in_new_window", in_new_window, &mut cx);
+				"open_folder"
+			},
 		};
 		let tag = cx.string(tag);
 		obj.set(&mut cx, "tag", tag)?;
@@ -111,6 +116,7 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 		"trigger_build" => icie_logic::Impulse::TriggerBuild,
 		"trigger_test" => icie_logic::Impulse::TriggerTest,
 		"saved_all" => icie_logic::Impulse::SavedAll,
+		"trigger_init" => icie_logic::Impulse::TriggerInit,
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);

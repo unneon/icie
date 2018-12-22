@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 ci = { path = "../../ci" }
+rand = "0.6"

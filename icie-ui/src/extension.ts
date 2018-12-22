@@ -13,6 +13,9 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable3 = vscode.commands.registerCommand('icie.test', () => {
         native.send({ tag: "trigger_test" });
     });
+    let disposable4 = vscode.commands.registerCommand('icie.init', () => {
+        native.send({ tag: "trigger_init" });
+    });
 
     let status = vscode.window.createStatusBarItem();
 
@@ -51,6 +54,8 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.workspace.saveAll(false).then(something => {
                 native.send({ tag: "saved_all" });
             });
+        } else if (reaction.tag === "open_folder") {
+            vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(reaction.path), reaction.in_new_window);
         }
         native.recv(callback);
     };
@@ -64,6 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
     context.subscriptions.push(disposable2);
     context.subscriptions.push(disposable3);
+    context.subscriptions.push(disposable4);
 }
 
 export function deactivate() {

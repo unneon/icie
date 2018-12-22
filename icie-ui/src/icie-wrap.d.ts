@@ -37,6 +37,11 @@ declare module 'icie-wrap' {
     export interface ReactionSaveAll {
         tag: "save_all",
     }
+    export interface ReactionOpenFolder {
+        tag: "open_folder",
+        path: string,
+        in_new_window: boolean,
+    }
 
     export interface ImpulsePing {
         tag: "ping",
@@ -62,9 +67,12 @@ declare module 'icie-wrap' {
     export interface ImpulseSavedAll {
         tag: "saved_all",
     }
+    export interface ImpulseTriggerInit {
+        tag: "trigger_init",
+    }
 
-    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll;
-    export type Impulse = ImpulsePing | ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest;
+    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder;
+    export type Impulse = ImpulsePing | ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit;
 
     export function message_recv(callback: (error: any, reaction: Reaction) => void): void;
     export function message_send(impulse: Impulse): string;

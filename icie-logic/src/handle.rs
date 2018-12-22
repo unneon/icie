@@ -1,8 +1,8 @@
 use super::{Directory, Impulse, Reaction, ICIE};
 use std::{
-	sync::{
+	panic, sync::{
 		mpsc::{self, Receiver, Sender}, Mutex
-	}, thread
+	}, thread::{self, sleep}, time::Duration
 };
 
 pub struct Handle {
@@ -14,6 +14,16 @@ impl Handle {
 		let (es, er) = mpsc::channel();
 		let (is, ir) = mpsc::channel();
 		let es2 = es.clone();
+		let is2 = Mutex::new(is.clone());
+		panic::set_hook(Box::new(move |info| {
+			if let Ok(is2) = is2.lock() {
+				let _ = is2.send(Reaction::ErrorMessage { message: info.to_string() });
+			}
+			loop {
+				sleep(Duration::from_secs(1));
+			}
+		}));
+
 		thread::spawn(move || {
 			ICIE {
 				input: er,
