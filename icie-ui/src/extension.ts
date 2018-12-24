@@ -4,9 +4,6 @@ import * as native from './native';
 
 export function activate(context: vscode.ExtensionContext) {
 
-    let disposable = vscode.commands.registerCommand('icie.hello', () => {
-        native.send({ tag: "ping" });
-    });
     let disposable2 = vscode.commands.registerCommand('icie.build', () => {
         native.send({ tag: "trigger_build" });
     });
@@ -15,6 +12,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
     let disposable4 = vscode.commands.registerCommand('icie.init', () => {
         native.send({ tag: "trigger_init" });
+    });
+    let disposable5 = vscode.commands.registerCommand('icie.submit', () => {
+        native.send({ tag: "trigger_submit" });
     });
 
     let status = vscode.window.createStatusBarItem();
@@ -56,6 +56,8 @@ export function activate(context: vscode.ExtensionContext) {
             });
         } else if (reaction.tag === "open_folder") {
             vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(reaction.path), reaction.in_new_window);
+        } else if (reaction.tag === "console_error") {
+            console.error(reaction.message);
         }
         native.recv(callback);
     };
@@ -66,10 +68,10 @@ export function activate(context: vscode.ExtensionContext) {
         root_path: vscode.workspace.rootPath || null,
     });
 
-    context.subscriptions.push(disposable);
     context.subscriptions.push(disposable2);
     context.subscriptions.push(disposable3);
     context.subscriptions.push(disposable4);
+    context.subscriptions.push(disposable5);
 }
 
 export function deactivate() {

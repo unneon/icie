@@ -1,25 +1,35 @@
+extern crate backtrace;
 extern crate ci;
+extern crate dirs;
+#[macro_use]
+extern crate failure;
 extern crate rand;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
 #[macro_use]
 mod error;
 mod handle;
 mod impulse_ui;
+mod manifest;
 mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, vscode::*};
+use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	env, fs, path::PathBuf, sync::mpsc::{Receiver, Sender}, thread, time::Duration
+	fs, io, path::PathBuf, sync::mpsc::{Receiver, Sender}, thread, time::Duration
 };
 
 #[derive(Debug)]
 pub enum Impulse {
-	Ping,
 	TriggerBuild,
 	TriggerTest,
 	TriggerInit,
+	TriggerSubmit,
 	WorkspaceInfo {
 		root_path: Option<String>,
 	},
@@ -53,12 +63,7 @@ pub enum Reaction {
 	ConsoleLog { message: String },
 	SaveAll,
 	OpenFolder { path: PathBuf, in_new_window: bool },
-}
-
-macro_rules! dbg {
-	($x:expr) => {
-		format!("{} = {:?}", stringify!($x), $x)
-	};
+	ConsoleError { message: String },
 }
 
 struct ICIE {
@@ -73,71 +78,47 @@ impl ICIE {
 		loop {
 			match self.process() {
 				Ok(()) => (),
-				Err(err) => self
-					.output
-					.send(Reaction::ErrorMessage {
-						message: format!("ICIE Error ❄ {}", err),
-					})
-					.unwrap(),
+				Err(err) => self.error(format!("{}", err)),
 			}
 		}
 	}
 
 	fn process(&mut self) -> R<()> {
-		match self.input.recv().unwrap() {
-			Impulse::Ping => self.info(dbg!(std::env::current_dir()))?,
-			Impulse::WorkspaceInfo { root_path } => self.directory.set_root_path(root_path),
+		match self.recv() {
+			Impulse::WorkspaceInfo { root_path } => self.directory.set_root_path(root_path.map(PathBuf::from)),
 			Impulse::TriggerBuild => self.build()?,
 			Impulse::TriggerTest => self.test()?,
 			Impulse::TriggerInit => self.init()?,
-			imp => er!("Unexpected impulse {:?}", imp),
+			Impulse::TriggerSubmit => self.submit()?,
+			impulse => Err(error::Category::UnexpectedImpulse {
+				description: format!("{:?}", impulse),
+			})?,
 		}
 		Ok(())
 	}
 
 	fn build(&mut self) -> R<()> {
-		let source = self.directory.get_source();
+		let source = self.directory.get_source()?;
 		let codegen = ci::commands::build::Codegen::Debug;
 		let cppver = ci::commands::build::CppVer::Cpp17;
-		let library = self.directory.get_library_source();
-		let library: Option<&std::path::Path> = library.as_ref().map(|p| p.as_ref());
-		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library))?;
-		ci::commands::build::run(&source, &codegen, &cppver, library).unwrap();
-		self.info("Compilation successful!")?;
+		let library = self.directory.get_library_source()?;
+		let library = library.as_ref().map(|pb| pb.as_path());
+		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library));
+		ci::commands::build::run(&source, &codegen, &cppver, library)?;
+		self.info("Compilation successful!");
 		Ok(())
 	}
 
 	fn test(&mut self) -> R<()> {
-		self.assure_compiled()?;
-		let executable = self.directory.get_executable();
-		let testdir = self.directory.get_tests();
-		let mut ui = impulse_ui::ImpulseCiUi(self.input_sender.clone());
-		let t1 = thread::spawn(move || {
-			let _ = ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui);
-		});
-		let success = loop {
-			match self.input.recv().unwrap() {
-				Impulse::CiTestSingle { outcome, timing, in_path } => self.log(format!("{:?} {:?} {:?}", outcome, timing, in_path))?,
-				Impulse::CiTestFinish { success } => break success,
-				imp => er!("Unexpected impulse {:?}", imp),
-			}
-		};
-		if success {
-			self.info("Tests run successfully")?;
-		} else {
-			self.output
-				.send(Reaction::ErrorMessage {
-					message: "Some tests failed".to_owned(),
-				})
-				.unwrap();
-		}
-		t1.join().unwrap();
+		self.assure_passes_tests()?;
+		self.info("Tests run successfully");
 		Ok(())
 	}
 
 	fn init(&mut self) -> R<()> {
-		let name = self.random_codename();
-		let root = env::home_dir().unwrap().join(&name);
+		let name = self.random_codename()?;
+		let root = dirs::home_dir().ok_or(error::Category::DegenerateEnvironment { detail: "no home directory" })?.join(&name);
+		let new_dir = Directory::new(root.clone());
 		let url = match self.input_box(InputBoxOptions {
 			ignore_focus_out: true,
 			password: false,
@@ -146,19 +127,20 @@ impl ICIE {
 		})? {
 			Some(url) => url,
 			None => {
-				self.info("ICIE Init cancelled")?;
+				self.info("ICIE Init cancelled");
 				return Ok(());
 			},
 		};
-		let mut ui = impulse_ui::ImpulseCiUi(self.input_sender.clone());
-		ci::util::demand_dir(&root).unwrap();
+		let mut ui = self.make_ui();
+		ci::util::demand_dir(&root)?;
 
 		let root2 = root.clone();
+		let url2 = url.clone();
 		let t1 = thread::spawn(move || {
-			let _ = ci::commands::init::run(&url, &root2, &mut ui);
+			let _ = ci::commands::init::run(&url2, &root2, &mut ui);
 		});
 		loop {
-			match self.input.recv().unwrap() {
+			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => {
 					let username = self
 						.input_box(InputBoxOptions {
@@ -167,7 +149,7 @@ impl ICIE {
 							ignore_focus_out: false,
 							password: false,
 						})?
-						.unwrap();
+						.ok_or(error::Category::LackOfInput)?;
 					let password = self
 						.input_box(InputBoxOptions {
 							prompt: Some(format!("Password for {} at {}", username, domain)),
@@ -175,21 +157,33 @@ impl ICIE {
 							ignore_focus_out: false,
 							password: true,
 						})?
-						.unwrap();
-					channel.send(Some((username, password))).unwrap();
+						.ok_or(error::Category::LackOfInput)?;
+					channel.send(Some((username, password))).context("thread suddenly stopped")?;
 				},
 				Impulse::CiInitFinish => break,
-				imp => er!("Unexpected impulse {:?}", imp),
+				impulse => Err(error::Category::UnexpectedImpulse {
+					description: format!("{:?}", impulse),
+				})?,
 			}
 		}
-		t1.join().unwrap();
+		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
 
-		fs::copy(&self.directory.get_template_main(), &root.join("main.cpp")).unwrap();
-		self.output.send(Reaction::OpenFolder { path: root, in_new_window: false }).unwrap();
+		fs::copy(&self.directory.get_template_main()?, &root.join("main.cpp"))?;
+		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?);
+		self.send(Reaction::OpenFolder { path: root, in_new_window: false });
 		Ok(())
 	}
 
-	fn random_codename(&mut self) -> String {
+	fn submit(&mut self) -> R<()> {
+		self.assure_passes_tests()?;
+		let code = self.directory.get_source()?;
+		let mut ui = self.make_ui();
+		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
+		ci::commands::submit::run(&manifest.task_url, &code, &mut ui)?;
+		Ok(())
+	}
+
+	fn random_codename(&mut self) -> R<String> {
 		let mut rng = rand::thread_rng();
 		static ADJECTIVES: &[&str] = &[
 			"playful",
@@ -217,7 +211,47 @@ impl ICIE {
 			"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug", "platypus", "squid",
 			"koala", "panda",
 		];
-		format!("{}-{}", ADJECTIVES.choose(&mut rng).unwrap(), ANIMALS.choose(&mut rng).unwrap())
+		Ok(format!(
+			"{}-{}",
+			ADJECTIVES.choose(&mut rng).ok_or(error::Category::NoCuteAnimals)?,
+			ANIMALS.choose(&mut rng).ok_or(error::Category::NoCuteAnimals)?
+		))
+	}
+
+	fn run_tests(&mut self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
+		self.assure_compiled()?;
+		let executable = self.directory.get_executable()?;
+		let testdir = self.directory.get_tests()?;
+		let mut ui = self.make_ui();
+		let t1 = thread::spawn(move || {
+			let _ = ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui);
+		});
+		let mut first_failed = None;
+		let success = loop {
+			match self.recv() {
+				Impulse::CiTestSingle { outcome, timing, in_path } => {
+					self.log(format!("{:?} {:?} {:?}", outcome, timing, in_path));
+					if outcome != ci::testing::TestResult::Accept {
+						first_failed = first_failed.or(Some((outcome, in_path)));
+					}
+				},
+				Impulse::CiTestFinish { success } => break success,
+				impulse => Err(error::Category::UnexpectedImpulse {
+					description: format!("{:?}", impulse),
+				})?,
+			}
+		};
+		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
+		Ok((success, first_failed))
+	}
+
+	fn assure_passes_tests(&mut self) -> R<()> {
+		let (_, first_fail) = self.run_tests()?;
+		if let Some((verdict, path)) = first_fail {
+			Err(error::Category::TestFailure { verdict, path })?
+		} else {
+			Ok(())
+		}
 	}
 
 	fn assure_compiled(&mut self) -> R<()> {
@@ -228,77 +262,108 @@ impl ICIE {
 	}
 
 	fn assure_all_saved(&mut self) -> R<()> {
-		self.output.send(Reaction::SaveAll).unwrap();
-		match self.input.recv().unwrap() {
+		self.send(Reaction::SaveAll);
+		match self.recv() {
 			Impulse::SavedAll => {},
-			imp => er!("Unexpected impulse {:?}", imp),
+			impulse => Err(error::Category::UnexpectedImpulse {
+				description: format!("{:?}", impulse),
+			})?,
 		}
 		Ok(())
 	}
 
 	fn requires_compilation(&mut self) -> R<bool> {
-		let src = self.directory.get_source();
-		let exe = self.directory.get_executable();
+		let src = self.directory.get_source()?;
+		let exe = self.directory.get_executable()?;
 		self.assure_all_saved()?;
-		let metasrc = src.metadata().unwrap();
-		let metaexe = exe.metadata().unwrap();
-		Ok(metasrc.modified().unwrap() >= metaexe.modified().unwrap())
+		let metasrc = src.metadata()?;
+		let metaexe = match exe.metadata() {
+			Ok(metaexe) => metaexe,
+			Err(ref e) if e.kind() == io::ErrorKind::NotFound => return Ok(true),
+			e => e?,
+		};
+		Ok(metasrc.modified()? >= metaexe.modified()?)
 	}
 
-	fn info(&mut self, message: impl Into<String>) -> R<()> {
-		self.output.send(Reaction::InfoMessage { message: message.into() }).unwrap();
-		Ok(())
+	fn make_ui(&mut self) -> impulse_ui::ImpulseCiUi {
+		impulse_ui::ImpulseCiUi(self.input_sender.clone())
 	}
 
-	fn log(&mut self, message: impl Into<String>) -> R<()> {
-		self.output.send(Reaction::ConsoleLog { message: message.into() }).unwrap();
-		Ok(())
+	fn info(&mut self, message: impl Into<String>) {
+		self.send(Reaction::InfoMessage { message: message.into() });
+	}
+
+	fn error(&mut self, message: impl Into<String>) {
+		self.send(Reaction::ErrorMessage { message: message.into() });
+	}
+
+	fn log(&mut self, message: impl Into<String>) {
+		self.send(Reaction::ConsoleLog { message: message.into() });
 	}
 
 	fn input_box(&mut self, options: InputBoxOptions) -> R<Option<String>> {
-		self.output.send(Reaction::InputBox { options }).unwrap();
-		match self.input.recv().unwrap() {
+		self.send(Reaction::InputBox { options });
+		match self.recv() {
 			Impulse::InputBox { response } => Ok(response),
-			imp => er!("Unexpected impulse {:?}", imp),
+			impulse => Err(error::Category::UnexpectedImpulse {
+				description: format!("{:?}", impulse),
+			})?,
 		}
+	}
+
+	fn recv(&self) -> Impulse {
+		self.input.recv().expect("actor channel destroyed")
+	}
+
+	fn send(&self, reaction: Reaction) {
+		self.output.send(reaction).expect("actor channel destroyed");
 	}
 }
 
 struct Directory {
-	root: Option<String>,
+	root: Option<PathBuf>,
 }
 impl Directory {
-	pub(crate) fn new_empty() -> Directory {
+	pub fn new_empty() -> Directory {
 		Directory { root: None }
 	}
 
-	fn set_root_path(&mut self, root: Option<String>) {
+	pub fn new(root: PathBuf) -> Directory {
+		Directory { root: Some(root) }
+	}
+
+	fn set_root_path(&mut self, root: Option<PathBuf>) {
 		self.root = root;
 	}
 
-	fn get_source(&self) -> PathBuf {
-		PathBuf::from(format!("{}/main.cpp", self.root.as_ref().unwrap()))
+	fn need_root(&self) -> R<&std::path::Path> {
+		Ok(self.root.as_ref().map(|pb| pb.as_path()).ok_or(error::Category::NoOpenFolder)?)
 	}
 
-	fn get_library_source(&self) -> Option<PathBuf> {
-		let path = PathBuf::from(format!("{}/lib.cpp", self.root.as_ref().unwrap()));
-		if path.exists() {
-			Some(path)
-		} else {
-			None
-		}
+	fn get_source(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("main.cpp"))
 	}
 
-	fn get_executable(&self) -> PathBuf {
-		PathBuf::from(format!("{}/main.e", self.root.as_ref().unwrap()))
+	fn get_library_source(&self) -> R<Option<PathBuf>> {
+		let path = self.need_root()?.join("lib.cpp");
+		Ok(if path.exists() { Some(path) } else { None })
 	}
 
-	fn get_tests(&self) -> PathBuf {
-		PathBuf::from(format!("{}/tests", self.root.as_ref().unwrap()))
+	fn get_executable(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("main.e"))
 	}
 
-	fn get_template_main(&self) -> PathBuf {
-		// TODO use xdg config directory
-		env::home_dir().unwrap().join(".config/icie/template-main.cpp")
+	fn get_tests(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("tests"))
+	}
+
+	fn get_template_main(&self) -> R<PathBuf> {
+		Ok(dirs::config_dir()
+			.ok_or(error::Category::DegenerateEnvironment { detail: "no config directory " })?
+			.join("icie/template-main.cpp"))
+	}
+
+	fn get_manifest(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join(".icie"))
 	}
 }

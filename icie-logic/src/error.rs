@@ -1,24 +1,22 @@
-#[derive(Debug)]
-pub enum Error {
-	ManualDescription(String),
-}
-impl std::fmt::Display for Error {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-		write!(f, "{:?}", self)
-	}
-}
-impl std::error::Error for Error {}
+use ci;
+use failure;
 
-pub type R<T> = Result<T, Error>;
+#[derive(Debug, Fail)]
+pub enum Category {
+	#[fail(display = "{:?} on test {:?}", verdict, path)]
+	TestFailure { verdict: ci::testing::TestResult, path: std::path::PathBuf },
+	#[fail(display = "unexpected impulse {:?}", description)]
+	UnexpectedImpulse { description: String },
+	#[fail(display = "degenerate environment: {}", detail)]
+	DegenerateEnvironment { detail: &'static str },
+	#[fail(display = "no directory opened")]
+	NoOpenFolder,
+	#[fail(display = "operation cancelled due to lack of input")]
+	LackOfInput,
+	#[fail(display = "thread has suddenly panicked")]
+	ThreadPanicked,
+	#[fail(display = "ran out of cute animals")]
+	NoCuteAnimals,
+}
 
-macro_rules! er {
-	($($args:expr),*) => {
-		return Err(crate::error::Error::ManualDescription(format!($($args),*)));
-	};
-}
-#[allow(unused)]
-macro_rules! eo {
-	($($args:expr),*) => {
-		crate::error::Error::ManualDescription(format!($($args),*))
-	};
-}
+pub type R<T> = Result<T, failure::Error>;

@@ -18,6 +18,14 @@ impl Handle {
 		panic::set_hook(Box::new(move |info| {
 			if let Ok(is2) = is2.lock() {
 				let _ = is2.send(Reaction::ErrorMessage { message: info.to_string() });
+				let mut buf = String::new();
+				backtrace::trace(|frame| {
+					backtrace::resolve(frame.symbol_address(), |symbol| {
+						buf += &format!("{:?} {:?}:{:?}\n", symbol.name(), symbol.filename(), symbol.lineno());
+					});
+					true
+				});
+				let _ = is2.send(Reaction::ConsoleError { message: buf }).unwrap();
 			}
 			loop {
 				sleep(Duration::from_secs(1));

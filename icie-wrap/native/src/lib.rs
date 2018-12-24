@@ -66,6 +66,10 @@ impl Task for MessageRecvTask {
 				set_bool(&obj, "in_new_window", in_new_window, &mut cx);
 				"open_folder"
 			},
+			icie_logic::Reaction::ConsoleError { message } => {
+				maybe_set_string(&obj, "message", message, &mut cx);
+				"console_error"
+			},
 		};
 		let tag = cx.string(tag);
 		obj.set(&mut cx, "tag", tag)?;
@@ -103,7 +107,6 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 	let obj = cx.argument::<JsObject>(0)?;
 	let tag = obj.get(&mut cx, "tag")?.to_string(&mut cx)?.value();
 	let impulse = match tag.as_str() {
-		"ping" => icie_logic::Impulse::Ping,
 		"quick_pick" => icie_logic::Impulse::QuickPick {
 			response: get_string_or_bool(&obj, "response", &mut cx),
 		},
@@ -117,6 +120,7 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 		"trigger_test" => icie_logic::Impulse::TriggerTest,
 		"saved_all" => icie_logic::Impulse::SavedAll,
 		"trigger_init" => icie_logic::Impulse::TriggerInit,
+		"trigger_submit" => icie_logic::Impulse::TriggerSubmit,
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);
