@@ -121,6 +121,7 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 		"saved_all" => icie_logic::Impulse::SavedAll,
 		"trigger_init" => icie_logic::Impulse::TriggerInit,
 		"trigger_submit" => icie_logic::Impulse::TriggerSubmit,
+		"trigger_manual_submit" => icie_logic::Impulse::TriggerManualSubmit,
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);

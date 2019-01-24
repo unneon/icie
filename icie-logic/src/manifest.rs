@@ -2,7 +2,7 @@ use std::{
 	fs::{self, File}, path::Path
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
 	pub task_url: String,
 }

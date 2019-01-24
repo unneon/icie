@@ -3,11 +3,13 @@ extern crate ci;
 extern crate dirs;
 #[macro_use]
 extern crate failure;
+extern crate open;
 extern crate rand;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
+extern crate unijudge;
 
 #[macro_use]
 mod error;
@@ -30,6 +32,7 @@ pub enum Impulse {
 	TriggerTest,
 	TriggerInit,
 	TriggerSubmit,
+	TriggerManualSubmit,
 	WorkspaceInfo {
 		root_path: Option<String>,
 	},
@@ -90,6 +93,7 @@ impl ICIE {
 			Impulse::TriggerTest => self.test()?,
 			Impulse::TriggerInit => self.init()?,
 			Impulse::TriggerSubmit => self.submit()?,
+			Impulse::TriggerManualSubmit => self.manual_submit()?,
 			impulse => Err(error::Category::UnexpectedImpulse {
 				description: format!("{:?}", impulse),
 			})?,
@@ -180,6 +184,18 @@ impl ICIE {
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
 		ci::commands::submit::run(&manifest.task_url, &code, &mut ui)?;
+		Ok(())
+	}
+
+	fn manual_submit(&mut self) -> R<()> {
+		self.assure_passes_tests()?;
+		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
+		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url);
+		let mut ui = self.make_ui();
+		let session = ci::connect(&manifest.task_url, &mut ui);
+		let contest = session.contest(&tu.contest);
+		let url = contest.manual_submit_url(&tu.task);
+		open::that(url)?;
 		Ok(())
 	}
 

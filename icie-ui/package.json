@@ -15,7 +15,8 @@
         "onCommand:icie.build",
         "onCommand:icie.test",
         "onCommand:icie.init",
-        "onCommand:icie.submit"
+        "onCommand:icie.submit",
+        "onCommand:icie.manual.submit"
     ],
     "main": "./out/extension",
     "contributes": {
@@ -35,6 +36,10 @@
             {
                 "command": "icie.submit",
                 "title": "ICIE Submit"
+            },
+            {
+                "command": "icie.manual.submit",
+                "title": "ICIE Manual Submit"
             }
         ],
         "keybindings": [
@@ -45,6 +50,10 @@
             {
                 "command": "icie.submit",
                 "key": "alt+f12"
+            },
+            {
+                "command": "icie.manual.submit",
+                "key": "alt+shift+f12"
             }
         ]
     },
@@ -53,7 +62,8 @@
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install",
-        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+        "test": "npm run compile && node ./node_modules/vscode/bin/test",
+        "pkgvars": "node ./node_modules/vscode/bin/install"
     },
     "dependencies": {
         "icie-wrap": "file:../icie-wrap"
