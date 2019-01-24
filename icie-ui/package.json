@@ -3,6 +3,8 @@
     "displayName": "ICIE",
     "description": "",
     "version": "0.3.0",
+    "publisher": "pustaczek",
+    "repository": "https://github.com/matcegla/icie",
     "engines": {
         "vscode": "^1.29.0"
     },
