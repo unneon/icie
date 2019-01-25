@@ -24,8 +24,8 @@ impl ci::ui::Ui for ImpulseCiUi {
 		unimplemented!()
 	}
 
-	fn submit_success(&mut self, _id: String) {
-		unimplemented!()
+	fn submit_success(&mut self, id: String) {
+		self.0.send(Impulse::CiSubmitSuccess { id }).unwrap();
 	}
 
 	fn print_resource_list(&mut self, _resources: &[Resource]) {

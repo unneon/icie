@@ -20,3 +20,7 @@ pub enum Category {
 }
 
 pub type R<T> = Result<T, failure::Error>;
+
+pub fn unexpected(impulse: crate::Impulse) -> Category {
+	Category::UnexpectedImpulse { description: format!("{:?}", impulse) }
+}

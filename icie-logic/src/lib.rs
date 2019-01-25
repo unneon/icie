@@ -56,6 +56,7 @@ pub enum Impulse {
 		channel: Sender<Option<(String, String)>>,
 	},
 	CiInitFinish,
+	CiSubmitSuccess { id: String, },
 }
 pub enum Reaction {
 	Status { message: Option<String> },
@@ -94,9 +95,7 @@ impl ICIE {
 			Impulse::TriggerInit => self.init()?,
 			Impulse::TriggerSubmit => self.submit()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
-			impulse => Err(error::Category::UnexpectedImpulse {
-				description: format!("{:?}", impulse),
-			})?,
+			impulse => Err(error::unexpected(impulse))?,
 		}
 		Ok(())
 	}
@@ -145,29 +144,9 @@ impl ICIE {
 		});
 		loop {
 			match self.recv() {
-				Impulse::CiAuthRequest { domain, channel } => {
-					let username = self
-						.input_box(InputBoxOptions {
-							prompt: Some(format!("Username at {}", domain)),
-							placeholder: None,
-							ignore_focus_out: false,
-							password: false,
-						})?
-						.ok_or(error::Category::LackOfInput)?;
-					let password = self
-						.input_box(InputBoxOptions {
-							prompt: Some(format!("Password for {} at {}", username, domain)),
-							placeholder: None,
-							ignore_focus_out: false,
-							password: true,
-						})?
-						.ok_or(error::Category::LackOfInput)?;
-					channel.send(Some((username, password))).context("thread suddenly stopped")?;
-				},
+				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiInitFinish => break,
-				impulse => Err(error::Category::UnexpectedImpulse {
-					description: format!("{:?}", impulse),
-				})?,
+				impulse => Err(error::unexpected(impulse))?,
 			}
 		}
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
@@ -183,7 +162,18 @@ impl ICIE {
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
-		ci::commands::submit::run(&manifest.task_url, &code, &mut ui)?;
+		let t1 = thread::spawn( move || {
+			let _ = ci::commands::submit::run(&manifest.task_url, &code, &mut ui);
+		});
+		let id = loop {
+			match self.recv() {
+				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
+				Impulse::CiSubmitSuccess { id } => break id,
+				impulse => Err(error::unexpected(impulse))?,
+			}
+		};
+		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
+		self.info(format!("Submit success #{}", id));
 		Ok(())
 	}
 
@@ -196,6 +186,27 @@ impl ICIE {
 		let contest = session.contest(&tu.contest);
 		let url = contest.manual_submit_url(&tu.task);
 		open::that(url)?;
+		Ok(())
+	}
+
+	fn respond_auth(&mut self, domain: String, channel: Sender<Option<(String, String)>>) -> R<()> {
+		let username = self
+			.input_box(InputBoxOptions {
+				prompt: Some(format!("Username at {}", domain)),
+				placeholder: None,
+				ignore_focus_out: false,
+				password: false,
+			})?
+			.ok_or(error::Category::LackOfInput)?;
+		let password = self
+			.input_box(InputBoxOptions {
+				prompt: Some(format!("Password for {} at {}", username, domain)),
+				placeholder: None,
+				ignore_focus_out: false,
+				password: true,
+			})?
+			.ok_or(error::Category::LackOfInput)?;
+		channel.send(Some((username, password))).context("thread suddenly stopped")?;
 		Ok(())
 	}
 
@@ -252,9 +263,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiTestFinish { success } => break success,
-				impulse => Err(error::Category::UnexpectedImpulse {
-					description: format!("{:?}", impulse),
-				})?,
+				impulse => Err(error::unexpected(impulse))?
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
@@ -281,9 +290,7 @@ impl ICIE {
 		self.send(Reaction::SaveAll);
 		match self.recv() {
 			Impulse::SavedAll => {},
-			impulse => Err(error::Category::UnexpectedImpulse {
-				description: format!("{:?}", impulse),
-			})?,
+			impulse => Err(error::unexpected(impulse))?,
 		}
 		Ok(())
 	}
@@ -321,9 +328,7 @@ impl ICIE {
 		self.send(Reaction::InputBox { options });
 		match self.recv() {
 			Impulse::InputBox { response } => Ok(response),
-			impulse => Err(error::Category::UnexpectedImpulse {
-				description: format!("{:?}", impulse),
-			})?,
+			impulse => Err(error::unexpected(impulse))?,
 		}
 	}
 
