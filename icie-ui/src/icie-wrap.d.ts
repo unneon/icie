@@ -46,6 +46,12 @@ declare module 'icie-wrap' {
         tag: "console_error",
         message: string,
     }
+    export interface ReactionOpenEditor {
+        tag: "open_editor",
+        path: string,
+        row: number,
+        column: number,
+    }
 
     export interface ImpulseQuickPick {
         tag: "quick_pick",
@@ -81,7 +87,7 @@ declare module 'icie-wrap' {
         tag: "trigger_template_instantiate"
     }
 
-    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError;
+    export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor;
     export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate;
 
     export function message_recv(callback: (error: any, reaction: Reaction) => void): void;

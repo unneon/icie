@@ -73,6 +73,7 @@ pub enum Reaction {
 	SaveAll,
 	OpenFolder { path: PathBuf, in_new_window: bool },
 	ConsoleError { message: String },
+	OpenEditor { path: PathBuf, row: i64, column: i64 },
 }
 
 struct ICIE {
@@ -95,7 +96,7 @@ impl ICIE {
 
 	fn process(&mut self) -> R<()> {
 		match self.recv() {
-			Impulse::WorkspaceInfo { root_path } => self.directory.set_root_path(root_path.map(PathBuf::from)),
+			Impulse::WorkspaceInfo { root_path } => self.setup_workspace(root_path)?,
 			Impulse::TriggerBuild => self.build()?,
 			Impulse::TriggerTest => self.test()?,
 			Impulse::TriggerInit => self.init()?,
@@ -223,6 +224,11 @@ impl ICIE {
 			panic!("File already exists and is not empty");
 		}
 		fs::copy(&template.path, &path)?;
+		self.send(Reaction::OpenEditor {
+			path: path.clone(),
+			row: template.cursor.row,
+			column: template.cursor.column,
+		});
 		Ok(())
 	}
 
@@ -235,6 +241,18 @@ impl ICIE {
 		let contest = session.contest(&tu.contest);
 		let url = contest.manual_submit_url(&tu.task);
 		open::that(url)?;
+		Ok(())
+	}
+
+	fn setup_workspace(&mut self, root_path: Option<String>) -> R<()> {
+		self.directory.set_root_path(root_path.map(PathBuf::from));
+		if self.directory.get_source()?.exists() {
+			self.send(Reaction::OpenEditor {
+				path: self.directory.get_source()?,
+				row: self.config.template_main().cursor.row,
+				column: self.config.template_main().cursor.column,
+			});
+		}
 		Ok(())
 	}
 

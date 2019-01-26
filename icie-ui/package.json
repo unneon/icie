@@ -17,7 +17,8 @@
         "onCommand:icie.init",
         "onCommand:icie.submit",
         "onCommand:icie.template.instantiate",
-        "onCommand:icie.manual.submit"
+        "onCommand:icie.manual.submit",
+        "workspaceContains:/main.cpp"
     ],
     "main": "./out/extension",
     "contributes": {

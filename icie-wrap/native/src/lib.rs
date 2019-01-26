@@ -70,6 +70,12 @@ impl Task for MessageRecvTask {
 				maybe_set_string(&obj, "message", message, &mut cx);
 				"console_error"
 			},
+			icie_logic::Reaction::OpenEditor { path, row, column } => {
+				maybe_set_string(&obj, "path", path.into_os_string().into_string().unwrap(), &mut cx);
+				set_number(&obj, "row", row as f64, &mut cx);
+				set_number(&obj, "column", column as f64, &mut cx);
+				"open_editor"
+			},
 		};
 		let tag = cx.string(tag);
 		obj.set(&mut cx, "tag", tag)?;
@@ -85,6 +91,10 @@ fn maybe_set_string<S: Into<Option<String>>>(obj: &Handle<JsObject>, field: &str
 }
 fn set_bool(obj: &Handle<JsObject>, field: &str, value: bool, cx: &mut TaskContext) {
 	let value = cx.boolean(value);
+	obj.set(cx, field, value).unwrap();
+}
+fn set_number(obj: &Handle<JsObject>, field: &str, value: f64, cx: &mut TaskContext) {
+	let value = cx.number(value);
 	obj.set(cx, field, value).unwrap();
 }
 fn get_string_or_bool(obj: &Handle<JsObject>, field: &str, cx: &mut CallContext<JsObject>) -> Option<String> {

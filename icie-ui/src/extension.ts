@@ -64,6 +64,15 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(reaction.path), reaction.in_new_window);
         } else if (reaction.tag === "console_error") {
             console.error(reaction.message);
+        } else if (reaction.tag === "open_editor") {
+            vscode.workspace.openTextDocument(reaction.path)
+                .then(source => vscode.window.showTextDocument(source))
+                .then(editor => {
+                    let oldPosition = editor.selection.active;
+                    let newPosition = oldPosition.with(reaction.row-1, reaction.column-1);
+                    let newSelection = new vscode.Selection(newPosition, newPosition);
+                    editor.selection = newSelection;
+                });
         }
         native.recv(callback);
     };
