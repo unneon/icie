@@ -20,6 +20,7 @@ pub struct Template {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+	pub project_directory: PathBuf,
 	pub main_template_id: String,
 	pub templates: Vec<Template>,
 }
@@ -58,6 +59,7 @@ int main() {{
 				Cursor { row: 8, column: 5 }
 			};
 			let config = Config {
+				project_directory: dirs::home_dir().ok_or(error::Category::DegenerateEnvironment { detail: "no config directory" })?,
 				main_template_id: "main".to_string(),
 				templates: vec![Template {
 					id: "main".to_string(),
