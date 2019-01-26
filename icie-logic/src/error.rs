@@ -17,10 +17,14 @@ pub enum Category {
 	ThreadPanicked,
 	#[fail(display = "ran out of cute animals")]
 	NoCuteAnimals,
+	#[fail(display = "malformed config: {}", detail)]
+	MalformedConfig { detail: &'static str },
 }
 
 pub type R<T> = Result<T, failure::Error>;
 
 pub fn unexpected(impulse: crate::Impulse) -> Category {
-	Category::UnexpectedImpulse { description: format!("{:?}", impulse) }
+	Category::UnexpectedImpulse {
+		description: format!("{:?}", impulse),
+	}
 }

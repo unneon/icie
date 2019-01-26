@@ -11,6 +11,7 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate unijudge;
 
+mod config;
 #[macro_use]
 mod error;
 mod handle;
@@ -20,10 +21,11 @@ mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, vscode::*};
+use crate::config::Config;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	fs, io, path::PathBuf, sync::mpsc::{Receiver, Sender}, thread, time::Duration
+	fs, io, path::PathBuf, str::from_utf8, sync::mpsc::{Receiver, Sender}, thread, time::Duration
 };
 
 #[derive(Debug)]
@@ -32,6 +34,7 @@ pub enum Impulse {
 	TriggerTest,
 	TriggerInit,
 	TriggerSubmit,
+	TriggerTemplateInstantiate,
 	TriggerManualSubmit,
 	WorkspaceInfo {
 		root_path: Option<String>,
@@ -56,7 +59,9 @@ pub enum Impulse {
 		channel: Sender<Option<(String, String)>>,
 	},
 	CiInitFinish,
-	CiSubmitSuccess { id: String, },
+	CiSubmitSuccess {
+		id: String,
+	},
 }
 pub enum Reaction {
 	Status { message: Option<String> },
@@ -75,6 +80,7 @@ struct ICIE {
 	output: Sender<Reaction>,
 	input_sender: Sender<Impulse>,
 
+	config: Config,
 	directory: Directory,
 }
 impl ICIE {
@@ -94,6 +100,7 @@ impl ICIE {
 			Impulse::TriggerTest => self.test()?,
 			Impulse::TriggerInit => self.init()?,
 			Impulse::TriggerSubmit => self.submit()?,
+			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
 			impulse => Err(error::unexpected(impulse))?,
 		}
@@ -151,7 +158,7 @@ impl ICIE {
 		}
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
 
-		fs::copy(&self.directory.get_template_main()?, &root.join("main.cpp"))?;
+		fs::copy(&self.config.template_main().path, &root.join("main.cpp"))?;
 		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?);
 		self.send(Reaction::OpenFolder { path: root, in_new_window: false });
 		Ok(())
@@ -162,7 +169,7 @@ impl ICIE {
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
-		let t1 = thread::spawn( move || {
+		let t1 = thread::spawn(move || {
 			let _ = ci::commands::submit::run(&manifest.task_url, &code, &mut ui);
 		});
 		let id = loop {
@@ -174,6 +181,48 @@ impl ICIE {
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
 		self.info(format!("Submit success #{}", id));
+		Ok(())
+	}
+
+	fn template_instantiate(&mut self) -> R<()> {
+		let items = self
+			.config
+			.templates
+			.iter()
+			.map(|tpl| QuickPickItem {
+				id: tpl.id.clone(),
+				label: tpl.name.clone(),
+				description: None,
+				detail: Some(tpl.path.display().to_string()),
+			})
+			.collect::<Vec<_>>();
+		self.send(Reaction::QuickPick { items });
+		let response = loop {
+			match self.recv() {
+				Impulse::QuickPick { response } => break response.unwrap(),
+				impulse => Err(error::unexpected(impulse))?,
+			}
+		};
+		let template = self.config.templates.iter().find(|tpl| tpl.id == response).unwrap();
+		self.send(Reaction::InputBox {
+			options: InputBoxOptions {
+				ignore_focus_out: true,
+				password: false,
+				placeholder: Some(template.default_filename.clone()),
+				prompt: Some("New file name".to_string()),
+			},
+		});
+		let filename = loop {
+			match self.recv() {
+				Impulse::InputBox { response } => break response.unwrap(),
+				impulse => Err(error::unexpected(impulse))?,
+			}
+		};
+		let path = self.directory.need_root()?.join(filename);
+		if path.exists() && !from_utf8(&fs::read(&path)?)?.trim().is_empty() {
+			panic!("File already exists and is not empty");
+		}
+		fs::copy(&template.path, &path)?;
 		Ok(())
 	}
 
@@ -263,7 +312,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiTestFinish { success } => break success,
-				impulse => Err(error::unexpected(impulse))?
+				impulse => Err(error::unexpected(impulse))?,
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
@@ -357,7 +406,7 @@ impl Directory {
 		self.root = root;
 	}
 
-	fn need_root(&self) -> R<&std::path::Path> {
+	pub fn need_root(&self) -> R<&std::path::Path> {
 		Ok(self.root.as_ref().map(|pb| pb.as_path()).ok_or(error::Category::NoOpenFolder)?)
 	}
 
@@ -376,12 +425,6 @@ impl Directory {
 
 	fn get_tests(&self) -> R<PathBuf> {
 		Ok(self.need_root()?.join("tests"))
-	}
-
-	fn get_template_main(&self) -> R<PathBuf> {
-		Ok(dirs::config_dir()
-			.ok_or(error::Category::DegenerateEnvironment { detail: "no config directory " })?
-			.join("icie/template-main.cpp"))
 	}
 
 	fn get_manifest(&self) -> R<PathBuf> {

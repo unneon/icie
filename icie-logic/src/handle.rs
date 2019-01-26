@@ -1,4 +1,5 @@
 use super::{Directory, Impulse, Reaction, ICIE};
+use crate::config::Config;
 use std::{
 	panic, sync::{
 		mpsc::{self, Receiver, Sender}, Mutex
@@ -37,6 +38,7 @@ impl Handle {
 				input: er,
 				output: is,
 				input_sender: es2,
+				config: Config::load_or_create().unwrap(),
 				directory: Directory::new_empty(),
 			}
 			.main_loop()

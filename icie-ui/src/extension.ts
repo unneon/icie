@@ -19,6 +19,9 @@ export function activate(context: vscode.ExtensionContext) {
     let disposable6 = vscode.commands.registerCommand('icie.manual.submit', () => {
         native.send({ tag: "trigger_manual_submit" });
     });
+    let disposable7 = vscode.commands.registerCommand('icie.template.instantiate', () => {
+        native.send({ tag: "trigger_template_instantiate" });
+    });
 
     let status = vscode.window.createStatusBarItem();
 
@@ -76,6 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable4);
     context.subscriptions.push(disposable5);
     context.subscriptions.push(disposable6);
+    context.subscriptions.push(disposable7);
 }
 
 export function deactivate() {

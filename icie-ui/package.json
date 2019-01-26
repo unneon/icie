@@ -16,6 +16,7 @@
         "onCommand:icie.test",
         "onCommand:icie.init",
         "onCommand:icie.submit",
+        "onCommand:icie.template.instantiate",
         "onCommand:icie.manual.submit"
     ],
     "main": "./out/extension",
@@ -38,6 +39,10 @@
                 "title": "ICIE Submit"
             },
             {
+                "command": "icie.template.instantiate",
+                "title": "ICIE File from Template"
+            },
+            {
                 "command": "icie.manual.submit",
                 "title": "ICIE Manual Submit"
             }
@@ -50,6 +55,10 @@
             {
                 "command": "icie.submit",
                 "key": "alt+f12"
+            },
+            {
+                "command": "icie.template.instantiate",
+                "key": "alt+="
             },
             {
                 "command": "icie.manual.submit",
