@@ -60,10 +60,6 @@
             {
                 "command": "icie.template.instantiate",
                 "key": "alt+="
-            },
-            {
-                "command": "icie.manual.submit",
-                "key": "alt+shift+f12"
             }
         ]
     },
