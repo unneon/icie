@@ -1,5 +1,5 @@
 use super::{Directory, Impulse, Reaction, ICIE};
-use crate::config::Config;
+use crate::{config::Config, status};
 use std::{
 	panic, sync::{
 		mpsc::{self, Receiver, Sender}, Mutex
@@ -41,6 +41,7 @@ impl Handle {
 				config: Config::load_or_create().unwrap(),
 				directory: Directory::new_empty(),
 				id_factory: Mutex::new(0),
+				status_stack: Mutex::new(status::StatusStack::new()),
 			}
 			.main_loop()
 		});

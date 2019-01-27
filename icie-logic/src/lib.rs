@@ -18,10 +18,11 @@ mod handle;
 mod impulse_ui;
 mod manifest;
 mod progress;
+mod status;
 mod vscode;
 
 pub use self::handle::Handle;
-use self::{error::R, vscode::*};
+use self::{error::R, status::Status, vscode::*};
 use crate::config::Config;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
@@ -97,6 +98,7 @@ struct ICIE {
 	config: Config,
 	directory: Directory,
 	id_factory: Mutex<i64>,
+	status_stack: Mutex<status::StatusStack>,
 }
 impl ICIE {
 	fn main_loop(&mut self) {
@@ -122,19 +124,22 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn build(&mut self) -> R<()> {
+	fn build(&self) -> R<()> {
+		let _status = self.status("Compiling");
 		self.assure_compiled()?;
 		self.info("Compilation successful!");
 		Ok(())
 	}
 
-	fn test(&mut self) -> R<()> {
+	fn test(&self) -> R<()> {
+		let _status = self.status("Testing");
 		self.assure_passes_tests()?;
 		self.info("Tests run successfully");
 		Ok(())
 	}
 
-	fn init(&mut self) -> R<()> {
+	fn init(&self) -> R<()> {
+		let _status = self.status("Creating project");
 		let name = self.random_codename()?;
 		let root = dirs::home_dir().ok_or(error::Category::DegenerateEnvironment { detail: "no home directory" })?.join(&name);
 		let new_dir = Directory::new(root.clone());
@@ -173,7 +178,8 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn submit(&mut self) -> R<()> {
+	fn submit(&self) -> R<()> {
+		let _status = self.status("Submitting");
 		self.assure_passes_tests()?;
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
@@ -194,7 +200,8 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn template_instantiate(&mut self) -> R<()> {
+	fn template_instantiate(&self) -> R<()> {
+		let _status = self.status("Creating template");
 		let items = self
 			.config
 			.templates
@@ -241,7 +248,8 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn manual_submit(&mut self) -> R<()> {
+	fn manual_submit(&self) -> R<()> {
+		let _status = self.status("Submitting manually");
 		self.assure_passes_tests()?;
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
 		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url);
@@ -255,6 +263,11 @@ impl ICIE {
 
 	fn setup_workspace(&mut self, root_path: Option<String>) -> R<()> {
 		self.directory.set_root_path(root_path.map(PathBuf::from));
+		self.launch()
+	}
+
+	fn launch(&self) -> R<()> {
+		let _status = self.status("Launching");
 		if self.directory.get_source()?.exists() {
 			self.send(Reaction::OpenEditor {
 				path: self.directory.get_source()?,
@@ -266,6 +279,7 @@ impl ICIE {
 	}
 
 	fn track_submit(&self, id: String, url: String) -> R<()> {
+		let _status = self.status("Tracking");
 		let title = format!("Tracking submit #{}", id);
 		let mut ui = self.make_ui();
 		let t1 = thread::spawn(move || {
@@ -318,7 +332,7 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn random_codename(&mut self) -> R<String> {
+	fn random_codename(&self) -> R<String> {
 		let mut rng = rand::thread_rng();
 		static ADJECTIVES: &[&str] = &[
 			"playful",
@@ -353,7 +367,8 @@ impl ICIE {
 		))
 	}
 
-	fn run_tests(&mut self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
+	fn run_tests(&self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
+		let _status = self.status("Testing");
 		self.assure_compiled()?;
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
@@ -378,7 +393,7 @@ impl ICIE {
 		Ok((success, first_failed))
 	}
 
-	fn assure_passes_tests(&mut self) -> R<()> {
+	fn assure_passes_tests(&self) -> R<()> {
 		let (_, first_fail) = self.run_tests()?;
 		if let Some((verdict, path)) = first_fail {
 			Err(error::Category::TestFailure { verdict, path })?
@@ -387,14 +402,15 @@ impl ICIE {
 		}
 	}
 
-	fn assure_compiled(&mut self) -> R<()> {
+	fn assure_compiled(&self) -> R<()> {
 		if self.requires_compilation()? {
 			self.compile()?;
 		}
 		Ok(())
 	}
 
-	fn compile(&mut self) -> R<()> {
+	fn compile(&self) -> R<()> {
+		let _status = self.status("Compiling");
 		let source = self.directory.get_source()?;
 		let codegen = ci::commands::build::Codegen::Debug;
 		let cppver = ci::commands::build::CppVer::Cpp17;
@@ -405,7 +421,7 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn assure_all_saved(&mut self) -> R<()> {
+	fn assure_all_saved(&self) -> R<()> {
 		self.send(Reaction::SaveAll);
 		match self.recv() {
 			Impulse::SavedAll => {},
@@ -414,7 +430,7 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn requires_compilation(&mut self) -> R<bool> {
+	fn requires_compilation(&self) -> R<bool> {
 		let src = self.directory.get_source()?;
 		let exe = self.directory.get_executable()?;
 		self.assure_all_saved()?;
@@ -442,15 +458,20 @@ impl ICIE {
 		progress::Progress::start(title, id, &self)
 	}
 
+	fn status(&self, msg: impl Into<String>) -> Status {
+		let msg: String = msg.into();
+		Status::new(&msg, &self)
+	}
+
 	fn info(&self, message: impl Into<String>) {
 		self.send(Reaction::InfoMessage { message: message.into() });
 	}
 
-	fn error(&mut self, message: impl Into<String>) {
+	fn error(&self, message: impl Into<String>) {
 		self.send(Reaction::ErrorMessage { message: message.into() });
 	}
 
-	fn log(&mut self, message: impl Into<String>) {
+	fn log(&self, message: impl Into<String>) {
 		self.send(Reaction::ConsoleLog { message: message.into() });
 	}
 
