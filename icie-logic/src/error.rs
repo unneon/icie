@@ -5,8 +5,8 @@ use failure;
 pub enum Category {
 	#[fail(display = "{:?} on test {:?}", verdict, path)]
 	TestFailure { verdict: ci::testing::TestResult, path: std::path::PathBuf },
-	#[fail(display = "unexpected impulse {:?}", description)]
-	UnexpectedImpulse { description: String },
+	#[fail(display = "unexpected impulse {:?} when waiting for {}", description, target)]
+	UnexpectedImpulse { description: String, target: &'static str },
 	#[fail(display = "degenerate environment: {}", detail)]
 	DegenerateEnvironment { detail: &'static str },
 	#[fail(display = "no directory opened")]
@@ -23,8 +23,9 @@ pub enum Category {
 
 pub type R<T> = Result<T, failure::Error>;
 
-pub fn unexpected(impulse: crate::Impulse) -> Category {
+pub fn unexpected(impulse: crate::Impulse, target: &'static str) -> Category {
 	Category::UnexpectedImpulse {
 		description: format!("{:?}", impulse),
+		target,
 	}
 }

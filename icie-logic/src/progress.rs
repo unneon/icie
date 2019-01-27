@@ -35,7 +35,7 @@ impl<'a> Progress<'a> {
 		loop {
 			match self.icie.recv() {
 				Impulse::ProgressReady { ref id } if id == &self.id => break Ok(()),
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "progress ready notice"))?,
 			}
 		}
 	}

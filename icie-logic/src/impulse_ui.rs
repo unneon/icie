@@ -18,8 +18,8 @@ impl ci::ui::Ui for ImpulseCiUi {
 		rx.recv().unwrap().unwrap()
 	}
 
-	fn track_progress(&mut self, _verdict: &unijudge::Verdict) {
-		unimplemented!()
+	fn track_progress(&mut self, verdict: &unijudge::Verdict, finish: bool) {
+		self.0.send(Impulse::CiTrack { verdict: verdict.clone(), finish }).unwrap();
 	}
 
 	fn submit_success(&mut self, id: String) {

@@ -26,7 +26,9 @@ use crate::config::Config;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	fs, io, path::PathBuf, str::from_utf8, sync::mpsc::{Receiver, Sender}, thread, time::Duration
+	fs, io, path::PathBuf, str::from_utf8, sync::{
+		mpsc::{Receiver, Sender}, Mutex
+	}, thread, time::Duration
 };
 
 #[derive(Debug)]
@@ -66,6 +68,10 @@ pub enum Impulse {
 	CiSubmitSuccess {
 		id: String,
 	},
+	CiTrack {
+		verdict: unijudge::Verdict,
+		finish: bool,
+	},
 }
 pub enum Reaction {
 	Status { message: Option<String> },
@@ -90,7 +96,7 @@ struct ICIE {
 
 	config: Config,
 	directory: Directory,
-	id_factory: i64,
+	id_factory: Mutex<i64>,
 }
 impl ICIE {
 	fn main_loop(&mut self) {
@@ -111,7 +117,7 @@ impl ICIE {
 			Impulse::TriggerSubmit => self.submit()?,
 			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
-			impulse => Err(error::unexpected(impulse))?,
+			impulse => Err(error::unexpected(impulse, "trigger"))?,
 		}
 		Ok(())
 	}
@@ -156,7 +162,7 @@ impl ICIE {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiInitFinish => break,
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "ci init event"))?,
 			}
 		}
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
@@ -172,18 +178,19 @@ impl ICIE {
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
+		let task_url2 = manifest.task_url.clone();
 		let t1 = thread::spawn(move || {
-			let _ = ci::commands::submit::run(&manifest.task_url, &code, &mut ui);
+			let _ = ci::commands::submit::run(&task_url2, &code, &mut ui);
 		});
 		let id = loop {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiSubmitSuccess { id } => break id,
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "ci submit event"))?,
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
-		self.track_submit(&id)?;
+		self.track_submit(id, manifest.task_url)?;
 		Ok(())
 	}
 
@@ -203,7 +210,7 @@ impl ICIE {
 		let response = loop {
 			match self.recv() {
 				Impulse::QuickPick { response } => break response.unwrap(),
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "template quick pick"))?,
 			}
 		};
 		let template = self.config.templates.iter().find(|tpl| tpl.id == response).unwrap();
@@ -218,7 +225,7 @@ impl ICIE {
 		let filename = loop {
 			match self.recv() {
 				Impulse::InputBox { response } => break response.unwrap(),
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "template name input box"))?,
 			}
 		};
 		let path = self.directory.need_root()?.join(filename);
@@ -255,26 +262,42 @@ impl ICIE {
 				column: self.config.template_main().cursor.column,
 			});
 		}
-
-		// TODO delete this test code
-		let progress = {
-			let id = self.gen_id();
-			self.progress_start(Some("Rusty progress"), &id)?
-		};
-		for i in 0..10 {
-			progress.update(Some(10.0), Some(&format!("i = {}", i)))?;
-			std::thread::sleep(Duration::from_millis(1000));
-		}
-		progress.end();
-
 		Ok(())
 	}
 
-	fn track_submit(&mut self, _id: &str) -> R<()> {
-		unimplemented!()
+	fn track_submit(&self, id: String, url: String) -> R<()> {
+		let title = format!("Tracking submit #{}", id);
+		let mut ui = self.make_ui();
+		let t1 = thread::spawn(move || {
+			let _ = ci::commands::tracksubmit::run(&url, id, Duration::from_millis(500), &mut ui).unwrap();
+		});
+		let progress = {
+			let id = self.gen_id();
+			self.progress_start(Some(&title), &id)?
+		};
+		let mut last_verdict = None;
+		let verdict = loop {
+			match self.recv() {
+				Impulse::CiTrack { verdict, finish } => {
+					if Some(&verdict) != last_verdict.as_ref() {
+						progress.update(None, Some(&ci::ui::human::fmt_verdict(&verdict)))?;
+						last_verdict = Some(verdict.clone());
+					}
+					if finish {
+						break verdict;
+					}
+				},
+				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
+				impulse => Err(error::unexpected(impulse, "ci track event"))?,
+			}
+		};
+		progress.end();
+		t1.join().unwrap();
+		self.info(ci::ui::human::fmt_verdict(&verdict));
+		Ok(())
 	}
 
-	fn respond_auth(&mut self, domain: String, channel: Sender<Option<(String, String)>>) -> R<()> {
+	fn respond_auth(&self, domain: String, channel: Sender<Option<(String, String)>>) -> R<()> {
 		let username = self
 			.input_box(InputBoxOptions {
 				prompt: Some(format!("Username at {}", domain)),
@@ -348,7 +371,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiTestFinish { success } => break success,
-				impulse => Err(error::unexpected(impulse))?,
+				impulse => Err(error::unexpected(impulse, "ci test event"))?,
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
@@ -386,7 +409,7 @@ impl ICIE {
 		self.send(Reaction::SaveAll);
 		match self.recv() {
 			Impulse::SavedAll => {},
-			impulse => Err(error::unexpected(impulse))?,
+			impulse => Err(error::unexpected(impulse, "confirmation that all files were saved"))?,
 		}
 		Ok(())
 	}
@@ -404,13 +427,14 @@ impl ICIE {
 		Ok(metasrc.modified()? >= metaexe.modified()?)
 	}
 
-	fn make_ui(&mut self) -> impulse_ui::ImpulseCiUi {
+	fn make_ui(&self) -> impulse_ui::ImpulseCiUi {
 		impulse_ui::ImpulseCiUi(self.input_sender.clone())
 	}
 
-	fn gen_id(&mut self) -> String {
-		let id = self.id_factory.to_string();
-		self.id_factory += 1;
+	fn gen_id(&self) -> String {
+		let mut id_factory = self.id_factory.lock().unwrap();
+		let id = id_factory.to_string();
+		*id_factory += 1;
 		id
 	}
 
@@ -418,7 +442,7 @@ impl ICIE {
 		progress::Progress::start(title, id, &self)
 	}
 
-	fn info(&mut self, message: impl Into<String>) {
+	fn info(&self, message: impl Into<String>) {
 		self.send(Reaction::InfoMessage { message: message.into() });
 	}
 
@@ -430,11 +454,11 @@ impl ICIE {
 		self.send(Reaction::ConsoleLog { message: message.into() });
 	}
 
-	fn input_box(&mut self, options: InputBoxOptions) -> R<Option<String>> {
+	fn input_box(&self, options: InputBoxOptions) -> R<Option<String>> {
 		self.send(Reaction::InputBox { options });
 		match self.recv() {
 			Impulse::InputBox { response } => Ok(response),
-			impulse => Err(error::unexpected(impulse))?,
+			impulse => Err(error::unexpected(impulse, "input box input"))?,
 		}
 	}
 
