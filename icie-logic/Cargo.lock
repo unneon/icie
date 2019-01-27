@@ -204,7 +204,7 @@ dependencies = [
 [[package]]
 name = "codeforces"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/codeforces#61ea244f573638d9ccf7586570409466cacb3114"
+source = "git+https://github.com/matcegla/codeforces#d3aee1a15914c48ee162c492f245e3429d1211c1"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1786,7 +1786,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "unijudge"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/unijudge#e624a46549b228f49fdeff5a56adf51bc4a41710"
+source = "git+https://github.com/matcegla/unijudge#74c1f0f76491f445d6ce4b017ddfca5d75db5176"
 dependencies = [
  "codeforces 0.1.0 (git+https://github.com/matcegla/codeforces)",
  "sio2 0.1.0 (git+https://github.com/matcegla/sio2)",

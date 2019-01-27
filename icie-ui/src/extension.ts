@@ -1,29 +1,18 @@
 'use strict';
 import * as vscode from 'vscode';
 import * as native from './native';
+import { ReactionProgressUpdate, ReactionProgressEnd } from 'icie-wrap';
 
 export function activate(context: vscode.ExtensionContext) {
-
-    let disposable2 = vscode.commands.registerCommand('icie.build', () => {
-        native.send({ tag: "trigger_build" });
-    });
-    let disposable3 = vscode.commands.registerCommand('icie.test', () => {
-        native.send({ tag: "trigger_test" });
-    });
-    let disposable4 = vscode.commands.registerCommand('icie.init', () => {
-        native.send({ tag: "trigger_init" });
-    });
-    let disposable5 = vscode.commands.registerCommand('icie.submit', () => {
-        native.send({ tag: "trigger_submit" });
-    });
-    let disposable6 = vscode.commands.registerCommand('icie.manual.submit', () => {
-        native.send({ tag: "trigger_manual_submit" });
-    });
-    let disposable7 = vscode.commands.registerCommand('icie.template.instantiate', () => {
-        native.send({ tag: "trigger_template_instantiate" });
-    });
+    register_trigger('icie.build', { tag: "trigger_build" }, context);
+    register_trigger('icie.test', { tag: "trigger_test" }, context);
+    register_trigger('icie.init', { tag: "trigger_init" }, context);
+    register_trigger('icie.submit', { tag: "trigger_submit" }, context);
+    register_trigger('icie.manual.submit', { tag: "trigger_manual_submit" }, context);
+    register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, context);
 
     let status = vscode.window.createStatusBarItem();
+    let progressRegister: ChannelRegister<ReactionProgressUpdate | ReactionProgressEnd> = {};
 
     let callback = (err: any, reaction: native.Reaction) => {
         if (reaction.tag === "status") {
@@ -73,6 +62,31 @@ export function activate(context: vscode.ExtensionContext) {
                     let newSelection = new vscode.Selection(newPosition, newPosition);
                     editor.selection = newSelection;
                 });
+        } else if (reaction.tag === "progress_start") {
+            vscode.window.withProgress({
+                cancellable: false,
+                location: vscode.ProgressLocation.Notification,
+                title: reaction.title
+            }, async progress => {
+                while (true) {
+                    let c = channel<ReactionProgressUpdate | ReactionProgressEnd>();
+                    progressRegister[reaction.id] = c.send;
+                    native.send({ tag: "progress_ready", id: reaction.id });
+                    let event = await c.recv;
+                    if (event.tag === "progress_update") {
+                        progress.report({
+                            message: event.message,
+                            increment: event.increment
+                        });
+                    } else if (event.tag === "progress_end") {
+                        break;
+                    }
+                }
+            });
+        } else if (reaction.tag === "progress_update" || reaction.tag === "progress_end") {
+            let send = progressRegister[reaction.id];
+            delete progressRegister[reaction.id];
+            send(reaction);
         }
         native.recv(callback);
     };
@@ -82,14 +96,30 @@ export function activate(context: vscode.ExtensionContext) {
         tag: "workspace_info",
         root_path: vscode.workspace.rootPath || null,
     });
-
-    context.subscriptions.push(disposable2);
-    context.subscriptions.push(disposable3);
-    context.subscriptions.push(disposable4);
-    context.subscriptions.push(disposable5);
-    context.subscriptions.push(disposable6);
-    context.subscriptions.push(disposable7);
 }
 
 export function deactivate() {
+}
+
+function register_trigger(command: string, impulse: native.Impulse, context: vscode.ExtensionContext): void {
+    context.subscriptions.push(vscode.commands.registerCommand(command, () => native.send(impulse)));
+}
+
+interface Channel<T> {
+    recv: Promise<T>;
+    send: (x: T) => void;
+}
+function channel<T>(): Channel<T> {
+    let send: ((x: T) => void) | null = null;
+    let recv: Promise<T> = new Promise(resolve => {
+        send = resolve;
+    });
+    if (send === null) {
+        throw new Error("@channel.#send === null");
+    }
+    return { recv, send };
+}
+
+interface ChannelRegister<T> {
+    [id: string]: (x: T) => void;
 }

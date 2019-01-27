@@ -17,6 +17,7 @@ mod error;
 mod handle;
 mod impulse_ui;
 mod manifest;
+mod progress;
 mod vscode;
 
 pub use self::handle::Handle;
@@ -46,6 +47,9 @@ pub enum Impulse {
 		response: Option<String>,
 	},
 	SavedAll,
+	ProgressReady {
+		id: String,
+	},
 	CiTestSingle {
 		outcome: ci::testing::TestResult,
 		timing: Option<Duration>,
@@ -74,6 +78,9 @@ pub enum Reaction {
 	OpenFolder { path: PathBuf, in_new_window: bool },
 	ConsoleError { message: String },
 	OpenEditor { path: PathBuf, row: i64, column: i64 },
+	ProgressStart { id: String, title: Option<String> },
+	ProgressUpdate { id: String, increment: Option<f64>, message: Option<String> },
+	ProgressEnd { id: String },
 }
 
 struct ICIE {
@@ -83,6 +90,7 @@ struct ICIE {
 
 	config: Config,
 	directory: Directory,
+	id_factory: i64,
 }
 impl ICIE {
 	fn main_loop(&mut self) {
@@ -109,13 +117,7 @@ impl ICIE {
 	}
 
 	fn build(&mut self) -> R<()> {
-		let source = self.directory.get_source()?;
-		let codegen = ci::commands::build::Codegen::Debug;
-		let cppver = ci::commands::build::CppVer::Cpp17;
-		let library = self.directory.get_library_source()?;
-		let library = library.as_ref().map(|pb| pb.as_path());
-		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library));
-		ci::commands::build::run(&source, &codegen, &cppver, library)?;
+		self.assure_compiled()?;
 		self.info("Compilation successful!");
 		Ok(())
 	}
@@ -181,7 +183,7 @@ impl ICIE {
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
-		self.info(format!("Submit success #{}", id));
+		self.track_submit(&id)?;
 		Ok(())
 	}
 
@@ -253,7 +255,23 @@ impl ICIE {
 				column: self.config.template_main().cursor.column,
 			});
 		}
+
+		// TODO delete this test code
+		let progress = {
+			let id = self.gen_id();
+			self.progress_start(Some("Rusty progress"), &id)?
+		};
+		for i in 0..10 {
+			progress.update(Some(10.0), Some(&format!("i = {}", i)))?;
+			std::thread::sleep(Duration::from_millis(1000));
+		}
+		progress.end();
+
 		Ok(())
+	}
+
+	fn track_submit(&mut self, _id: &str) -> R<()> {
+		unimplemented!()
 	}
 
 	fn respond_auth(&mut self, domain: String, channel: Sender<Option<(String, String)>>) -> R<()> {
@@ -348,8 +366,19 @@ impl ICIE {
 
 	fn assure_compiled(&mut self) -> R<()> {
 		if self.requires_compilation()? {
-			self.build()?;
+			self.compile()?;
 		}
+		Ok(())
+	}
+
+	fn compile(&mut self) -> R<()> {
+		let source = self.directory.get_source()?;
+		let codegen = ci::commands::build::Codegen::Debug;
+		let cppver = ci::commands::build::CppVer::Cpp17;
+		let library = self.directory.get_library_source()?;
+		let library = library.as_ref().map(|pb| pb.as_path());
+		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library));
+		ci::commands::build::run(&source, &codegen, &cppver, library)?;
 		Ok(())
 	}
 
@@ -377,6 +406,16 @@ impl ICIE {
 
 	fn make_ui(&mut self) -> impulse_ui::ImpulseCiUi {
 		impulse_ui::ImpulseCiUi(self.input_sender.clone())
+	}
+
+	fn gen_id(&mut self) -> String {
+		let id = self.id_factory.to_string();
+		self.id_factory += 1;
+		id
+	}
+
+	fn progress_start<'a, 'b, 'c>(&'a self, title: Option<&'b str>, id: &'c str) -> R<progress::Progress<'a>> {
+		progress::Progress::start(title, id, &self)
 	}
 
 	fn info(&mut self, message: impl Into<String>) {

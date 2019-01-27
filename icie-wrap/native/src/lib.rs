@@ -72,9 +72,24 @@ impl Task for MessageRecvTask {
 			},
 			icie_logic::Reaction::OpenEditor { path, row, column } => {
 				maybe_set_string(&obj, "path", path.into_os_string().into_string().unwrap(), &mut cx);
-				set_number(&obj, "row", row as f64, &mut cx);
-				set_number(&obj, "column", column as f64, &mut cx);
+				maybe_set_number(&obj, "row", row as f64, &mut cx);
+				maybe_set_number(&obj, "column", column as f64, &mut cx);
 				"open_editor"
+			},
+			icie_logic::Reaction::ProgressStart { id, title } => {
+				maybe_set_string(&obj, "id", id, &mut cx);
+				maybe_set_string(&obj, "title", title, &mut cx);
+				"progress_start"
+			},
+			icie_logic::Reaction::ProgressUpdate { id, increment, message } => {
+				maybe_set_string(&obj, "id", id, &mut cx);
+				maybe_set_number(&obj, "increment", increment, &mut cx);
+				maybe_set_string(&obj, "message", message, &mut cx);
+				"progress_update"
+			},
+			icie_logic::Reaction::ProgressEnd { id } => {
+				maybe_set_string(&obj, "id", id, &mut cx);
+				"progress_end"
 			},
 		};
 		let tag = cx.string(tag);
@@ -93,9 +108,11 @@ fn set_bool(obj: &Handle<JsObject>, field: &str, value: bool, cx: &mut TaskConte
 	let value = cx.boolean(value);
 	obj.set(cx, field, value).unwrap();
 }
-fn set_number(obj: &Handle<JsObject>, field: &str, value: f64, cx: &mut TaskContext) {
-	let value = cx.number(value);
-	obj.set(cx, field, value).unwrap();
+fn maybe_set_number<N: Into<Option<f64>>>(obj: &Handle<JsObject>, field: &str, value: N, cx: &mut TaskContext) {
+	if let Some(value) = value.into() {
+		let value = cx.number(value);
+		obj.set(cx, field, value).unwrap();
+	}
 }
 fn get_string_or_bool(obj: &Handle<JsObject>, field: &str, cx: &mut CallContext<JsObject>) -> Option<String> {
 	let raw = obj.get(cx, field).unwrap();
@@ -133,6 +150,9 @@ pub fn message_send(mut cx: FunctionContext) -> JsResult<JsString> {
 		"trigger_submit" => icie_logic::Impulse::TriggerSubmit,
 		"trigger_manual_submit" => icie_logic::Impulse::TriggerManualSubmit,
 		"trigger_template_instantiate" => icie_logic::Impulse::TriggerTemplateInstantiate,
+		"progress_ready" => icie_logic::Impulse::ProgressReady {
+			id: get_string_or_bool(&obj, "id", &mut cx).unwrap(),
+		},
 		_ => return Ok(cx.string("Unrecognized tag!")),
 	};
 	ICIE.send(impulse);

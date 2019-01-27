@@ -1,7 +1,5 @@
 use crate::Impulse;
-use ci::{
-	self, commands::{list_resources::Resource, tracksubmit::Status}, error::Error, strres::StrRes, testing::TestResult
-};
+use ci::{self, commands::list_resources::Resource, error::Error, strres::StrRes, testing::TestResult};
 use std::{
 	path::Path, sync::mpsc::{self, Sender}, time::Duration
 };
@@ -20,7 +18,7 @@ impl ci::ui::Ui for ImpulseCiUi {
 		rx.recv().unwrap().unwrap()
 	}
 
-	fn track_progress(&mut self, _status: &Status) {
+	fn track_progress(&mut self, _verdict: &unijudge::Verdict) {
 		unimplemented!()
 	}
 

@@ -40,6 +40,7 @@ impl Handle {
 				input_sender: es2,
 				config: Config::load_or_create().unwrap(),
 				directory: Directory::new_empty(),
+				id_factory: 0,
 			}
 			.main_loop()
 		});
