@@ -19,6 +19,10 @@ pub enum Category {
 	NoCuteAnimals,
 	#[fail(display = "malformed config: {}", detail)]
 	MalformedConfig { detail: &'static str },
+	#[fail(display = "template {:?} does not exist", id)]
+	TemplateDoesNotExist { id: String },
+	#[fail(display = "file {:?} already exists", path)]
+	FileAlreadyExists { path: std::path::PathBuf },
 }
 
 pub type R<T> = Result<T, failure::Error>;

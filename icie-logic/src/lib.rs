@@ -172,8 +172,8 @@ impl ICIE {
 		}
 		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
 
-		fs::copy(&self.config.template_main().path, &root.join("main.cpp"))?;
-		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?);
+		fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
+		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
 		self.send(Reaction::OpenFolder { path: root, in_new_window: false });
 		Ok(())
 	}
@@ -183,7 +183,7 @@ impl ICIE {
 		self.assure_passes_tests()?;
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
-		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
+		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
 		let task_url2 = manifest.task_url.clone();
 		let t1 = thread::spawn(move || {
 			let _ = ci::commands::submit::run(&task_url2, &code, &mut ui);
@@ -214,13 +214,19 @@ impl ICIE {
 			})
 			.collect::<Vec<_>>();
 		self.send(Reaction::QuickPick { items });
-		let response = loop {
+		let template_id = loop {
 			match self.recv() {
-				Impulse::QuickPick { response } => break response.unwrap(),
+				Impulse::QuickPick { response: Some(template_id) } => break template_id,
+				Impulse::QuickPick { response: None } => return Ok(()),
 				impulse => Err(error::unexpected(impulse, "template quick pick"))?,
 			}
 		};
-		let template = self.config.templates.iter().find(|tpl| tpl.id == response).unwrap();
+		let template = self
+			.config
+			.templates
+			.iter()
+			.find(|tpl| tpl.id == template_id)
+			.ok_or_else(|| error::Category::TemplateDoesNotExist { id: template_id })?;
 		self.send(Reaction::InputBox {
 			options: InputBoxOptions {
 				ignore_focus_out: true,
@@ -231,13 +237,14 @@ impl ICIE {
 		});
 		let filename = loop {
 			match self.recv() {
-				Impulse::InputBox { response } => break response.unwrap(),
+				Impulse::InputBox { response: Some(filename) } => break filename,
+				Impulse::InputBox { response: None } => return Ok(()),
 				impulse => Err(error::unexpected(impulse, "template name input box"))?,
 			}
 		};
 		let path = self.directory.need_root()?.join(filename);
 		if path.exists() && !from_utf8(&fs::read(&path)?)?.trim().is_empty() {
-			panic!("File already exists and is not empty");
+			return Err(error::Category::FileAlreadyExists { path })?;
 		}
 		fs::copy(&template.path, &path)?;
 		self.send(Reaction::OpenEditor {
@@ -251,7 +258,7 @@ impl ICIE {
 	fn manual_submit(&self) -> R<()> {
 		let _status = self.status("Submitting manually");
 		self.assure_passes_tests()?;
-		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?);
+		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
 		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url);
 		let mut ui = self.make_ui();
 		let session = ci::connect(&manifest.task_url, &mut ui);
@@ -271,8 +278,8 @@ impl ICIE {
 		if self.directory.get_source()?.exists() {
 			self.send(Reaction::OpenEditor {
 				path: self.directory.get_source()?,
-				row: self.config.template_main().cursor.row,
-				column: self.config.template_main().cursor.column,
+				row: self.config.template_main()?.cursor.row,
+				column: self.config.template_main()?.cursor.column,
 			});
 		}
 		Ok(())

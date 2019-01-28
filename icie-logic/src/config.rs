@@ -26,8 +26,14 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn template_main(&self) -> &Template {
-		self.templates.iter().find(|template| template.id == self.main_template_id).unwrap()
+	pub fn template_main(&self) -> R<&Template> {
+		Ok(self
+			.templates
+			.iter()
+			.find(|template| template.id == self.main_template_id)
+			.ok_or_else(|| error::Category::TemplateDoesNotExist {
+				id: self.main_template_id.clone(),
+			})?)
 	}
 
 	pub fn load_or_create() -> R<Config> {
