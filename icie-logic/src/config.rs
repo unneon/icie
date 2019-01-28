@@ -27,18 +27,17 @@ pub struct Config {
 
 impl Config {
 	pub fn template_main(&self) -> R<&Template> {
-		Ok(self
-			.templates
-			.iter()
-			.find(|template| template.id == self.main_template_id)
-			.ok_or_else(|| error::Category::TemplateDoesNotExist {
+		Ok(self.templates.iter().find(|template| template.id == self.main_template_id).ok_or_else(|| {
+			error::Category::TemplateDoesNotExist {
 				id: self.main_template_id.clone(),
-			})?)
+			}
+			.err()
+		})?)
 	}
 
 	pub fn load_or_create() -> R<Config> {
 		let config_dir = dirs::config_dir()
-			.ok_or(error::Category::DegenerateEnvironment { detail: "no config directory" })?
+			.ok_or_else(|| error::Category::DegenerateEnvironment { detail: "no config directory" }.err())?
 			.join("icie");
 		let config_path = config_dir.join("config.json");
 		let template_main_path = config_dir.join("template-main.cpp");
@@ -65,7 +64,7 @@ int main() {{
 				Cursor { row: 8, column: 5 }
 			};
 			let config = Config {
-				project_directory: dirs::home_dir().ok_or(error::Category::DegenerateEnvironment { detail: "no config directory" })?,
+				project_directory: dirs::home_dir().ok_or_else(|| error::Category::DegenerateEnvironment { detail: "no config directory" }.err())?,
 				main_template_id: "main".to_string(),
 				templates: vec![Template {
 					id: "main".to_string(),
@@ -91,12 +90,14 @@ int main() {{
 		if id_set.len() != self.templates.len() {
 			Err(error::Category::MalformedConfig {
 				detail: "template ids have to be unique",
-			})?;
+			}
+			.err())?;
 		}
 		if !id_set.contains(&self.main_template_id) {
 			Err(error::Category::MalformedConfig {
 				detail: "main template does not exist",
-			})?;
+			}
+			.err())?;
 		}
 		Ok(())
 	}

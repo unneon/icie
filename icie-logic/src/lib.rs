@@ -1,7 +1,6 @@
 extern crate backtrace;
 extern crate ci;
 extern crate dirs;
-#[macro_use]
 extern crate failure;
 extern crate open;
 extern crate rand;
@@ -119,7 +118,7 @@ impl ICIE {
 			Impulse::TriggerSubmit => self.submit()?,
 			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
-			impulse => Err(error::unexpected(impulse, "trigger"))?,
+			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
 	}
@@ -141,7 +140,9 @@ impl ICIE {
 	fn init(&self) -> R<()> {
 		let _status = self.status("Creating project");
 		let name = self.random_codename()?;
-		let root = dirs::home_dir().ok_or(error::Category::DegenerateEnvironment { detail: "no home directory" })?.join(&name);
+		let root = dirs::home_dir()
+			.ok_or(error::Category::DegenerateEnvironment { detail: "no home directory" }.err())?
+			.join(&name);
 		let new_dir = Directory::new(root.clone());
 		let url = match self.input_box(InputBoxOptions {
 			ignore_focus_out: true,
@@ -167,10 +168,10 @@ impl ICIE {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiInitFinish => break,
-				impulse => Err(error::unexpected(impulse, "ci init event"))?,
+				impulse => Err(error::unexpected(impulse, "ci init event").err())?,
 			}
 		}
-		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
+		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 
 		fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
 		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
@@ -192,10 +193,10 @@ impl ICIE {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiSubmitSuccess { id } => break id,
-				impulse => Err(error::unexpected(impulse, "ci submit event"))?,
+				impulse => Err(error::unexpected(impulse, "ci submit event").err())?,
 			}
 		};
-		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
+		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 		self.track_submit(id, manifest.task_url)?;
 		Ok(())
 	}
@@ -218,7 +219,7 @@ impl ICIE {
 			match self.recv() {
 				Impulse::QuickPick { response: Some(template_id) } => break template_id,
 				Impulse::QuickPick { response: None } => return Ok(()),
-				impulse => Err(error::unexpected(impulse, "template quick pick"))?,
+				impulse => Err(error::unexpected(impulse, "template quick pick").err())?,
 			}
 		};
 		let template = self
@@ -226,7 +227,7 @@ impl ICIE {
 			.templates
 			.iter()
 			.find(|tpl| tpl.id == template_id)
-			.ok_or_else(|| error::Category::TemplateDoesNotExist { id: template_id })?;
+			.ok_or_else(|| error::Category::TemplateDoesNotExist { id: template_id }.err())?;
 		self.send(Reaction::InputBox {
 			options: InputBoxOptions {
 				ignore_focus_out: true,
@@ -239,12 +240,12 @@ impl ICIE {
 			match self.recv() {
 				Impulse::InputBox { response: Some(filename) } => break filename,
 				Impulse::InputBox { response: None } => return Ok(()),
-				impulse => Err(error::unexpected(impulse, "template name input box"))?,
+				impulse => Err(error::unexpected(impulse, "template name input box").err())?,
 			}
 		};
 		let path = self.directory.need_root()?.join(filename);
 		if path.exists() && !from_utf8(&fs::read(&path)?)?.trim().is_empty() {
-			return Err(error::Category::FileAlreadyExists { path })?;
+			return Err(error::Category::FileAlreadyExists { path }.err())?;
 		}
 		fs::copy(&template.path, &path)?;
 		self.send(Reaction::OpenEditor {
@@ -275,7 +276,7 @@ impl ICIE {
 
 	fn launch(&self) -> R<()> {
 		let _status = self.status("Launching");
-		if self.directory.get_source()?.exists() {
+		if self.directory.is_open() && self.directory.get_source()?.exists() {
 			self.send(Reaction::OpenEditor {
 				path: self.directory.get_source()?,
 				row: self.config.template_main()?.cursor.row,
@@ -309,7 +310,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
-				impulse => Err(error::unexpected(impulse, "ci track event"))?,
+				impulse => Err(error::unexpected(impulse, "ci track event").err())?,
 			}
 		};
 		progress.end();
@@ -326,7 +327,7 @@ impl ICIE {
 				ignore_focus_out: false,
 				password: false,
 			})?
-			.ok_or(error::Category::LackOfInput)?;
+			.ok_or_else(|| error::Category::LackOfInput.err())?;
 		let password = self
 			.input_box(InputBoxOptions {
 				prompt: Some(format!("Password for {} at {}", username, domain)),
@@ -334,7 +335,7 @@ impl ICIE {
 				ignore_focus_out: false,
 				password: true,
 			})?
-			.ok_or(error::Category::LackOfInput)?;
+			.ok_or_else(|| error::Category::LackOfInput.err())?;
 		channel.send(Some((username, password))).context("thread suddenly stopped")?;
 		Ok(())
 	}
@@ -369,8 +370,8 @@ impl ICIE {
 		];
 		Ok(format!(
 			"{}-{}",
-			ADJECTIVES.choose(&mut rng).ok_or(error::Category::NoCuteAnimals)?,
-			ANIMALS.choose(&mut rng).ok_or(error::Category::NoCuteAnimals)?
+			ADJECTIVES.choose(&mut rng).ok_or_else(|| error::Category::NoCuteAnimals.err())?,
+			ANIMALS.choose(&mut rng).ok_or_else(|| error::Category::NoCuteAnimals.err())?
 		))
 	}
 
@@ -393,17 +394,17 @@ impl ICIE {
 					}
 				},
 				Impulse::CiTestFinish { success } => break success,
-				impulse => Err(error::unexpected(impulse, "ci test event"))?,
+				impulse => Err(error::unexpected(impulse, "ci test event").err())?,
 			}
 		};
-		t1.join().map_err(|_| error::Category::ThreadPanicked)?;
+		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 		Ok((success, first_failed))
 	}
 
 	fn assure_passes_tests(&self) -> R<()> {
 		let (_, first_fail) = self.run_tests()?;
 		if let Some((verdict, path)) = first_fail {
-			Err(error::Category::TestFailure { verdict, path })?
+			Err(error::Category::TestFailure { verdict, path }.err())?
 		} else {
 			Ok(())
 		}
@@ -432,7 +433,7 @@ impl ICIE {
 		self.send(Reaction::SaveAll);
 		match self.recv() {
 			Impulse::SavedAll => {},
-			impulse => Err(error::unexpected(impulse, "confirmation that all files were saved"))?,
+			impulse => Err(error::unexpected(impulse, "confirmation that all files were saved").err())?,
 		}
 		Ok(())
 	}
@@ -486,7 +487,7 @@ impl ICIE {
 		self.send(Reaction::InputBox { options });
 		match self.recv() {
 			Impulse::InputBox { response } => Ok(response),
-			impulse => Err(error::unexpected(impulse, "input box input"))?,
+			impulse => Err(error::unexpected(impulse, "input box input").err())?,
 		}
 	}
 
@@ -516,7 +517,7 @@ impl Directory {
 	}
 
 	pub fn need_root(&self) -> R<&std::path::Path> {
-		Ok(self.root.as_ref().map(|pb| pb.as_path()).ok_or(error::Category::NoOpenFolder)?)
+		Ok(self.root.as_ref().map(|pb| pb.as_path()).ok_or_else(|| error::Category::NoOpenFolder.err())?)
 	}
 
 	fn get_source(&self) -> R<PathBuf> {
@@ -538,5 +539,9 @@ impl Directory {
 
 	fn get_manifest(&self) -> R<PathBuf> {
 		Ok(self.need_root()?.join(".icie"))
+	}
+
+	fn is_open(&self) -> bool {
+		self.root.is_some()
 	}
 }
