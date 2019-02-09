@@ -3,6 +3,11 @@ import * as vscode from 'vscode';
 import * as native from './native';
 import { ReactionProgressUpdate, ReactionProgressEnd } from 'icie-wrap';
 
+interface ProgressUpdate {
+    reaction: ReactionProgressUpdate | ReactionProgressEnd,
+    recv: Promise<ProgressUpdate>,
+}
+
 export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.build', { tag: "trigger_build" }, context);
     register_trigger('icie.test', { tag: "trigger_test" }, context);
@@ -12,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, context);
 
     let status = vscode.window.createStatusBarItem();
-    let progressRegister: ChannelRegister<ReactionProgressUpdate | ReactionProgressEnd> = {};
+    let progressRegister: ChannelRegister<ProgressUpdate> = {};
 
     let callback = (err: any, reaction: native.Reaction) => {
         if (reaction.tag === "status") {
@@ -63,30 +68,33 @@ export function activate(context: vscode.ExtensionContext) {
                     editor.selection = newSelection;
                 });
         } else if (reaction.tag === "progress_start") {
+            let c0 = channel<ProgressUpdate>();
+            progressRegister[reaction.id] = c0.send;
+            let recv = c0.recv;
             vscode.window.withProgress({
                 cancellable: false,
                 location: vscode.ProgressLocation.Notification,
                 title: reaction.title
             }, async progress => {
                 while (true) {
-                    let c = channel<ReactionProgressUpdate | ReactionProgressEnd>();
-                    progressRegister[reaction.id] = c.send;
-                    native.send({ tag: "progress_ready", id: reaction.id });
-                    let event = await c.recv;
-                    if (event.tag === "progress_update") {
+                    let event = await recv;
+                    recv = event.recv;
+                    if (event.reaction.tag === "progress_update") {
                         progress.report({
-                            message: event.message,
-                            increment: event.increment
+                            message: event.reaction.message,
+                            increment: event.reaction.increment
                         });
-                    } else if (event.tag === "progress_end") {
+                    } else if (event.reaction.tag === "progress_end") {
                         break;
                     }
                 }
             });
         } else if (reaction.tag === "progress_update" || reaction.tag === "progress_end") {
+            let c2 = channel<ProgressUpdate>();
             let send = progressRegister[reaction.id];
             delete progressRegister[reaction.id];
-            send(reaction);
+            progressRegister[reaction.id] = c2.send;
+            send({ reaction: reaction, recv: c2.recv });
         }
         native.recv(callback);
     };

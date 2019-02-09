@@ -49,8 +49,8 @@ pub enum Impulse {
 		response: Option<String>,
 	},
 	SavedAll,
-	ProgressReady {
-		id: String,
+	CiTestList {
+		paths: Vec<PathBuf>,
 	},
 	CiTestSingle {
 		outcome: ci::testing::TestResult,
@@ -293,10 +293,7 @@ impl ICIE {
 		let t1 = thread::spawn(move || {
 			let _ = ci::commands::tracksubmit::run(&url, id, Duration::from_millis(500), &mut ui).unwrap();
 		});
-		let progress = {
-			let id = self.gen_id();
-			self.progress_start(Some(&title), &id)?
-		};
+		let progress = self.progress_start(Some(&title))?;
 		let mut last_verdict = None;
 		let verdict = loop {
 			match self.recv() {
@@ -378,6 +375,7 @@ impl ICIE {
 	fn run_tests(&self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
 		let _status = self.status("Testing");
 		self.assure_compiled()?;
+		let progress = self.progress_start(Some("Testing"))?;
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
 		let mut ui = self.make_ui();
@@ -385,10 +383,12 @@ impl ICIE {
 			let _ = ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui);
 		});
 		let mut first_failed = None;
+		let mut test_count = None;
 		let success = loop {
 			match self.recv() {
-				Impulse::CiTestSingle { outcome, timing, in_path } => {
-					self.log(format!("{:?} {:?} {:?}", outcome, timing, in_path));
+				Impulse::CiTestList { paths } => test_count = Some(paths.len()),
+				Impulse::CiTestSingle { outcome, timing: _, in_path } => {
+					progress.update(test_count.map(|total| 100.0 / total as f64), Some(&format!("Ran {}", in_path.display())))?;
 					if outcome != ci::testing::TestResult::Accept {
 						first_failed = first_failed.or(Some((outcome, in_path)));
 					}
@@ -398,6 +398,7 @@ impl ICIE {
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
+		progress.end();
 		Ok((success, first_failed))
 	}
 
@@ -462,8 +463,8 @@ impl ICIE {
 		id
 	}
 
-	fn progress_start<'a, 'b, 'c>(&'a self, title: Option<&'b str>, id: &'c str) -> R<progress::Progress<'a>> {
-		progress::Progress::start(title, id, &self)
+	fn progress_start(&self, title: Option<&str>) -> R<progress::Progress> {
+		progress::Progress::start(title, &self.gen_id(), &self)
 	}
 
 	fn status(&self, msg: impl Into<String>) -> Status {

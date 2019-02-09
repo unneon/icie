@@ -101,13 +101,9 @@ declare module 'icie-wrap' {
     export interface ImpulseTriggerTemplateInstantiate {
         tag: "trigger_template_instantiate"
     }
-    export interface ImpulseProgressReady {
-        tag: "progress_ready",
-        id: string,
-    }
 
     export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd;
-    export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseProgressReady;
+    export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate;
 
     export function message_recv(callback: (error: any, reaction: Reaction) => void): void;
     export function message_send(impulse: Impulse): string;

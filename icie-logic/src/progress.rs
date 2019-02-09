@@ -1,6 +1,4 @@
-use crate::{
-	error::{self, R}, Impulse, Reaction, ICIE
-};
+use crate::{error::R, Reaction, ICIE};
 
 pub(crate) struct Progress<'a> {
 	id: String,
@@ -13,7 +11,6 @@ impl<'a> Progress<'a> {
 			title: title.map(String::from),
 		});
 		let progress = Progress { id: String::from(id), icie };
-		progress.wait_for_ready()?;
 		Ok(progress)
 	}
 
@@ -23,20 +20,10 @@ impl<'a> Progress<'a> {
 			increment,
 			message: message.map(String::from),
 		});
-		self.wait_for_ready()?;
 		Ok(())
 	}
 
 	pub fn end(self) {
 		self.icie.send(Reaction::ProgressEnd { id: self.id });
-	}
-
-	fn wait_for_ready(&self) -> R<()> {
-		loop {
-			match self.icie.recv() {
-				Impulse::ProgressReady { ref id } if id == &self.id => break Ok(()),
-				impulse => Err(error::unexpected(impulse, "progress ready notice").err())?,
-			}
-		}
 	}
 }

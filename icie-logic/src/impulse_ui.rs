@@ -1,7 +1,7 @@
 use crate::Impulse;
 use ci::{self, commands::list_resources::Resource, error::Error, strres::StrRes, testing::TestResult};
 use std::{
-	path::Path, sync::mpsc::{self, Sender}, time::Duration
+	path::{Path, PathBuf}, sync::mpsc::{self, Sender}, time::Duration
 };
 
 pub struct ImpulseCiUi(pub Sender<Impulse>);
@@ -24,6 +24,14 @@ impl ci::ui::Ui for ImpulseCiUi {
 
 	fn submit_success(&mut self, id: String) {
 		self.0.send(Impulse::CiSubmitSuccess { id }).unwrap();
+	}
+
+	fn test_list(&mut self, paths: &[PathBuf]) {
+		self.0
+			.send(Impulse::CiTestList {
+				paths: paths.iter().cloned().collect(),
+			})
+			.unwrap();
 	}
 
 	fn print_resource_list(&mut self, _resources: &[Resource]) {
