@@ -1,5 +1,6 @@
 icie-ui/out
 icie-ui/node_modules
+icie-ui/*.vsix
 icie-logic/target
 icie-logic/.idea
 icie-wrap/native/.idea
