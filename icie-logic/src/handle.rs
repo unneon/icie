@@ -59,3 +59,8 @@ impl Handle {
 		self.output.lock().unwrap().recv().unwrap()
 	}
 }
+
+#[no_mangle]
+pub extern "C" fn __cxa_pure_virtual() {
+	loop {}
+}

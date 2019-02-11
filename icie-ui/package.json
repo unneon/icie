@@ -2,7 +2,7 @@
     "name": "icie",
     "displayName": "ICIE",
     "description": "",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "publisher": "pustaczek",
     "repository": "https://github.com/matcegla/icie",
     "engines": {
