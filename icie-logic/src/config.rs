@@ -1,4 +1,5 @@
 use crate::error::{self, R};
+use failure::ResultExt;
 use std::{
 	collections::HashSet, fs::{self, File}, path::{Path, PathBuf}
 };
@@ -80,7 +81,7 @@ int main() {{
 	}
 
 	fn load(path: &Path) -> R<Config> {
-		let config: Config = serde_json::from_reader(File::open(path)?)?;
+		let config: Config = serde_json::from_reader(File::open(path)?).context("malformed config")?;
 		config.verify()?;
 		Ok(config)
 	}

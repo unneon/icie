@@ -38,7 +38,7 @@ impl Handle {
 				input: er,
 				output: is,
 				input_sender: es2,
-				config: Config::load_or_create().unwrap(),
+				config: Config::load_or_create().expect("failed to load config"),
 				directory: Directory::new_empty(),
 				id_factory: Mutex::new(0),
 				status_stack: Mutex::new(status::StatusStack::new()),

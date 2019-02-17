@@ -322,7 +322,7 @@ impl ICIE {
 			.input_box(InputBoxOptions {
 				prompt: Some(format!("Username at {}", domain)),
 				placeholder: None,
-				ignore_focus_out: false,
+				ignore_focus_out: true,
 				password: false,
 			})?
 			.ok_or_else(|| error::Category::LackOfInput.err())?;
@@ -330,7 +330,7 @@ impl ICIE {
 			.input_box(InputBoxOptions {
 				prompt: Some(format!("Password for {} at {}", username, domain)),
 				placeholder: None,
-				ignore_focus_out: false,
+				ignore_focus_out: true,
 				password: true,
 			})?
 			.ok_or_else(|| error::Category::LackOfInput.err())?;
