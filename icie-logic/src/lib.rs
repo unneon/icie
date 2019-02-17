@@ -18,7 +18,7 @@ mod impulse_ui;
 mod manifest;
 mod progress;
 mod status;
-mod vscode;
+pub mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
@@ -73,6 +73,7 @@ pub enum Impulse {
 		finish: bool,
 	},
 }
+#[derive(Debug)]
 pub enum Reaction {
 	Status { message: Option<String> },
 	InfoMessage { message: String },
@@ -443,7 +444,7 @@ impl ICIE {
 		let src = self.directory.get_source()?;
 		let exe = self.directory.get_executable()?;
 		self.assure_all_saved()?;
-		let metasrc = src.metadata()?;
+		let metasrc = src.metadata().context(format!("solution source {:?} does not exist", src))?;
 		let metaexe = match exe.metadata() {
 			Ok(metaexe) => metaexe,
 			Err(ref e) if e.kind() == io::ErrorKind::NotFound => return Ok(true),
