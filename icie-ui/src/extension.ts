@@ -9,7 +9,7 @@ interface ProgressUpdate {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    let logic = new native.Logic;
+    let logic = new native.Logic(context.extensionPath);
     let status = vscode.window.createStatusBarItem();
     let progressRegister: ChannelRegister<ProgressUpdate> = {};
 

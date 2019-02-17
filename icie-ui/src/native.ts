@@ -110,8 +110,8 @@ export class Logic {
     path: string;
     kid: ChildProcess;
     parser: multijson.Parser<Reaction>;
-    constructor() {
-        this.path = "/home/matcegla/icie/icie-stdio/target/debug/icie-stdio";
+    constructor(extensionPath: string) {
+        this.path = `${extensionPath}/assets/bin-linux`;
         this.kid = spawn(this.path, [], {});
         this.parser = new multijson.Parser<Reaction>();
     }
