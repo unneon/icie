@@ -172,7 +172,7 @@ dependencies = [
  "serde_derive 1.0.88 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempfile 3.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "term 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0 (git+https://github.com/matcegla/unijudge)",
  "wait-timeout 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -204,7 +204,7 @@ dependencies = [
 [[package]]
 name = "codeforces"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/codeforces#d3aee1a15914c48ee162c492f245e3429d1211c1"
+source = "git+https://github.com/matcegla/codeforces#510de9a788b4c8b0f916df5ff07e8d8344bd5fb9"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -797,7 +797,7 @@ dependencies = [
  "schannel 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "security-framework 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "security-framework-sys 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempfile 3.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1412,9 +1412,10 @@ dependencies = [
 [[package]]
 name = "sio2"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/sio2#d31d91bf26941a207d85a771f09c5a240b98e3dd"
+source = "git+https://github.com/matcegla/sio2#2155f9ca8d38549aaf081e824ae414248c0d9270"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.1.6 (git+https://github.com/Xeoeen/reqwest)",
  "select 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tar 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1556,7 +1557,7 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.0.6"
+version = "3.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cfg-if 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1790,9 +1791,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "unijudge"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/unijudge#676ed18bff23b0842a058001c50a22d2593dffa6"
+source = "git+https://github.com/matcegla/unijudge#d279b5e021bd44e89ce0e886baac2c4ac34b458d"
 dependencies = [
  "codeforces 0.1.0 (git+https://github.com/matcegla/codeforces)",
+ "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "sio2 0.1.0 (git+https://github.com/matcegla/sio2)",
 ]
 
@@ -2117,7 +2119,7 @@ dependencies = [
 "checksum synom 0.11.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a393066ed9010ebaed60b9eafa373d4b1baac186dd7e008555b0f702b51945b6"
 "checksum synstructure 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "73687139bf99285483c96ac0add482c3776528beac1d97d444f6e91f203a2015"
 "checksum tar 0.4.20 (registry+https://github.com/rust-lang/crates.io-index)" = "a303ba60a099fcd2aaa646b14d2724591a96a75283e4b7ed3d1a1658909d9ae2"
-"checksum tempfile 3.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "37daa55a7240c4931c84559f03b3cad7d19535840d1c4a0cc4e9b2fb0dcf70ff"
+"checksum tempfile 3.0.7 (registry+https://github.com/rust-lang/crates.io-index)" = "b86c784c88d98c801132806dadd3819ed29d8600836c4088e855cdf3e178ed8a"
 "checksum tendril 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8c1b72f8e2f5b73b65c315b1a70c730f24b9d7a25f39e98de8acbe2bb795caea"
 "checksum term 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5e6b677dd1e8214ea1ef4297f85dbcbed8e8cdddb561040cc998ca2551c37561"
 "checksum termion 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "689a3bdfaab439fd92bc87df5c4c78417d3cbe537487274e9b0b2dce76e92096"

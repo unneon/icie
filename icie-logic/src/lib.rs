@@ -72,6 +72,9 @@ pub enum Impulse {
 		verdict: unijudge::Verdict,
 		finish: bool,
 	},
+	WorkerError {
+		error: failure::Error,
+	},
 }
 #[derive(Debug)]
 pub enum Reaction {
@@ -162,13 +165,12 @@ impl ICIE {
 
 		let root2 = root.clone();
 		let url2 = url.clone();
-		let t1 = thread::spawn(move || {
-			let _ = ci::commands::init::run(&url2, &root2, &mut ui);
-		});
+		let t1 = self.worker(move || ci::commands::init::run(&url2, &root2, &mut ui));
 		loop {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiInitFinish => break,
+				Impulse::WorkerError { error } => return Err(error)?,
 				impulse => Err(error::unexpected(impulse, "ci init event").err())?,
 			}
 		}
@@ -187,13 +189,12 @@ impl ICIE {
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
 		let task_url2 = manifest.task_url.clone();
-		let t1 = thread::spawn(move || {
-			let _ = ci::commands::submit::run(&task_url2, &code, &mut ui);
-		});
+		let t1 = self.worker(move || ci::commands::submit::run(&task_url2, &code, &mut ui));
 		let id = loop {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
 				Impulse::CiSubmitSuccess { id } => break id,
+				Impulse::WorkerError { error } => return Err(error)?,
 				impulse => Err(error::unexpected(impulse, "ci submit event").err())?,
 			}
 		};
@@ -291,9 +292,8 @@ impl ICIE {
 		let _status = self.status("Tracking");
 		let title = format!("Tracking submit #{}", id);
 		let mut ui = self.make_ui();
-		let t1 = thread::spawn(move || {
-			let _ = ci::commands::tracksubmit::run(&url, id, Duration::from_millis(500), &mut ui).unwrap();
-		});
+		let sleep_duration = Duration::from_millis(500);
+		let t1 = self.worker(move || ci::commands::tracksubmit::run(&url, id, sleep_duration, &mut ui));
 		let progress = self.progress_start(Some(&title))?;
 		let mut last_verdict = None;
 		let verdict = loop {
@@ -308,6 +308,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
+				Impulse::WorkerError { error } => return Err(error)?,
 				impulse => Err(error::unexpected(impulse, "ci track event").err())?,
 			}
 		};
@@ -380,9 +381,7 @@ impl ICIE {
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
 		let mut ui = self.make_ui();
-		let t1 = thread::spawn(move || {
-			let _ = ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui);
-		});
+		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui));
 		let mut first_failed = None;
 		let mut test_count = None;
 		let success = loop {
@@ -395,6 +394,7 @@ impl ICIE {
 					}
 				},
 				Impulse::CiTestFinish { success } => break success,
+				Impulse::WorkerError { error } => return Err(error)?,
 				impulse => Err(error::unexpected(impulse, "ci test event").err())?,
 			}
 		};
@@ -455,6 +455,17 @@ impl ICIE {
 
 	fn make_ui(&self) -> impulse_ui::ImpulseCiUi {
 		impulse_ui::ImpulseCiUi(self.input_sender.clone())
+	}
+
+	fn worker<T: Send+'static, F: FnOnce() -> R<T>+Send+'static>(&self, f: F) -> thread::JoinHandle<Option<T>> {
+		let is = self.input_sender.clone();
+		thread::spawn(move || match f() {
+			Ok(x) => Some(x),
+			Err(error) => {
+				is.send(Impulse::WorkerError { error }).expect("actor channel destroyed");
+				None
+			},
+		})
 	}
 
 	fn gen_id(&self) -> String {
