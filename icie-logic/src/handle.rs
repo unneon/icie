@@ -34,11 +34,21 @@ impl Handle {
 		}));
 
 		thread::spawn(move || {
+			let config = match Config::load_or_create() {
+				Ok(config) => config,
+				Err(e) => {
+					is.send(Reaction::ErrorMessage {
+						message: format!("failed to load config: {}", e),
+					})
+					.unwrap();
+					return;
+				},
+			};
 			ICIE {
 				input: er,
 				output: is,
 				input_sender: es2,
-				config: Config::load_or_create().expect("failed to load config"),
+				config,
 				directory: Directory::new_empty(),
 				id_factory: Mutex::new(0),
 				status_stack: Mutex::new(status::StatusStack::new()),
@@ -52,7 +62,8 @@ impl Handle {
 	}
 
 	pub fn send(&self, message: Impulse) {
-		self.input.lock().unwrap().send(message).unwrap()
+		// TODO maybe log failure somewhere
+		let _ = self.input.lock().unwrap().send(message);
 	}
 
 	pub fn recv(&self) -> Reaction {

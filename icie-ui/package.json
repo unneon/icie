@@ -64,8 +64,8 @@
         ]
     },
     "scripts": {
-        "native-build": "(cd ../icie-stdio && ~/.cargo/bin/cargo build --release)",
-        "native-copy": "mkdir -p assets && cp ../icie-stdio/target/release/icie-stdio assets/bin-linux",
+        "native-build": "(cd ../icie-stdio && ~/.cargo/bin/cargo build)",
+        "native-copy": "mkdir -p assets && cp ../icie-stdio/target/debug/icie-stdio assets/bin-linux",
         "native": "npm run native-build && npm run native-copy",
         "vscode:prepublish": "npm run native && npm run compile",
         "compile": "tsc -p ./",

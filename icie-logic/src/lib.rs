@@ -261,11 +261,11 @@ impl ICIE {
 		let _status = self.status("Submitting manually");
 		self.assure_passes_tests()?;
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
-		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url);
+		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url)?;
 		let mut ui = self.make_ui();
-		let session = ci::connect(&manifest.task_url, &mut ui);
+		let session = ci::connect(&manifest.task_url, &mut ui)?;
 		let contest = session.contest(&tu.contest);
-		let url = contest.manual_submit_url(&tu.task);
+		let url = contest.manual_submit_url(&tu.task)?;
 		open::that(url)?;
 		Ok(())
 	}
