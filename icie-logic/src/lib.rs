@@ -18,6 +18,7 @@ mod impulse_ui;
 mod manifest;
 mod progress;
 mod status;
+mod util;
 pub mod vscode;
 
 pub use self::handle::Handle;
@@ -161,7 +162,7 @@ impl ICIE {
 			},
 		};
 		let mut ui = self.make_ui();
-		ci::util::demand_dir(&root)?;
+		let dir = util::TransactionDir::new(&root)?;
 
 		let root2 = root.clone();
 		let url2 = url.clone();
@@ -178,6 +179,7 @@ impl ICIE {
 
 		fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
 		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
+		dir.commit();
 		self.send(Reaction::OpenFolder { path: root, in_new_window: false });
 		Ok(())
 	}
