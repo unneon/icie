@@ -32,7 +32,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 	- [x] Track submission status refreshing each 0.5s
 - [ ] Debug solutions
 	- [ ] Launch a selected test in gdb
-	- [ ] Record a selected test in rr and replay it
+	- [x] Record a selected test in rr and replay it
 	- [ ] Find small tests using a test generator
 - [ ] Profile solutions
 	- [ ] Find tests of appropriate size
