@@ -13,6 +13,7 @@ export interface TestviewTreeTest {
     output: string;
     desired: string | null;
     timing: number | null; // milliseconds
+    in_path: string;
 }
 export type TestviewTree = TestviewTreeTest | TestviewTreeTest[];
 export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
@@ -123,9 +124,13 @@ export interface ImpulseTriggerTemplateInstantiate {
 export interface ImpulseTriggerTestview {
     tag: "trigger_testview";
 }
+export interface ImpulseTriggerRR {
+    tag: "trigger_rr";
+    in_path: string;
+}
 
 export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR;
 
 export class Logic {
     path: string;

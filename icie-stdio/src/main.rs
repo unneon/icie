@@ -4,7 +4,7 @@ extern crate json;
 
 use icie_logic::{Impulse, Reaction};
 use std::{
-	io::{self, BufRead}, sync::Arc, thread
+	io::{self, BufRead}, path::PathBuf, sync::Arc, thread
 };
 
 fn main() {
@@ -32,6 +32,9 @@ fn main() {
 				Some("trigger_manual_submit") => Impulse::TriggerManualSubmit,
 				Some("trigger_template_instantiate") => Impulse::TriggerTemplateInstantiate,
 				Some("trigger_testview") => Impulse::TriggerTestview,
+				Some("trigger_rr") => Impulse::TriggerRR {
+					in_path: PathBuf::from(imp["in_path"].as_str().expect("invalid impulse JSON trigger_rr")),
+				},
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
@@ -127,12 +130,14 @@ fn serialize_tree(tree: icie_logic::testview::Tree) -> json::JsonValue {
 			output,
 			desired,
 			timing,
+			in_path,
 		} => object! {
 			"name" => name,
 			"input" => input,
 			"output" => output,
 			"desired" => desired,
-			"timing" => timing.map(|t| t.as_secs() * 1000 + t.subsec_millis() as u64)
+			"timing" => timing.map(|t| t.as_secs() * 1000 + t.subsec_millis() as u64),
+			"in_path" => in_path.to_str().expect("non utf8 path in Rust-TS conversion")
 		},
 		icie_logic::testview::Tree::Directory { files } => json::from(files.into_iter().map(serialize_tree).collect::<Vec<_>>()),
 	}

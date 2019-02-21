@@ -29,7 +29,7 @@ use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	fs, io, path::PathBuf, str::from_utf8, sync::{
+	fs, io, path::PathBuf, process::Stdio, str::from_utf8, sync::{
 		mpsc::{Receiver, Sender}, Mutex
 	}, thread, time::Duration
 };
@@ -43,6 +43,9 @@ pub enum Impulse {
 	TriggerTemplateInstantiate,
 	TriggerManualSubmit,
 	TriggerTestview,
+	TriggerRR {
+		in_path: PathBuf,
+	},
 	WorkspaceInfo {
 		root_path: Option<String>,
 	},
@@ -130,6 +133,7 @@ impl ICIE {
 			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
 			Impulse::TriggerTestview => self.trigger_test_view()?,
+			Impulse::TriggerRR { in_path } => self.rr(in_path)?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -283,6 +287,21 @@ impl ICIE {
 	fn trigger_test_view(&self) -> R<()> {
 		self.collect_tests()?;
 		self.send(Reaction::TestviewFocus);
+		Ok(())
+	}
+
+	fn rr(&self, in_path: PathBuf) -> R<()> {
+		self.assure_compiled()?;
+		std::process::Command::new("rr")
+			.args(&["record", util::path_to_str(&self.directory.get_executable()?)?])
+			.stdin(std::fs::File::open(util::path_to_str(&in_path)?)?)
+			.stdout(Stdio::piped())
+			.stderr(Stdio::piped())
+			.spawn()?
+			.wait()?;
+		std::process::Command::new("x-terminal-emulator")
+			.args(&["-H", "-e", "bash -c \"rr replay ; bash\""])
+			.spawn()?;
 		Ok(())
 	}
 
@@ -492,6 +511,7 @@ impl ICIE {
 						output: test.output.clone().expect("test output not recorded even though it should be"),
 						desired: Some(fs::read_to_string(test.in_path.with_extension("out"))?),
 						timing: test.timing,
+						in_path: test.in_path.clone(),
 					})
 				})
 				.collect::<R<Vec<_>>>()?,

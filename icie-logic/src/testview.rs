@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 #[derive(Debug)]
 pub enum Tree {
@@ -8,6 +8,7 @@ pub enum Tree {
 		output: String,
 		desired: Option<String>,
 		timing: Option<Duration>,
+		in_path: PathBuf,
 	},
 	Directory {
 		files: Vec<Tree>,

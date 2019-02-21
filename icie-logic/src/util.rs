@@ -1,4 +1,4 @@
-use crate::error::R;
+use crate::error::{self, R};
 use std::{
 	ffi, fs, path::{Path, PathBuf}
 };
@@ -30,4 +30,8 @@ impl Drop for TransactionDir {
 
 pub fn without_extension(path: &Path) -> PathBuf {
 	path.parent().unwrap_or(Path::new("")).join(path.file_stem().unwrap_or(ffi::OsStr::new("")))
+}
+
+pub fn path_to_str(path: &Path) -> R<&str> {
+	Ok(path.to_str().ok_or_else(|| error::Category::NonUTF8Path.err())?)
 }

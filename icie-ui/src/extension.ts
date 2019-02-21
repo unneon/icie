@@ -13,7 +13,11 @@ export function activate(context: vscode.ExtensionContext) {
     let logic = new native.Logic(context.extensionPath);
     let status = vscode.window.createStatusBarItem();
     let progressRegister: ChannelRegister<ProgressUpdate> = {};
-    let testview_panel = new testview.Panel(context.extensionPath);
+    let testview_panel = new testview.Panel(context.extensionPath, input => {
+        if (input.tag === 'trigger_rr') {
+            logic.send(input);
+        }
+    });
 
     register_trigger('icie.build', { tag: "trigger_build" }, logic, context);
     register_trigger('icie.test', { tag: "trigger_test" }, logic, context);

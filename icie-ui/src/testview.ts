@@ -2,12 +2,20 @@ import * as native from "./native";
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+export interface InputRR {
+	tag: "trigger_rr";
+	in_path: string;
+}
+export type Input = InputRR;
+
 export class Panel {
 	private panel: vscode.WebviewPanel | null;
 	private extensionPath: string;
-	public constructor(extensionPath: string) {
+	private callback: (input: Input) => void;
+	public constructor(extensionPath: string, callback: (input: Input) => void) {
 		this.panel = null;
 		this.extensionPath = extensionPath;
+		this.callback = callback;
 	}
 	public focus(): void {
 		this.get().reveal();
@@ -24,9 +32,13 @@ export class Panel {
 			'ICIE Test View',
 			vscode.ViewColumn.One,
 			{
-				enableScripts: false
+				enableScripts: true
 			}
 		);
+		this.panel.webview.onDidReceiveMessage(msg => {
+			console.log(`<%    ${JSON.stringify(msg)}`);
+			this.callback(msg);
+		});
 		this.panel.onDidDispose(() => this.panel = null);
 		return this.panel;
 	}
@@ -36,6 +48,7 @@ export class Panel {
 				<head>
 					<link rel="stylesheet" href="${this.asset('web', 'testview.css')}">
 					<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+					<script src="${this.asset('web', 'testview.js')}"></script>
 				</head>
 				<body>
 					<table class="test">
@@ -53,10 +66,11 @@ export class Panel {
 			}
 			let good = tree.output.trim() === (tree.desired || "").trim();
 			return `
-				</tr>
-					<td class="data">
-						<div class="info">
-							<i class="material-icons" title=${tree.name}>info</i>
+				<tr>
+					<td class="data" data-path="${tree.in_path}">
+						<div class="actions">
+							<i class="action material-icons" title=${tree.name}>info</i>
+							<a class="action material-icons" onclick="trigger_rr()">fast_rewind</a>
 						</div>
 						${tree.input.replace('\n', '<br/>')}
 					</td>
