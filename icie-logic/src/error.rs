@@ -14,6 +14,7 @@ pub enum Category {
 	MalformedConfig { detail: &'static str },
 	TemplateDoesNotExist { id: String },
 	FileAlreadyExists { path: std::path::PathBuf },
+	NonUTF8Path,
 }
 
 #[derive(Debug)]
@@ -57,6 +58,7 @@ impl fmt::Display for Error {
 				MalformedConfig { detail } => format!("malformed config: {}", detail),
 				TemplateDoesNotExist { id } => format!("template {:?} does not exist", id),
 				FileAlreadyExists { path } => format!("file {:?} already exists", path),
+				NonUTF8Path => format!("tried to process non-UTF8 path"),
 			}
 		)?;
 		for frame in self.trace.frames() {

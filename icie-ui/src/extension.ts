@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import * as channel from './channel';
 import * as native from './native';
+import * as testview from './testview';
 
 interface ProgressUpdate {
     reaction: native.ReactionProgressUpdate | native.ReactionProgressEnd;
@@ -12,6 +13,7 @@ export function activate(context: vscode.ExtensionContext) {
     let logic = new native.Logic(context.extensionPath);
     let status = vscode.window.createStatusBarItem();
     let progressRegister: ChannelRegister<ProgressUpdate> = {};
+    let testview_panel = new testview.Panel(context.extensionPath);
 
     register_trigger('icie.build', { tag: "trigger_build" }, logic, context);
     register_trigger('icie.test', { tag: "trigger_test" }, logic, context);
@@ -19,6 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.submit', { tag: "trigger_submit" }, logic, context);
     register_trigger('icie.manual.submit', { tag: "trigger_manual_submit" }, logic, context);
     register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, logic, context);
+    register_trigger('icie.test.view', { tag: "trigger_testview" }, logic, context);
 
     let callback = (reaction: native.Reaction) => {
         if (reaction.tag === "status") {
@@ -108,6 +111,10 @@ export function activate(context: vscode.ExtensionContext) {
             delete progressRegister[reaction.id];
             progressRegister[reaction.id] = c2.send;
             send({ reaction: reaction, recv: c2.recv });
+        } else if (reaction.tag === "testview_focus") {
+            testview_panel.focus();
+        } else if (reaction.tag === "testview_update") {
+            testview_panel.update(reaction.tree);
         }
     };
     logic.recv(callback);

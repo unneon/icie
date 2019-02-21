@@ -31,6 +31,7 @@ fn main() {
 				Some("trigger_submit") => Impulse::TriggerSubmit,
 				Some("trigger_manual_submit") => Impulse::TriggerManualSubmit,
 				Some("trigger_template_instantiate") => Impulse::TriggerTemplateInstantiate,
+				Some("trigger_testview") => Impulse::TriggerTestview,
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
@@ -104,9 +105,35 @@ fn main() {
 				"tag" => "progress_end",
 				"id" => id,
 			},
+			Reaction::TestviewFocus => object! {
+				"tag" => "testview_focus",
+			},
+			Reaction::TestviewUpdate { tree } => object! {
+				"tag" => "testview_update",
+				"tree" => serialize_tree(tree),
+			},
 		};
 		println!("{}", rea.to_string());
 	});
 	t1.join().expect("impulse thread errored");
 	t2.join().expect("reaction thread errored");
+}
+
+fn serialize_tree(tree: icie_logic::testview::Tree) -> json::JsonValue {
+	match tree {
+		icie_logic::testview::Tree::Test {
+			name,
+			input,
+			output,
+			desired,
+			timing,
+		} => object! {
+			"name" => name,
+			"input" => input,
+			"output" => output,
+			"desired" => desired,
+			"timing" => timing.map(|t| t.as_secs() * 1000 + t.subsec_millis() as u64)
+		},
+		icie_logic::testview::Tree::Directory { files } => json::from(files.into_iter().map(serialize_tree).collect::<Vec<_>>()),
+	}
 }

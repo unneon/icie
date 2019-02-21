@@ -42,12 +42,13 @@ impl ci::ui::Ui for ImpulseCiUi {
 		unimplemented!()
 	}
 
-	fn print_test(&mut self, outcome: &TestResult, timing: Option<Duration>, in_path: &Path, _output: Option<StrRes>) {
+	fn print_test(&mut self, outcome: &TestResult, timing: Option<Duration>, in_path: &Path, output: Option<StrRes>) {
 		self.0
 			.send(Impulse::CiTestSingle {
 				outcome: outcome.clone(),
 				timing,
 				in_path: in_path.to_owned(),
+				output: output.map(|sr| sr.get_string().expect("internal conversion StrRes -> String failed")),
 			})
 			.unwrap();
 	}

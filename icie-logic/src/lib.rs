@@ -18,12 +18,14 @@ mod impulse_ui;
 mod manifest;
 mod progress;
 mod status;
+pub mod testview;
 mod util;
 pub mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
 use crate::config::Config;
+use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
@@ -40,6 +42,7 @@ pub enum Impulse {
 	TriggerSubmit,
 	TriggerTemplateInstantiate,
 	TriggerManualSubmit,
+	TriggerTestview,
 	WorkspaceInfo {
 		root_path: Option<String>,
 	},
@@ -57,6 +60,7 @@ pub enum Impulse {
 		outcome: ci::testing::TestResult,
 		timing: Option<Duration>,
 		in_path: PathBuf,
+		output: Option<String>,
 	},
 	CiTestFinish {
 		success: bool,
@@ -92,6 +96,8 @@ pub enum Reaction {
 	ProgressStart { id: String, title: Option<String> },
 	ProgressUpdate { id: String, increment: Option<f64>, message: Option<String> },
 	ProgressEnd { id: String },
+	TestviewFocus,
+	TestviewUpdate { tree: testview::Tree },
 }
 
 struct ICIE {
@@ -123,6 +129,7 @@ impl ICIE {
 			Impulse::TriggerSubmit => self.submit()?,
 			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
+			Impulse::TriggerTestview => self.trigger_test_view()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -273,6 +280,12 @@ impl ICIE {
 		Ok(())
 	}
 
+	fn trigger_test_view(&self) -> R<()> {
+		self.collect_tests()?;
+		self.send(Reaction::TestviewFocus);
+		Ok(())
+	}
+
 	fn setup_workspace(&mut self, root_path: Option<String>) -> R<()> {
 		self.directory.set_root_path(root_path.map(PathBuf::from));
 		self.launch()
@@ -377,37 +390,47 @@ impl ICIE {
 	}
 
 	fn run_tests(&self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
+		let tests = self.collect_tests()?;
+		let first_failed = tests
+			.into_iter()
+			.find(|test| test.outcome != ci::testing::TestResult::Accept)
+			.map(|test| (test.outcome, test.in_path));
+		let good = first_failed.is_none();
+		Ok((good, first_failed))
+	}
+
+	fn collect_tests(&self) -> R<Vec<Test>> {
 		let _status = self.status("Testing");
 		self.assure_compiled()?;
 		let progress = self.progress_start(Some("Testing"))?;
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
 		let mut ui = self.make_ui();
-		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, false, &mut ui));
-		let mut first_failed = None;
+		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, true, &mut ui));
 		let mut test_count = None;
-		let success = loop {
+		let mut tests = Vec::new();
+		loop {
 			match self.recv() {
 				Impulse::CiTestList { paths } => test_count = Some(paths.len()),
-				Impulse::CiTestSingle { outcome, timing: _, in_path } => {
+				Impulse::CiTestSingle { outcome, timing, in_path, output } => {
 					progress.update(test_count.map(|total| 100.0 / total as f64), Some(&format!("Ran {}", in_path.display())))?;
-					if outcome != ci::testing::TestResult::Accept {
-						first_failed = first_failed.or(Some((outcome, in_path)));
-					}
+					tests.push(Test { in_path, outcome, timing, output });
 				},
-				Impulse::CiTestFinish { success } => break success,
+				Impulse::CiTestFinish { .. } => break,
 				Impulse::WorkerError { error } => return Err(error)?,
 				impulse => Err(error::unexpected(impulse, "ci test event").err())?,
 			}
-		};
+		}
 		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 		progress.end();
-		Ok((success, first_failed))
+		self.update_test_view(&tests)?;
+		Ok(tests)
 	}
 
 	fn assure_passes_tests(&self) -> R<()> {
 		let (_, first_fail) = self.run_tests()?;
 		if let Some((verdict, path)) = first_fail {
+			self.send(Reaction::TestviewFocus);
 			Err(error::Category::TestFailure { verdict, path }.err())?
 		} else {
 			Ok(())
@@ -453,6 +476,28 @@ impl ICIE {
 			e => e?,
 		};
 		Ok(metasrc.modified()? >= metaexe.modified()?)
+	}
+
+	fn update_test_view(&self, tests: &[Test]) -> R<()> {
+		let tree = testview::Tree::Directory {
+			files: tests
+				.into_iter()
+				.map(|test| {
+					Ok(testview::Tree::Test {
+						name: util::without_extension(test.in_path.strip_prefix(self.directory.get_tests()?)?)
+							.to_str()
+							.ok_or(error::Category::NonUTF8Path.err())?
+							.to_owned(),
+						input: fs::read_to_string(&test.in_path)?,
+						output: test.output.clone().expect("test output not recorded even though it should be"),
+						desired: Some(fs::read_to_string(test.in_path.with_extension("out"))?),
+						timing: test.timing,
+					})
+				})
+				.collect::<R<Vec<_>>>()?,
+		};
+		self.send(Reaction::TestviewUpdate { tree });
+		Ok(())
 	}
 
 	fn make_ui(&self) -> impulse_ui::ImpulseCiUi {
@@ -559,4 +604,12 @@ impl Directory {
 	fn is_open(&self) -> bool {
 		self.root.is_some()
 	}
+}
+
+#[derive(Debug)]
+pub struct Test {
+	in_path: PathBuf,
+	outcome: TestResult,
+	timing: Option<Duration>,
+	output: Option<String>,
 }

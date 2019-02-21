@@ -7,6 +7,17 @@ export interface QuickPickItem {
     detail: string | null;
     id: string;
 }
+export interface TestviewTreeTest {
+    name: string;
+    input: string;
+    output: string;
+    desired: string | null;
+    timing: number | null; // milliseconds
+}
+export type TestviewTree = TestviewTreeTest | TestviewTreeTest[];
+export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
+    return (<TestviewTreeTest>tree).input !== undefined;
+}
 
 export interface ReactionStatus {
     tag: "status";
@@ -68,6 +79,13 @@ export interface ReactionProgressEnd {
     tag: "progress_end";
     id: string;
 }
+export interface ReactionTestviewFocus {
+    tag: "testview_focus";
+}
+export interface ReactionTestviewUpdate {
+    tag: "testview_update";
+    tree: TestviewTree;
+}
 
 export interface ImpulseQuickPick {
     tag: "quick_pick";
@@ -102,9 +120,12 @@ export interface ImpulseTriggerManualSubmit {
 export interface ImpulseTriggerTemplateInstantiate {
     tag: "trigger_template_instantiate";
 }
+export interface ImpulseTriggerTestview {
+    tag: "trigger_testview";
+}
 
-export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate;
+export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview;
 
 export class Logic {
     path: string;

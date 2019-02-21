@@ -1,6 +1,6 @@
 use crate::error::R;
 use std::{
-	fs, path::{Path, PathBuf}
+	ffi, fs, path::{Path, PathBuf}
 };
 
 pub struct TransactionDir {
@@ -26,4 +26,8 @@ impl Drop for TransactionDir {
 			fs::remove_dir_all(&self.path).expect("failed to delete uncommited directory");
 		}
 	}
+}
+
+pub fn without_extension(path: &Path) -> PathBuf {
+	path.parent().unwrap_or(Path::new("")).join(path.file_stem().unwrap_or(ffi::OsStr::new("")))
 }
