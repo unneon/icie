@@ -35,6 +35,10 @@ fn main() {
 				Some("trigger_rr") => Impulse::TriggerRR {
 					in_path: PathBuf::from(imp["in_path"].as_str().expect("invalid impulse JSON trigger_rr")),
 				},
+				Some("new_test") => Impulse::NewTest {
+					input: imp["input"].as_str().expect("invalid impulse JSON trigger_new_test").to_owned(),
+					desired: imp["desired"].as_str().expect("invalid impulse JSON trigger_new_test").to_owned(),
+				},
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);

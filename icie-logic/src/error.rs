@@ -15,6 +15,7 @@ pub enum Category {
 	TemplateDoesNotExist { id: String },
 	FileAlreadyExists { path: std::path::PathBuf },
 	NonUTF8Path,
+	AppNotInstalled { apps: Vec<String> },
 }
 
 #[derive(Debug)]
@@ -59,13 +60,9 @@ impl fmt::Display for Error {
 				TemplateDoesNotExist { id } => format!("template {:?} does not exist", id),
 				FileAlreadyExists { path } => format!("file {:?} already exists", path),
 				NonUTF8Path => format!("tried to process non-UTF8 path"),
+				AppNotInstalled { apps } => format!("operation requires one of {:?} to be installed", apps),
 			}
 		)?;
-		for frame in self.trace.frames() {
-			for symbol in frame.symbols() {
-				writeln!(f, "{:?} {:?}:{:?}", symbol.name(), symbol.filename(), symbol.lineno())?;
-			}
-		}
 		Ok(())
 	}
 }

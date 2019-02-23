@@ -16,6 +16,8 @@ export function activate(context: vscode.ExtensionContext) {
     let testview_panel = new testview.Panel(context.extensionPath, input => {
         if (input.tag === 'trigger_rr') {
             logic.send(input);
+        } else if (input.tag === 'new_test') {
+            logic.send(input);
         }
     });
 
@@ -26,6 +28,12 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.manual.submit', { tag: "trigger_manual_submit" }, logic, context);
     register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, logic, context);
     register_trigger('icie.test.view', { tag: "trigger_testview" }, logic, context);
+    context.subscriptions.push(vscode.commands.registerCommand('icie.test.new', () => {
+        // TODO make it work even if the panel is not open
+        if (testview_panel.is_created()) {
+            testview_panel.start_new_test();
+        }
+    }));
 
     let callback = (reaction: native.Reaction) => {
         if (reaction.tag === "status") {

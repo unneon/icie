@@ -6,7 +6,12 @@ export interface InputRR {
 	tag: "trigger_rr";
 	in_path: string;
 }
-export type Input = InputRR;
+export interface InputNewTest {
+	tag: "new_test";
+	input: string;
+	desired: string;
+}
+export type Input = InputRR | InputNewTest;
 
 export class Panel {
 	private panel: vscode.WebviewPanel | null;
@@ -19,6 +24,13 @@ export class Panel {
 	}
 	public focus(): void {
 		this.get().reveal();
+	}
+	public start_new_test(): void {
+		this.focus();
+		this.get().webview.postMessage({ 'tag': 'new_start' });
+	}
+	public is_created(): boolean {
+		return this.panel !== null;
 	}
 	public update(tree: native.TestviewTree): void {
 		this.get().webview.html = this.view(tree);
@@ -54,6 +66,10 @@ export class Panel {
 					<table class="test">
 						${this.viewTree(tree)}
 					</table>
+					<a id="new-start" class="material-icons new button" onclick="new_start()">add</a>
+					<a id="new-confirm" class="material-icons new button" onclick="new_confirm()">done</a>
+					<textarea class="new" id="new-input"></textarea>
+					<textarea class="new" id="new-desired"></textarea>
 				</body>
 			</html>
 		`;
@@ -66,15 +82,19 @@ export class Panel {
 			}
 			let good = tree.output.trim() === (tree.desired || "").trim();
 			return `
-				<tr>
-					<td class="data" data-path="${tree.in_path}">
+				<tr data-in_path="${tree.in_path}">
+					<td class="data">
 						<div class="actions">
 							<i class="action material-icons" title=${tree.name}>info</i>
-							<a class="action material-icons" onclick="trigger_rr()">fast_rewind</a>
 						</div>
 						${tree.input.replace('\n', '<br/>')}
 					</td>
-					<td class="data ${good ? "out-good" : "out-bad"}">${tree.output.replace('\n', '<br/>')}</td>
+					<td class="data ${good ? "out-good" : "out-bad"}">
+						<div class="actions">
+							<a class="action material-icons" onclick="trigger_rr()">fast_rewind</a>
+						</div>
+						${tree.output.replace('\n', '<br/>')}
+					</td>
 					<td class="data">${(tree.desired || "").replace('\n', '<br/>')}</td>
 				</tr>
 			`;

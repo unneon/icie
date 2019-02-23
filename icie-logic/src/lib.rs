@@ -29,7 +29,7 @@ use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	fs, io, path::PathBuf, process::Stdio, str::from_utf8, sync::{
+	ffi::OsStr, fs, io, path::PathBuf, process::Stdio, str::from_utf8, sync::{
 		mpsc::{Receiver, Sender}, Mutex
 	}, thread, time::Duration
 };
@@ -45,6 +45,10 @@ pub enum Impulse {
 	TriggerTestview,
 	TriggerRR {
 		in_path: PathBuf,
+	},
+	NewTest {
+		input: String,
+		desired: String,
 	},
 	WorkspaceInfo {
 		root_path: Option<String>,
@@ -134,6 +138,7 @@ impl ICIE {
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
 			Impulse::TriggerTestview => self.trigger_test_view()?,
 			Impulse::TriggerRR { in_path } => self.rr(in_path)?,
+			Impulse::NewTest { input, desired } => self.new_test(input, desired)?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -291,17 +296,42 @@ impl ICIE {
 	}
 
 	fn rr(&self, in_path: PathBuf) -> R<()> {
+		let _status = self.status("Recording");
 		self.assure_compiled()?;
-		std::process::Command::new("rr")
-			.args(&["record", util::path_to_str(&self.directory.get_executable()?)?])
-			.stdin(std::fs::File::open(util::path_to_str(&in_path)?)?)
-			.stdout(Stdio::piped())
-			.stderr(Stdio::piped())
-			.spawn()?
-			.wait()?;
-		std::process::Command::new("x-terminal-emulator")
-			.args(&["-H", "-e", "bash -c \"rr replay ; bash\""])
-			.spawn()?;
+		util::try_commands(&[("rr", &["record", util::path_to_str(&self.directory.get_executable()?)?])], |cmd| {
+			cmd.stdin(std::fs::File::open(util::path_to_str(&in_path)?)?);
+			cmd.stdout(Stdio::piped());
+			cmd.stderr(Stdio::piped());
+			Ok(())
+		})?
+		.wait()?;
+		util::try_commands(
+			&[
+				("x-terminal-emulator", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
+				("i3-sensible-terminal", &["-e", "bash -c \"rr replay -- q ; bash\""]),
+			],
+			|_| Ok(()),
+		)?;
+		Ok(())
+	}
+
+	fn new_test(&self, input: String, desired: String) -> R<()> {
+		let dir = self.directory.get_custom_tests()?;
+		ci::util::demand_dir(&dir)?;
+		let used = fs::read_dir(&dir)?
+			.into_iter()
+			.map(|der| {
+				der.ok()
+					.and_then(|de| de.path().file_stem().map(OsStr::to_owned))
+					.and_then(|stem| stem.to_str().map(str::to_owned))
+					.and_then(|name| name.parse::<i64>().ok())
+			})
+			.filter_map(|o| o)
+			.collect::<Vec<_>>();
+		let id = util::mex(1, used);
+		fs::write(dir.join(format!("{}.in", id)), input)?;
+		fs::write(dir.join(format!("{}.out", id)), desired)?;
+		self.update_test_view(&self.collect_tests()?)?;
 		Ok(())
 	}
 
@@ -619,6 +649,10 @@ impl Directory {
 
 	fn get_manifest(&self) -> R<PathBuf> {
 		Ok(self.need_root()?.join(".icie"))
+	}
+
+	fn get_custom_tests(&self) -> R<PathBuf> {
+		Ok(self.get_tests()?.join("user"))
 	}
 
 	fn is_open(&self) -> bool {

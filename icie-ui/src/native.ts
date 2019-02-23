@@ -128,9 +128,14 @@ export interface ImpulseTriggerRR {
     tag: "trigger_rr";
     in_path: string;
 }
+export interface ImpulseNewTest {
+    tag: "new_test";
+    input: string;
+    desired: string;
+}
 
 export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest;
 
 export class Logic {
     path: string;

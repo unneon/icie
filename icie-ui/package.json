@@ -48,6 +48,10 @@
             {
                 "command": "icie.test.view",
                 "title": "ICIE Test view"
+            },
+            {
+                "command": "icie.test.new",
+                "title": "ICIE Add new test"
             }
         ],
         "keybindings": [
@@ -66,6 +70,10 @@
             {
                 "command": "icie.test.view",
                 "key": "alt+0"
+            },
+            {
+                "command": "icie.test.new",
+                "key": "alt+-"
             }
         ]
     },
@@ -76,6 +84,8 @@
         "onCommand:icie.submit",
         "onCommand:icie.template.instantiate",
         "onCommand:icie.manual.submit",
+        "onCommand:icie.test.view",
+        "onCommand:icie.test.new",
         "workspaceContains:/main.cpp"
     ],
     "badges": [],
