@@ -14,11 +14,13 @@ export interface TestviewTreeTest {
     desired: string | null;
     timing: number | null; // milliseconds
     in_path: string;
+    outcome: TestResult;
 }
 export type TestviewTree = TestviewTreeTest | TestviewTreeTest[];
 export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
     return (<TestviewTreeTest>tree).input !== undefined;
 }
+export type TestResult = 'accept' | 'wrong_answer' | 'runtime_error' | 'ignored_no_out';
 
 export interface ReactionStatus {
     tag: "status";

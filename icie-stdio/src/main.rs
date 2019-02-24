@@ -135,13 +135,20 @@ fn serialize_tree(tree: icie_logic::testview::Tree) -> json::JsonValue {
 			desired,
 			timing,
 			in_path,
+			outcome,
 		} => object! {
 			"name" => name,
 			"input" => input,
 			"output" => output,
 			"desired" => desired,
 			"timing" => timing.map(|t| t.as_secs() * 1000 + t.subsec_millis() as u64),
-			"in_path" => in_path.to_str().expect("non utf8 path in Rust-TS conversion")
+			"in_path" => in_path.to_str().expect("non utf8 path in Rust-TS conversion"),
+			"outcome" => match outcome {
+				icie_logic::TestResult::Accept => "accept",
+				icie_logic::TestResult::WrongAnswer => "wrong_answer",
+				icie_logic::TestResult::RuntimeError => "runtime_error",
+				icie_logic::TestResult::IgnoredNoOut => "ignored_no_out",
+			},
 		},
 		icie_logic::testview::Tree::Directory { files } => json::from(files.into_iter().map(serialize_tree).collect::<Vec<_>>()),
 	}

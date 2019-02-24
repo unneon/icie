@@ -27,7 +27,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 	- [x] View tests and solution outputs
 	- [x] Add own tests
 	- [ ] Treat a different output as correct
-	- [ ] Support custom output checkers
+	- [x] Support custom output checkers
 - [x] Submit solutions
 	- [x] Submit using HTTP requests, faster than any human
 	- [x] Track submission status refreshing each 0.5s

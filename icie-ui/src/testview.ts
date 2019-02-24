@@ -80,7 +80,7 @@ export class Panel {
 			if (tree.desired !== null) {
 				rows = Math.max(rows, lines(tree.desired));
 			}
-			let good = tree.output.trim() === (tree.desired || "").trim();
+			let good = tree.outcome === 'accept';
 			return `
 				<tr data-in_path="${tree.in_path}">
 					<td class="data">

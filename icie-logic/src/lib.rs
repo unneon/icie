@@ -25,7 +25,7 @@ pub mod vscode;
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
 use crate::config::Config;
-use ci::testing::TestResult;
+pub use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
@@ -555,6 +555,7 @@ impl ICIE {
 						desired: Some(fs::read_to_string(test.in_path.with_extension("out"))?),
 						timing: test.timing,
 						in_path: test.in_path.clone(),
+						outcome: test.outcome.clone(),
 					})
 				})
 				.collect::<R<Vec<_>>>()?,
