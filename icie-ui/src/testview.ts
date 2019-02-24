@@ -87,15 +87,15 @@ export class Panel {
 						<div class="actions">
 							<i class="action material-icons" title=${tree.name}>info</i>
 						</div>
-						${tree.input.replace('\n', '<br/>')}
+						${tree.input.replace(/\n/g, '<br/>')}
 					</td>
 					<td class="data ${good ? "out-good" : "out-bad"}">
 						<div class="actions">
 							<a class="action material-icons" onclick="trigger_rr()">fast_rewind</a>
 						</div>
-						${tree.output.replace('\n', '<br/>')}
+						${tree.output.replace(/\n/g, '<br/>')}
 					</td>
-					<td class="data">${(tree.desired || "").replace('\n', '<br/>')}</td>
+					<td class="data">${(tree.desired || "").replace(/\n/g, '<br/>')}</td>
 				</tr>
 			`;
 		} else {
