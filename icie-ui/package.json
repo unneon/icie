@@ -99,16 +99,9 @@
         "@types/mocha": "^2.2.42"
     },
     "scripts": {
-        "ext-readme": "cp ../README.md README.md",
-        "ext-native-build": "(cd ../icie-stdio && ~/.cargo/bin/cargo build --release)",
-        "ext-native-copy": "mkdir -p assets && cp ../icie-stdio/target/release/icie-stdio assets/bin-linux",
-        "ext-native": "npm run ext-native-build && npm run ext-native-copy",
-        "ext": "npm run ext-readme && npm run ext-native",
-        "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
-        "launch_prep": "npm run ext && npm run compile",
+        "make": "cd .. && make",
+        "tsc": "tsc -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install",
-        "test": "npm run compile && node ./node_modules/vscode/bin/test",
-        "vscode:prepublish": "npm run ext && npm run compile"
+        "vscode:prepublish": "npm run make"
     }
 }

@@ -16,7 +16,7 @@
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
             ],
-            "preLaunchTask": "npm: launch_prep"
+            "preLaunchTask": "npm: make"
         },
         {
             "name": "Extension Tests",
