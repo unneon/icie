@@ -2,6 +2,7 @@ target_profile = release
 
 build_asset_exe = $(build_asset_dir)/bin-linux
 build_ts_js = $(source_typescript:icie-ui/src/%.ts=icie-ui/out/%.js)
+build_npm_install = icie-ui/.npm-install-flag
 build_package_readme = icie-ui/README.md
 build_asset_dir = icie-ui/assets
 build_exe = icie-stdio/target/$(target_profile)/icie-stdio
@@ -21,8 +22,11 @@ all: $(build_asset_exe) $(build_ts_js) $(build_package_readme)
 
 $(build_asset_exe): $(build_exe) $(build_asset_dir)
 	cp $(build_exe) $(build_asset_exe)
-$(build_ts_js): $(source_typescript) $(source_typescript_meta)
+$(build_ts_js): $(source_typescript) $(source_typescript_meta) $(build_npm_install)
 	cd icie-ui && npm run tsc
+$(build_npm_install): $(source_js_meta)
+	cd icie-ui && npm install
+	touch $(build_npm_install)
 $(build_package_readme): $(source_readme)
 	cp $(source_readme) $(build_package_readme)
 $(build_asset_dir):

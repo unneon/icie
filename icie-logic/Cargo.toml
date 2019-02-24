@@ -5,7 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
-ci = { path = "../../ci" }
+ci = { git = "https://github.com/matcegla/ci" }
 failure = "0.1.3"
 rand = "0.6"
 serde = "1.0"
