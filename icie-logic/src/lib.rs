@@ -29,7 +29,7 @@ use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	ffi::OsStr, fs, io, path::PathBuf, process::Stdio, str::from_utf8, sync::{
+	ffi::OsStr, fs, io, path::{Path, PathBuf}, process::Stdio, str::from_utf8, sync::{
 		mpsc::{Receiver, Sender}, Mutex
 	}, thread, time::Duration
 };
@@ -454,8 +454,9 @@ impl ICIE {
 		let progress = self.progress_start(Some("Testing"))?;
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
+		let checker = self.get_checker()?;
 		let mut ui = self.make_ui();
-		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &ci::checkers::CheckerDiffOut, false, true, &mut ui));
+		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &*checker, false, true, &mut ui));
 		let mut test_count = None;
 		let mut tests = Vec::new();
 		loop {
@@ -486,22 +487,35 @@ impl ICIE {
 		}
 	}
 
+	fn get_checker(&self) -> R<Box<ci::checkers::Checker+Send>> {
+		match self.directory.get_checker_source()? {
+			Some(source) => {
+				self.assure_compiled_path(&source)?;
+				Ok(Box::new(ci::checkers::CheckerApp::new(util::path_to_str(&self.directory.get_checker()?)?.to_owned())?))
+			},
+			None => Ok(Box::new(ci::checkers::CheckerDiffOut)),
+		}
+	}
+
 	fn assure_compiled(&self) -> R<()> {
-		if self.requires_compilation()? {
-			self.compile()?;
+		self.assure_compiled_path(&self.directory.get_source()?)
+	}
+
+	fn assure_compiled_path(&self, path: &Path) -> R<()> {
+		if self.requires_compilation(path)? {
+			self.compile(path)?;
 		}
 		Ok(())
 	}
 
-	fn compile(&self) -> R<()> {
+	fn compile(&self, source: &Path) -> R<()> {
 		let _status = self.status("Compiling");
-		let source = self.directory.get_source()?;
 		let codegen = ci::commands::build::Codegen::Debug;
 		let cppver = ci::commands::build::CppVer::Cpp17;
 		let library = self.directory.get_library_source()?;
 		let library = library.as_ref().map(|pb| pb.as_path());
 		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library));
-		ci::commands::build::run(&source, &codegen, &cppver, library)?;
+		ci::commands::build::run(source, &codegen, &cppver, library)?;
 		Ok(())
 	}
 
@@ -514,11 +528,10 @@ impl ICIE {
 		Ok(())
 	}
 
-	fn requires_compilation(&self) -> R<bool> {
-		let src = self.directory.get_source()?;
-		let exe = self.directory.get_executable()?;
+	fn requires_compilation(&self, src: &Path) -> R<bool> {
+		let exe = src.with_extension("e");
 		self.assure_all_saved()?;
-		let metasrc = src.metadata().context(format!("solution source {:?} does not exist", src))?;
+		let metasrc = src.metadata().context(format!("source {:?} does not exist", src))?;
 		let metaexe = match exe.metadata() {
 			Ok(metaexe) => metaexe,
 			Err(ref e) if e.kind() == io::ErrorKind::NotFound => return Ok(true),
@@ -637,6 +650,15 @@ impl Directory {
 	fn get_library_source(&self) -> R<Option<PathBuf>> {
 		let path = self.need_root()?.join("lib.cpp");
 		Ok(if path.exists() { Some(path) } else { None })
+	}
+
+	fn get_checker_source(&self) -> R<Option<PathBuf>> {
+		let path = self.need_root()?.join("checker.cpp");
+		Ok(if path.exists() { Some(path) } else { None })
+	}
+
+	fn get_checker(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("checker.e"))
 	}
 
 	fn get_executable(&self) -> R<PathBuf> {
