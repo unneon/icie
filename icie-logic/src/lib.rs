@@ -29,7 +29,7 @@ pub use ci::testing::TestResult;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
-	ffi::OsStr, fs, io, path::{Path, PathBuf}, process::Stdio, str::from_utf8, sync::{
+	env, ffi::OsStr, fs, io, path::{Path, PathBuf}, process::Stdio, str::from_utf8, sync::{
 		mpsc::{Receiver, Sender}, Mutex
 	}, thread, time::Duration
 };
@@ -515,7 +515,27 @@ impl ICIE {
 		let library = self.directory.get_library_source()?;
 		let library = library.as_ref().map(|pb| pb.as_path());
 		self.log(format!("source = {:?}, codegen = {:?}, cppver = {:?}, library = {:?}", source, codegen, cppver, library));
-		ci::commands::build::run(source, &codegen, &cppver, library)?;
+		match ci::commands::build::run(source, &codegen, &cppver, library, true) {
+			Ok(()) => {},
+			Err(ci::commands::build::BuildError::Other(e)) => return Err(e)?,
+			Err(ci::commands::build::BuildError::CompilationError { mode, messages }) => {
+				let messages = messages.expect("compiler messages were not parsed");
+				self.log(format!("{:#?}", messages));
+				if messages.len() > 0 {
+					self.send(Reaction::OpenEditor {
+						path: env::current_dir()?.join(&messages[0].file),
+						row: messages[0].line,
+						column: messages[0].column,
+					});
+				}
+				return Err(error::Category::CompilationError {
+					file: source.to_path_buf(),
+					message: messages.first().map(|cem| cem.message.to_owned()),
+					mode,
+				}
+				.err())?;
+			},
+		}
 		Ok(())
 	}
 

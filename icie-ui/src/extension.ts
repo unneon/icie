@@ -88,12 +88,16 @@ export function activate(context: vscode.ExtensionContext) {
             console.error(reaction.message);
         } else if (reaction.tag === "open_editor") {
             vscode.workspace.openTextDocument(reaction.path)
-                .then(source => vscode.window.showTextDocument(source))
+                .then(source => {
+                    console.log(`source = ${JSON.stringify(source)}`);
+                    return vscode.window.showTextDocument(source);
+                })
                 .then(editor => {
                     let oldPosition = editor.selection.active;
                     let newPosition = oldPosition.with(reaction.row-1, reaction.column-1);
                     let newSelection = new vscode.Selection(newPosition, newPosition);
                     editor.selection = newSelection;
+                    editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
                 });
         } else if (reaction.tag === "progress_start") {
             let c0 = channel.channel<ProgressUpdate>();

@@ -1,6 +1,6 @@
-use ci;
+use ci::{self, commands::build::CppVer};
 use failure;
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 #[derive(Debug)]
 pub enum Category {
@@ -16,6 +16,7 @@ pub enum Category {
 	FileAlreadyExists { path: std::path::PathBuf },
 	NonUTF8Path,
 	AppNotInstalled { apps: Vec<String> },
+	CompilationError { message: Option<String>, file: PathBuf, mode: CppVer },
 }
 
 #[derive(Debug)]
@@ -61,6 +62,12 @@ impl fmt::Display for Error {
 				FileAlreadyExists { path } => format!("file {:?} already exists", path),
 				NonUTF8Path => format!("tried to process non-UTF8 path"),
 				AppNotInstalled { apps } => format!("operation requires one of {:?} to be installed", apps),
+				CompilationError { message, file, mode } => format!(
+					"{}failed to compile {} in {} mode",
+					message.as_ref().map(|message| format!("{}\n", message)).unwrap_or("".to_owned()),
+					file.display(),
+					mode.flag()
+				),
 			}
 		)?;
 		Ok(())

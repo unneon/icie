@@ -21,7 +21,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 	- [x] Save task URL for submitting
 - [x] Build solutions
 	- [x] Use latest compiler debugging flags and sanitizers
-	- [ ] Move cursor to the location of first compiler error
+	- [x] Move cursor to the location of first compiler error
 - [x] Test solutions
 	- [x] Run and check output on all example tests
 	- [x] View tests and solution outputs
