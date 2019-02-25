@@ -18,7 +18,12 @@ impl Handle {
 		let is2 = Mutex::new(is.clone());
 		panic::set_hook(Box::new(move |info| {
 			if let Ok(is2) = is2.lock() {
-				let _ = is2.send(Reaction::ErrorMessage { message: info.to_string() });
+				let _ = is2.send(Reaction::Message {
+					message: info.to_string(),
+					kind: crate::vscode::MessageKind::Error,
+					items: None,
+					modal: None,
+				});
 				let mut buf = String::new();
 				backtrace::trace(|frame| {
 					backtrace::resolve(frame.symbol_address(), |symbol| {
@@ -37,8 +42,11 @@ impl Handle {
 			let config = match Config::load_or_create() {
 				Ok(config) => config,
 				Err(e) => {
-					is.send(Reaction::ErrorMessage {
+					is.send(Reaction::Message {
 						message: format!("failed to load config: {}", e),
+						kind: crate::vscode::MessageKind::Error,
+						items: None,
+						modal: None,
 					})
 					.unwrap();
 					return;

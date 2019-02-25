@@ -39,6 +39,10 @@ fn main() {
 					input: imp["input"].as_str().expect("invalid impulse JSON trigger_new_test").to_owned(),
 					desired: imp["desired"].as_str().expect("invalid impulse JSON trigger_new_test").to_owned(),
 				},
+				Some("message_response") => Impulse::MessageResponse {
+					id: imp["id"].as_str().expect("invalid impulse JSON message_response").to_owned(),
+					response: imp["response"].as_str().map(String::from),
+				},
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
@@ -51,13 +55,23 @@ fn main() {
 				"tag" => "status",
 				"message" => message,
 			},
-			Reaction::InfoMessage { message } => object! {
-				"tag" => "info_message",
+			Reaction::Message { message, kind, items, modal } => object! {
+				"tag" => "message",
 				"message" => message,
-			},
-			Reaction::ErrorMessage { message } => object! {
-				"tag" => "error_message",
-				"message" => message,
+				"kind" => match kind {
+					icie_logic::vscode::MessageKind::Info => "info",
+					icie_logic::vscode::MessageKind::Warning => "warning",
+					icie_logic::vscode::MessageKind::Error => "error",
+				},
+				"items" => items.map(|items| object! {
+					"id" => items.id,
+					"list" => items.list.into_iter().map(|item| object! {
+						"title" => item.title,
+						"is_close_affordance" => item.is_close_affordance,
+						"id" => item.id,
+					}).collect::<Vec<_>>(),
+				}),
+				"modal" => modal,
 			},
 			Reaction::QuickPick { items } => object! {
 				"tag" => "quick_pick",

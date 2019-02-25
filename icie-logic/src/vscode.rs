@@ -12,3 +12,20 @@ pub struct InputBoxOptions {
 	pub password: bool,
 	pub ignore_focus_out: bool,
 }
+#[derive(Clone, Debug)]
+pub enum MessageKind {
+	Info,
+	Warning,
+	Error,
+}
+#[derive(Debug)]
+pub struct MessageItem {
+	pub title: String,
+	pub is_close_affordance: Option<bool>,
+	pub id: String,
+}
+#[derive(Debug)]
+pub struct MessageItems {
+	pub id: String,
+	pub list: Vec<MessageItem>,
+}

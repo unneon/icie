@@ -43,10 +43,44 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 status.hide();
             }
-        } else if (reaction.tag === "info_message") {
-            vscode.window.showInformationMessage(reaction.message);
-        } else if (reaction.tag === "error_message") {
-            vscode.window.showErrorMessage(reaction.message);
+        } else if (reaction.tag === "message") {
+            let message = reaction.message;
+            let options = {
+                modal: reaction.modal === null ? undefined : reaction.modal
+            };
+            if (reaction.items === null) {
+                if (reaction.kind === 'info') {
+                    vscode.window.showInformationMessage(message, options);
+                } else if (reaction.kind === 'warning') {
+                    vscode.window.showWarningMessage(message, options);
+                } else if (reaction.kind === 'error') {
+                    vscode.window.showErrorMessage(message, options);
+                }
+            } else {
+                let question_id = reaction.items.id;
+                let items = reaction.items.list.map(mi => { return {
+                    title: mi.title,
+                    isCloseAffordance: mi.is_close_affordance === null ? undefined : mi.is_close_affordance,
+                    id: mi.id
+                }; });
+                let fut = null;
+                if (reaction.kind === 'info') {
+                    fut = vscode.window.showInformationMessage(message, options, ...items);
+                } else if (reaction.kind === 'warning') {
+                    fut = vscode.window.showWarningMessage(message, options, ...items);
+                } else if (reaction.kind === 'error') {
+                    fut = vscode.window.showErrorMessage(message, options, ...items);
+                } else {
+                    throw new Error("uknown message kind");
+                }
+                fut.then(item => {
+                    if (item !== undefined) {
+                        logic.send({ tag: 'message_response', id: question_id, response: item.id });
+                    } else {
+                        logic.send({ tag: 'message_response', id: question_id, response: null });
+                    }
+                });
+            }
         } else if (reaction.tag === "quick_pick") {
             vscode.window.showQuickPick(reaction.items.map(item => {
                 return {

@@ -60,6 +60,10 @@ pub enum Impulse {
 		response: Option<String>,
 	},
 	SavedAll,
+	MessageResponse {
+		id: String,
+		response: Option<String>,
+	},
 	CiTestList {
 		paths: Vec<PathBuf>,
 	},
@@ -90,21 +94,53 @@ pub enum Impulse {
 }
 #[derive(Debug)]
 pub enum Reaction {
-	Status { message: Option<String> },
-	InfoMessage { message: String },
-	ErrorMessage { message: String },
-	QuickPick { items: Vec<QuickPickItem> },
-	InputBox { options: InputBoxOptions },
-	ConsoleLog { message: String },
+	Status {
+		message: Option<String>,
+	},
+	Message {
+		message: String,
+		kind: vscode::MessageKind,
+		items: Option<vscode::MessageItems>,
+		modal: Option<bool>,
+	},
+	QuickPick {
+		items: Vec<QuickPickItem>,
+	},
+	InputBox {
+		options: InputBoxOptions,
+	},
+	ConsoleLog {
+		message: String,
+	},
 	SaveAll,
-	OpenFolder { path: PathBuf, in_new_window: bool },
-	ConsoleError { message: String },
-	OpenEditor { path: PathBuf, row: i64, column: i64 },
-	ProgressStart { id: String, title: Option<String> },
-	ProgressUpdate { id: String, increment: Option<f64>, message: Option<String> },
-	ProgressEnd { id: String },
+	OpenFolder {
+		path: PathBuf,
+		in_new_window: bool,
+	},
+	ConsoleError {
+		message: String,
+	},
+	OpenEditor {
+		path: PathBuf,
+		row: i64,
+		column: i64,
+	},
+	ProgressStart {
+		id: String,
+		title: Option<String>,
+	},
+	ProgressUpdate {
+		id: String,
+		increment: Option<f64>,
+		message: Option<String>,
+	},
+	ProgressEnd {
+		id: String,
+	},
 	TestviewFocus,
-	TestviewUpdate { tree: testview::Tree },
+	TestviewUpdate {
+		tree: testview::Tree,
+	},
 }
 
 struct ICIE {
@@ -308,7 +344,7 @@ impl ICIE {
 		util::try_commands(
 			&[
 				("x-terminal-emulator", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
-				("i3-sensible-terminal", &["-e", "bash -c \"rr replay -- q ; bash\""]),
+				("i3-sensible-terminal", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
 			],
 			|_| Ok(()),
 		)?;
@@ -616,11 +652,21 @@ impl ICIE {
 	}
 
 	fn info(&self, message: impl Into<String>) {
-		self.send(Reaction::InfoMessage { message: message.into() });
+		self.send(Reaction::Message {
+			message: message.into(),
+			kind: vscode::MessageKind::Info,
+			items: None,
+			modal: None,
+		});
 	}
 
 	fn error(&self, message: impl Into<String>) {
-		self.send(Reaction::ErrorMessage { message: message.into() });
+		self.send(Reaction::Message {
+			message: message.into(),
+			kind: vscode::MessageKind::Error,
+			items: None,
+			modal: None,
+		});
 	}
 
 	fn log(&self, message: impl Into<String>) {

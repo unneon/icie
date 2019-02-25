@@ -21,18 +21,27 @@ export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
     return (<TestviewTreeTest>tree).input !== undefined;
 }
 export type TestResult = 'accept' | 'wrong_answer' | 'runtime_error' | 'ignored_no_out';
+export type MessageKind = 'info' | 'warning' | 'error';
+export interface MessageItem {
+    title: string;
+    is_close_affordance: boolean | null;
+    id: string;
+}
+export interface MessageItems {
+    id: string;
+    list: MessageItem[];
+}
 
 export interface ReactionStatus {
     tag: "status";
     message: string | null;
 }
-export interface ReactionInfoMessage {
-    tag: "info_message";
+export interface ReactionMessage {
+    tag: "message";
     message: string;
-}
-export interface ReactionErrorMessage {
-    tag: "error_message";
-    message: string;
+    kind: MessageKind;
+    items: MessageItems | null;
+    modal: boolean | null;
 }
 export interface ReactionQuickPick {
     tag: "quick_pick";
@@ -135,9 +144,14 @@ export interface ImpulseNewTest {
     input: string;
     desired: string;
 }
+export interface ImpulseMessageResponse {
+    tag: "message_response";
+    id: string;
+    response: string | null;
+}
 
-export type Reaction = ReactionStatus | ReactionInfoMessage | ReactionErrorMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest;
+export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse;
 
 export class Logic {
     path: string;
