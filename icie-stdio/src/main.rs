@@ -2,7 +2,7 @@ extern crate icie_logic;
 #[macro_use]
 extern crate json;
 
-use icie_logic::{Impulse, Reaction};
+use icie_logic::{Impulse, Outcome, Reaction};
 use std::{
 	io::{self, BufRead}, path::PathBuf, sync::Arc, thread
 };
@@ -32,6 +32,7 @@ fn main() {
 				Some("trigger_manual_submit") => Impulse::TriggerManualSubmit,
 				Some("trigger_template_instantiate") => Impulse::TriggerTemplateInstantiate,
 				Some("trigger_testview") => Impulse::TriggerTestview,
+				Some("trigger_multitest_view") => Impulse::TriggerMultitestView,
 				Some("trigger_rr") => Impulse::TriggerRR {
 					in_path: PathBuf::from(imp["in_path"].as_str().expect("invalid impulse JSON trigger_rr")),
 				},
@@ -42,6 +43,12 @@ fn main() {
 				Some("message_response") => Impulse::MessageResponse {
 					id: imp["id"].as_str().expect("invalid impulse JSON message_response").to_owned(),
 					response: imp["response"].as_str().map(String::from),
+				},
+				Some("discovery_start") => Impulse::DiscoveryStart,
+				Some("discovery_pause") => Impulse::DiscoveryPause,
+				Some("discovery_reset") => Impulse::DiscoveryReset,
+				Some("discovery_save") => Impulse::DiscoverySave {
+					input: imp["input"].as_str().expect("invalid impulse JSON message response").to_owned(),
 				},
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
@@ -133,6 +140,21 @@ fn main() {
 				"tag" => "testview_update",
 				"tree" => serialize_tree(tree),
 			},
+			Reaction::MultitestViewFocus => object! {
+				"tag" => "multitest_view_focus",
+			},
+			Reaction::DiscoveryRow { number, outcome, fitness, input } => object! {
+				"tag" => "discovery_row",
+				"number" => number,
+				"outcome" => serialize_outcome(&outcome),
+				"fitness" => fitness,
+				"input" => input,
+			},
+			Reaction::DiscoveryState { running, reset } => object! {
+				"tag" => "discovery_state",
+				"running" => running,
+				"reset" => reset,
+			},
 		};
 		println!("{}", rea.to_string());
 	});
@@ -157,13 +179,17 @@ fn serialize_tree(tree: icie_logic::testview::Tree) -> json::JsonValue {
 			"desired" => desired,
 			"timing" => timing.map(|t| t.as_secs() * 1000 + t.subsec_millis() as u64),
 			"in_path" => in_path.to_str().expect("non utf8 path in Rust-TS conversion"),
-			"outcome" => match outcome {
-				icie_logic::TestResult::Accept => "accept",
-				icie_logic::TestResult::WrongAnswer => "wrong_answer",
-				icie_logic::TestResult::RuntimeError => "runtime_error",
-				icie_logic::TestResult::IgnoredNoOut => "ignored_no_out",
-			},
+			"outcome" => serialize_outcome(&outcome),
 		},
 		icie_logic::testview::Tree::Directory { files } => json::from(files.into_iter().map(serialize_tree).collect::<Vec<_>>()),
+	}
+}
+
+fn serialize_outcome(outcome: &Outcome) -> &'static str {
+	match outcome {
+		icie_logic::Outcome::Accept => "accept",
+		icie_logic::Outcome::WrongAnswer => "wrong_answer",
+		icie_logic::Outcome::RuntimeError => "runtime_error",
+		icie_logic::Outcome::IgnoredNoOut => "ignored_no_out",
 	}
 }

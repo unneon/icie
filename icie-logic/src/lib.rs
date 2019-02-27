@@ -25,12 +25,15 @@ pub mod vscode;
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
 use crate::config::Config;
-pub use ci::testing::TestResult;
+use ci::testing::Execution;
+pub use ci::testing::Outcome;
 use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
 	env, ffi::OsStr, fs, io, path::{Path, PathBuf}, process::Stdio, str::from_utf8, sync::{
-		mpsc::{Receiver, Sender}, Mutex
+		atomic::{AtomicBool, Ordering}, mpsc::{
+			self, {Receiver, Sender}
+		}, Arc, Mutex
 	}, thread, time::Duration
 };
 
@@ -43,6 +46,7 @@ pub enum Impulse {
 	TriggerTemplateInstantiate,
 	TriggerManualSubmit,
 	TriggerTestview,
+	TriggerMultitestView,
 	TriggerRR {
 		in_path: PathBuf,
 	},
@@ -68,7 +72,7 @@ pub enum Impulse {
 		paths: Vec<PathBuf>,
 	},
 	CiTestSingle {
-		outcome: ci::testing::TestResult,
+		outcome: ci::testing::Outcome,
 		timing: Option<Duration>,
 		in_path: PathBuf,
 		output: Option<String>,
@@ -91,6 +95,20 @@ pub enum Impulse {
 	WorkerError {
 		error: failure::Error,
 	},
+	DiscoveryStart,
+	DiscoveryPause,
+	DiscoveryReset,
+	DiscoverySave {
+		input: String,
+	},
+	CiMultitestRow {
+		number: i64,
+		input: String,
+		brut_measure: Execution,
+		measures: Vec<Execution>,
+		fitness: i64,
+	},
+	CiMultitestFinish,
 }
 #[derive(Debug)]
 pub enum Reaction {
@@ -141,6 +159,17 @@ pub enum Reaction {
 	TestviewUpdate {
 		tree: testview::Tree,
 	},
+	MultitestViewFocus,
+	DiscoveryRow {
+		number: i64,
+		outcome: Outcome,
+		fitness: i64,
+		input: Option<String>,
+	},
+	DiscoveryState {
+		running: bool,
+		reset: bool,
+	},
 }
 
 struct ICIE {
@@ -173,8 +202,10 @@ impl ICIE {
 			Impulse::TriggerTemplateInstantiate => self.template_instantiate()?,
 			Impulse::TriggerManualSubmit => self.manual_submit()?,
 			Impulse::TriggerTestview => self.trigger_test_view()?,
+			Impulse::TriggerMultitestView => self.trigger_multitest_view()?,
 			Impulse::TriggerRR { in_path } => self.rr(in_path)?,
 			Impulse::NewTest { input, desired } => self.new_test(input, desired)?,
+			Impulse::DiscoveryStart => self.discovery()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -331,7 +362,13 @@ impl ICIE {
 		Ok(())
 	}
 
+	fn trigger_multitest_view(&self) -> R<()> {
+		self.send(Reaction::MultitestViewFocus);
+		Ok(())
+	}
+
 	fn rr(&self, in_path: PathBuf) -> R<()> {
+		self.log("wtf?");
 		let _status = self.status("Recording");
 		self.assure_compiled()?;
 		util::try_commands(&[("rr", &["record", util::path_to_str(&self.directory.get_executable()?)?])], |cmd| {
@@ -368,6 +405,89 @@ impl ICIE {
 		fs::write(dir.join(format!("{}.in", id)), input)?;
 		fs::write(dir.join(format!("{}.out", id)), desired)?;
 		self.update_test_view(&self.collect_tests()?)?;
+		self.send(Reaction::TestviewFocus);
+		Ok(())
+	}
+
+	fn discovery(&self) -> R<()> {
+		let _status = self.status("Discovering");
+		self.send(Reaction::DiscoveryState { running: true, reset: true });
+		let gen = self.get_generator()?;
+		let brut = self.get_brut()?;
+		let brut2 = brut.clone();
+		let solution = self.get_solution()?;
+		let executables = [brut, solution];
+		let checker = self.get_checker()?;
+		let count = Some(std::i64::MAX);
+		let fitness = ci::fitness::Bytelen;
+		let time_limit = None;
+		let ignore_generator_fail = false;
+		let end_variable = Arc::new(AtomicBool::new(false));
+		let end_variable2 = end_variable.clone();
+		let impulse_ui::PausableUi { mut ui, pause } = self.make_pausable_ui();
+		let t1 = self.worker(move || ci::commands::multitest::run(&gen, &executables, &*checker, count, &fitness, time_limit, ignore_generator_fail, end_variable, &mut ui));
+		let mut best_fitness = None;
+		let mut paused = false;
+		let mut found_test = None;
+		loop {
+			match self.recv() {
+				Impulse::DiscoveryStart if paused => {
+					paused = false;
+					pause.send(())?;
+					self.send(Reaction::DiscoveryState { running: true, reset: false });
+				},
+				Impulse::DiscoveryPause if !paused => {
+					paused = true;
+					pause.send(())?;
+					self.send(Reaction::DiscoveryState { running: false, reset: false });
+				},
+				Impulse::DiscoveryReset => {
+					self.send(Reaction::DiscoveryState { running: false, reset: true });
+					end_variable2.store(true, Ordering::SeqCst);
+					if paused {
+						pause.send(()).unwrap();
+						paused = false;
+					}
+				},
+				Impulse::DiscoverySave { input } => {
+					self.send(Reaction::DiscoveryState { running: false, reset: false });
+					end_variable2.store(true, Ordering::SeqCst);
+					if paused {
+						pause.send(()).unwrap();
+						paused = false;
+					}
+					found_test = Some(input);
+				},
+				Impulse::CiMultitestRow {
+					number,
+					input,
+					brut_measure,
+					measures,
+					fitness,
+				} => {
+					let is_failed = brut_measure.outcome != Outcome::Accept || measures[0].outcome != Outcome::Accept;
+					let new_best = is_failed && best_fitness.map(|bf| bf < fitness).unwrap_or(true);
+					if new_best {
+						best_fitness = Some(fitness);
+					}
+					self.send(Reaction::DiscoveryRow {
+						number,
+						outcome: measures[0].outcome.clone(),
+						fitness,
+						input: if new_best { Some(input) } else { None },
+					});
+				},
+				Impulse::CiMultitestFinish => break,
+				impulse => Err(error::unexpected(impulse, "ci discovery").err())?,
+			}
+		}
+		t1.join().unwrap();
+		self.send(Reaction::DiscoveryState { running: false, reset: false });
+		if let Some(input) = found_test {
+			let exec = ci::testing::run(&brut2, ci::strres::StrRes::InMemory(input.clone()), None)?;
+			let desired = exec.out.get_string()?;
+			self.new_test(input, desired)?;
+		}
 		Ok(())
 	}
 
@@ -474,11 +594,11 @@ impl ICIE {
 		))
 	}
 
-	fn run_tests(&self) -> R<(bool, Option<(ci::testing::TestResult, PathBuf)>)> {
+	fn run_tests(&self) -> R<(bool, Option<(ci::testing::Outcome, PathBuf)>)> {
 		let tests = self.collect_tests()?;
 		let first_failed = tests
 			.into_iter()
-			.find(|test| test.outcome != ci::testing::TestResult::Accept)
+			.find(|test| test.outcome != ci::testing::Outcome::Accept)
 			.map(|test| (test.outcome, test.in_path));
 		let good = first_failed.is_none();
 		Ok((good, first_failed))
@@ -531,6 +651,27 @@ impl ICIE {
 			},
 			None => Ok(Box::new(ci::checkers::CheckerDiffOut)),
 		}
+	}
+
+	fn get_brut(&self) -> R<PathBuf> {
+		let source = self.directory.get_brut_source()?;
+		self.assure_compiled_path(&source)?;
+		let exec = self.directory.get_brut()?;
+		Ok(exec)
+	}
+
+	fn get_generator(&self) -> R<PathBuf> {
+		let source = self.directory.get_gen_source()?;
+		self.assure_compiled_path(&source)?;
+		let exec = self.directory.get_gen()?;
+		Ok(exec)
+	}
+
+	fn get_solution(&self) -> R<PathBuf> {
+		let source = self.directory.get_source()?;
+		self.assure_compiled_path(&source)?;
+		let exec = self.directory.get_executable()?;
+		Ok(exec)
 	}
 
 	fn assure_compiled(&self) -> R<()> {
@@ -621,7 +762,18 @@ impl ICIE {
 	}
 
 	fn make_ui(&self) -> impulse_ui::ImpulseCiUi {
-		impulse_ui::ImpulseCiUi(self.input_sender.clone())
+		self.make_pausable_ui().ui
+	}
+
+	fn make_pausable_ui(&self) -> impulse_ui::PausableUi {
+		let (send, recv) = mpsc::channel();
+		impulse_ui::PausableUi {
+			ui: impulse_ui::ImpulseCiUi {
+				impulse: self.input_sender.clone(),
+				pause: recv,
+			},
+			pause: send,
+		}
 	}
 
 	fn worker<T: Send+'static, F: FnOnce() -> R<T>+Send+'static>(&self, f: F) -> thread::JoinHandle<Option<T>> {
@@ -728,6 +880,22 @@ impl Directory {
 		Ok(self.need_root()?.join("checker.e"))
 	}
 
+	fn get_gen_source(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("gen.cpp"))
+	}
+
+	fn get_gen(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("gen.e"))
+	}
+
+	fn get_brut_source(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("brut.cpp"))
+	}
+
+	fn get_brut(&self) -> R<PathBuf> {
+		Ok(self.need_root()?.join("brut.e"))
+	}
+
 	fn get_executable(&self) -> R<PathBuf> {
 		Ok(self.need_root()?.join("main.e"))
 	}
@@ -752,7 +920,7 @@ impl Directory {
 #[derive(Debug)]
 pub struct Test {
 	in_path: PathBuf,
-	outcome: TestResult,
+	outcome: Outcome,
 	timing: Option<Duration>,
 	output: Option<String>,
 }

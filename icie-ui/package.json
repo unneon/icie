@@ -52,6 +52,10 @@
             {
                 "command": "icie.test.new",
                 "title": "ICIE Add new test"
+            },
+            {
+                "command": "icie.test.discoverer",
+                "title": "ICIE Test Discoverer"
             }
         ],
         "keybindings": [
@@ -74,6 +78,10 @@
             {
                 "command": "icie.test.new",
                 "key": "alt+-"
+            },
+            {
+                "command": "icie.test.discoverer",
+                "key": "alt+9"
             }
         ]
     },
@@ -86,6 +94,7 @@
         "onCommand:icie.manual.submit",
         "onCommand:icie.test.view",
         "onCommand:icie.test.new",
+        "onCommand:icie.test.discoverer",
         "workspaceContains:/main.cpp"
     ],
     "badges": [],
@@ -102,6 +111,7 @@
         "make": "cd .. && make",
         "tsc": "tsc -p ./",
         "postinstall": "node ./node_modules/vscode/bin/install",
+        "watch": "tsc -watch -p ./",
         "vscode:prepublish": "npm run make"
     }
 }

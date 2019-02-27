@@ -1,60 +1,31 @@
 import * as native from "./native";
-import * as vscode from 'vscode';
-import * as path from 'path';
+import * as panel from './panel';
 
-export interface InputRR {
+interface FoodNewStart {
+	tag: "new_start";
+}
+type Food = FoodNewStart;
+interface NotesRR {
 	tag: "trigger_rr";
 	in_path: string;
 }
-export interface InputNewTest {
+interface NotesNewTest {
 	tag: "new_test";
 	input: string;
 	desired: string;
 }
-export type Input = InputRR | InputNewTest;
+type Notes = NotesRR | NotesNewTest;
+type Model = native.TestviewTree;
 
-export class Panel {
-	private panel: vscode.WebviewPanel | null;
-	private extensionPath: string;
-	private callback: (input: Input) => void;
-	public constructor(extensionPath: string, callback: (input: Input) => void) {
-		this.panel = null;
-		this.extensionPath = extensionPath;
-		this.callback = callback;
-	}
-	public focus(): void {
-		this.get().reveal();
+export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
+	public constructor(extension_path: string, callback: (notes: Notes) => void) {
+		super('icie webview test', 'ICIE Test View', false, extension_path, callback);
 	}
 	public start_new_test(): void {
 		this.focus();
-		this.get().webview.postMessage({ 'tag': 'new_start' });
+		this.feed({ tag: 'new_start' });
 	}
-	public is_created(): boolean {
-		return this.panel !== null;
-	}
-	public update(tree: native.TestviewTree): void {
-		this.get().webview.html = this.view(tree);
-	}
-	private get(): vscode.WebviewPanel {
-		return this.panel || this.create();
-	}
-	private create(): vscode.WebviewPanel {
-		this.panel = vscode.window.createWebviewPanel(
-			'icie test view',
-			'ICIE Test View',
-			vscode.ViewColumn.One,
-			{
-				enableScripts: true
-			}
-		);
-		this.panel.webview.onDidReceiveMessage(msg => {
-			console.log(`<%    ${JSON.stringify(msg)}`);
-			this.callback(msg);
-		});
-		this.panel.onDidDispose(() => this.panel = null);
-		return this.panel;
-	}
-	private view(tree: native.TestviewTree): string {
+	protected view(tree: Model): string {
 		return `
 			<html>
 				<head>
@@ -103,9 +74,6 @@ export class Panel {
 				${tree.map(tree2 => this.viewTree(tree2)).join('\n')}
 			`;
 		}
-	}
-	private asset(...parts: string[]): vscode.Uri {
-		return vscode.Uri.file(path.join(this.extensionPath, 'assets', ...parts)).with({ scheme: 'vscode-resource' });
 	}
 }
 

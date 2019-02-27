@@ -14,13 +14,13 @@ export interface TestviewTreeTest {
     desired: string | null;
     timing: number | null; // milliseconds
     in_path: string;
-    outcome: TestResult;
+    outcome: Outcome;
 }
 export type TestviewTree = TestviewTreeTest | TestviewTreeTest[];
 export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
     return (<TestviewTreeTest>tree).input !== undefined;
 }
-export type TestResult = 'accept' | 'wrong_answer' | 'runtime_error' | 'ignored_no_out';
+export type Outcome = 'accept' | 'wrong_answer' | 'runtime_error' | 'ignored_no_out';
 export type MessageKind = 'info' | 'warning' | 'error';
 export interface MessageItem {
     title: string;
@@ -98,6 +98,21 @@ export interface ReactionTestviewUpdate {
     tag: "testview_update";
     tree: TestviewTree;
 }
+export interface ReactionMultitestViewFocus {
+    tag: "multitest_view_focus";
+}
+export interface ReactionDiscoveryRow {
+	tag: 'discovery_row';
+	number: number;
+	outcome: Outcome;
+	fitness: number;
+	input: string | null;
+}
+export interface ReactionDiscoveryState {
+	tag: 'discovery_state';
+	running: boolean;
+	reset: boolean;
+}
 
 export interface ImpulseQuickPick {
     tag: "quick_pick";
@@ -149,9 +164,25 @@ export interface ImpulseMessageResponse {
     id: string;
     response: string | null;
 }
+export interface ImpulseTriggerMultitestView {
+    tag: "trigger_multitest_view";
+}
+export interface ImpulseDiscoveryStart {
+	tag: 'discovery_start';
+}
+export interface ImpulseDiscoveryPause {
+	tag: 'discovery_pause';
+}
+export interface ImpulseDiscoveryReset {
+	tag: 'discovery_reset';
+}
+export interface ImpulseDiscoverySave {
+	tag: 'discovery_save';
+	input: string;
+}
 
-export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse;
+export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate | ReactionMultitestViewFocus | ReactionDiscoveryRow | ReactionDiscoveryState;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse | ImpulseTriggerMultitestView | ImpulseDiscoveryPause | ImpulseDiscoveryReset | ImpulseDiscoverySave | ImpulseDiscoveryStart;
 
 export class Logic {
     path: string;

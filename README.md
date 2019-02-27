@@ -34,7 +34,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - [ ] Debug solutions
 	- [ ] Launch a selected test in gdb
 	- [x] Record a selected test in rr and replay it
-	- [ ] Find small tests using a test generator
+	- [x] Find small tests using a test generator
 - [ ] Profile solutions
 	- [ ] Find tests of appropriate size
 	- [ ] Run test in callgrind and display results in kcachegrind

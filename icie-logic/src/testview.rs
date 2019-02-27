@@ -9,7 +9,7 @@ pub enum Tree {
 		desired: Option<String>,
 		timing: Option<Duration>,
 		in_path: PathBuf,
-		outcome: ci::testing::TestResult,
+		outcome: ci::testing::Outcome,
 	},
 	Directory {
 		files: Vec<Tree>,

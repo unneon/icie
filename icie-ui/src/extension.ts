@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as channel from './channel';
 import * as native from './native';
 import * as testview from './testview';
+import * as discoverer from './discoverer';
 
 interface ProgressUpdate {
     reaction: native.ReactionProgressUpdate | native.ReactionProgressEnd;
@@ -13,13 +14,8 @@ export function activate(context: vscode.ExtensionContext) {
     let logic = new native.Logic(context.extensionPath);
     let status = vscode.window.createStatusBarItem();
     let progressRegister: ChannelRegister<ProgressUpdate> = {};
-    let testview_panel = new testview.Panel(context.extensionPath, input => {
-        if (input.tag === 'trigger_rr') {
-            logic.send(input);
-        } else if (input.tag === 'new_test') {
-            logic.send(input);
-        }
-    });
+    let testview_panel = new testview.Panel(context.extensionPath, notes => logic.send(notes));
+    let discoverer_panel = new discoverer.Panel(context.extensionPath, notes => logic.send(notes));
 
     register_trigger('icie.build', { tag: "trigger_build" }, logic, context);
     register_trigger('icie.test', { tag: "trigger_test" }, logic, context);
@@ -28,6 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.manual.submit', { tag: "trigger_manual_submit" }, logic, context);
     register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, logic, context);
     register_trigger('icie.test.view', { tag: "trigger_testview" }, logic, context);
+    register_trigger('icie.test.discoverer', { tag: "trigger_multitest_view" }, logic, context);
     context.subscriptions.push(vscode.commands.registerCommand('icie.test.new', () => {
         // TODO make it work even if the panel is not open
         if (testview_panel.is_created()) {
@@ -165,6 +162,11 @@ export function activate(context: vscode.ExtensionContext) {
             testview_panel.focus();
         } else if (reaction.tag === "testview_update") {
             testview_panel.update(reaction.tree);
+        } else if (reaction.tag === "multitest_view_focus") {
+            discoverer_panel.update({});
+            discoverer_panel.focus();
+        } else if (reaction.tag === "discovery_row" || reaction.tag === "discovery_state") {
+            discoverer_panel.react(reaction);
         }
     };
     logic.recv(callback);

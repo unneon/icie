@@ -4,7 +4,7 @@ use std::{fmt, path::PathBuf};
 
 #[derive(Debug)]
 pub enum Category {
-	TestFailure { verdict: ci::testing::TestResult, path: std::path::PathBuf },
+	TestFailure { verdict: ci::testing::Outcome, path: std::path::PathBuf },
 	UnexpectedImpulse { description: String, target: &'static str },
 	DegenerateEnvironment { detail: &'static str },
 	NoOpenFolder,
