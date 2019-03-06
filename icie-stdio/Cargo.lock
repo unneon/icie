@@ -1417,7 +1417,7 @@ dependencies = [
 [[package]]
 name = "sio2"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/sio2#2155f9ca8d38549aaf081e824ae414248c0d9270"
+source = "git+https://github.com/matcegla/sio2#d844d8d52e0e773ab530905d6326d5e5d9223c50"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
