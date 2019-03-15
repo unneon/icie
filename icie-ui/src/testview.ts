@@ -37,10 +37,13 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 					<table class="test">
 						${this.viewTree(tree)}
 					</table>
-					<a id="new-start" class="material-icons new button" onclick="new_start()">add</a>
-					<a id="new-confirm" class="material-icons new button" onclick="new_confirm()">done</a>
-					<textarea class="new" id="new-input"></textarea>
-					<textarea class="new" id="new-desired"></textarea>
+					<br/>
+					<div id="new-container" class="new">
+						<textarea id="new-input" class="new"></textarea>
+						<textarea id="new-desired" class="new"></textarea>
+						<div id="new-start" class="material-icons button new" onclick="new_start()">add</div>
+						<div id="new-confirm" class="material-icons button new" onclick="new_confirm()">done</div>
+					</div>
 				</body>
 			</html>
 		`;

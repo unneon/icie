@@ -59,34 +59,25 @@ a.action {
 	cursor: pointer;
 }
 
-a.button {
-	color: inherit;
-	text-decoration: inherit;
-	cursor: pointer;
+#new-container {
+	display: flex;
+	justify-content: flex-end;
+}
+textarea.new {
+	flex-grow: 1;
+	font-family: var(--vscode-editor-font-family);
+}
+div.button {
 	font-size: 64px;
-	float: right;
 	color: rgba(255, 255, 255, 0.4);
 	user-select: none;
 }
-
-a.button:hover {
+div.button:hover {
 	color: rgba(255, 255, 255, 1);
 }
-
-#new-confirm {
-	display: none;
-}
-textarea.new {
-	display: none;
-	font-family: var(--vscode-editor-font-family);
-}
-
-#new-start.new-newing {
-	display: none;
-}
-#new-confirm.new-newing {
-	display: inline-block;
-}
-textarea.new-newing {
-	display: block;
-}
+#new-container > textarea { display: none; }
+#new-container > textarea.new-active { display: initial; }
+#new-start { display: initial; }
+#new-start.new-active { display: none; }
+#new-confirm { display: none; }
+#new-confirm.new-active { display: initial; }
