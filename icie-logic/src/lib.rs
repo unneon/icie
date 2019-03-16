@@ -369,7 +369,7 @@ impl ICIE {
 		self.log("wtf?");
 		let _status = self.status("Recording");
 		self.assure_compiled()?;
-		util::try_commands(
+		let rec_out = util::try_commands(
 			&[("rr", &["record", util::path_to_str(&self.directory.get_executable()?)?])],
 			"sudo apt install rr",
 			|cmd| {
@@ -379,7 +379,11 @@ impl ICIE {
 				Ok(())
 			},
 		)?
-		.wait()?;
+		.wait_with_output()?;
+
+		if from_utf8(&rec_out.stderr)?.contains("/proc/sys/kernel/perf_event_paranoid") {
+			return Err(error::Category::PerfEventParanoid.err())?;
+		}
 		util::try_commands(
 			&[
 				("x-terminal-emulator", &["-e", "bash -c \"rr replay -- -q ; bash\""]),

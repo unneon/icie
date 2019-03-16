@@ -17,6 +17,7 @@ pub enum Category {
 	NonUTF8Path,
 	AppNotInstalled { apps: Vec<String>, suggestion: &'static str },
 	CompilationError { message: Option<String>, file: PathBuf, mode: CppVer },
+	PerfEventParanoid,
 }
 
 #[derive(Debug)]
@@ -67,6 +68,10 @@ impl fmt::Display for Error {
 					message.as_ref().map(|message| format!("{}\n", message)).unwrap_or("".to_owned()),
 					file.display(),
 					mode.flag()
+				),
+				PerfEventParanoid => format!(
+					"rr complains about priviledges; try running `echo kernel.perf_event_paranoid = 1 | sudo tee -a /etc/sysctl.conf && echo 1 | sudo tee \
+					 /proc/sys/kernel/perf_event_paranoid`"
 				),
 			}
 		)?;
