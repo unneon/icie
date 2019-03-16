@@ -15,7 +15,7 @@ pub enum Category {
 	TemplateDoesNotExist { id: String },
 	FileAlreadyExists { path: std::path::PathBuf },
 	NonUTF8Path,
-	AppNotInstalled { apps: Vec<String> },
+	AppNotInstalled { apps: Vec<String>, suggestion: &'static str },
 	CompilationError { message: Option<String>, file: PathBuf, mode: CppVer },
 }
 
@@ -61,7 +61,7 @@ impl fmt::Display for Error {
 				TemplateDoesNotExist { id } => format!("template {:?} does not exist", id),
 				FileAlreadyExists { path } => format!("file {:?} already exists", path),
 				NonUTF8Path => format!("tried to process non-UTF8 path"),
-				AppNotInstalled { apps } => format!("operation requires one of {:?} to be installed", apps),
+				AppNotInstalled { apps, suggestion } => format!("none of {:?} are installed; try running `{}`", apps, suggestion),
 				CompilationError { message, file, mode } => format!(
 					"{}failed to compile {} in {} mode",
 					message.as_ref().map(|message| format!("{}\n", message)).unwrap_or("".to_owned()),

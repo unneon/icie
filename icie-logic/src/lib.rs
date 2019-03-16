@@ -369,18 +369,24 @@ impl ICIE {
 		self.log("wtf?");
 		let _status = self.status("Recording");
 		self.assure_compiled()?;
-		util::try_commands(&[("rr", &["record", util::path_to_str(&self.directory.get_executable()?)?])], |cmd| {
-			cmd.stdin(std::fs::File::open(util::path_to_str(&in_path)?)?);
-			cmd.stdout(Stdio::piped());
-			cmd.stderr(Stdio::piped());
-			Ok(())
-		})?
+		util::try_commands(
+			&[("rr", &["record", util::path_to_str(&self.directory.get_executable()?)?])],
+			"sudo apt install rr",
+			|cmd| {
+				cmd.stdin(std::fs::File::open(util::path_to_str(&in_path)?)?);
+				cmd.stdout(Stdio::piped());
+				cmd.stderr(Stdio::piped());
+				Ok(())
+			},
+		)?
 		.wait()?;
 		util::try_commands(
 			&[
 				("x-terminal-emulator", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
 				("i3-sensible-terminal", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
+				("xfce4-terminal", &["-e", "bash -c \"rr replay -- -q ; bash\""]),
 			],
+			"sudo apt install xfce4-terminal",
 			|_| Ok(()),
 		)?;
 		Ok(())

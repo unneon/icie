@@ -48,7 +48,7 @@ pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
 	x0 + xs.len() as i64
 }
 
-pub fn try_commands(commands: &[(&str, &[&str])], common: impl Fn(&mut Command) -> R<()>) -> R<Child> {
+pub fn try_commands(commands: &[(&str, &[&str])], suggestion: &'static str, common: impl Fn(&mut Command) -> R<()>) -> R<Child> {
 	for (app, args) in commands {
 		let mut cmd = Command::new(app);
 		cmd.args(args.iter());
@@ -60,7 +60,7 @@ pub fn try_commands(commands: &[(&str, &[&str])], common: impl Fn(&mut Command) 
 		}
 	}
 	let apps = commands.iter().map(|cmd| cmd.0.to_owned()).collect::<Vec<_>>();
-	return Err(error::Category::AppNotInstalled { apps }.err())?;
+	return Err(error::Category::AppNotInstalled { apps, suggestion }.err())?;
 }
 
 pub fn read_to_string_if_exists(p: impl AsRef<Path>) -> std::io::Result<Option<String>> {
