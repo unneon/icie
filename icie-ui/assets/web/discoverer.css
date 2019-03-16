@@ -29,6 +29,25 @@ body {
 	border-color: rgba(255, 32, 32, 0.3);
 	background-color: rgba(255, 32, 32, 0.15);
 }
+.log > tbody > tr > td.outcome-runtime_error {
+	border-color: rgba(255, 32, 32, 0.3);
+	background-color: rgba(255, 32, 32, 0.15);
+}
+
+@keyframes scale-into {
+	0% {
+		transform: scaleY(0);
+	}
+	100% {
+		transform: scaleY(1);
+	}
+}
+.log > tbody > tr {
+	animation-name: scale-into;
+	animation-duration: 0.2s;
+	animation-iteration-count: 1;
+}
+
 @keyframes blinking-row {
 	0% {
 		border-color: rgba(96, 96, 96, 0.3);
