@@ -34,7 +34,7 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 					<script src="${this.asset('web', 'testview.js')}"></script>
 				</head>
 				<body>
-					<table class="test">
+					<table class="test-table">
 						${this.viewTree(tree)}
 					</table>
 					<br/>
@@ -54,22 +54,41 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 			if (tree.desired !== null) {
 				rows = Math.max(rows, lines(tree.desired));
 			}
-			let good = tree.outcome === 'accept';
 			return `
-				<tr data-in_path="${tree.in_path}">
-					<td class="data">
-						<div class="actions">
-							<i class="action material-icons" title=${tree.name}>info</i>
+				<tr class="test-row" data-in_path="${tree.in_path}">
+					<td style="height: ${1.1*lines(tree.input.trim())}em; line-height: 1.1em;" class="test-cell">
+						<div class="test-actions">
+							<div class="test-action material-icons onclick="clipcopy()">file_copy</div>
+							<div class="test-action material-icons" title=${tree.name}>info</div>
 						</div>
-						${tree.input.replace(/\n/g, '<br/>')}
-					</td>
-					<td class="data ${good ? "out-good" : "out-bad"}">
-						<div class="actions">
-							<a class="action material-icons" onclick="trigger_rr()">fast_rewind</a>
+						<div class="test-data">
+							${tree.input.replace(/\n/g, '<br/>')}
 						</div>
-						${tree.output.replace(/\n/g, '<br/>')}
 					</td>
-					<td class="data">${(tree.desired || "").replace(/\n/g, '<br/>')}</td>
+					<td class="test-cell ${test_outcome_class(tree.outcome)}">
+						<div class="test-actions">
+							<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
+							<div class="test-action material-icons" onclick="trigger_rr()">fast_rewind</div>
+						</div>
+						<div class="test-data">
+							${tree.output.replace(/\n/g, '<br/>')}
+						</div>
+						${view_out_note(tree.outcome)}
+					</td>
+					<td class="test-cell">
+						${tree.desired ? `
+							<div class="test-actions">
+								<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
+							</div>
+							<div class="test-data">
+								${tree.desired.replace(/\n/g, '<br/>')}
+							</div>
+						` : `
+							<div class="test-note">
+								File does not exist
+							</div>
+						`}
+					</td>
 				</tr>
 			`;
 		} else {
@@ -82,4 +101,39 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 
 function lines(text: string): number {
 	return text.split('\n').length;
+}
+function test_outcome_class(outcome: native.Outcome): string {
+	if (outcome === 'accept') {
+		return 'test-good';
+	} else if (outcome === 'wrong_answer' || outcome === 'runtime_error') {
+		return 'test-bad';
+	} else if (outcome === 'ignored_no_out') {
+		return 'test-warn';
+	} else {
+		throw new Error(`unrecognized outcome ${outcome}`);
+	}
+}
+function view_out_note(outcome: native.Outcome): string {
+	if (outcome !== 'accept' && outcome !== 'wrong_answer') {
+		return `
+			<div class="test-note">
+				${pretty_outcome(outcome)}
+			</div>
+		`;
+	} else {
+		return ``;
+	}
+}
+function pretty_outcome(outcome: native.Outcome): string {
+	if (outcome === 'accept') {
+		return 'Accept';
+	} else if (outcome === 'wrong_answer') {
+		return 'Wrong Answer';
+	} else if (outcome === 'runtime_error') {
+		return 'Runtime Error';
+	} else if (outcome === 'ignored_no_out') {
+		return 'Ignored';
+	} else {
+		throw new Error(`unrecognized outcome ${outcome}`);
+	}
 }

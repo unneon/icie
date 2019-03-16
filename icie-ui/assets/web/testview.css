@@ -1,63 +1,61 @@
+/* GENERAL WEBVIEW SETTINGS */
+
 body {
 	margin-top: 20px;
 }
 
-.test > tr {
+/* TESTS TREE VIEW */
+
+.test-row {
 	width: 100%;
 }
-
-.data, textarea {
-	border: 2px solid rgba(96, 96, 96, 0.3);
+.test-cell {
+	width: 0.1%;
+	border-width: 2px;
+	border-style: solid;
 	padding: 4px;
-
-	background-color: rgba(96, 96, 96, 0.15);
 	font-size: 22px;
 	vertical-align: top;
 	text-align: left;
 	color: rgba(255, 255, 255, 0.9);
 }
+.test-cell { border-color: rgba(96, 96, 96, 0.3); background-color: rgba(96, 96, 96, 0.15); }
+.test-good { border-color: rgba(32, 255, 32, 0.3); background-color: rgba(32, 255, 32, 0.15); }
+.test-bad { border-color: rgba(255, 32, 32, 0.3); background-color: rgba(255, 32, 32, 0.15); }
+.test-warn { border-color: rgba(255, 127, 0, 0.3); background-color: rgba(255, 127, 0, 0.15); }
 
-.data {
-	width: 0.1%;
+.test-cell {
+	position: relative;
+	overflow: auto;
 }
-
-.out-good {
-	border-color: rgba(32, 255, 32, 0.3);
-	background-color: rgba(32, 255, 32, 0.15);
+.test-actions {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	user-select: none;
 }
-
-.out-bad {
-	border-color: rgba(255, 32, 32, 0.3);
-	background-color: rgba(255, 32, 32, 0.15);
-}
-
-.actions {
-	opacity: 0;
-	color: rgba(96, 96, 96, 0.3);
-	float: right;
+.test-note {
+	position: absolute;
+	bottom: 4px;
+	right: 4px;
 	user-select: none;
 }
 
-.out-good > .actions {
-	color: rgba(32, 255, 32, 0.3);
-}
-.out-bad > .actions {
-	color: rgba(255, 32, 32, 0.3);
-}
+.test-actions { opacity: 0; }
+.test-cell:hover > .test-actions { opacity: 1; }
 
-.data:hover .actions {
-	opacity: 1;
-}
+.test-actions { color: rgba(96, 96, 96, 0.3); }
+.test-action:hover { color: rgba(255, 255, 255, 1); }
+.test-good > .test-actions { color: rgba(32, 255, 32, 0.3); }
+.test-bad > .test-actions { color: rgba(255, 32, 32, 0.3); }
+.test-warn > .test-actions { color: rgba(255, 127, 0, 0.3); }
 
-.action:hover {
-	color: rgba(255, 255, 255, 1);
-}
+.test-cell > .test-note { color: rgba(96, 96, 96, 0.3); }
+.test-good > .test-note { color: rgba(32, 255, 32, 0.3); }
+.test-bad > .test-note { color: rgba(255, 32, 32, 0.3); }
+.test-warn > .test-note { color: rgba(255, 127, 0, 0.3); }
 
-a.action {
-	color: inherit;
-	text-decoration: inherit;
-	cursor: pointer;
-}
+/* ADDING NEW TESTS */
 
 #new-container {
 	display: flex;
@@ -65,7 +63,14 @@ a.action {
 }
 textarea.new {
 	flex-grow: 1;
+	border: 2px solid rgba(96, 96, 96, 0.3);
+	padding: 4px;
+	font-size: 22px;
 	font-family: var(--vscode-editor-font-family);
+	vertical-align: top;
+	text-align: left;
+	color: rgba(255, 255, 255, 0.9);
+	background-color: rgba(96, 96, 96, 0.15);
 }
 div.button {
 	font-size: 64px;

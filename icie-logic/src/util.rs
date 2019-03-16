@@ -62,3 +62,11 @@ pub fn try_commands(commands: &[(&str, &[&str])], common: impl Fn(&mut Command) 
 	let apps = commands.iter().map(|cmd| cmd.0.to_owned()).collect::<Vec<_>>();
 	return Err(error::Category::AppNotInstalled { apps }.err())?;
 }
+
+pub fn read_to_string_if_exists(p: impl AsRef<Path>) -> std::io::Result<Option<String>> {
+	match std::fs::read_to_string(p) {
+		Ok(s) => Ok(Some(s)),
+		Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+		Err(e) => Err(e),
+	}
+}

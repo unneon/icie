@@ -31,9 +31,7 @@ use failure::ResultExt;
 use rand::prelude::SliceRandom;
 use std::{
 	env, ffi::OsStr, fs, io, path::{Path, PathBuf}, process::Stdio, str::from_utf8, sync::{
-		atomic::{AtomicBool, Ordering}, mpsc::{
-			self, {Receiver, Sender}
-		}, Arc, Mutex
+		atomic::{AtomicBool, Ordering}, mpsc::{self, Receiver, Sender}, Arc, Mutex
 	}, thread, time::Duration
 };
 
@@ -749,7 +747,7 @@ impl ICIE {
 							.to_owned(),
 						input: fs::read_to_string(&test.in_path)?,
 						output: test.output.clone().expect("test output not recorded even though it should be"),
-						desired: Some(fs::read_to_string(test.in_path.with_extension("out"))?),
+						desired: util::read_to_string_if_exists(test.in_path.with_extension("out"))?,
 						timing: test.timing,
 						in_path: test.in_path.clone(),
 						outcome: test.outcome.clone(),

@@ -21,6 +21,20 @@ function new_start() {
 	document.getElementById('new-input').focus();
 }
 
+function clipcopy() {
+	let action = event.target;
+	let cell = action.parentElement.parentElement;
+	let data_node = Array.from(cell.children).find(el => el.classList.contains('test-data'));
+	let selection = window.getSelection();
+	let range = document.createRange();
+	range.selectNodeContents(data_node);
+	selection.removeAllRanges();
+	selection.addRange(range);
+	document.execCommand('Copy');
+	selection.removeAllRanges();
+	console.log(`copied text to clipboard`);
+}
+
 function new_confirm() {
 	console.log(`new_confirm()`);
 	if (!newing) {
