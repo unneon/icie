@@ -209,4 +209,7 @@ export class Logic {
             }
         });
     }
+    kill() {
+        this.kid.kill('SIGKILL');
+    }
 }

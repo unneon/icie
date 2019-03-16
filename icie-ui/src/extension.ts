@@ -12,6 +12,7 @@ interface ProgressUpdate {
 
 export function activate(context: vscode.ExtensionContext) {
     let logic = new native.Logic(context.extensionPath);
+    context.subscriptions.push(new vscode.Disposable(() => logic.kill()));
     let status = vscode.window.createStatusBarItem();
     let progressRegister: ChannelRegister<ProgressUpdate> = {};
     let testview_panel = new testview.Panel(context.extensionPath, notes => logic.send(notes));
