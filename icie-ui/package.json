@@ -1,6 +1,6 @@
 {
     "name": "icie",
-    "version": "0.4.6",
+    "version": "0.4.7",
     "publisher": "pustaczek",
     "engines": {
         "vscode": "^1.29.0"
