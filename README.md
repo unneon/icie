@@ -9,6 +9,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>+</kbd> to create a new code file from template
 - <kbd>Alt</kbd><kbd>0</kbd> to view tests
 - <kbd>Alt</kbd><kbd>-</kbd> to start and finish adding new test (test view must be opened already)
+- <kbd>Alt</kbd><kbd>9</kbd> to find small tests using a random test generator and a slower solution
 - Linux only, but only until I bother figuring out the build system
 - Config is in `~/.config/icie`, default one will be created if one does not exist
 
@@ -22,6 +23,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - [x] Build solutions
 	- [x] Use latest compiler debugging flags and sanitizers
 	- [x] Move cursor to the location of first compiler error
+	- [ ] Show compiler warnings
 - [x] Test solutions
 	- [x] Run and check output on all example tests
 	- [x] View tests and solution outputs
@@ -52,6 +54,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - [ ] Emulate environment used on judging systems
 	- [ ] OIOIOI
 - [ ] Manage C++ compilers and compiler options
+	- [x] Show suggestions on how to install&configure things
 	- [ ] Manage clang installation
 	- [ ] Manage gdb installation
 	- [ ] Manage rr installation
