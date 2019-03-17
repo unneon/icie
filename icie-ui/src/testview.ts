@@ -58,7 +58,7 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 				<tr class="test-row" data-in_path="${tree.in_path}">
 					<td style="height: ${1.1*lines(tree.input.trim())}em; line-height: 1.1em;" class="test-cell">
 						<div class="test-actions">
-							<div class="test-action material-icons onclick="clipcopy()">file_copy</div>
+							<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
 							<div class="test-action material-icons" title=${tree.name}>info</div>
 						</div>
 						<div class="test-data">
