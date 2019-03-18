@@ -31,6 +31,10 @@ export interface MessageItems {
     id: string;
     list: MessageItem[];
 }
+export interface Position {
+    line: number,
+    character: number,
+}
 
 export interface ReactionStatus {
     tag: "status";
@@ -113,6 +117,16 @@ export interface ReactionDiscoveryState {
 	running: boolean;
 	reset: boolean;
 }
+export interface ReactionQueryDocumentText {
+    tag: 'query_document_text';
+    path: string;
+}
+export interface ReactionPasteEdit {
+    tag: 'edit_paste';
+    position: Position;
+    text: string;
+    path: string;
+}
 
 export interface ImpulseQuickPick {
     tag: "quick_pick";
@@ -180,9 +194,19 @@ export interface ImpulseDiscoverySave {
 	tag: 'discovery_save';
 	input: string;
 }
+export interface ImpulseTriggerPastePick {
+    tag: 'trigger_paste_pick';
+}
+export interface ImpulseDocumentText {
+    tag: 'document_text';
+    contents: string;
+}
+export interface ImpulseAcknowledgeEdit {
+    tag: 'acknowledge_edit';
+}
 
-export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate | ReactionMultitestViewFocus | ReactionDiscoveryRow | ReactionDiscoveryState;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse | ImpulseTriggerMultitestView | ImpulseDiscoveryPause | ImpulseDiscoveryReset | ImpulseDiscoverySave | ImpulseDiscoveryStart;
+export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate | ReactionMultitestViewFocus | ReactionDiscoveryRow | ReactionDiscoveryState | ReactionQueryDocumentText | ReactionPasteEdit;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse | ImpulseTriggerMultitestView | ImpulseDiscoveryPause | ImpulseDiscoveryReset | ImpulseDiscoverySave | ImpulseDiscoveryStart | ImpulseTriggerPastePick | ImpulseDocumentText | ImpulseAcknowledgeEdit;
 
 export class Logic {
     path: string;

@@ -29,3 +29,8 @@ pub struct MessageItems {
 	pub id: String,
 	pub list: Vec<MessageItem>,
 }
+#[derive(Debug)]
+pub struct Position {
+	pub line: i64,
+	pub character: i64,
+}

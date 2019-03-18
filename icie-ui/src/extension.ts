@@ -26,6 +26,13 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.template.instantiate', { tag: "trigger_template_instantiate" }, logic, context);
     register_trigger('icie.test.view', { tag: "trigger_testview" }, logic, context);
     register_trigger('icie.test.discoverer', { tag: "trigger_multitest_view" }, logic, context);
+    register_trigger('icie.paste.pick', { tag: "trigger_paste_pick" }, logic, context);
+    // context.subscriptions.push(vscode.commands.registerCommand('icie.paste.pick', async () => {
+    //     console.log(`Hello!`);
+    //     let doc = await vscode.workspace.openTextDocument(vscode.Uri.file(`${vscode.workspace.rootPath}/main.cpp`));
+    //     let text = doc.getText(undefined);
+    //     console.log(text);
+    // }));
     context.subscriptions.push(vscode.commands.registerCommand('icie.test.new', () => {
         // TODO make it work even if the panel is not open
         if (testview_panel.is_created()) {
@@ -168,6 +175,21 @@ export function activate(context: vscode.ExtensionContext) {
             discoverer_panel.focus();
         } else if (reaction.tag === "discovery_row" || reaction.tag === "discovery_state") {
             discoverer_panel.react(reaction);
+        } else if (reaction.tag === "query_document_text") {
+            vscode.workspace.openTextDocument(vscode.Uri.file(reaction.path)).then(doc => {
+                let contents = doc.getText(undefined);
+                logic.send({ tag: 'document_text', contents });
+            });
+        } else if (reaction.tag === "edit_paste") {
+            vscode.workspace.openTextDocument(vscode.Uri.file(reaction.path)).then(doc => {
+                vscode.window.showTextDocument(doc, undefined, true).then(edi => {
+                    edi.edit(edit_builder => {
+                        edit_builder.insert(new vscode.Position(reaction.position.line, reaction.position.character), reaction.text);
+                    }, undefined).then(_ => {
+                        logic.send({ tag: 'acknowledge_edit' });
+                    });
+                });
+            });
         }
     };
     logic.recv(callback);

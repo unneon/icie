@@ -101,4 +101,11 @@ int main() {{
 		}
 		Ok(())
 	}
+
+	pub fn library_path(&self) -> R<PathBuf> {
+		Ok(dirs::config_dir()
+			.ok_or_else(|| error::Category::DegenerateEnvironment { detail: "no config directory" }.err())?
+			.join("icie")
+			.join("library.json"))
+	}
 }

@@ -16,6 +16,7 @@ mod error;
 mod handle;
 mod impulse_ui;
 mod manifest;
+mod paste_lib;
 mod progress;
 mod status;
 pub mod testview;
@@ -24,7 +25,9 @@ pub mod vscode;
 
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
-use crate::config::Config;
+use crate::{
+	config::Config, paste_lib::{Library, Piece}
+};
 use ci::testing::Execution;
 pub use ci::testing::Outcome;
 use failure::ResultExt;
@@ -48,6 +51,7 @@ pub enum Impulse {
 	TriggerRR {
 		in_path: PathBuf,
 	},
+	TriggerPastePick,
 	NewTest {
 		input: String,
 		desired: String,
@@ -107,6 +111,10 @@ pub enum Impulse {
 		fitness: i64,
 	},
 	CiMultitestFinish,
+	DocumentText {
+		contents: String,
+	},
+	AcknowledgeEdit,
 }
 #[derive(Debug)]
 pub enum Reaction {
@@ -168,6 +176,14 @@ pub enum Reaction {
 		running: bool,
 		reset: bool,
 	},
+	QueryDocumentText {
+		path: PathBuf,
+	},
+	EditPaste {
+		position: vscode::Position,
+		text: String,
+		path: PathBuf,
+	},
 }
 
 struct ICIE {
@@ -204,6 +220,7 @@ impl ICIE {
 			Impulse::TriggerRR { in_path } => self.rr(in_path)?,
 			Impulse::NewTest { input, desired } => self.new_test(input, desired)?,
 			Impulse::DiscoveryStart => self.discovery()?,
+			Impulse::TriggerPastePick => self.paste_pick()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -497,6 +514,66 @@ impl ICIE {
 			self.new_test(input, desired)?;
 		}
 		Ok(())
+	}
+
+	fn paste_pick(&self) -> R<()> {
+		let _status = self.status("Copy-pasting code");
+		let library = paste_lib::Library::load(&self.config.library_path()?)?;
+		self.send(Reaction::QuickPick {
+			items: library
+				.pieces
+				.iter()
+				.map(|(id, piece)| vscode::QuickPickItem {
+					label: piece.name.clone(),
+					description: piece.description.as_ref().map(|s| s.clone()),
+					detail: piece.detail.as_ref().map(|s| s.clone()),
+					id: id.clone(),
+				})
+				.collect(),
+		});
+		let piece_id = loop {
+			match self.recv() {
+				Impulse::QuickPick { response: Some(piece_id) } => break piece_id,
+				Impulse::QuickPick { response: None } => return Ok(()),
+				impulse => return Err(error::unexpected(impulse, "quick pick response").err())?,
+			}
+		};
+		let piece = library.pieces.iter().find(|piece| *piece.0 == piece_id).unwrap().1;
+		let mut text = self.query_document_text(self.directory.get_source()?)?;
+		self.paste_piece(piece, true, &mut text, &library)?;
+		Ok(())
+	}
+
+	fn paste_piece(&self, piece: &Piece, top_level: bool, text: &mut String, library: &Library) -> R<()> {
+		if text.contains(&piece.guarantee) {
+			return Ok(());
+		}
+		for dep in &piece.dependencies {
+			self.paste_piece(&library.pieces[dep], false, text, library)?;
+		}
+		self.log(format!("Wanna paste: {}", piece.code));
+		let (position, snippet) = library.place(piece, text)?;
+		self.send(Reaction::EditPaste {
+			position,
+			text: snippet,
+			path: self.directory.get_source()?,
+		});
+		match self.recv() {
+			Impulse::AcknowledgeEdit => (),
+			impulse => Err(error::unexpected(impulse, "acknowledgment of edit").err())?,
+		}
+		if !top_level {
+			*text = self.query_document_text(self.directory.get_source()?)?;
+		}
+		Ok(())
+	}
+
+	fn query_document_text(&self, path: PathBuf) -> R<String> {
+		self.send(Reaction::QueryDocumentText { path });
+		match self.recv() {
+			Impulse::DocumentText { contents } => Ok(contents),
+			impulse => return Err(error::unexpected(impulse, "document text query response").err())?,
+		}
 	}
 
 	fn setup_workspace(&mut self, root_path: Option<String>) -> R<()> {

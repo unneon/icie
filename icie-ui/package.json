@@ -56,6 +56,10 @@
             {
                 "command": "icie.test.discoverer",
                 "title": "ICIE Test Discoverer"
+            },
+            {
+                "command": "icie.paste.pick",
+                "title": "ICIE Paste pick"
             }
         ],
         "keybindings": [
@@ -82,6 +86,10 @@
             {
                 "command": "icie.test.discoverer",
                 "key": "alt+9"
+            },
+            {
+                "command": "icie.paste.pick",
+                "key": "alt+["
             }
         ]
     },
@@ -95,6 +103,7 @@
         "onCommand:icie.test.view",
         "onCommand:icie.test.new",
         "onCommand:icie.test.discoverer",
+        "onCommand:icie.paste.pick",
         "workspaceContains:/main.cpp"
     ],
     "badges": [],

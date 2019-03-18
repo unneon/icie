@@ -50,6 +50,11 @@ fn main() {
 				Some("discovery_save") => Impulse::DiscoverySave {
 					input: imp["input"].as_str().expect("invalid impulse JSON message response").to_owned(),
 				},
+				Some("trigger_paste_pick") => Impulse::TriggerPastePick,
+				Some("document_text") => Impulse::DocumentText {
+					contents: imp["contents"].as_str().expect("invalid impulse JSON message response").to_owned(),
+				},
+				Some("acknowledge_edit") => Impulse::AcknowledgeEdit,
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
@@ -154,6 +159,19 @@ fn main() {
 				"tag" => "discovery_state",
 				"running" => running,
 				"reset" => reset,
+			},
+			Reaction::QueryDocumentText { path } => object! {
+				"tag" => "query_document_text",
+				"path" => path.to_str().unwrap(),
+			},
+			Reaction::EditPaste { position, text, path } => object! {
+				"tag" => "edit_paste",
+				"position" => object! {
+					"line" => position.line,
+					"character" => position.character,
+				},
+				"text" => text,
+				"path" => path.to_str().unwrap(),
 			},
 		};
 		println!("{}", rea.to_string());
