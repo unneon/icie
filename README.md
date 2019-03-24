@@ -10,6 +10,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>0</kbd> to view tests
 - <kbd>Alt</kbd><kbd>-</kbd> to start and finish adding new test (test view must be opened already)
 - <kbd>Alt</kbd><kbd>9</kbd> to find small tests using a random test generator and a slower solution
+- <kbd>Alt</kbd><kbd>[</kbd> to paste in a part of your library
 - Linux only, but only until I bother figuring out the build system
 - Config is in `~/.config/icie`, default one will be created if one does not exist
 
@@ -37,6 +38,10 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 	- [ ] Launch a selected test in gdb
 	- [x] Record a selected test in rr and replay it
 	- [x] Find small tests using a test generator
+- [ ] Speed up coding
+	- [x] Paste in parts of your library with a keyboard shortcut
+	- [ ] Paste in parts of your library whenever you use them
+	- [ ] Set up keyboard shortcuts/modes to use snippets faster
 - [ ] Profile solutions
 	- [ ] Find tests of appropriate size
 	- [ ] Run test in callgrind and display results in kcachegrind
@@ -49,7 +54,6 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - [ ] Manage and compare multiple solutions
 	- [ ] Support output-only tasks
 	- [ ] Benchmark solutions
-- [ ] Use competitive programming libraries automatically
 - [ ] Allow to submit code using third-party header-only libraries
 - [ ] Emulate environment used on judging systems
 	- [ ] OIOIOI

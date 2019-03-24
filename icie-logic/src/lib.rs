@@ -544,33 +544,15 @@ impl ICIE {
 				impulse => return Err(error::unexpected(impulse, "quick pick response").err())?,
 			}
 		};
-		let piece = library.pieces.iter().find(|piece| *piece.0 == piece_id).unwrap().1;
-		let mut text = self.query_document_text(self.directory.get_source()?)?;
-		self.paste_piece(piece, true, &mut text, &library)?;
-		Ok(())
-	}
-
-	fn paste_piece(&self, piece: &Piece, top_level: bool, text: &mut String, library: &Library) -> R<()> {
-		if text.contains(&piece.guarantee) {
-			return Ok(());
-		}
-		for dep in &piece.dependencies {
-			self.paste_piece(&library.pieces[dep], false, text, library)?;
-		}
-		self.log(format!("Wanna paste: {}", piece.code));
-		let (position, snippet) = library.place(piece, text)?;
-		self.send(Reaction::EditPaste {
-			position,
-			text: snippet,
-			path: self.directory.get_source()?,
-		});
-		match self.recv() {
-			Impulse::AcknowledgeEdit => (),
-			impulse => Err(error::unexpected(impulse, "acknowledgment of edit").err())?,
-		}
-		if !top_level {
-			*text = self.query_document_text(self.directory.get_source()?)?;
-		}
+		let text = self.query_document_text(self.directory.get_source()?)?;
+		library.walk_graph(
+			&piece_id,
+			VscodePaste {
+				text,
+				icie: &self,
+				library: &library,
+			},
+		)?;
 		Ok(())
 	}
 
@@ -1014,4 +996,32 @@ pub struct Test {
 	outcome: Outcome,
 	timing: Option<Duration>,
 	output: Option<String>,
+}
+
+struct VscodePaste<'a, 'b> {
+	icie: &'a ICIE,
+	text: String,
+	library: &'b Library,
+}
+impl paste_lib::PasteContext for VscodePaste<'_, '_> {
+	fn has(&mut self, piece: &Piece) -> bool {
+		self.text.contains(&piece.guarantee)
+	}
+
+	fn paste(&mut self, piece_id: &str) -> R<()> {
+		let piece = &self.library.pieces[piece_id];
+		self.icie.log(format!("Wanna paste: {}", piece.name));
+		let (position, snippet) = self.library.place(piece_id, &self.text)?;
+		self.icie.send(Reaction::EditPaste {
+			position,
+			text: snippet,
+			path: self.icie.directory.get_source()?,
+		});
+		match self.icie.recv() {
+			Impulse::AcknowledgeEdit => (),
+			impulse => Err(error::unexpected(impulse, "acknowledgment of edit").err())?,
+		}
+		self.text = self.icie.query_document_text(self.icie.directory.get_source()?)?;
+		Ok(())
+	}
 }
