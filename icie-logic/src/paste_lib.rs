@@ -139,7 +139,6 @@ impl Library {
 				let dep = &self.pieces[dep_id];
 				pos += source[pos..].find(&dep.guarantee).map(|i| i + 1).unwrap_or(0);
 			}
-			// TODO skip past { } levels
 			pos = skip_to_toplevel(pos, source);
 			Ok(pos)
 		}
@@ -157,7 +156,11 @@ fn skip_to_toplevel(mut pos: usize, source: &str) -> usize {
 			Some(o) => o,
 			None => return source.len(),
 		};
-		if source[pos..].starts_with("\n ") || source[pos..].starts_with("\n\t") || source[pos..].starts_with("\n}") {
+		if source[pos..].starts_with("\n}") {
+			pos += 1;
+			pos += source[pos..].find('\n').unwrap_or(source[pos..].len());
+			break pos + 1;
+		} else if source[pos..].starts_with("\n\n") || source[pos..].starts_with("\n ") || source[pos..].starts_with("\n\t") {
 			pos += 1;
 		} else {
 			break pos + 1;
