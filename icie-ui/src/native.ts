@@ -213,6 +213,7 @@ export class Logic {
     kid: ChildProcess;
     parser: multijson.Parser<Reaction>;
     constructor(extensionPath: string) {
+        process.env.RUST_BACKTRACE = '1';
         this.path = `${extensionPath}/assets/bin-linux`;
         this.kid = spawn(this.path, [], {});
         this.parser = new multijson.Parser<Reaction>();

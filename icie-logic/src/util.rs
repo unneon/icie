@@ -70,3 +70,14 @@ pub fn read_to_string_if_exists(p: impl AsRef<Path>) -> std::io::Result<Option<S
 		Err(e) => Err(e),
 	}
 }
+
+pub fn assure_dir(p: &Path) -> std::io::Result<()> {
+	let mut parents = p.ancestors().collect::<Vec<_>>();
+	parents.reverse();
+	for parent in parents {
+		if !parent.exists() {
+			fs::create_dir(parent)?;
+		}
+	}
+	Ok(())
+}

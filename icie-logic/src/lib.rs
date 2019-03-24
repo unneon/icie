@@ -201,7 +201,13 @@ impl ICIE {
 		loop {
 			match self.process() {
 				Ok(()) => (),
-				Err(err) => self.error(format!("{}", err)),
+				Err(err) => {
+					let details_info = match error::save_details(&err) {
+						Ok(path) => format!("error details have been saved in {}", path.display()),
+						Err(err2) => format!("failed to save error details ({})", err2),
+					};
+					self.error(format!("{}, {}", err, details_info));
+				},
 			}
 		}
 	}

@@ -1,6 +1,7 @@
+use crate::util;
 use ci::{self, commands::build::CppVer};
 use failure;
-use std::{fmt, path::PathBuf};
+use std::{fmt, fs::File, io::Write, path::PathBuf};
 
 #[derive(Debug)]
 pub enum Category {
@@ -24,7 +25,7 @@ pub enum Category {
 #[derive(Debug)]
 pub struct Error {
 	category: Category,
-	trace: backtrace::Backtrace,
+	trace: failure::Backtrace,
 }
 
 pub type R<T> = Result<T, failure::Error>;
@@ -40,7 +41,7 @@ impl Category {
 	pub fn err(self) -> Error {
 		Error {
 			category: self,
-			trace: backtrace::Backtrace::new(),
+			trace: failure::Backtrace::new(),
 		}
 	}
 }
@@ -81,4 +82,46 @@ impl fmt::Display for Error {
 	}
 }
 
-impl failure::Fail for Error {}
+pub fn save_details(err: &failure::Error) -> R<PathBuf> {
+	let i = find_log_number()?;
+	let p = log_file(i)?;
+	util::assure_dir(p.parent().unwrap())?;
+	let mut f = File::create(&p)?;
+	writeln!(f, "icie error report")?;
+	writeln!(f, "{}", err)?;
+	writeln!(f, "{}", err.backtrace())?;
+	Ok(p)
+}
+fn find_log_number() -> R<i32> {
+	binsearch(0, std::i32::MAX, |i| Ok(!log_file(i)?.exists()))
+}
+fn binsearch<F: Fn(i32) -> R<bool>>(a: i32, b: i32, f: F) -> R<i32> {
+	Ok(if b - a == 0 {
+		a
+	} else if b - a == 1 {
+		if f(a)? {
+			a
+		} else {
+			b
+		}
+	} else {
+		let m = (a + b) / 2;
+		if f(m)? {
+			binsearch(a, m, f)?
+		} else {
+			binsearch(m + 1, b, f)?
+		}
+	})
+}
+fn log_file(i: i32) -> R<PathBuf> {
+	Ok(dirs::cache_dir()
+		.ok_or_else(|| Category::DegenerateEnvironment { detail: "no cache directory" }.err())?
+		.join("icie")
+		.join(format!("error{}.log", i)))
+}
+
+impl failure::Fail for Error {
+	fn backtrace(&self) -> Option<&failure::Backtrace> {
+		Some(&self.trace)
+	}
+}

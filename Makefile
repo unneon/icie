@@ -1,4 +1,4 @@
-target_profile = release
+target_profile = debug
 
 build_asset_exe = $(build_asset_dir)/bin-linux
 build_ts_js = $(source_typescript:icie-ui/src/%.ts=icie-ui/out/%.js)
@@ -31,5 +31,6 @@ $(build_package_readme): $(source_readme)
 	cp $(source_readme) $(build_package_readme)
 $(build_asset_dir):
 	mkdir $(build_asset_dir)
+# TODO do not hardcode --build
 $(build_exe): $(source_rust)
-	cd icie-stdio && $(tool_cargo) build --release
+	cd icie-stdio && $(tool_cargo) build
