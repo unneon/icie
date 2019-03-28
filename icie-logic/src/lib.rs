@@ -685,6 +685,7 @@ impl ICIE {
 		let testdir = self.directory.get_tests()?;
 		let checker = self.get_checker()?;
 		let mut ui = self.make_ui();
+		util::assure_dir(&testdir)?;
 		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &*checker, false, true, &mut ui));
 		let mut test_count = None;
 		let mut tests = Vec::new();
