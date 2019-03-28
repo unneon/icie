@@ -11,6 +11,8 @@ pub struct InputBoxOptions {
 	pub placeholder: Option<String>,
 	pub password: bool,
 	pub ignore_focus_out: bool,
+	pub value: Option<String>,
+	pub value_selection: Option<(usize, usize)>,
 }
 #[derive(Clone, Debug)]
 pub enum MessageKind {

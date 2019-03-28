@@ -100,6 +100,8 @@ fn main() {
 				"placeholder" => options.placeholder,
 				"password" => options.password,
 				"ignoreFocusOut" => options.ignore_focus_out,
+				"value" => options.value,
+				"valueSelection" => options.value_selection.map(|(i1, i2)| array! { i1, i2 }),
 			},
 			Reaction::ConsoleLog { message } => object! {
 				"tag" => "console_log",

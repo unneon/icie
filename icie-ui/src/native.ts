@@ -32,8 +32,8 @@ export interface MessageItems {
     list: MessageItem[];
 }
 export interface Position {
-    line: number,
-    character: number,
+    line: number;
+    character: number;
 }
 
 export interface ReactionStatus {
@@ -57,6 +57,8 @@ export interface ReactionInputBox {
     placeholder: string | null;
     password: boolean;
     ignoreFocusOut: boolean;
+    value: string | null;
+    valueSelection: [number, number] | null;
 }
 export interface ReactionConsoleLog {
     tag: "console_log";

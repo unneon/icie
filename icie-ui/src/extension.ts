@@ -107,7 +107,9 @@ export function activate(context: vscode.ExtensionContext) {
                 ignoreFocusOut: reaction.ignoreFocusOut,
                 password: reaction.password,
                 placeHolder: reaction.placeholder || undefined,
-                prompt: reaction.prompt || undefined
+                prompt: reaction.prompt || undefined,
+                value: reaction.value || undefined,
+                valueSelection: reaction.valueSelection || undefined
             }).then(value => {
                 if (value !== undefined) {
                     logic.send({ tag: "input_box", response: value });

@@ -258,6 +258,8 @@ impl ICIE {
 			password: false,
 			placeholder: Some("https://codeforces.com/contest/960/problem/D".to_owned()),
 			prompt: Some("Enter task URL".to_owned()),
+			value: None,
+			value_selection: None,
 		})? {
 			Some(url) => url,
 			None => {
@@ -342,6 +344,8 @@ impl ICIE {
 				password: false,
 				placeholder: Some(template.default_filename.clone()),
 				prompt: Some("New file name".to_string()),
+				value: Some(template.default_filename.clone()),
+				value_selection: Some((0, template.default_filename.rfind('.').unwrap_or(template.default_filename.len()))),
 			},
 		});
 		let filename = loop {
@@ -618,6 +622,8 @@ impl ICIE {
 				placeholder: None,
 				ignore_focus_out: true,
 				password: false,
+				value: None,
+				value_selection: None,
 			})?
 			.ok_or_else(|| error::Category::LackOfInput.err())?;
 		let password = self
@@ -626,6 +632,8 @@ impl ICIE {
 				placeholder: None,
 				ignore_focus_out: true,
 				password: true,
+				value: None,
+				value_selection: None,
 			})?
 			.ok_or_else(|| error::Category::LackOfInput.err())?;
 		channel.send(Some((username, password))).context("thread suddenly stopped")?;
