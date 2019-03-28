@@ -20,6 +20,7 @@ pub enum Category {
 	CompilationError { message: Option<String>, file: PathBuf, mode: CppVer },
 	PerfEventParanoid,
 	MalformedLibrary { detail: &'static str },
+	SubmitNoURL,
 }
 
 #[derive(Debug)]
@@ -76,6 +77,7 @@ impl fmt::Display for Error {
 					 /proc/sys/kernel/perf_event_paranoid`"
 				),
 				MalformedLibrary { detail } => format!("malformed library description: {}", detail),
+				SubmitNoURL => format!("can't submit this task due to lack of task url; use Alt+F11 and paste in the task url next time!"),
 			}
 		)?;
 		Ok(())

@@ -5,7 +5,7 @@ use std::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manifest {
-	pub task_url: String,
+	pub task_url: Option<String>,
 }
 
 impl Manifest {

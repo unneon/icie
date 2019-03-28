@@ -257,11 +257,12 @@ impl ICIE {
 			ignore_focus_out: true,
 			password: false,
 			placeholder: Some("https://codeforces.com/contest/960/problem/D".to_owned()),
-			prompt: Some("Enter task URL".to_owned()),
+			prompt: Some("Enter task URL or leave empty".to_owned()),
 			value: None,
 			value_selection: None,
 		})? {
-			Some(url) => url,
+			Some(ref url) if url.trim().is_empty() => None,
+			Some(url) => Some(url),
 			None => {
 				self.info("ICIE Init cancelled");
 				return Ok(());
@@ -271,17 +272,19 @@ impl ICIE {
 		let dir = util::TransactionDir::new(&root)?;
 
 		let root2 = root.clone();
-		let url2 = url.clone();
-		let t1 = self.worker(move || ci::commands::init::run(&url2, &root2, &mut ui));
-		loop {
-			match self.recv() {
-				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
-				Impulse::CiInitFinish => break,
-				Impulse::WorkerError { error } => return Err(error)?,
-				impulse => Err(error::unexpected(impulse, "ci init event").err())?,
+		if let Some(url) = &url {
+			let url2 = url.clone();
+			let t1 = self.worker(move || ci::commands::init::run(&url2, &root2, &mut ui));
+			loop {
+				match self.recv() {
+					Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
+					Impulse::CiInitFinish => break,
+					Impulse::WorkerError { error } => return Err(error)?,
+					impulse => Err(error::unexpected(impulse, "ci init event").err())?,
+				}
 			}
+			t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 		}
-		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 
 		fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
 		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
@@ -296,8 +299,12 @@ impl ICIE {
 		let code = self.directory.get_source()?;
 		let mut ui = self.make_ui();
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
-		let task_url2 = manifest.task_url.clone();
-		let t1 = self.worker(move || ci::commands::submit::run(&task_url2, &code, &mut ui));
+		let task_url = match manifest.task_url.clone() {
+			Some(task_url) => task_url,
+			None => Err(error::Category::SubmitNoURL.err())?,
+		};
+		let task_url2 = task_url.clone();
+		let t1 = self.worker(move || ci::commands::submit::run(&task_url, &code, &mut ui));
 		let id = loop {
 			match self.recv() {
 				Impulse::CiAuthRequest { domain, channel } => self.respond_auth(domain, channel)?,
@@ -307,7 +314,7 @@ impl ICIE {
 			}
 		};
 		t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
-		self.track_submit(id, manifest.task_url)?;
+		self.track_submit(id, task_url2)?;
 		Ok(())
 	}
 
@@ -372,9 +379,13 @@ impl ICIE {
 		let _status = self.status("Submitting manually");
 		self.assure_passes_tests()?;
 		let manifest = manifest::Manifest::load(&self.directory.get_manifest()?)?;
-		let tu = unijudge::TaskUrl::deconstruct(&manifest.task_url)?;
+		let task_url = match manifest.task_url.as_ref() {
+			Some(task_url) => task_url,
+			None => Err(error::Category::SubmitNoURL.err())?,
+		};
+		let tu = unijudge::TaskUrl::deconstruct(&task_url)?;
 		let mut ui = self.make_ui();
-		let session = ci::connect(&manifest.task_url, &mut ui)?;
+		let session = ci::connect(&task_url, &mut ui)?;
 		let contest = session.contest(&tu.contest);
 		let url = contest.manual_submit_url(&tu.task)?;
 		open::that(url)?;
