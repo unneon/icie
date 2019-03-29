@@ -19,7 +19,7 @@ type Model = native.TestviewTree;
 
 export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 	public constructor(extension_path: string, callback: (notes: Notes) => void) {
-		super('icie webview test', 'ICIE Test View', false, extension_path, callback);
+		super('icie webview test', 'ICIE Test View', true, extension_path, callback);
 	}
 	public start_new_test(): void {
 		this.focus();
