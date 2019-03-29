@@ -74,7 +74,7 @@ window.addEventListener('message', event => {
 				log_body.appendChild(tr);
 			}
 			let best_test = document.getElementById('best-test');
-			best_test.textContent = message.input;
+			best_test.innerHTML = message.input.replace(/\n/g, '<br/>');
 		}
 	}
 });

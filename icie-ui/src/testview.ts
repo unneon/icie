@@ -76,7 +76,7 @@ export class Panel extends panel.Panel<Food, Notes, native.TestviewTree> {
 						${view_out_note(tree.outcome)}
 					</td>
 					<td class="test-cell">
-						${tree.desired ? `
+						${tree.desired !== null ? `
 							<div class="test-actions">
 								<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
 							</div>
