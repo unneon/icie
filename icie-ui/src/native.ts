@@ -206,9 +206,12 @@ export interface ImpulseDocumentText {
 export interface ImpulseAcknowledgeEdit {
     tag: 'acknowledge_edit';
 }
+export interface ImpulseTriggerTerminal {
+    tag: 'trigger_terminal';
+}
 
 export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsoleLog | ReactionSaveAll | ReactionOpenFolder | ReactionConsoleError | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressEnd | ReactionTestviewFocus | ReactionTestviewUpdate | ReactionMultitestViewFocus | ReactionDiscoveryRow | ReactionDiscoveryState | ReactionQueryDocumentText | ReactionPasteEdit;
-export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse | ImpulseTriggerMultitestView | ImpulseDiscoveryPause | ImpulseDiscoveryReset | ImpulseDiscoverySave | ImpulseDiscoveryStart | ImpulseTriggerPastePick | ImpulseDocumentText | ImpulseAcknowledgeEdit;
+export type Impulse = ImpulseQuickPick | ImpulseInputBox | ImpulseTriggerBuild | ImpulseWorkspaceInfo | ImpulseSavedAll | ImpulseTriggerTest | ImpulseTriggerInit | ImpulseTriggerSubmit | ImpulseTriggerManualSubmit | ImpulseTriggerTemplateInstantiate | ImpulseTriggerTestview | ImpulseTriggerRR | ImpulseNewTest | ImpulseMessageResponse | ImpulseTriggerMultitestView | ImpulseDiscoveryPause | ImpulseDiscoveryReset | ImpulseDiscoverySave | ImpulseDiscoveryStart | ImpulseTriggerPastePick | ImpulseDocumentText | ImpulseAcknowledgeEdit | ImpulseTriggerTerminal;
 
 export class Logic {
     path: string;

@@ -52,6 +52,7 @@ pub enum Impulse {
 		in_path: PathBuf,
 	},
 	TriggerPastePick,
+	TriggerTerminal,
 	NewTest {
 		input: String,
 		desired: String,
@@ -227,6 +228,7 @@ impl ICIE {
 			Impulse::NewTest { input, desired } => self.new_test(input, desired)?,
 			Impulse::DiscoveryStart => self.discovery()?,
 			Impulse::TriggerPastePick => self.paste_pick()?,
+			Impulse::TriggerTerminal => self.trigger_terminal()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -400,6 +402,25 @@ impl ICIE {
 
 	fn trigger_multitest_view(&self) -> R<()> {
 		self.send(Reaction::MultitestViewFocus);
+		Ok(())
+	}
+
+	fn trigger_terminal(&self) -> R<()> {
+		let cd = if let Some(dir_root) = self.directory.root.as_ref() {
+			dir_root.to_str().unwrap()
+		} else {
+			""
+		};
+		let bashcmd = format!("bash -c \"cd {} ; bash\"", cd);
+		util::try_commands(
+			&[
+				("x-terminal-emulator", &["-e", &bashcmd]),
+				("i3-sensible-terminal", &["-e", &bashcmd]),
+				("xfce4-terminal", &["-e", &bashcmd]),
+			],
+			"sudo apt install xfce4-terminal",
+			|_| Ok(()),
+		)?;
 		Ok(())
 	}
 

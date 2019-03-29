@@ -60,6 +60,10 @@
             {
                 "command": "icie.paste.pick",
                 "title": "ICIE Paste pick"
+            },
+            {
+                "command": "icie.external.terminal",
+                "title": "ICIE terminal"
             }
         ],
         "keybindings": [
@@ -90,6 +94,10 @@
             {
                 "command": "icie.paste.pick",
                 "key": "alt+["
+            },
+            {
+                "command": "icie.external.terminal",
+                "key": "alt+t"
             }
         ]
     },
@@ -104,6 +112,7 @@
         "onCommand:icie.test.new",
         "onCommand:icie.test.discoverer",
         "onCommand:icie.paste.pick",
+        "onCommand:icie.external.terminal",
         "workspaceContains:/main.cpp"
     ],
     "badges": [],

@@ -55,6 +55,7 @@ fn main() {
 					contents: imp["contents"].as_str().expect("invalid impulse JSON message response").to_owned(),
 				},
 				Some("acknowledge_edit") => Impulse::AcknowledgeEdit,
+				Some("trigger_terminal") => Impulse::TriggerTerminal,
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
