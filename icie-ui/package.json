@@ -64,6 +64,10 @@
             {
                 "command": "icie.external.terminal",
                 "title": "ICIE terminal"
+            },
+            {
+                "command": "icie.init.existing",
+                "title": "ICIE Init existing"
             }
         ],
         "keybindings": [
@@ -105,6 +109,7 @@
         "onCommand:icie.build",
         "onCommand:icie.test",
         "onCommand:icie.init",
+        "onCommand:icie.init.existing",
         "onCommand:icie.submit",
         "onCommand:icie.template.instantiate",
         "onCommand:icie.manual.submit",

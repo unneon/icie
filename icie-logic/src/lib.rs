@@ -53,6 +53,7 @@ pub enum Impulse {
 	},
 	TriggerPastePick,
 	TriggerTerminal,
+	TriggerInitExisting,
 	NewTest {
 		input: String,
 		desired: String,
@@ -229,6 +230,7 @@ impl ICIE {
 			Impulse::DiscoveryStart => self.discovery()?,
 			Impulse::TriggerPastePick => self.paste_pick()?,
 			Impulse::TriggerTerminal => self.trigger_terminal()?,
+			Impulse::TriggerInitExisting => self.init_existing()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -254,7 +256,21 @@ impl ICIE {
 		let root = dirs::home_dir()
 			.ok_or(error::Category::DegenerateEnvironment { detail: "no home directory" }.err())?
 			.join(&name);
-		let new_dir = Directory::new(root.clone());
+		let dir = util::TransactionDir::new(&root)?;
+		self.init_in(&root)?;
+		dir.commit();
+		Ok(())
+	}
+
+	fn init_existing(&self) -> R<()> {
+		let _status = self.status("Creating project");
+		self.init_in(self.directory.need_root()?)?;
+		Ok(())
+	}
+
+	fn init_in(&self, root: &Path) -> R<()> {
+		let _status = self.status("Creating project");
+		let new_dir = Directory::new(root.to_path_buf());
 		let url = match self.input_box(InputBoxOptions {
 			ignore_focus_out: true,
 			password: false,
@@ -271,9 +287,7 @@ impl ICIE {
 			},
 		};
 		let mut ui = self.make_ui();
-		let dir = util::TransactionDir::new(&root)?;
-
-		let root2 = root.clone();
+		let root2 = root.to_path_buf();
 		if let Some(url) = &url {
 			let url2 = url.clone();
 			let t1 = self.worker(move || ci::commands::init::run(&url2, &root2, &mut ui));
@@ -288,10 +302,14 @@ impl ICIE {
 			t1.join().map_err(|_| error::Category::ThreadPanicked.err())?;
 		}
 
-		fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
+		if !new_dir.get_source()?.exists() {
+			fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
+		}
 		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
-		dir.commit();
-		self.send(Reaction::OpenFolder { path: root, in_new_window: false });
+		self.send(Reaction::OpenFolder {
+			path: root.to_path_buf(),
+			in_new_window: false,
+		});
 		Ok(())
 	}
 
