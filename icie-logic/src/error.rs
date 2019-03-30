@@ -77,7 +77,7 @@ impl fmt::Display for Error {
 					 /proc/sys/kernel/perf_event_paranoid`"
 				),
 				MalformedLibrary { detail } => format!("malformed library description: {}", detail),
-				SubmitNoURL => format!("can't submit this task due to lack of task url; use Alt+F11 and paste in the task url next time!"),
+				SubmitNoURL => format!("can't submit this task due to no task url; use Alt+F11 next time you create a project"),
 			}
 		)?;
 		Ok(())
