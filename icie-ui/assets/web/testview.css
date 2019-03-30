@@ -39,6 +39,7 @@ body {
 	bottom: 4px;
 	right: 4px;
 	user-select: none;
+	z-index: -1;
 }
 
 .test-actions { opacity: 0; }
