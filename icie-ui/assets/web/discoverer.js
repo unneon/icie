@@ -86,6 +86,8 @@ function pretty_outcome(outcome) {
 		return 'Wrong answer';
 	} else if (outcome === 'runtime_error') {
 		return 'Runtime error';
+	} else if (outcome === 'time_limit_exceeded') {
+		return 'Time limit exceeded';
 	} else if (outcome === 'ignored_no_out') {
 		return 'Ignored because of no out';
 	} else {

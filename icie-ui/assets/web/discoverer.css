@@ -33,6 +33,10 @@ body {
 	border-color: rgba(255, 32, 32, 0.3);
 	background-color: rgba(255, 32, 32, 0.15);
 }
+.log > tbody > tr > td.outcome-time_limit_exceeded {
+	border-color: rgba(255, 32, 32, 0.3);
+	background-color: rgba(255, 32, 32, 0.15);
+}
 
 @keyframes scale-into {
 	0% {

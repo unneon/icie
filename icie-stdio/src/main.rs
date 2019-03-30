@@ -212,6 +212,7 @@ fn serialize_outcome(outcome: &Outcome) -> &'static str {
 		icie_logic::Outcome::Accept => "accept",
 		icie_logic::Outcome::WrongAnswer => "wrong_answer",
 		icie_logic::Outcome::RuntimeError => "runtime_error",
+		icie_logic::Outcome::TimeLimitExceeded => "time_limit_exceeded",
 		icie_logic::Outcome::IgnoredNoOut => "ignored_no_out",
 	}
 }

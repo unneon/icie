@@ -16,6 +16,7 @@ mod error;
 mod handle;
 mod impulse_ui;
 mod manifest;
+mod nice_duration;
 mod paste_lib;
 mod progress;
 mod status;
@@ -26,7 +27,7 @@ pub mod vscode;
 pub use self::handle::Handle;
 use self::{error::R, status::Status, vscode::*};
 use crate::{
-	config::Config, paste_lib::{Library, Piece}
+	config::Config, manifest::Manifest, paste_lib::{Library, Piece}
 };
 use ci::testing::Execution;
 pub use ci::testing::Outcome;
@@ -305,7 +306,11 @@ impl ICIE {
 		if !new_dir.get_source()?.exists() {
 			fs::copy(&self.config.template_main()?.path, &root.join("main.cpp"))?;
 		}
-		manifest::Manifest { task_url: url }.save(&new_dir.get_manifest()?)?;
+		manifest::Manifest {
+			task_url: url,
+			time_limit: Some(DEFAULT_JUDGE_TIME_LIMIT),
+		}
+		.save(&new_dir.get_manifest()?)?;
 		self.send(Reaction::OpenFolder {
 			path: root.to_path_buf(),
 			in_new_window: false,
@@ -742,9 +747,10 @@ impl ICIE {
 		let executable = self.directory.get_executable()?;
 		let testdir = self.directory.get_tests()?;
 		let checker = self.get_checker()?;
+		let manifest = Manifest::load(&self.directory.get_manifest()?)?;
 		let mut ui = self.make_ui();
 		util::assure_dir(&testdir)?;
-		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &*checker, false, true, &mut ui));
+		let t1 = self.worker(move || ci::commands::test::run(&executable, &testdir, &*checker, false, true, manifest.time_limit, &mut ui));
 		let mut test_count = None;
 		let mut tests = Vec::new();
 		loop {
@@ -973,6 +979,8 @@ impl ICIE {
 		self.output.send(reaction).expect("actor channel destroyed");
 	}
 }
+
+const DEFAULT_JUDGE_TIME_LIMIT: Duration = Duration::from_secs(1);
 
 struct Directory {
 	root: Option<PathBuf>,

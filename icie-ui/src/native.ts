@@ -20,7 +20,7 @@ export type TestviewTree = TestviewTreeTest | TestviewTreeTest[];
 export function isTest(tree: TestviewTree): tree is TestviewTreeTest {
     return (<TestviewTreeTest>tree).input !== undefined;
 }
-export type Outcome = 'accept' | 'wrong_answer' | 'runtime_error' | 'ignored_no_out';
+export type Outcome = 'accept' | 'wrong_answer' | 'runtime_error' | 'time_limit_exceeded' | 'ignored_no_out';
 export type MessageKind = 'info' | 'warning' | 'error';
 export interface MessageItem {
     title: string;

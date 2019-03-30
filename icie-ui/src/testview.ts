@@ -105,7 +105,7 @@ function lines(text: string): number {
 function test_outcome_class(outcome: native.Outcome): string {
 	if (outcome === 'accept') {
 		return 'test-good';
-	} else if (outcome === 'wrong_answer' || outcome === 'runtime_error') {
+	} else if (outcome === 'wrong_answer' || outcome === 'runtime_error' || outcome == 'time_limit_exceeded') {
 		return 'test-bad';
 	} else if (outcome === 'ignored_no_out') {
 		return 'test-warn';
@@ -131,6 +131,8 @@ function pretty_outcome(outcome: native.Outcome): string {
 		return 'Wrong Answer';
 	} else if (outcome === 'runtime_error') {
 		return 'Runtime Error';
+	} else if (outcome === 'time_limit_exceeded') {
+		return 'Time Limit Exceeded';
 	} else if (outcome === 'ignored_no_out') {
 		return 'Ignored';
 	} else {

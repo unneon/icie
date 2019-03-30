@@ -169,7 +169,7 @@ dependencies = [
 [[package]]
 name = "ci"
 version = "1.2.0"
-source = "git+https://github.com/matcegla/ci#fcb91254e949df4a39650c49aa369b6f09cfc5aa"
+source = "git+https://github.com/matcegla/ci#7f820aaf4c13cc6219a3b35ba70886b77453271c"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
