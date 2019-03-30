@@ -63,7 +63,7 @@
             },
             {
                 "command": "icie.external.terminal",
-                "title": "ICIE terminal"
+                "title": "ICIE Terminal"
             },
             {
                 "command": "icie.init.existing",
