@@ -115,7 +115,10 @@ impl Library {
 		let (pref, suf) = if self.pieces[piece_id].parent.is_some() {
 			("", "\n")
 		} else {
-			("\n", if source[index..].starts_with("\n") { "\n" } else { "\n\n" })
+			(
+				if source[..index].ends_with("\n\n") { "" } else { "\n" },
+				if source[index..].starts_with("\n") { "\n" } else { "\n\n" },
+			)
 		};
 		Ok((position, format!("{}{}{}", pref, self.pieces[piece_id].code.clone(), suf)))
 	}
