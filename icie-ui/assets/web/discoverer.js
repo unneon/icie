@@ -21,7 +21,7 @@ function button_clear() {
 function action_save() {
 	vscode.postMessage({
 		tag: 'discovery_save',
-		input: document.getElementById('best-test').textContent
+		input: document.getElementById('best-test').dataset.input
 	});
 }
 
@@ -75,6 +75,7 @@ window.addEventListener('message', event => {
 			}
 			let best_test = document.getElementById('best-test');
 			best_test.innerHTML = message.input.replace(/\n/g, '<br/>');
+			best_test.dataset.input = message.input;
 		}
 	}
 });
