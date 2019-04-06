@@ -214,7 +214,7 @@ dependencies = [
 [[package]]
 name = "codeforces"
 version = "0.1.0"
-source = "git+https://github.com/matcegla/codeforces#4d26db15ed05564bd66c21c64a454544a2d63960"
+source = "git+https://github.com/matcegla/codeforces#6582e29e80cc5a0bf74e3921ded3b0508fc5894b"
 dependencies = [
  "chrono 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
