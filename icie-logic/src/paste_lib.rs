@@ -120,7 +120,18 @@ impl Library {
 				if source[index..].starts_with("\n") { "\n" } else { "\n\n" },
 			)
 		};
-		Ok((position, format!("{}{}{}", pref, self.pieces[piece_id].code.clone(), suf)))
+		let code = if self.pieces[piece_id].parent.is_some() {
+			let mut buf = String::new();
+			for line in self.pieces[piece_id].code.lines() {
+				buf += "\t";
+				buf += line;
+				buf += "\n";
+			}
+			buf.trim_end().to_owned()
+		} else {
+			self.pieces[piece_id].code.trim_end().to_owned()
+		};
+		Ok((position, format!("{}{}{}", pref, code, suf)))
 	}
 
 	fn place_index(&self, piece_id: &str, source: &str) -> R<usize> {
