@@ -21,6 +21,7 @@ pub enum Category {
 	PerfEventParanoid,
 	MalformedLibrary { detail: &'static str },
 	SubmitNoURL,
+	BadQIMember,
 }
 
 #[derive(Debug)]
@@ -78,6 +79,7 @@ impl fmt::Display for Error {
 				),
 				MalformedLibrary { detail } => format!("malformed library description: {}", detail),
 				SubmitNoURL => format!("can't submit this task due to no task url; use Alt+F11 next time you create a project"),
+				BadQIMember => format!("malformatted qi member (good: long long cost)"),
 			}
 		)?;
 		Ok(())

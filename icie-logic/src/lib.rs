@@ -55,6 +55,7 @@ pub enum Impulse {
 	TriggerPastePick,
 	TriggerTerminal,
 	TriggerInitExisting,
+	TriggerQistruct,
 	NewTest {
 		input: String,
 		desired: String,
@@ -229,6 +230,7 @@ impl ICIE {
 			Impulse::TriggerPastePick => self.paste_pick()?,
 			Impulse::TriggerTerminal => self.trigger_terminal()?,
 			Impulse::TriggerInitExisting => self.init_existing()?,
+			Impulse::TriggerQistruct => self.qistruct()?,
 			impulse => Err(error::unexpected(impulse, "trigger").err())?,
 		}
 		Ok(())
@@ -609,6 +611,63 @@ impl ICIE {
 				library: &library,
 			},
 		)?;
+		Ok(())
+	}
+
+	fn qistruct(&self) -> R<()> {
+		let _status = self.status("Creating input struct");
+		let opts = |prompt, placeholder| InputBoxOptions {
+			value_selection: None,
+			value: None,
+			ignore_focus_out: false,
+			password: false,
+			placeholder,
+			prompt: Some(prompt),
+		};
+		let name = match self.input_box(opts("Qistruct name".to_owned(), None))? {
+			Some(name) => name,
+			None => return Ok(()),
+		};
+		let mut members = Vec::new();
+		loop {
+			let joined = match self.input_box(opts(format!("Qistruct member {}", members.len()+1), Some("int cost".to_owned())))? {
+				Some(ref joined) if joined == "" => break,
+				Some(joined) => joined,
+				None => break,
+			};
+			let i = joined.rfind(' ').ok_or_else(|| error::Category::BadQIMember.err())?;
+			let typ = &joined[..i];
+			let mem = &joined[i+1..];
+			members.push((typ.to_string(), mem.to_string()));
+		}
+		let mut code = String::new();
+		code += &format!("struct {} {{\n", name);
+		for (typ, mem) in &members {
+			code += &format!("\t{} {};\n", typ, mem);
+		}
+		code += &format!("\tfriend istream& operator>>(istream& in, {}& x) {{ return cin", name);
+		for (_, mem) in &members {
+			code += &format!(" >> x.{}", mem);
+		}
+		code += "; }\n};";
+		let piece = paste_lib::Piece {
+			name: String::new(),
+			description: None,
+			detail: None,
+			code,
+			request: String::new(),
+			guarantee: format!("struct {} {{", name),
+			dependencies: Vec::new(),
+			parent: None,
+		};
+		let mut library = Library::load(&self.config.library_path()?)?;
+		library.pieces.insert(String::from("__qistruct"), piece);
+		let text = self.query_document_text(self.directory.get_source()?)?;
+		library.walk_graph("__qistruct", VscodePaste {
+			text,
+			icie: &self,
+			library: &library
+		})?;
 		Ok(())
 	}
 

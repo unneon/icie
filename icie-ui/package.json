@@ -68,6 +68,10 @@
             {
                 "command": "icie.init.existing",
                 "title": "ICIE Init existing"
+            },
+            {
+                "command": "icie.paste.qistruct",
+                "title": "ICIE Paste quick input struct"
             }
         ],
         "keybindings": [
@@ -102,6 +106,10 @@
             {
                 "command": "icie.external.terminal",
                 "key": "alt+t"
+            },
+            {
+                "command": "icie.paste.qistruct",
+                "key": "alt+i"
             }
         ]
     },
@@ -118,6 +126,7 @@
         "onCommand:icie.test.discoverer",
         "onCommand:icie.paste.pick",
         "onCommand:icie.external.terminal",
+        "onCommand:icie.paste.qistruct",
         "workspaceContains:/main.cpp"
     ],
     "badges": [],

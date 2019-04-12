@@ -29,6 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
     register_trigger('icie.paste.pick', { tag: "trigger_paste_pick" }, logic, context);
     register_trigger('icie.external.terminal', { tag: "trigger_terminal" }, logic, context);
     register_trigger('icie.init.existing', { tag: "trigger_init_existing" }, logic, context);
+    register_trigger('icie.paste.qistruct', { tag: "trigger_qistruct" }, logic, context);
     // context.subscriptions.push(vscode.commands.registerCommand('icie.paste.pick', async () => {
     //     console.log(`Hello!`);
     //     let doc = await vscode.workspace.openTextDocument(vscode.Uri.file(`${vscode.workspace.rootPath}/main.cpp`));

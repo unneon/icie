@@ -57,6 +57,7 @@ fn main() {
 				Some("acknowledge_edit") => Impulse::AcknowledgeEdit,
 				Some("trigger_terminal") => Impulse::TriggerTerminal,
 				Some("trigger_init_existing") => Impulse::TriggerInitExisting,
+				Some("trigger_qistruct") => Impulse::TriggerQistruct,
 				_ => panic!("unrecognized impulse tag {:?}", imp["tag"]),
 			};
 			icie1.send(impulse);
