@@ -1,6 +1,6 @@
 {
     "name": "icie",
-    "version": "0.4.11",
+    "version": "0.4.12",
     "publisher": "pustaczek",
     "engines": {
         "vscode": "^1.29.0"
@@ -133,11 +133,11 @@
     "markdown": "github",
     "qna": "marketplace",
     "devDependencies": {
-        "typescript": "^3.1.4",
-        "vscode": "^1.1.21",
-        "tslint": "^5.8.0",
+        "@types/mocha": "^2.2.42",
         "@types/node": "^8.10.25",
-        "@types/mocha": "^2.2.42"
+        "tslint": "^5.8.0",
+        "typescript": "^3.1.4",
+        "vscode": "^1.1.33"
     },
     "scripts": {
         "make": "cd .. && make",
