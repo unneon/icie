@@ -88,7 +88,7 @@ fn main() {
 				}),
 				"modal" => modal,
 			},
-			Reaction::QuickPick { items } => object! {
+			Reaction::QuickPick { items, match_on_description, match_on_detail } => object! {
 				"tag" => "quick_pick",
 				"items" => items.into_iter().map(|item| object! {
 					"label" => item.label,
@@ -96,6 +96,8 @@ fn main() {
 					"detail" => item.detail,
 					"id" => item.id,
 				}).collect::<Vec<_>>(),
+				"matchOnDescription" => match_on_description,
+				"matchOnDetail" => match_on_detail,
 			},
 			Reaction::InputBox { options } => object! {
 				"tag" => "input_box",

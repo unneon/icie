@@ -133,6 +133,8 @@ pub enum Reaction {
 	},
 	QuickPick {
 		items: Vec<QuickPickItem>,
+		match_on_description: bool,
+		match_on_detail: bool,
 	},
 	InputBox {
 		options: InputBoxOptions,
@@ -355,7 +357,7 @@ impl ICIE {
 				detail: Some(tpl.path.display().to_string()),
 			})
 			.collect::<Vec<_>>();
-		self.send(Reaction::QuickPick { items });
+		self.send(Reaction::QuickPick { items, match_on_description: false, match_on_detail: false });
 		let template_id = loop {
 			match self.recv() {
 				Impulse::QuickPick { response: Some(template_id) } => break template_id,
@@ -594,6 +596,8 @@ impl ICIE {
 					id: id.clone(),
 				})
 				.collect(),
+			match_on_description: true,
+			match_on_detail: true,
 		});
 		let piece_id = loop {
 			match self.recv() {

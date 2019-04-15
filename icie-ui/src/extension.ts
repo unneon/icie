@@ -97,7 +97,7 @@ export function activate(context: vscode.ExtensionContext) {
                     label: item.label,
                     id: item.id
                 };
-            })).then(item => {
+            }), { matchOnDescription: reaction.matchOnDescription, matchOnDetail: reaction.matchOnDetail }).then(item => {
                 if (item !== undefined) {
                     logic.send({ tag: "quick_pick", response: item.id });
                 } else {

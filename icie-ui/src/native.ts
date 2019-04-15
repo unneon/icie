@@ -50,6 +50,8 @@ export interface ReactionMessage {
 export interface ReactionQuickPick {
     tag: "quick_pick";
     items: QuickPickItem[];
+    matchOnDescription: boolean;
+    matchOnDetail: boolean;
 }
 export interface ReactionInputBox {
     tag: "input_box";
