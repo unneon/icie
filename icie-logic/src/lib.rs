@@ -649,7 +649,7 @@ impl ICIE {
 		for (typ, mem) in &members {
 			code += &format!("\t{} {};\n", typ, mem);
 		}
-		code += &format!("\tfriend istream& operator>>(istream& in, {}& x) {{ return cin", name);
+		code += &format!("\tfriend istream& operator>>(istream& in, {}& x) {{ return in", name);
 		for (_, mem) in &members {
 			code += &format!(" >> x.{}", mem);
 		}
