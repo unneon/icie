@@ -1,8 +1,11 @@
-#![feature(specialization)]
+#![feature(specialization, impl_trait_in_bindings)]
 
-#[evscode::command(title = "Hello world!", key = "alt+0")]
-fn hello_world() {
-	evscode::InfoMessage::new("Hello, world!").spawn();
+mod build;
+mod dir;
+mod test;
+
+lazy_static::lazy_static! {
+	pub static ref STATUS: evscode::StackedStatus = evscode::StackedStatus::new("❄️ ");
 }
 
 evscode::plugin! {

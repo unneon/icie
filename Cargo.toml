@@ -5,5 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+lazy_static = "1.0"
 log = "0.4"
-evscode = { git = "https://github.com/matcegla/evscode" }
+evscode = { path = "../evscode" }
+ci = { path = "../ci" }
