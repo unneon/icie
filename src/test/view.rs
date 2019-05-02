@@ -1,4 +1,4 @@
-use crate::{dir, test::TestRun, STATUS};
+use crate::{test::TestRun, STATUS};
 use std::{
 	fs, ops::{Deref, DerefMut}, sync::{Mutex, MutexGuard}
 };
@@ -37,20 +37,13 @@ pub fn webview_exists() -> evscode::R<bool> {
 }
 
 pub fn render(tests: &[TestRun]) -> evscode::R<String> {
-	let css = include_str!("view.css");
-	let js = include_str!("view.js");
-	let test_table = render_test_table(tests)?;
 	Ok(format!(
 		r#"
 		<html>
 			<head>
-				<style>
-					{css}
-				</style>
+				<style>{css}</style>
 				<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-				<script>
-					{js}
-				</script>
+				<script>{js}</script>
 			</head>
 			<body>
 				<table class="test-table">
@@ -66,9 +59,9 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 			</body>
 		</html>
 	"#,
-		css = css,
-		js = js,
-		test_table = test_table
+		css = include_str!("view.css"),
+		js = include_str!("view.js"),
+		test_table = render_test_table(tests)?
 	))
 }
 
@@ -81,98 +74,89 @@ fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
 }
 
 fn render_test(test: &TestRun) -> evscode::R<String> {
+	Ok(format!(
+		r#"
+		<tr class="test-row" data-in_path="{in_path}">
+			{input}
+			{out}
+			{desired}
+		</tr>
+	"#,
+		in_path = test.in_path.display(),
+		input = render_in_cell(test)?,
+		out = render_out_cell(test)?,
+		desired = render_desired_cell(test)?
+	))
+}
+
+fn render_in_cell(test: &TestRun) -> evscode::R<String> {
+	Ok(render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.in_path)?, None))
+}
+
+fn render_out_cell(test: &TestRun) -> evscode::R<String> {
 	use ci::test::Verdict::*;
-	let raw_input = fs::read_to_string(&test.in_path)?;
-	let lines_em = 1.1 * lines(&raw_input) as f64;
-	let in_path = test.in_path.display();
-	let name = test.in_path.strip_prefix(&dir::tests())?.display();
 	let outcome_class = match test.outcome.verdict {
 		Accepted => "test-good",
 		WrongAnswer | RuntimeError | TimeLimitExceeded => "test-bad",
 		IgnoredNoOut => "test-warn",
 	};
-	let out_note = render_out_note(&test.outcome.verdict);
-	let input = html_escape(&raw_input);
-	let output = html_escape(&test.outcome.out);
-	let desired_cell = render_desired_cell(test)?;
-	Ok(format!(
-		r#"
-		<tr class="test-row" data-in_path="{in_path}">
-			<td style="height: {lines_em}em; line-height: 1.1em;" class="test-cell">
-				<div class="test-actions">
-					<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
-					<div class="test-action material-icons" title={name}>info</div>
-				</div>
-				<div class="test-data">
-					{input}
-				</div>
-			</td>
-			<td class="test-cell {outcome_class}">
-				<div class="test-actions">
-					<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
-					<div class="test-action material-icons" onclick="trigger_rr()">fast_rewind</div>
-				</div>
-				<div class="test-data">
-					{output}
-				</div>
-				{out_note}
-			</td>
-			<td class="test-cell">
-				{desired_cell}
-			</td>
-		</tr>
-	"#,
-		in_path = in_path,
-		lines_em = lines_em,
-		name = name,
-		input = input,
-		outcome_class = outcome_class,
-		output = output,
-		out_note = out_note,
-		desired_cell = desired_cell
-	))
+	let note = match test.outcome.verdict {
+		Accepted | WrongAnswer => None,
+		RuntimeError => Some("Runtime Error"),
+		TimeLimitExceeded => Some("Time Limit Exceeded"),
+		IgnoredNoOut => Some("Ignored"),
+	};
+	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_RR], &test.outcome.out, note))
 }
 
 fn render_desired_cell(test: &TestRun) -> evscode::R<String> {
 	Ok(if test.out_path.exists() {
-		let desired = html_escape(&fs::read_to_string(&test.out_path)?);
-		format!(
-			r#"
-			<div class="test-actions">
-				<div class="test-action material-icons" onclick="clipcopy()">file_copy</div>
-			</div>
-			<div class="test-data">
-				{desired}
-			</div>
-		"#,
-			desired = desired
-		)
+		render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.out_path)?, None)
 	} else {
-		format!(
-			r#"
-			<div class="test-note">
-				File does not exist
-			</div>
-		"#
-		)
+		render_cell("", &[], "", Some("File does not exist"))
 	})
 }
 
-fn render_out_note(verdict: &ci::test::Verdict) -> String {
-	use ci::test::Verdict::*;
-	let pretty = match verdict {
-		Accepted | WrongAnswer => return String::new(),
-		RuntimeError => "Runtime Error",
-		TimeLimitExceeded => "Time Limit Exceeded",
-		IgnoredNoOut => "Ignored",
+struct Action {
+	onclick: &'static str,
+	icon: &'static str,
+}
+const ACTION_COPY: Action = Action {
+	onclick: "clipcopy()",
+	icon: "file_copy",
+};
+const ACTION_RR: Action = Action {
+	onclick: "trigger_rr()",
+	icon: "fast_rewind",
+};
+
+fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>) -> String {
+	let note_div = if let Some(note) = note {
+		format!(r#"<div class="test-note">{note}</div>"#, note = note)
+	} else {
+		format!("")
 	};
+	let mut action_list = String::new();
+	for action in actions {
+		action_list += &format!(r#"<div class="test-action material-icons" onclick="{}">{}</div>"#, action.onclick, action.icon);
+	}
 	format!(
 		r#"
-		<div class="test-note">
-			{}
-		</div>
+		<td style="height: {lines_em}em; line-height: 1.1em;" class="test-cell {class}">
+			<div class="test-actions">
+				{action_list}
+			</div>
+			<div class="test-data">
+				{data}
+			</div>
+			{note_div}
+		</td>
 	"#,
-		pretty
+		lines_em = 1.1 * lines(data) as f64,
+		class = class,
+		action_list = action_list,
+		data = html_escape(data.trim()),
+		note_div = note_div
 	)
 }
 
