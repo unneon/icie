@@ -5,6 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+json = "0.11"
 lazy_static = "1.0"
 log = "0.4"
 evscode = { path = "../evscode" }

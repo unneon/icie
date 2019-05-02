@@ -1,4 +1,4 @@
-use crate::{dir, test::TestRun};
+use crate::{dir, test::TestRun, STATUS};
 use std::{
 	fs, ops::{Deref, DerefMut}, sync::{Mutex, MutexGuard}
 };
@@ -7,20 +7,38 @@ lazy_static::lazy_static! {
 	pub static ref WEBVIEW: Mutex<Option<evscode::Webview>> = Mutex::new(None);
 }
 
+fn handle_events(stream: evscode::Future<evscode::Cancellable<json::JsonValue>>) {
+	let _status = STATUS.push("Watching testview");
+	for note in stream {
+		match note["tag"].as_str() {
+			Some("trigger_rr") => evscode::spawn(move || crate::debug::rr(note["in_path"].as_str().unwrap())),
+			Some("new_test") => evscode::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
+			_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
+		}
+	}
+}
+
 pub fn prepare_webview<'a>(lck: &'a mut MutexGuard<Option<evscode::Webview>>) -> &'a evscode::Webview {
 	let requires_create = lck.as_ref().map(|webview| webview.was_disposed().wait()).unwrap_or(true);
 	if requires_create {
-		*MutexGuard::deref_mut(lck) = Some(
-			evscode::Webview::new("icie.test.view", "ICIE Test view", evscode::ViewColumn::Beside)
-				.retain_context_when_hidden()
-				.create(),
-		);
+		let webview: evscode::Webview = evscode::Webview::new("icie.test.view", "ICIE Test view", evscode::ViewColumn::Beside)
+			.enable_scripts()
+			.retain_context_when_hidden()
+			.create();
+		let stream = webview.listener().cancel_on(webview.disposer());
+		evscode::spawn(move || Ok(handle_events(stream)));
+		*MutexGuard::deref_mut(lck) = Some(webview);
 	}
 	MutexGuard::deref(lck).as_ref().unwrap()
+}
+pub fn webview_exists() -> evscode::R<bool> {
+	let lck = WEBVIEW.lock()?;
+	Ok(if let Some(webview) = &*lck { !webview.was_disposed().wait() } else { false })
 }
 
 pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 	let css = include_str!("view.css");
+	let js = include_str!("view.js");
 	let test_table = render_test_table(tests)?;
 	Ok(format!(
 		r#"
@@ -30,15 +48,26 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 					{css}
 				</style>
 				<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+				<script>
+					{js}
+				</script>
 			</head>
 			<body>
 				<table class="test-table">
 					{test_table}
 				</table>
+				<br/>
+				<div id="new-container" class="new">
+					<textarea id="new-input" class="new"></textarea>
+					<textarea id="new-desired" class="new"></textarea>
+					<div id="new-start" class="material-icons button new" onclick="new_start()">add</div>
+					<div id="new-confirm" class="material-icons button new" onclick="new_confirm()">done</div>
+				</div>
 			</body>
 		</html>
 	"#,
 		css = css,
+		js = js,
 		test_table = test_table
 	))
 }

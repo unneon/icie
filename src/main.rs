@@ -1,8 +1,10 @@
 #![feature(specialization, impl_trait_in_bindings)]
 
 mod build;
+mod debug;
 mod dir;
 mod test;
+mod util;
 
 lazy_static::lazy_static! {
 	pub static ref STATUS: evscode::StackedStatus = evscode::StackedStatus::new("❄️ ");
