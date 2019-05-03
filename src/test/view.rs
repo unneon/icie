@@ -1,39 +1,96 @@
-use crate::{test::TestRun, STATUS};
+use crate::{test::TestRun, util, STATUS};
 use std::{
-	fs, ops::{Deref, DerefMut}, sync::{Mutex, MutexGuard}
+	collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}
 };
 
 lazy_static::lazy_static! {
-	pub static ref WEBVIEW: Mutex<Option<evscode::Webview>> = Mutex::new(None);
+	pub static ref COLLECTION: Collection = Collection::new();
+}
+pub struct Collection {
+	entries: Mutex<HashMap<Option<PathBuf>, Arc<Mutex<View>>>>,
+}
+pub struct View {
+	webview: evscode::Webview,
+	source: Option<PathBuf>,
 }
 
-fn handle_events(stream: evscode::Future<evscode::Cancellable<json::JsonValue>>) {
-	let _status = STATUS.push("Watching testview");
+impl Collection {
+	fn new() -> Collection {
+		Collection {
+			entries: Mutex::new(HashMap::new()),
+		}
+	}
+
+	pub fn get(&self, source: Option<PathBuf>, updated: bool) -> evscode::R<(Arc<Mutex<View>>, bool)> {
+		let mut entries_lck = self.entries.lock()?;
+		let (view, just_created) = match entries_lck.entry(source.clone()) {
+			std::collections::hash_map::Entry::Occupied(e) => (e.get().clone(), false),
+			std::collections::hash_map::Entry::Vacant(e) => {
+				let title = util::fmt_verb("ICIE Test View", &source);
+				let webview: evscode::Webview = evscode::Webview::new("icie.test.view", title, evscode::ViewColumn::Beside)
+					.enable_scripts()
+					.retain_context_when_hidden()
+					.create();
+				let stream = webview.listener().cancel_on(webview.disposer());
+				let source2 = source.clone();
+				evscode::spawn(move || Ok(handle_events(source2, stream)));
+				(e.insert(Arc::new(Mutex::new(View { webview, source: source.clone() }))).clone(), true)
+			},
+		};
+		let lck = view.lock()?;
+		drop(entries_lck);
+		if just_created || updated {
+			lck.update()?;
+		}
+		lck.webview.reveal(evscode::ViewColumn::Beside);
+		drop(lck);
+		Ok((view, just_created))
+	}
+
+	pub fn find_active(&self) -> evscode::R<Option<Arc<Mutex<View>>>> {
+		let lck = self.entries.lock()?;
+		for view in lck.values() {
+			if view.lock()?.webview.is_active().wait() {
+				return Ok(Some(view.clone()));
+			}
+		}
+		Ok(None)
+	}
+
+	pub fn update_all(&self) -> evscode::R<()> {
+		let lck = self.entries.lock()?;
+		for view in lck.values() {
+			let view = view.clone();
+			evscode::spawn(move || Ok(view.lock()?.update()?));
+		}
+		Ok(())
+	}
+}
+impl View {
+	pub fn touch_input(&self) {
+		self.webview.post_message(json::object! {
+			"tag" => "new_start",
+		});
+	}
+
+	pub fn update(&self) -> evscode::R<()> {
+		let runs = crate::test::run(self.source.as_ref().map(|p| p.as_path()))?;
+		self.webview.set_html(render(&runs)?);
+		Ok(())
+	}
+}
+
+fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::Cancellable<json::JsonValue>>) {
+	let _status = STATUS.push("#testview");
 	for note in stream {
 		match note["tag"].as_str() {
-			Some("trigger_rr") => evscode::spawn(move || crate::debug::rr(note["in_path"].as_str().unwrap())),
+			// Some("trigger_rr") => evscode::spawn(move || crate::debug::rr(note["in_path"].as_str().unwrap())),
 			Some("new_test") => evscode::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
 			_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 		}
 	}
-}
-
-pub fn prepare_webview<'a>(lck: &'a mut MutexGuard<Option<evscode::Webview>>) -> &'a evscode::Webview {
-	let requires_create = lck.as_ref().map(|webview| webview.was_disposed().wait()).unwrap_or(true);
-	if requires_create {
-		let webview: evscode::Webview = evscode::Webview::new("icie.test.view", "ICIE Test view", evscode::ViewColumn::Beside)
-			.enable_scripts()
-			.retain_context_when_hidden()
-			.create();
-		let stream = webview.listener().cancel_on(webview.disposer());
-		evscode::spawn(move || Ok(handle_events(stream)));
-		*MutexGuard::deref_mut(lck) = Some(webview);
-	}
-	MutexGuard::deref(lck).as_ref().unwrap()
-}
-pub fn webview_exists() -> evscode::R<bool> {
-	let lck = WEBVIEW.lock()?;
-	Ok(if let Some(webview) = &*lck { !webview.was_disposed().wait() } else { false })
+	let mut lck = COLLECTION.entries.lock().unwrap();
+	lck.remove(&key);
 }
 
 pub fn render(tests: &[TestRun]) -> evscode::R<String> {
@@ -164,5 +221,15 @@ fn lines(s: &str) -> usize {
 	s.trim().chars().filter(|c| char::is_whitespace(*c)).count()
 }
 fn html_escape(s: &str) -> String {
-	s.replace("\n", "<br/>")
+	translate(s, &[('\n', "<br/>"), ('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
+}
+fn translate(s: &str, table: &[(char, &str)]) -> String {
+	let mut buf = String::new();
+	for c in s.chars() {
+		match table.iter().find(|rule| rule.0 == c) {
+			Some(rule) => buf += rule.1,
+			_ => buf.push(c),
+		}
+	}
+	buf
 }

@@ -10,9 +10,9 @@ static CPP_EXTENSION: evscode::Config<String> = "cpp";
 static TESTS_DIRECTORY: evscode::Config<String> = "tests";
 
 pub fn solution() -> PathBuf {
-	evscode::workspace_root().join(SOLUTION_STEM.get()).with_extension(CPP_EXTENSION.get())
+	evscode::workspace_root().join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get())
 }
 
 pub fn tests() -> PathBuf {
-	evscode::workspace_root().join(TESTS_DIRECTORY.get())
+	evscode::workspace_root().join(&*TESTS_DIRECTORY.get())
 }

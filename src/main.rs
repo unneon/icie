@@ -1,7 +1,6 @@
 #![feature(specialization, impl_trait_in_bindings)]
 
 mod build;
-mod debug;
 mod dir;
 mod test;
 mod util;

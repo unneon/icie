@@ -1,7 +1,7 @@
-use crate::STATUS;
+use crate::{dir, util, STATUS};
 use ci::lang::Language;
 use evscode::R;
-use std::path::Path;
+use std::path::PathBuf;
 
 #[evscode::config(description = "Auto move to error position")]
 static AUTO_MOVE_TO_ERROR: vscode::Config<bool> = true;
@@ -15,22 +15,25 @@ static EXECUTABLE_EXTENSION: evscode::Config<String> = "e";
 #[evscode::config(description = "C++ language standard")]
 static CPP_STANDARD: evscode::Config<CppStandard> = CppStandard::Cpp17;
 
-fn build(sources: &[&Path]) -> R<ci::exec::Executable> {
+pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::exec::Executable> {
+	let source = source.as_option_path();
+	let _status = STATUS.push(util::fmt_verb("Building", &source));
+	let workspace_source = dir::solution();
+	let source = source.unwrap_or_else(|| workspace_source.as_path());
 	evscode::save_all().wait();
-	let _status = STATUS.push("Building");
 	let lang = ci::lang::CPP;
-	let out = sources[0].with_extension(EXECUTABLE_EXTENSION.get());
+	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if out.exists() {
-		let source_mods = sources.iter().map(|source| Ok(source.metadata()?.modified()?)).collect::<R<Vec<_>>>()?;
+		let source_mods = &[&source].iter().map(|source| Ok(source.metadata()?.modified()?)).collect::<R<Vec<_>>>()?;
 		if out.metadata()?.modified()? > *source_mods.iter().max().unwrap() {
 			return Ok(ci::exec::Executable::new(out));
 		}
 	}
 	let standard = CPP_STANDARD.get().to_ci();
-	let status = lang.compile(&sources, &out, &standard, &ci::lang::Codegen::Debug)?;
+	let status = lang.compile(&[&source], &out, &standard, &codegen)?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
-			if AUTO_MOVE_TO_ERROR.get() {
+			if *AUTO_MOVE_TO_ERROR.get() {
 				evscode::open_editor(&error.path, Some(error.line - 1), Some(error.column - 1));
 			}
 			Err(evscode::E::error(error.message.clone()))
@@ -46,8 +49,29 @@ fn build(sources: &[&Path]) -> R<ci::exec::Executable> {
 	}
 }
 
+#[evscode::command(title = "ICIE Build", key = "alt+;")]
+pub fn debug() -> evscode::R<()> {
+	build(Option::<PathBuf>::None, ci::lang::Codegen::Debug)?;
+	Ok(())
+}
+#[evscode::command(title = "ICIE Build (current editor)", key = "alt+\\ alt+;")]
+pub fn debug_current() -> evscode::R<()> {
+	build(util::active_tab()?, ci::lang::Codegen::Debug)?;
+	Ok(())
+}
+#[evscode::command(title = "ICIE Build Release", key = "shift+alt+;")]
+pub fn release() -> evscode::R<()> {
+	build(Option::<PathBuf>::None, ci::lang::Codegen::Release)?;
+	Ok(())
+}
+#[evscode::command(title = "ICIE Build Release (current editor)", key = "alt+\\ shift+alt+;")]
+pub fn release_current() -> evscode::R<()> {
+	build(util::active_tab()?, ci::lang::Codegen::Release)?;
+	Ok(())
+}
+
 fn show_warnings(warnings: Vec<ci::lang::Message>) -> R<()> {
-	if !AUTO_MOVE_TO_WARNING.get() {
+	if !*AUTO_MOVE_TO_WARNING.get() {
 		let msg = evscode::InfoMessage::new(format!("{} compilation warning{}", warnings.len(), if warnings.len() == 1 { "" } else { "s" }))
 			.warning()
 			.item("show", "Show", false)
@@ -67,10 +91,6 @@ fn show_warnings(warnings: Vec<ci::lang::Message>) -> R<()> {
 		}
 	}
 	Ok(())
-}
-
-pub fn solution() -> R<ci::exec::Executable> {
-	build(&[&crate::dir::solution()])
 }
 
 #[derive(Clone, Debug, evscode::Configurable)]

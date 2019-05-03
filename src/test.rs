@@ -5,82 +5,89 @@ use std::{
 	fs, path::{Path, PathBuf}
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TestRun {
 	in_path: PathBuf,
 	out_path: PathBuf,
 	outcome: ci::test::Outcome,
 }
 
-fn run() -> evscode::R<Vec<TestRun>> {
+pub fn run(main_source: Option<&Path>) -> evscode::R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
-	let solution = build::solution()?;
-	let progress: evscode::ActiveProgress = evscode::Progress::new().title("Testing").show();
-	let checker = ci::task::FreeWhitespaceChecker;
-	let environment = ci::exec::Environment { time_limit: None };
+	let solution = build::build(main_source, ci::lang::Codegen::Debug)?;
 	let task = ci::task::Task {
-		checker: &checker,
-		environment: &environment,
+		checker: Box::new(ci::task::FreeWhitespaceChecker),
+		environment: ci::exec::Environment { time_limit: None },
 	};
 	let test_dir = dir::tests();
 	let ins = ci::scan::scan_and_order(&test_dir);
 	let mut runs = Vec::new();
 	let test_count = ins.len();
-	for in_path in ins {
-		let name = in_path.strip_prefix(&test_dir)?;
-		let out_path = in_path.with_extension("out");
-		let input = fs::read_to_string(&in_path)?;
-		let output = fs::read_to_string(&out_path)?;
-		let outcome = ci::test::simple_test(&solution, &input, Some(&output), &task)?;
+	let progress: evscode::ActiveProgress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).cancellable().show();
+	let worker = run_thread(ins, task, solution).cancel_on(progress.canceler());
+	for _ in 0..test_count {
+		let run = worker.wait()??;
+		let name = run.in_path.strip_prefix(&test_dir)?;
 		progress.update(
 			100.0 / test_count as f64,
-			format!("{} on `{}` in {}", outcome.verdict, name.display(), util::fmt_time_short(&outcome.time)),
+			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
 		);
-		let run = TestRun { in_path, out_path, outcome };
-		runs.push(run)
+		runs.push(run);
 	}
 	Ok(runs)
 }
 
-#[evscode::command(title = "ICIE Open test view", key = "alt+0")]
+fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Executable) -> evscode::Future<evscode::R<TestRun>> {
+	evscode::LazyFuture::new_worker(move |carrier| {
+		let _status = STATUS.push("Executing");
+		for in_path in ins {
+			let out_path = in_path.with_extension("out");
+			let input = fs::read_to_string(&in_path)?;
+			let output = fs::read_to_string(&out_path)?;
+			let outcome = ci::test::simple_test(&solution, &input, Some(&output), &task)?;
+			let run = TestRun { in_path, out_path, outcome };
+			if !carrier.send(run) {
+				break;
+			}
+		}
+		Ok(())
+	})
+	.spawn()
+}
+
+#[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 fn view() -> evscode::R<()> {
-	let _status = STATUS.push("Testing");
-	let outcomes = run()?;
-	let mut lck = view::WEBVIEW.lock()?;
-	let webview = view::prepare_webview(&mut lck);
-	webview.set_html(&view::render(&outcomes)?);
-	webview.reveal(evscode::ViewColumn::Beside);
+	view::COLLECTION.get(None, true)?;
+	Ok(())
+}
+
+#[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
+fn view_current() -> evscode::R<()> {
+	view::COLLECTION.get(util::active_tab()?, true)?;
 	Ok(())
 }
 
 fn add(input: &str, desired: &str) -> evscode::R<()> {
-	let _status = STATUS.push("Adding new test");
 	let tests = dir::tests().join("user");
 	std::fs::create_dir_all(&tests)?;
 	let id = unused_test_id(&tests)?;
 	fs::write(tests.join(format!("{}.in", id)), input)?;
 	fs::write(tests.join(format!("{}.out", id)), desired)?;
-	view()?;
+	view::COLLECTION.update_all()?;
 	Ok(())
 }
 
-#[evscode::command(title = "ICIE Input new test", key = "alt+-")]
+#[evscode::command(title = "ICIE New Test", key = "alt+-")]
 fn input() -> evscode::R<()> {
-	if !view::webview_exists()? {
-		let outcomes = run()?;
-		let mut lck = view::WEBVIEW.lock()?;
-		let webview = view::prepare_webview(&mut lck);
-		webview.set_html(&view::render(&outcomes)?);
-		webview.reveal(evscode::ViewColumn::Beside);
-		drop(lck);
-		std::thread::sleep(std::time::Duration::from_millis(750));
+	if let Some(view) = view::COLLECTION.find_active()? {
+		view.lock()?.touch_input();
+	} else {
+		let (view, just_created) = view::COLLECTION.get(None, false)?;
+		if just_created {
+			std::thread::sleep(std::time::Duration::from_millis(500));
+		}
+		view.lock()?.touch_input();
 	}
-	let mut lck = view::WEBVIEW.lock()?;
-	let webview = view::prepare_webview(&mut lck);
-	webview.reveal(evscode::ViewColumn::Beside);
-	webview.post_message(json::object! {
-		"tag" => "new_start",
-	});
 	Ok(())
 }
 
