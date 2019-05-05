@@ -84,7 +84,7 @@ fn input() -> evscode::R<()> {
 	} else {
 		let (view, just_created) = view::COLLECTION.get(None, false)?;
 		if just_created {
-			std::thread::sleep(std::time::Duration::from_millis(500));
+			std::thread::sleep(std::time::Duration::from_millis(100));
 		}
 		view.lock()?.touch_input();
 	}

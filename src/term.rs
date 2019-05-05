@@ -35,3 +35,8 @@ pub fn bash_escape_command(command: &str, args: &[&str]) -> String {
 	}
 	line
 }
+
+#[evscode::command(title = "ICIE Terminal", key = "alt+t")]
+fn spawn() -> evscode::R<()> {
+	external("bash", &[])
+}
