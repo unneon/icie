@@ -1,5 +1,5 @@
 use std::{
-	path::{Path, PathBuf}, time::Duration
+	path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
 };
 
 pub fn fmt_time_short(t: &Duration) -> String {
@@ -23,6 +23,29 @@ pub fn active_tab() -> evscode::R<Option<PathBuf>> {
 		None => return Err(evscode::E::cancel()),
 	};
 	Ok(if source != crate::dir::solution() { Some(source) } else { None })
+}
+
+pub fn bash_escape(raw: &str) -> String {
+	let mut escaped = String::from("\"");
+	for c in raw.chars() {
+		match c {
+			'"' => escaped += "\\\"",
+			'\\' => escaped += "\\\\",
+			c => escaped.push(c),
+		};
+	}
+	escaped += "\"";
+	escaped
+}
+
+pub fn is_installed(app: &'static str) -> evscode::R<bool> {
+	Ok(Command::new("which")
+		.arg(app)
+		.stdout(Stdio::null())
+		.stdin(Stdio::null())
+		.stderr(Stdio::null())
+		.status()?
+		.success())
 }
 
 pub trait MaybePath {

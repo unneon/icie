@@ -10,6 +10,14 @@ function trigger_rr() {
 	});
 }
 
+function trigger_gdb() {
+	let el = event.srcElement;
+	vscode.postMessage({
+		tag: "trigger_gdb",
+		in_path: el.parentElement.parentElement.parentElement.dataset.in_path
+	});
+}
+
 function new_start() {
 	console.log(`new_start()`);
 	if (!newing) {

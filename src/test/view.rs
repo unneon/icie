@@ -1,4 +1,4 @@
-use crate::{test::TestRun, util, STATUS};
+use crate::{test::TestRun, util};
 use std::{
 	collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}
 };
@@ -25,24 +25,14 @@ impl Collection {
 		let mut entries_lck = self.entries.lock()?;
 		let (view, just_created) = match entries_lck.entry(source.clone()) {
 			std::collections::hash_map::Entry::Occupied(e) => (e.get().clone(), false),
-			std::collections::hash_map::Entry::Vacant(e) => {
-				let title = util::fmt_verb("ICIE Test View", &source);
-				let webview: evscode::Webview = evscode::Webview::new("icie.test.view", title, evscode::ViewColumn::Beside)
-					.enable_scripts()
-					.retain_context_when_hidden()
-					.create();
-				let stream = webview.listener().cancel_on(webview.disposer());
-				let source2 = source.clone();
-				evscode::spawn(move || Ok(handle_events(source2, stream)));
-				(e.insert(Arc::new(Mutex::new(View { webview, source: source.clone() }))).clone(), true)
-			},
+			std::collections::hash_map::Entry::Vacant(e) => (e.insert(Arc::new(Mutex::new(View::create(source.clone())))).clone(), true),
 		};
 		let lck = view.lock()?;
 		drop(entries_lck);
 		if just_created || updated {
 			lck.update()?;
 		}
-		lck.webview.reveal(evscode::ViewColumn::Beside);
+		lck.focus();
 		drop(lck);
 		Ok((view, just_created))
 	}
@@ -50,7 +40,7 @@ impl Collection {
 	pub fn find_active(&self) -> evscode::R<Option<Arc<Mutex<View>>>> {
 		let lck = self.entries.lock()?;
 		for view in lck.values() {
-			if view.lock()?.webview.is_active().wait() {
+			if view.lock()?.is_active().wait() {
 				return Ok(Some(view.clone()));
 			}
 		}
@@ -67,6 +57,18 @@ impl Collection {
 	}
 }
 impl View {
+	pub fn create(source: Option<PathBuf>) -> View {
+		let title = util::fmt_verb("ICIE Test View", &source);
+		let webview: evscode::Webview = evscode::Webview::new("icie.test.view", title, evscode::ViewColumn::Beside)
+			.enable_scripts()
+			.retain_context_when_hidden()
+			.create();
+		let stream = webview.listener().cancel_on(webview.disposer());
+		let source2 = source.clone();
+		evscode::spawn(move || Ok(handle_events(source2, stream)));
+		View { webview, source }
+	}
+
 	pub fn touch_input(&self) {
 		self.webview.post_message(json::object! {
 			"tag" => "new_start",
@@ -78,13 +80,29 @@ impl View {
 		self.webview.set_html(render(&runs)?);
 		Ok(())
 	}
+
+	pub fn focus(&self) {
+		self.webview.reveal(evscode::ViewColumn::Beside);
+	}
+
+	pub fn is_active(&self) -> evscode::Future<bool> {
+		self.webview.is_active()
+	}
 }
 
 fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::Cancellable<json::JsonValue>>) {
-	let _status = STATUS.push("#testview");
 	for note in stream {
 		match note["tag"].as_str() {
-			// Some("trigger_rr") => evscode::spawn(move || crate::debug::rr(note["in_path"].as_str().unwrap())),
+			Some("trigger_rr") => evscode::spawn({
+				let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
+				let key = key.clone();
+				move || crate::debug::rr(in_path, key)
+			}),
+			Some("trigger_gdb") => evscode::spawn({
+				let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
+				let key = key.clone();
+				move || crate::debug::gdb(in_path, key)
+			}),
 			Some("new_test") => evscode::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
 			_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 		}
@@ -163,7 +181,7 @@ fn render_out_cell(test: &TestRun) -> evscode::R<String> {
 		TimeLimitExceeded => Some("Time Limit Exceeded"),
 		IgnoredNoOut => Some("Ignored"),
 	};
-	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_RR], &test.outcome.out, note))
+	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_GDB, ACTION_RR], &test.outcome.out, note))
 }
 
 fn render_desired_cell(test: &TestRun) -> evscode::R<String> {
@@ -181,6 +199,10 @@ struct Action {
 const ACTION_COPY: Action = Action {
 	onclick: "clipcopy()",
 	icon: "file_copy",
+};
+const ACTION_GDB: Action = Action {
+	onclick: "trigger_gdb()",
+	icon: "skip_previous",
 };
 const ACTION_RR: Action = Action {
 	onclick: "trigger_rr()",

@@ -49,6 +49,12 @@ pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::
 	}
 }
 
+pub fn exec_path(source: impl util::MaybePath) -> PathBuf {
+	let workspace_source = dir::solution();
+	let source = source.as_option_path().unwrap_or_else(|| workspace_source.as_path());
+	source.with_extension(&*EXECUTABLE_EXTENSION.get())
+}
+
 #[evscode::command(title = "ICIE Build", key = "alt+;")]
 pub fn debug() -> evscode::R<()> {
 	build(Option::<PathBuf>::None, ci::lang::Codegen::Debug)?;
