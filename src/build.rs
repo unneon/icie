@@ -20,6 +20,10 @@ pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
 	let workspace_source = dir::solution();
 	let source = source.unwrap_or_else(|| workspace_source.as_path());
+	if !source.exists() {
+		let pretty_source = source.strip_prefix(evscode::workspace_root())?;
+		return Err(evscode::E::error(format!("failed to compile {} because it does not exist", pretty_source.display())));
+	}
 	evscode::save_all().wait();
 	let lang = ci::lang::CPP;
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());

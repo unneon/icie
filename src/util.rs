@@ -48,6 +48,49 @@ pub fn is_installed(app: &'static str) -> evscode::R<bool> {
 		.success())
 }
 
+pub fn html_material_icons() -> String {
+	format!(
+		r#"
+		<style>
+			@font-face {{
+				font-family: 'Material Icons';
+				font-style: normal;
+				font-weight: 400;
+				src: url({woff2_asset}) format('woff2');
+			}}
+
+			.material-icons {{
+				font-family: 'Material Icons';
+				font-weight: normal;
+				font-style: normal;
+				font-size: 24px;
+				line-height: 1;
+				letter-spacing: normal;
+				text-transform: none;
+				display: inline-block;
+				white-space: nowrap;
+				word-wrap: normal;
+				direction: ltr;
+				-webkit-font-feature-settings: 'liga';
+				-webkit-font-smoothing: antialiased;
+			}}
+		</style>
+	"#,
+		woff2_asset = evscode::asset("material-icons.woff2")
+	)
+}
+
+pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
+	xs.sort();
+	xs.dedup();
+	for (i, x) in xs.iter().enumerate() {
+		if x0 + i as i64 != *x {
+			return x0 + i as i64;
+		}
+	}
+	x0 + xs.len() as i64
+}
+
 pub trait MaybePath {
 	fn as_option_path(&self) -> Option<&Path>;
 }

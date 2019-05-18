@@ -8,7 +8,7 @@ pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 		return Err(evscode::E::error("GDB debugging is only supported on Linux"));
 	}
 	if !util::is_installed("gdb")? {
-		return Err(evscode::E::error("GDB is not installed").action("🔐 Install", install_gdb));
+		return Err(evscode::E::error("GDB is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_gdb));
 	}
 	term::debugger(
 		"gdb",
@@ -26,7 +26,7 @@ pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 		return Err(evscode::E::error("RR debugging is only supported on Linux"));
 	}
 	if !util::is_installed("rr")? {
-		return Err(evscode::E::error("RR is not installed").action("🔐 Install", install_rr));
+		return Err(evscode::E::error("RR is not installed").action_if(util::is_installed("apt")?, "🔐 Install", install_rr));
 	}
 	let record_out = Command::new("rr")
 		.arg("record")

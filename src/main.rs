@@ -3,6 +3,7 @@
 mod build;
 mod debug;
 mod dir;
+mod discover;
 mod term;
 mod test;
 mod util;

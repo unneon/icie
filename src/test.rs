@@ -56,7 +56,7 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 }
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
-fn view() -> evscode::R<()> {
+pub fn view() -> evscode::R<()> {
 	view::COLLECTION.get(None, true)?;
 	Ok(())
 }

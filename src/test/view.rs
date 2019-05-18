@@ -63,7 +63,7 @@ impl View {
 			.enable_scripts()
 			.retain_context_when_hidden()
 			.create();
-		let stream = webview.listener().cancel_on(webview.disposer());
+		let stream = webview.listener().cancel_on(webview.disposer_lazy());
 		let source2 = source.clone();
 		evscode::spawn(move || Ok(handle_events(source2, stream)));
 		View { webview, source }
@@ -168,7 +168,7 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 		</html>
 	"#,
 		css = include_str!("view.css"),
-		material_icons = render_material_icons(),
+		material_icons = util::html_material_icons(),
 		js = include_str!("view.js"),
 		test_table = render_test_table(tests)?
 	))
@@ -251,10 +251,13 @@ const ACTION_RR: Action = Action {
 
 fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, folded: bool) -> String {
 	if folded {
-		return format!(r#"
+		return format!(
+			r#"
 			<td class="test-cell {class} folded">
 			</td>
-		"#, class = class)
+		"#,
+			class = class
+		);
 	}
 	let note_div = if let Some(note) = note {
 		format!(r#"<div class="test-note">{note}</div>"#, note = note)
@@ -283,35 +286,6 @@ fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, 
 		data = html_escape(data.trim()),
 		note_div = note_div
 	)
-}
-
-fn render_material_icons() -> String {
-	format!(r#"
-		<style>
-			@font-face {{
-				font-family: 'Material Icons';
-				font-style: normal;
-				font-weight: 400;
-				src: url({woff2_asset}) format('woff2');
-			}}
-
-			.material-icons {{
-				font-family: 'Material Icons';
-				font-weight: normal;
-				font-style: normal;
-				font-size: 24px;
-				line-height: 1;
-				letter-spacing: normal;
-				text-transform: none;
-				display: inline-block;
-				white-space: nowrap;
-				word-wrap: normal;
-				direction: ltr;
-				-webkit-font-feature-settings: 'liga';
-				-webkit-font-smoothing: antialiased;
-			}}
-		</style>
-	"#, woff2_asset = evscode::asset("material-icons.woff2"))
 }
 
 fn lines(s: &str) -> usize {
