@@ -63,14 +63,24 @@ function new_confirm() {
 	newing = false;
 }
 
+function scroll_to_wa() {
+	let failed = document.getElementsByClassName('test-row-failed');
+	if (failed.length > 0) {
+		failed[0].scrollIntoView();
+	}
+}
+
 window.addEventListener('message', event => {
 	let message = event.data;
+	console.log(`<~  ${JSON.stringify(message)}`);
 	if (message.tag === 'new_start') {
 		if (!newing) {
 			new_start();
 		} else {
 			new_confirm();
 		}
+	} else if (message.tag === 'scroll_to_wa') {
+		scroll_to_wa();
 	}
 });
 

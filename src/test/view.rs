@@ -78,6 +78,11 @@ impl View {
 	pub fn update(&self) -> evscode::R<()> {
 		let runs = crate::test::run(self.source.as_ref().map(|p| p.as_path()))?;
 		self.webview.set_html(render(&runs)?);
+		if *SCROLL_TO_FIRST_FAILED.get() {
+			self.webview.post_message(json::object! {
+				"tag" => "scroll_to_wa",
+			});
+		}
 		Ok(())
 	}
 
@@ -111,6 +116,34 @@ fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::Cancella
 	lck.remove(&key);
 }
 
+#[derive(Clone, Debug, evscode::Configurable)]
+enum HideBehaviour {
+	#[evscode(name = "Always")]
+	Always,
+	#[evscode(name = "If any test failed")]
+	IfAnyFailed,
+	#[evscode(name = "Never")]
+	Never,
+}
+impl HideBehaviour {
+	fn should(&self, any_failed: bool) -> bool {
+		match self {
+			HideBehaviour::Always => true,
+			HideBehaviour::IfAnyFailed => any_failed,
+			HideBehaviour::Never => false,
+		}
+	}
+}
+
+#[evscode::config(description = "Fold AC in test view")]
+static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
+
+#[evscode::config(description = "Hide AC in test view")]
+static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
+
+#[evscode::config(description = "Auto-scroll to first failed test")]
+static SCROLL_TO_FIRST_FAILED: evscode::Config<bool> = true;
+
 pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 	Ok(format!(
 		r#"
@@ -142,34 +175,40 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 }
 
 fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
+	let any_failed = tests.iter().any(|test| test.outcome.verdict != ci::test::Verdict::Accepted);
 	let mut html = String::new();
 	for test in tests {
-		html += &render_test(test)?;
+		html += &render_test(test, any_failed)?;
 	}
 	Ok(html)
 }
 
-fn render_test(test: &TestRun) -> evscode::R<String> {
+fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
+	if test.outcome.verdict == ci::test::Verdict::Accepted && HIDE_AC.get().should(any_failed) {
+		return Ok(String::new());
+	}
+	let folded = test.outcome.verdict == ci::test::Verdict::Accepted && FOLD_AC.get().should(any_failed);
 	Ok(format!(
 		r#"
-		<tr class="test-row" data-in_path="{in_path}">
+		<tr class="test-row {failed_flag}" data-in_path="{in_path}">
 			{input}
 			{out}
 			{desired}
 		</tr>
 	"#,
+		failed_flag = if test.outcome.verdict != ci::test::Verdict::Accepted { "test-row-failed" } else { "" },
 		in_path = test.in_path.display(),
-		input = render_in_cell(test)?,
-		out = render_out_cell(test)?,
-		desired = render_desired_cell(test)?
+		input = render_in_cell(test, folded)?,
+		out = render_out_cell(test, folded)?,
+		desired = render_desired_cell(test, folded)?
 	))
 }
 
-fn render_in_cell(test: &TestRun) -> evscode::R<String> {
-	Ok(render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.in_path)?, None))
+fn render_in_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
+	Ok(render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.in_path)?, None, folded))
 }
 
-fn render_out_cell(test: &TestRun) -> evscode::R<String> {
+fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	use ci::test::Verdict::*;
 	let outcome_class = match test.outcome.verdict {
 		Accepted => "test-good",
@@ -182,14 +221,14 @@ fn render_out_cell(test: &TestRun) -> evscode::R<String> {
 		TimeLimitExceeded => Some("Time Limit Exceeded"),
 		IgnoredNoOut => Some("Ignored"),
 	};
-	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_GDB, ACTION_RR], &test.outcome.out, note))
+	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_GDB, ACTION_RR], &test.outcome.out, note, folded))
 }
 
-fn render_desired_cell(test: &TestRun) -> evscode::R<String> {
+fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	Ok(if test.out_path.exists() {
-		render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.out_path)?, None)
+		render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.out_path)?, None, folded)
 	} else {
-		render_cell("", &[], "", Some("File does not exist"))
+		render_cell("", &[], "", Some("File does not exist"), folded)
 	})
 }
 
@@ -210,7 +249,13 @@ const ACTION_RR: Action = Action {
 	icon: "fast_rewind",
 };
 
-fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>) -> String {
+fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, folded: bool) -> String {
+	if folded {
+		return format!(r#"
+			<td class="test-cell {class} folded">
+			</td>
+		"#, class = class)
+	}
 	let note_div = if let Some(note) = note {
 		format!(r#"<div class="test-note">{note}</div>"#, note = note)
 	} else {

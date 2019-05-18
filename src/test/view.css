@@ -14,10 +14,11 @@ body {
 	border-width: 2px;
 	border-style: solid;
 	padding: 4px;
-	font-size: 22px;
 	vertical-align: top;
 	text-align: left;
-	color: rgba(255, 255, 255, 0.9);
+	color: var(--vscode-editor-foreground);
+	font-size: 22px;
+	font-family: var(--vscode-editor-font-family);
 }
 .test-cell { border-color: rgba(96, 96, 96, 0.3); background-color: rgba(96, 96, 96, 0.15); }
 .test-good { border-color: rgba(32, 255, 32, 0.3); background-color: rgba(32, 255, 32, 0.15); }
@@ -27,6 +28,9 @@ body {
 .test-cell {
 	position: relative;
 	overflow: auto;
+}
+.test-cell.folded {
+	padding: 0px;
 }
 .test-actions {
 	position: absolute;
