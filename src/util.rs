@@ -91,6 +91,31 @@ pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
 	x0 + xs.len() as i64
 }
 
+pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
+	match std::fs::read_to_string(path.as_ref()) {
+		Ok(s) => Ok(s),
+		Err(e) => {
+			if e.kind() == std::io::ErrorKind::NotFound {
+				Err(evscode::E::from(e).reform(format!("file {} does not exist", path.as_ref().display())))
+			} else {
+				Err(evscode::E::from(e))
+			}
+		},
+	}
+}
+
+pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
+	let doc = std::fs::read_to_string(path.as_ref())?;
+	for (i, line) in doc.lines().enumerate() {
+		if !line.is_empty() && line.trim().is_empty() {
+			evscode::open_editor(path.as_ref(), Some(i), Some(80));
+			return Ok(());
+		}
+	}
+	evscode::open_editor(path.as_ref(), None, None);
+	Ok(())
+}
+
 pub trait MaybePath {
 	fn as_option_path(&self) -> Option<&Path>;
 }

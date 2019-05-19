@@ -4,6 +4,8 @@ mod build;
 mod debug;
 mod dir;
 mod discover;
+mod paste;
+mod template;
 mod term;
 mod test;
 mod util;

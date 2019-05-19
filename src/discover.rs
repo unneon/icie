@@ -17,7 +17,6 @@ fn webview_create() -> evscode::R<evscode::Webview> {
 }
 
 fn webview_manage(handle: evscode::goodies::SingletonWebviewHandle) -> evscode::R<()> {
-	let _status = crate::STATUS.push("[discovery webview]");
 	let (stream, worker_tx) = {
 		let view = handle.lock()?;
 		view.set_html(render_discover());
@@ -97,7 +96,6 @@ fn webview_manage(handle: evscode::goodies::SingletonWebviewHandle) -> evscode::
 }
 
 fn worker_thread(carrier: evscode::Carrier<WorkerReport>, orders: std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
-	let _status = crate::STATUS.push("[discovery worker]");
 	loop {
 		match orders.recv() {
 			Ok(WorkerOrder::Start) => (),
@@ -122,15 +120,20 @@ fn worker_run(carrier: &evscode::Carrier<WorkerReport>, orders: &std::sync::mpsc
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
 		environment: ci::exec::Environment { time_limit: None },
 	};
+	let mut _status = crate::STATUS.push("Discovering");
 	for number in 1.. {
 		match orders.try_recv() {
 			Ok(WorkerOrder::Start) => (),
-			Ok(WorkerOrder::Pause) => loop {
-				match orders.recv()? {
-					WorkerOrder::Start => break,
-					WorkerOrder::Pause => (),
-					WorkerOrder::Reset => return Err(evscode::E::cancel()),
+			Ok(WorkerOrder::Pause) => {
+				drop(_status);
+				loop {
+					match orders.recv()? {
+						WorkerOrder::Start => break,
+						WorkerOrder::Pause => (),
+						WorkerOrder::Reset => return Err(evscode::E::cancel()),
+					}
 				}
+				_status = crate::STATUS.push("Discovering");
 			},
 			Ok(WorkerOrder::Reset) => break,
 			Err(std::sync::mpsc::TryRecvError::Empty) => (),

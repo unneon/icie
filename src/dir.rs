@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 #[evscode::config(description = "Solution file stem")]
-static SOLUTION_STEM: evscode::Config<String> = "main";
+pub static SOLUTION_STEM: evscode::Config<String> = "main";
 
 #[evscode::config(description = "Brut file stem")]
 static BRUT_STEM: evscode::Config<String> = "brut";
@@ -10,10 +10,13 @@ static BRUT_STEM: evscode::Config<String> = "brut";
 static GEN_STEM: evscode::Config<String> = "gen";
 
 #[evscode::config(description = "C++ source extension")]
-static CPP_EXTENSION: evscode::Config<String> = "cpp";
+pub static CPP_EXTENSION: evscode::Config<String> = "cpp";
 
 #[evscode::config(description = "Tests directory name")]
 static TESTS_DIRECTORY: evscode::Config<String> = "tests";
+
+#[evscode::config(description = "Custom test subdirectory")]
+static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 
 pub fn solution() -> PathBuf {
 	evscode::workspace_root().join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get())
@@ -32,5 +35,5 @@ pub fn tests() -> PathBuf {
 }
 
 pub fn custom_tests() -> PathBuf {
-	tests().join("user")
+	tests().join(&*CUSTOM_TESTS_SUBDIRECTORY.get())
 }
