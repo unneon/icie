@@ -116,6 +116,31 @@ pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
 	Ok(())
 }
 
+pub struct TransactionDir {
+	path: PathBuf,
+	good: bool,
+}
+impl TransactionDir {
+	pub fn new(path: &Path) -> evscode::R<TransactionDir> {
+		std::fs::create_dir_all(path)?;
+		Ok(TransactionDir {
+			path: path.to_owned(),
+			good: false,
+		})
+	}
+
+	pub fn commit(mut self) {
+		self.good = true;
+	}
+}
+impl Drop for TransactionDir {
+	fn drop(&mut self) {
+		if !self.good {
+			std::fs::remove_dir_all(&self.path).expect("failed to delete uncommited directory");
+		}
+	}
+}
+
 pub trait MaybePath {
 	fn as_option_path(&self) -> Option<&Path>;
 }

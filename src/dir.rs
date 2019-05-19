@@ -18,6 +18,9 @@ static TESTS_DIRECTORY: evscode::Config<String> = "tests";
 #[evscode::config(description = "Custom test subdirectory")]
 static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 
+#[evscode::config(description = "Project directory")]
+pub static PROJECT_DIRECTORY: evscode::Config<PathBuf> = "~";
+
 pub fn solution() -> PathBuf {
 	evscode::workspace_root().join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get())
 }
@@ -36,4 +39,36 @@ pub fn tests() -> PathBuf {
 
 pub fn custom_tests() -> PathBuf {
 	tests().join(&*CUSTOM_TESTS_SUBDIRECTORY.get())
+}
+
+pub fn random_codename() -> String {
+	use rand::seq::SliceRandom;
+	let mut rng = rand::thread_rng();
+	static ADJECTIVES: &[&str] = &[
+		"playful",
+		"shining",
+		"sparkling",
+		"rainbow",
+		"kawaii",
+		"superb",
+		"amazing",
+		"glowing",
+		"blessed",
+		"smiling",
+		"exquisite",
+		"cuddly",
+		"caramel",
+		"serene",
+		"sublime",
+		"beaming",
+		"graceful",
+		"plushy",
+		"heavenly",
+		"marshmallow",
+	];
+	static ANIMALS: &[&str] = &[
+		"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug", "platypus", "squid", "koala",
+		"panda",
+	];
+	format!("{}-{}", ADJECTIVES.choose(&mut rng).unwrap(), ANIMALS.choose(&mut rng).unwrap())
 }

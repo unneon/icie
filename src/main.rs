@@ -1,9 +1,12 @@
 #![feature(specialization, impl_trait_in_bindings)]
 
+mod auth;
 mod build;
 mod debug;
 mod dir;
 mod discover;
+mod init;
+mod manifest;
 mod paste;
 mod template;
 mod term;
@@ -23,5 +26,12 @@ evscode::plugin! {
 	categories: &["Other"],
 	keywords: &["competitive", "ide", "codeforces", "olympiad", "informatics"],
 	license: "UNLICENSED",
-	repository: "https://github.com/matcegla/icie"
+	repository: "https://github.com/matcegla/icie",
+	log_bounds: &[
+		("html5ever", log::LevelFilter::Error),
+		("tokio_reactor", log::LevelFilter::Warn),
+		("hyper", log::LevelFilter::Warn),
+		("mio", log::LevelFilter::Warn),
+		("want", log::LevelFilter::Warn),
+	]
 }
