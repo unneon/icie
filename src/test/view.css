@@ -60,6 +60,8 @@ body {
 .test-bad > .test-note { color: rgba(255, 32, 32, 0.3); }
 .test-warn > .test-note { color: rgba(255, 127, 0, 0.3); }
 
+.ellipsis { color: rgba(96, 96, 96, 0.3); }
+
 /* ADDING NEW TESTS */
 
 #new-container {

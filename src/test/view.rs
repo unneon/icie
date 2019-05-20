@@ -249,7 +249,10 @@ const ACTION_RR: Action = Action {
 	icon: "fast_rewind",
 };
 
-fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, folded: bool) -> String {
+#[evscode::config(description = "Max test lines displayed in test view. Lines after the limit will be replaced with an ellipsis. Set to 0 to denote no limit.")]
+static MAX_TEST_LINES: evscode::Config<usize> = 0usize;
+
+fn render_cell(class: &str, actions: &[Action], mut data: &str, note: Option<&str>, folded: bool) -> String {
 	if folded {
 		return format!(
 			r#"
@@ -268,6 +271,24 @@ fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, 
 	for action in actions {
 		action_list += &format!(r#"<div class="test-action material-icons" onclick="{}">{}</div>"#, action.onclick, action.icon);
 	}
+	data = data.trim();
+	let line_limit = MAX_TEST_LINES.get();
+	let ellipsis = if *line_limit != 0 && lines(data) > *line_limit + 1 {
+		let mut i = 0;
+		for _ in 0..*line_limit {
+			if i + 1 < data.len() {
+				i += 1 + data[i + 1..].find('\n').unwrap_or(data[i + 1..].len());
+			}
+		}
+		data = &data[..i];
+		r#"
+		<div class="ellipsis">
+			...
+		</div>
+		"#
+	} else {
+		""
+	};
 	format!(
 		r#"
 		<td style="height: {lines_em}em; line-height: 1.1em;" class="test-cell {class}">
@@ -276,6 +297,7 @@ fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, 
 			</div>
 			<div class="test-data">
 				{data}
+				{ellipsis}
 			</div>
 			{note_div}
 		</td>
@@ -283,13 +305,14 @@ fn render_cell(class: &str, actions: &[Action], data: &str, note: Option<&str>, 
 		lines_em = 1.1 * lines(data) as f64,
 		class = class,
 		action_list = action_list,
-		data = html_escape(data.trim()),
+		data = html_escape(data),
+		ellipsis = ellipsis,
 		note_div = note_div
 	)
 }
 
 fn lines(s: &str) -> usize {
-	s.trim().chars().filter(|c| char::is_whitespace(*c)).count()
+	s.trim().chars().filter(|c| char::is_whitespace(*c)).count() + 1
 }
 fn html_escape(s: &str) -> String {
 	translate(s, &[('\n', "<br/>"), ('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
