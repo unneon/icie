@@ -27,7 +27,7 @@ evscode::plugin! {
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
 	categories: &["Other"],
 	keywords: &["competitive", "ide", "codeforces", "olympiad", "informatics"],
-	license: "UNLICENSED",
+	license: "GPL-3.0-only",
 	repository: "https://github.com/matcegla/icie",
 	log_bounds: &[
 		("html5ever", log::LevelFilter::Error),
