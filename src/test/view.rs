@@ -21,7 +21,7 @@ impl Collection {
 		}
 	}
 
-	pub fn get(&self, source: Option<PathBuf>, updated: bool) -> evscode::R<(Arc<Mutex<View>>, bool)> {
+	fn impl_get(&self, source: Option<PathBuf>, updated: bool) -> evscode::R<(Arc<Mutex<View>>, Option<Vec<TestRun>>)> {
 		let mut entries_lck = self.entries.lock()?;
 		let (view, just_created) = match entries_lck.entry(source.clone()) {
 			std::collections::hash_map::Entry::Occupied(e) => (e.get().clone(), false),
@@ -29,12 +29,20 @@ impl Collection {
 		};
 		let lck = view.lock()?;
 		drop(entries_lck);
-		if just_created || updated {
-			lck.update()?;
-		}
+		let runs = if just_created || updated { Some(lck.update()?) } else { None };
 		lck.focus();
 		drop(lck);
-		Ok((view, just_created))
+		Ok((view, runs))
+	}
+
+	pub fn force(&self, source: Option<PathBuf>) -> evscode::R<(Arc<Mutex<View>>, Vec<TestRun>)> {
+		let (handle, runs) = self.impl_get(source, true)?;
+		Ok((handle, runs.unwrap()))
+	}
+
+	pub fn tap(&self, source: Option<PathBuf>) -> evscode::R<(Arc<Mutex<View>>, bool)> {
+		let (handle, runs) = self.impl_get(source, false)?;
+		Ok((handle, runs.is_some()))
 	}
 
 	pub fn find_active(&self) -> evscode::R<Option<Arc<Mutex<View>>>> {
@@ -51,7 +59,10 @@ impl Collection {
 		let lck = self.entries.lock()?;
 		for view in lck.values() {
 			let view = view.clone();
-			evscode::spawn(move || Ok(view.lock()?.update()?));
+			evscode::spawn(move || {
+				view.lock()?.update()?;
+				Ok(())
+			});
 		}
 		Ok(())
 	}
@@ -75,7 +86,7 @@ impl View {
 		});
 	}
 
-	pub fn update(&self) -> evscode::R<()> {
+	pub fn update(&self) -> evscode::R<Vec<TestRun>> {
 		let runs = crate::test::run(self.source.as_ref().map(|p| p.as_path()))?;
 		self.webview.set_html(render(&runs)?);
 		if *SCROLL_TO_FIRST_FAILED.get() {
@@ -83,7 +94,7 @@ impl View {
 				"tag" => "scroll_to_wa",
 			});
 		}
-		Ok(())
+		Ok(runs)
 	}
 
 	pub fn focus(&self) {

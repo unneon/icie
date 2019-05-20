@@ -72,7 +72,6 @@ function scroll_to_wa() {
 
 window.addEventListener('message', event => {
 	let message = event.data;
-	console.log(`<~  ${JSON.stringify(message)}`);
 	if (message.tag === 'new_start') {
 		if (!newing) {
 			new_start();

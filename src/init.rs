@@ -55,14 +55,7 @@ fn init_template(root: &Path) -> evscode::R<()> {
 fn init_examples(root: &Path, url: &Option<String>) -> evscode::R<()> {
 	if let Some(url) = url {
 		let url = unijudge::TaskUrl::deconstruct(&url).compat()?;
-		let (username, password) = {
-			let _status = crate::STATUS.push("Remembering passwords");
-			crate::auth::site_credentials(&url.site)?
-		};
-		let sess = {
-			let _status = crate::STATUS.push("Logging in");
-			unijudge::connect_login(&url.site, &username, &password).compat()?
-		};
+		let sess = crate::net::connect(&url)?;
 		let cont = sess.contest(&url.contest);
 		let examples_dir = root.join("tests").join("example");
 		fs::create_dir_all(&examples_dir)?;

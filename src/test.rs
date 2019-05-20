@@ -1,4 +1,4 @@
-mod view;
+pub mod view;
 
 use crate::{build, ci, dir, util, STATUS};
 use std::{
@@ -10,6 +10,11 @@ pub struct TestRun {
 	in_path: PathBuf,
 	out_path: PathBuf,
 	outcome: ci::test::Outcome,
+}
+impl TestRun {
+	pub fn success(&self) -> bool {
+		self.outcome.verdict == ci::test::Verdict::Accepted
+	}
 }
 
 pub fn run(main_source: Option<&Path>) -> evscode::R<Vec<TestRun>> {
@@ -57,13 +62,13 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 pub fn view() -> evscode::R<()> {
-	view::COLLECTION.get(None, true)?;
+	view::COLLECTION.force(None)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
 fn view_current() -> evscode::R<()> {
-	view::COLLECTION.get(util::active_tab()?, true)?;
+	view::COLLECTION.force(util::active_tab()?)?;
 	Ok(())
 }
 
@@ -82,7 +87,7 @@ fn input() -> evscode::R<()> {
 	if let Some(view) = view::COLLECTION.find_active()? {
 		view.lock()?.touch_input();
 	} else {
-		let (view, just_created) = view::COLLECTION.get(None, false)?;
+		let (view, just_created) = view::COLLECTION.tap(None)?;
 		if just_created {
 			std::thread::sleep(std::time::Duration::from_millis(100));
 		}
