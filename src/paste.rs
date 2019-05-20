@@ -14,16 +14,16 @@ fn quick() -> evscode::R<()> {
 	let piece_id = evscode::QuickPick::new()
 		.match_on_all()
 		.items(library.pieces.iter().map(|(id, piece)| {
-			let mut item = evscode::QPItem::new(id.as_str(), piece.name.as_str());
+			let mut item = evscode::quick_pick::Item::new(id, &piece.name);
 			if let Some(description) = &piece.description {
-				item = item.description(description.as_str());
+				item = item.description(description);
 			}
 			if let Some(detail) = &piece.detail {
-				item = item.detail(detail.as_str());
+				item = item.detail(detail);
 			}
 			item
 		}))
-		.spawn()
+		.build()
 		.wait()
 		.ok_or_else(|| evscode::E::cancel())?;
 	let context = query_context(&library)?;
@@ -37,7 +37,7 @@ fn qistruct() -> evscode::R<()> {
 	let name = evscode::InputBox::new()
 		.prompt("Qistruct name")
 		.placeholder("Person")
-		.spawn()
+		.build()
 		.wait()
 		.ok_or_else(|| evscode::E::cancel())?;
 	let mut members = Vec::new();
@@ -45,7 +45,7 @@ fn qistruct() -> evscode::R<()> {
 		let member = match evscode::InputBox::new()
 			.prompt(format!("Qistruct member {}", members.len() + 1))
 			.placeholder("int age")
-			.spawn()
+			.build()
 			.wait()
 		{
 			Some(ref member) if member.trim() == "" => break,
@@ -93,7 +93,7 @@ fn load_library() -> evscode::R<Library> {
 }
 
 fn query_context<'a>(library: &'a Library) -> evscode::R<VscodePaste<'a>> {
-	let solution = dir::solution();
+	let solution = dir::solution()?;
 	let text = evscode::query_document_text(solution.clone()).wait();
 	let context = VscodePaste { solution, text, library };
 	Ok(context)

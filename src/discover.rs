@@ -5,28 +5,28 @@ use json::object;
 fn open() -> evscode::R<()> {
 	let handle = WEBVIEW.handle()?;
 	let lck = handle.lock()?;
-	lck.reveal(evscode::ViewColumn::Active);
+	lck.reveal(1);
 	Ok(())
 }
 
 fn webview_create() -> evscode::R<evscode::Webview> {
-	Ok(evscode::Webview::new("icie.discover", "ICIE Discover", evscode::ViewColumn::Active)
+	Ok(evscode::Webview::new("icie.discover", "ICIE Discover", 1)
 		.enable_scripts()
 		.retain_context_when_hidden()
 		.create())
 }
 
-fn webview_manage(handle: evscode::goodies::SingletonWebviewHandle) -> evscode::R<()> {
+fn webview_manage(handle: evscode::webview_singleton::Handle) -> evscode::R<()> {
 	let (stream, worker_tx) = {
 		let view = handle.lock()?;
 		view.set_html(render_discover());
 		let (worker_tx, worker_rx) = std::sync::mpsc::channel();
 		let worker_reports = evscode::LazyFuture::new_worker(move |carrier| worker_thread(carrier, worker_rx));
 		let stream = view
-			.listener_lazy()
+			.listener()
 			.map(|n| Ok(ManagerMessage::Note(ManagerNote::from(n))))
 			.join(worker_reports.map(|r| r.map(ManagerMessage::Report)))
-			.cancel_on(view.disposer_lazy());
+			.cancel_on(view.disposer());
 		(stream, worker_tx)
 	};
 
@@ -95,7 +95,7 @@ fn webview_manage(handle: evscode::goodies::SingletonWebviewHandle) -> evscode::
 	Ok(())
 }
 
-fn worker_thread(carrier: evscode::Carrier<WorkerReport>, orders: std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
+fn worker_thread(carrier: evscode::future::Carrier<WorkerReport>, orders: std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
 	loop {
 		match orders.recv() {
 			Ok(WorkerOrder::Start) => (),
@@ -112,10 +112,10 @@ fn worker_thread(carrier: evscode::Carrier<WorkerReport>, orders: std::sync::mps
 	Ok(())
 }
 
-fn worker_run(carrier: &evscode::Carrier<WorkerReport>, orders: &std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
-	let solution = crate::build::build(crate::dir::solution(), ci::lang::Codegen::Debug)?;
-	let brut = crate::build::build(crate::dir::brut(), ci::lang::Codegen::Release)?;
-	let gen = crate::build::build(crate::dir::gen(), ci::lang::Codegen::Release)?;
+fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
+	let solution = crate::build::build(crate::dir::solution()?, ci::lang::Codegen::Debug)?;
+	let brut = crate::build::build(crate::dir::brut()?, ci::lang::Codegen::Release)?;
+	let gen = crate::build::build(crate::dir::gen()?, ci::lang::Codegen::Release)?;
 	let task = ci::task::Task {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
 		environment: ci::exec::Environment { time_limit: None },
@@ -164,13 +164,13 @@ fn worker_run(carrier: &evscode::Carrier<WorkerReport>, orders: &std::sync::mpsc
 
 fn add_test_input(input: String) -> evscode::R<()> {
 	let _status = crate::STATUS.push("Adding new test");
-	let brut = crate::build::build(crate::dir::brut(), ci::lang::Codegen::Release)?;
+	let brut = crate::build::build(crate::dir::brut()?, ci::lang::Codegen::Release)?;
 	let run = brut.run(&input, &ci::exec::Environment { time_limit: None })?;
 	if !run.success() {
 		return Err(evscode::E::error("brut failed when generating output for the added test"));
 	}
 	let desired = run.stdout;
-	let dir = crate::dir::custom_tests();
+	let dir = crate::dir::custom_tests()?;
 	std::fs::create_dir_all(&dir)?;
 	let used = std::fs::read_dir(&dir)?
 		.into_iter()
@@ -274,5 +274,5 @@ impl From<json::JsonValue> for ManagerNote {
 }
 
 lazy_static::lazy_static! {
-	static ref WEBVIEW: evscode::goodies::SingletonWebview = evscode::goodies::SingletonWebview::new(webview_create, webview_manage);
+	static ref WEBVIEW: evscode::WebviewSingleton = evscode::WebviewSingleton::new(webview_create, webview_manage);
 }

@@ -12,8 +12,8 @@ pub fn instantiate() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
 	let templates = LIST.get();
 	let qpick = evscode::QuickPick::new()
-		.items(templates.iter().map(|(name, _path)| evscode::QPItem::new(name.clone(), name.clone())))
-		.spawn();
+		.items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())))
+		.build();
 	let template_id = qpick.wait().ok_or_else(|| evscode::E::cancel())?;
 	let template_path = &templates[&template_id];
 	let tpl = load(&template_path)?;
@@ -23,10 +23,10 @@ pub fn instantiate() -> evscode::R<()> {
 		.prompt("New file name")
 		.value(tpl.suggested_filename.clone())
 		.value_selection(0, tpl.suggested_filename.rfind('.').unwrap())
-		.spawn()
+		.build()
 		.wait()
 		.ok_or_else(|| evscode::E::cancel())?;
-	let path = evscode::workspace_root().join(filename);
+	let path = evscode::workspace_root()?.join(filename);
 	if path.exists() {
 		return Err(evscode::E::error("file already exists"));
 	}

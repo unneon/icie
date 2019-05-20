@@ -13,7 +13,7 @@ fn init(root: &Path) -> evscode::R<()> {
 		.prompt("Enter task URL or leave empty")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
-		.spawn()
+		.build()
 		.wait()
 	{
 		Some(ref url) if url.trim().is_empty() => None,
@@ -91,7 +91,7 @@ fn new() -> evscode::R<()> {
 #[evscode::command(title = "ICIE Init existing")]
 fn existing() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	let root = evscode::workspace_root();
+	let root = evscode::workspace_root()?;
 	init(&root)?;
 	Ok(())
 }
@@ -119,16 +119,16 @@ impl PathDialog {
 				evscode::InputBox::new()
 					.ignore_focus_out()
 					.prompt("New project directory")
-					.value(basic_str.as_str())
+					.value(&basic_str)
 					.value_selection(basic_str.len() - codename.len(), basic_str.len())
-					.spawn()
+					.build()
 					.wait()
 					.ok_or_else(|| evscode::E::cancel())?,
 			)),
 			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new()
 				.directory()
 				.action_label("Init")
-				.spawn()
+				.build()
 				.wait()
 				.ok_or_else(|| evscode::E::cancel())?),
 		}

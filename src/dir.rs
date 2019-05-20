@@ -21,24 +21,24 @@ static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 #[evscode::config(description = "Project directory")]
 pub static PROJECT_DIRECTORY: evscode::Config<PathBuf> = "~";
 
-pub fn solution() -> PathBuf {
-	evscode::workspace_root().join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get())
+pub fn solution() -> evscode::R<PathBuf> {
+	Ok(evscode::workspace_root()?.join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
-pub fn brut() -> PathBuf {
-	evscode::workspace_root().join(&*BRUT_STEM.get()).with_extension(&*CPP_EXTENSION.get())
+pub fn brut() -> evscode::R<PathBuf> {
+	Ok(evscode::workspace_root()?.join(&*BRUT_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
-pub fn gen() -> PathBuf {
-	evscode::workspace_root().join(&*GEN_STEM.get()).with_extension(&*CPP_EXTENSION.get())
+pub fn gen() -> evscode::R<PathBuf> {
+	Ok(evscode::workspace_root()?.join(&*GEN_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
-pub fn tests() -> PathBuf {
-	evscode::workspace_root().join(&*TESTS_DIRECTORY.get())
+pub fn tests() -> evscode::R<PathBuf> {
+	Ok(evscode::workspace_root()?.join(&*TESTS_DIRECTORY.get()))
 }
 
-pub fn custom_tests() -> PathBuf {
-	tests().join(&*CUSTOM_TESTS_SUBDIRECTORY.get())
+pub fn custom_tests() -> evscode::R<PathBuf> {
+	Ok(tests()?.join(&*CUSTOM_TESTS_SUBDIRECTORY.get()))
 }
 
 pub fn random_codename() -> String {

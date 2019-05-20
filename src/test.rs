@@ -19,11 +19,11 @@ pub fn run(main_source: Option<&Path>) -> evscode::R<Vec<TestRun>> {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
 		environment: ci::exec::Environment { time_limit: None },
 	};
-	let test_dir = dir::tests();
+	let test_dir = dir::tests()?;
 	let ins = ci::scan::scan_and_order(&test_dir);
 	let mut runs = Vec::new();
 	let test_count = ins.len();
-	let progress: evscode::ActiveProgress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).cancellable().show();
+	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).cancellable().show();
 	let worker = run_thread(ins, task, solution).cancel_on(progress.canceler());
 	for _ in 0..test_count {
 		let run = worker.wait()??;
@@ -68,7 +68,7 @@ fn view_current() -> evscode::R<()> {
 }
 
 fn add(input: &str, desired: &str) -> evscode::R<()> {
-	let tests = dir::tests().join("user");
+	let tests = dir::custom_tests()?;
 	std::fs::create_dir_all(&tests)?;
 	let id = unused_test_id(&tests)?;
 	fs::write(tests.join(format!("{}.in", id)), input)?;

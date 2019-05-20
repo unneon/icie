@@ -10,7 +10,10 @@ pub fn fmt_time_short(t: &Duration) -> String {
 
 pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	if let Some(path) = path.as_option_path() {
-		let file = path.strip_prefix(evscode::workspace_root()).unwrap();
+		let file = match evscode::workspace_root() {
+			Ok(root) => path.strip_prefix(root).unwrap(),
+			Err(_) => path,
+		};
 		format!("{} {}", verb, file.display())
 	} else {
 		String::from(verb)
@@ -22,7 +25,7 @@ pub fn active_tab() -> evscode::R<Option<PathBuf>> {
 		Some(source) => source,
 		None => return Err(evscode::E::cancel()),
 	};
-	Ok(if source != crate::dir::solution() { Some(source) } else { None })
+	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
 }
 
 pub fn bash_escape(raw: &str) -> String {

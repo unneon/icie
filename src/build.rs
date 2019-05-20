@@ -18,10 +18,10 @@ static CPP_STANDARD: evscode::Config<CppStandard> = CppStandard::Cpp17;
 pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::exec::Executable> {
 	let source = source.as_option_path();
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
-	let workspace_source = dir::solution();
+	let workspace_source = dir::solution()?;
 	let source = source.unwrap_or_else(|| workspace_source.as_path());
 	if !source.exists() {
-		let pretty_source = source.strip_prefix(evscode::workspace_root())?;
+		let pretty_source = source.strip_prefix(evscode::workspace_root()?)?;
 		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source.display())));
 	}
 	evscode::save_all().wait();
@@ -53,10 +53,10 @@ pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::
 	}
 }
 
-pub fn exec_path(source: impl util::MaybePath) -> PathBuf {
-	let workspace_source = dir::solution();
+pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {
+	let workspace_source = dir::solution()?;
 	let source = source.as_option_path().unwrap_or_else(|| workspace_source.as_path());
-	source.with_extension(&*EXECUTABLE_EXTENSION.get())
+	Ok(source.with_extension(&*EXECUTABLE_EXTENSION.get()))
 }
 
 #[evscode::command(title = "ICIE Build", key = "alt+;")]
@@ -82,21 +82,21 @@ pub fn release_current() -> evscode::R<()> {
 
 fn show_warnings(warnings: Vec<ci::lang::Message>) -> R<()> {
 	if !*AUTO_MOVE_TO_WARNING.get() {
-		let msg = evscode::InfoMessage::new(format!("{} compilation warning{}", warnings.len(), if warnings.len() == 1 { "" } else { "s" }))
+		let msg = evscode::Message::new(format!("{} compilation warning{}", warnings.len(), if warnings.len() == 1 { "" } else { "s" }))
 			.warning()
 			.item("show", "Show", false)
-			.spawn();
+			.build();
 		if msg.wait().is_none() {
 			return Ok(());
 		}
 	}
 	for (i, warning) in warnings.iter().enumerate() {
 		evscode::open_editor(&warning.path, Some(warning.line - 1), Some(warning.column - 1));
-		let mut msg = evscode::InfoMessage::new(warning.message.as_str()).warning();
+		let mut msg = evscode::Message::new(&warning.message).warning();
 		if i + 1 != warnings.len() {
 			msg = msg.item("next", "Next", false);
 		}
-		if msg.spawn().wait().is_none() {
+		if msg.build().wait().is_none() {
 			break;
 		}
 	}

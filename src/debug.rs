@@ -14,7 +14,7 @@ pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 		"gdb",
 		&[
 			"-q",
-			build::exec_path(source).to_str().unwrap(),
+			build::exec_path(source)?.to_str().unwrap(),
 			"-ex",
 			&format!("set args < {}", util::bash_escape(in_path.to_str().unwrap())),
 		],
@@ -30,7 +30,7 @@ pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 	}
 	let record_out = Command::new("rr")
 		.arg("record")
-		.arg(build::exec_path(source))
+		.arg(build::exec_path(source)?)
 		.stdin(File::open(in_path)?)
 		.stdout(Stdio::null())
 		.stderr(Stdio::piped())

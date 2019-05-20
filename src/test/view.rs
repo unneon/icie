@@ -59,11 +59,11 @@ impl Collection {
 impl View {
 	pub fn create(source: Option<PathBuf>) -> View {
 		let title = util::fmt_verb("ICIE Test View", &source);
-		let webview: evscode::Webview = evscode::Webview::new("icie.test.view", title, evscode::ViewColumn::Beside)
+		let webview: evscode::Webview = evscode::Webview::new("icie.test.view", title, evscode::webview::Column::Beside)
 			.enable_scripts()
 			.retain_context_when_hidden()
 			.create();
-		let stream = webview.listener().cancel_on(webview.disposer_lazy());
+		let stream = webview.listener().spawn().cancel_on(webview.disposer());
 		let source2 = source.clone();
 		evscode::spawn(move || Ok(handle_events(source2, stream)));
 		View { webview, source }
@@ -87,15 +87,15 @@ impl View {
 	}
 
 	pub fn focus(&self) {
-		self.webview.reveal(evscode::ViewColumn::Beside);
+		self.webview.reveal(evscode::webview::Column::Beside);
 	}
 
 	pub fn is_active(&self) -> evscode::Future<bool> {
-		self.webview.is_active()
+		self.webview.is_active().spawn()
 	}
 }
 
-fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::Cancellable<json::JsonValue>>) {
+fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::future::Cancellable<json::JsonValue>>) {
 	for note in stream {
 		match note["tag"].as_str() {
 			Some("trigger_rr") => evscode::spawn({

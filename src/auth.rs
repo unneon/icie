@@ -12,22 +12,23 @@ pub fn site_credentials(site: &str) -> evscode::R<(String, String)> {
 				_ => true,
 			};
 			if has_errored {
-				evscode::InfoMessage::new("failed to use a secure keyring, password will not be remembered")
+				evscode::Message::new("failed to use a secure keyring, password will not be remembered")
 					.warning()
+					.build()
 					.spawn();
 				log::warn!("keyring error details: {:#?}", e);
 			}
 			let username = evscode::InputBox::new()
 				.prompt(format!("Username at {}", site))
 				.ignore_focus_out()
-				.spawn()
+				.build()
 				.wait()
 				.ok_or_else(|| evscode::E::cancel())?;
 			let password = evscode::InputBox::new()
 				.prompt(format!("Password for {} at {}", username, site))
 				.password()
 				.ignore_focus_out()
-				.spawn()
+				.build()
 				.wait()
 				.ok_or_else(|| evscode::E::cancel())?;
 			if !has_errored
@@ -41,8 +42,9 @@ pub fn site_credentials(site: &str) -> evscode::R<(String, String)> {
 					)
 					.is_err()
 			{
-				evscode::InfoMessage::new("failed to use a secure keyring, password will not be remembered")
+				evscode::Message::new("failed to use a secure keyring, password will not be remembered")
 					.warning()
+					.build()
 					.spawn();
 				log::warn!("keyring error details: {:#?}", e);
 			}
