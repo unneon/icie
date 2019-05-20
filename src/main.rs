@@ -6,6 +6,7 @@ mod debug;
 mod dir;
 mod discover;
 mod init;
+mod launch;
 mod manifest;
 mod paste;
 mod template;
@@ -33,5 +34,9 @@ evscode::plugin! {
 		("hyper", log::LevelFilter::Warn),
 		("mio", log::LevelFilter::Warn),
 		("want", log::LevelFilter::Warn),
-	]
+	],
+	extra_activation_events: &[
+		evscode::ActivationEvent::WorkspaceContains { selector: ".icie" },
+	],
+	on_activate: launch::activate
 }

@@ -109,8 +109,12 @@ pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
 
 pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
 	let doc = std::fs::read_to_string(path.as_ref())?;
+	let mut found_main = false;
 	for (i, line) in doc.lines().enumerate() {
-		if !line.is_empty() && line.trim().is_empty() {
+		if !found_main && line.contains("int main(") {
+			found_main = true;
+		}
+		if line.trim().is_empty() && (!line.is_empty() || found_main) {
 			evscode::open_editor(path.as_ref(), Some(i), Some(80));
 			return Ok(());
 		}
