@@ -1,6 +1,6 @@
 mod view;
 
-use crate::{build, dir, util, STATUS};
+use crate::{build, ci, dir, util, STATUS};
 use std::{
 	fs, path::{Path, PathBuf}
 };

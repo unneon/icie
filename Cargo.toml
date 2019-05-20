@@ -5,16 +5,19 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
-ci = { path = "../ci" }
 dirs = "1.0"
 evscode = { path = "../evscode" }
 failure = "0.1.5"
+itertools = "0.8"
 json = "0.11"
 keyring = "0.7"
 lazy_static = "1.0"
 log = "0.4"
 rand = "0.6"
+regex = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 shellexpand = "1.0"
 unijudge = { git = "https://github.com/matcegla/unijudge" }
+wait-timeout = "0.2"
+walkdir = "2.2"

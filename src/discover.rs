@@ -1,4 +1,4 @@
-use ci::fit::Fitness;
+use crate::ci::{self, fit::Fitness};
 use json::object;
 
 #[evscode::command(title = "ICIE Discover", key = "alt+9")]

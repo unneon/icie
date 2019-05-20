@@ -1,4 +1,4 @@
-use crate::{dir, util, STATUS};
+use crate::{ci, dir, util, STATUS};
 use ci::lang::Language;
 use evscode::R;
 use std::path::PathBuf;

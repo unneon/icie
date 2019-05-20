@@ -1,4 +1,4 @@
-use crate::{test::TestRun, util};
+use crate::{ci, test::TestRun, util};
 use std::{
 	collections::HashMap, fs, path::PathBuf, sync::{Arc, Mutex}
 };
