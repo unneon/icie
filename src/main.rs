@@ -1,4 +1,4 @@
-#![feature(specialization, impl_trait_in_bindings)]
+#![feature(specialization)]
 
 mod auth;
 mod build;
@@ -30,7 +30,7 @@ evscode::plugin! {
 	categories: &["Other"],
 	keywords: &["competitive", "ide", "codeforces", "olympiad", "informatics"],
 	license: "GPL-3.0-only",
-	repository: "https://github.com/matcegla/icie",
+	repository: "https://github.com/pustaczek/icie",
 	log_bounds: &[
 		("html5ever", log::LevelFilter::Error),
 		("tokio_reactor", log::LevelFilter::Warn),
