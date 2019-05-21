@@ -15,6 +15,9 @@ static EXECUTABLE_EXTENSION: evscode::Config<String> = "e";
 #[evscode::config(description = "C++ language standard")]
 static CPP_STANDARD: evscode::Config<CppStandard> = CppStandard::Cpp17;
 
+#[evscode::config(description = "Additional C++ compilation flags. The flags will be appended after ICIE-sourced on both debug and release builds.")]
+static ADDITIONAL_CPP_FLAGS: evscode::Config<String> = "";
+
 pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::exec::Executable> {
 	let source = source.as_option_path();
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
@@ -34,7 +37,9 @@ pub fn build(source: impl util::MaybePath, codegen: ci::lang::Codegen) -> R<ci::
 		}
 	}
 	let standard = CPP_STANDARD.get().to_ci();
-	let status = lang.compile(&[&source], &out, &standard, &codegen)?;
+	let flags = ADDITIONAL_CPP_FLAGS.get();
+	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
+	let status = lang.compile(&[&source], &out, &standard, &codegen, &flags)?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if *AUTO_MOVE_TO_ERROR.get() {

@@ -35,7 +35,7 @@ pub trait Language {
 	type Standard: Standard;
 	fn source_extensions(&self) -> &'static [&'static str];
 	fn standards(&self) -> &'static [Self::Standard];
-	fn compile(&self, sources: &[&Path], out: &Path, version: &Self::Standard, profile: &Codegen) -> R<Status>;
+	fn compile(&self, sources: &[&Path], out: &Path, version: &Self::Standard, profile: &Codegen, custom_flags: &[&str]) -> R<Status>;
 }
 
 pub enum CppStandard {
@@ -80,7 +80,7 @@ impl Language for CPP {
 		&[CppStandard::Std2a, CppStandard::Std17, CppStandard::Std14, CppStandard::Std11, CppStandard::Std03]
 	}
 
-	fn compile(&self, sources: &[&Path], out: &Path, standard: &CppStandard, codegen: &Codegen) -> R<Status> {
+	fn compile(&self, sources: &[&Path], out: &Path, standard: &CppStandard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
 		let executable = Executable::new(out.to_path_buf());
 		let mut cmd = Command::new("clang++");
 		cmd.arg(standard.gcc_flag());
@@ -89,6 +89,7 @@ impl Language for CPP {
 			Codegen::Debug => &["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"] as &'static [&'static str],
 			Codegen::Release => &["-Ofast"],
 		});
+		cmd.args(custom_flags);
 		cmd.args(sources);
 		cmd.arg("-o");
 		cmd.arg(&executable.path);
