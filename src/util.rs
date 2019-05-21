@@ -123,6 +123,11 @@ pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
 	Ok(())
 }
 
+pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
+	let path = path.as_ref();
+	path.parent().unwrap().join(path.file_stem().unwrap())
+}
+
 pub struct TransactionDir {
 	path: PathBuf,
 	good: bool,

@@ -11,8 +11,10 @@ pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 		return Err(evscode::E::error("GDB is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_gdb));
 	}
 	term::debugger(
-		"gdb",
+		"GDB",
+		&in_path,
 		&[
+			"gdb",
 			"-q",
 			build::exec_path(source)?.to_str().unwrap(),
 			"-ex",
@@ -31,7 +33,7 @@ pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 	let record_out = Command::new("rr")
 		.arg("record")
 		.arg(build::exec_path(source)?)
-		.stdin(File::open(in_path)?)
+		.stdin(File::open(&in_path)?)
 		.stdout(Stdio::null())
 		.stderr(Stdio::piped())
 		.output()?;
@@ -41,18 +43,18 @@ pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> evscode::R<()> {
 				.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid),
 		);
 	}
-	term::debugger("rr", &["replay", "--", "-q"])
+	term::debugger("RR", &in_path, &["rr", "replay", "--", "-q"])
 }
 
 fn install_gdb() -> evscode::R<()> {
-	term::install("GDB", "pkexec", &["apt", "install", "-y", "gdb"])
+	term::install("GDB", &["pkexec", "apt", "install", "-y", "gdb"])
 }
 fn install_rr() -> evscode::R<()> {
-	term::install("RR", "pkexec", &["apt", "install", "-y", "rr"])
+	term::install("RR", &["pkexec", "apt", "install", "-y", "rr"])
 }
 fn configure_kernel_perf_event_paranoid() -> evscode::R<()> {
-	Ok(term::internal(
+	term::Internal::raw(
 		"ICIE Auto-configure RR",
 		"echo 'kernel.perf_event_paranoid=1' | pkexec tee -a /etc/sysctl.conf && echo 1 | pkexec tee -a /proc/sys/kernel/perf_event_paranoid",
-	))
+	)
 }
