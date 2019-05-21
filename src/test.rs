@@ -19,7 +19,7 @@ impl TestRun {
 
 pub fn run(main_source: Option<&Path>) -> evscode::R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
-	let solution = build::build(main_source, ci::lang::Codegen::Debug)?;
+	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
 		environment: ci::exec::Environment { time_limit: None },

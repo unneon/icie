@@ -113,9 +113,9 @@ fn worker_thread(carrier: evscode::future::Carrier<WorkerReport>, orders: std::s
 }
 
 fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sync::mpsc::Receiver<WorkerOrder>) -> evscode::R<()> {
-	let solution = crate::build::build(crate::dir::solution()?, ci::lang::Codegen::Debug)?;
-	let brut = crate::build::build(crate::dir::brut()?, ci::lang::Codegen::Release)?;
-	let gen = crate::build::build(crate::dir::gen()?, ci::lang::Codegen::Release)?;
+	let solution = crate::build::build(crate::dir::solution()?, &ci::cpp::Codegen::Debug)?;
+	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
+	let gen = crate::build::build(crate::dir::gen()?, &ci::cpp::Codegen::Release)?;
 	let task = ci::task::Task {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
 		environment: ci::exec::Environment { time_limit: None },
@@ -164,7 +164,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 
 fn add_test_input(input: String) -> evscode::R<()> {
 	let _status = crate::STATUS.push("Adding new test");
-	let brut = crate::build::build(crate::dir::brut()?, ci::lang::Codegen::Release)?;
+	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
 	let run = brut.run(&input, &ci::exec::Environment { time_limit: None })?;
 	if !run.success() {
 		return Err(evscode::E::error("brut failed when generating output for the added test"));
