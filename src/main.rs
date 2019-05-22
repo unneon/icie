@@ -22,24 +22,22 @@ lazy_static::lazy_static! {
 }
 
 evscode::plugin! {
-	name: "icie",
-	version: "0.5.1",
+	name: "ICIE",
 	publisher: "pustaczek",
-	display_name: "ICIE",
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
-	categories: &["Other"],
 	keywords: &["competitive", "ide", "codeforces", "olympiad", "informatics"],
+	categories: &["Other"],
 	license: "GPL-3.0-only",
 	repository: "https://github.com/pustaczek/icie",
-	log_bounds: &[
+	on_activate: Some(launch::activate),
+	extra_activation_events: &[
+		evscode::ActivationEvent::WorkspaceContains { selector: ".icie" },
+	],
+	log_filters: &[
 		("html5ever", log::LevelFilter::Error),
 		("tokio_reactor", log::LevelFilter::Warn),
 		("hyper", log::LevelFilter::Warn),
 		("mio", log::LevelFilter::Warn),
 		("want", log::LevelFilter::Warn),
 	],
-	extra_activation_events: &[
-		evscode::ActivationEvent::WorkspaceContains { selector: ".icie" },
-	],
-	on_activate: launch::activate
 }
