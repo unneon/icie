@@ -1,6 +1,6 @@
 [package]
 name = "icie"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 

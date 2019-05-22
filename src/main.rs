@@ -23,7 +23,7 @@ lazy_static::lazy_static! {
 
 evscode::plugin! {
 	name: "icie",
-	version: "0.5.0",
+	version: "0.5.1",
 	publisher: "pustaczek",
 	display_name: "ICIE",
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
