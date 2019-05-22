@@ -13,7 +13,7 @@ pub struct TestRun {
 }
 impl TestRun {
 	pub fn success(&self) -> bool {
-		self.outcome.verdict == ci::test::Verdict::Accepted
+		self.outcome.success()
 	}
 }
 
@@ -47,9 +47,11 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 		let _status = STATUS.push("Executing");
 		for in_path in ins {
 			let out_path = in_path.with_extension("out");
+			let alt_path = in_path.with_extension("alt.out");
 			let input = fs::read_to_string(&in_path)?;
 			let output = fs::read_to_string(&out_path)?;
-			let outcome = ci::test::simple_test(&solution, &input, Some(&output), &task)?;
+			let alt = if alt_path.exists() { Some(fs::read_to_string(&alt_path)?) } else { None };
+			let outcome = ci::test::simple_test(&solution, &input, Some(&output), alt.as_ref().map(|p| p.as_str()), &task)?;
 			let run = TestRun { in_path, out_path, outcome };
 			if !carrier.send(run) {
 				break;

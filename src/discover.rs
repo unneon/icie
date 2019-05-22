@@ -64,7 +64,7 @@ fn webview_manage(handle: evscode::webview_singleton::Handle) -> evscode::R<()> 
 			},
 			ManagerMessage::Report(report) => match report {
 				Ok(row) => {
-					let is_failed = row.solution.verdict != ci::test::Verdict::Accepted;
+					let is_failed = !row.solution.verdict.success();
 					let new_best = is_failed && best_fitness.map(|bf| bf < row.fitness).unwrap_or(true);
 					if new_best {
 						best_fitness = Some(row.fitness);
@@ -73,7 +73,7 @@ fn webview_manage(handle: evscode::webview_singleton::Handle) -> evscode::R<()> 
 						"tag" => "discovery_row",
 						"number" => row.number,
 						"outcome" => match row.solution.verdict {
-							ci::test::Verdict::Accepted => "accept",
+							ci::test::Verdict::Accepted { alternative: _ } => "accept",
 							ci::test::Verdict::WrongAnswer => "wrong_answer",
 							ci::test::Verdict::RuntimeError => "runtime_error",
 							ci::test::Verdict::TimeLimitExceeded => "time_limit_exceeded",
@@ -149,7 +149,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 			return Err(evscode::E::error(format!("brut failed {:?}", run_brut)));
 		}
 		let desired = run_brut.stdout;
-		let outcome = ci::test::simple_test(&solution, &input, Some(&desired), &task)?;
+		let outcome = ci::test::simple_test(&solution, &input, Some(&desired), None, &task)?;
 		let fitness = ci::fit::ByteLength.evaluate(&input);
 		let row = ci::discover::Row {
 			number,

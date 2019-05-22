@@ -120,6 +120,25 @@ fn handle_events(key: Option<PathBuf>, stream: evscode::Future<evscode::future::
 				move || crate::debug::gdb(in_path, key)
 			}),
 			Some("new_test") => evscode::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
+			Some("set_alt") => evscode::spawn({
+				let key = key.clone();
+				move || {
+					let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
+					let out = note["out"].as_str().unwrap();
+					fs::write(in_path.with_extension("alt.out"), format!("{}\n", out.trim()))?;
+					COLLECTION.force(key)?;
+					Ok(())
+				}
+			}),
+			Some("del_alt") => evscode::spawn({
+				let key = key.clone();
+				move || {
+					let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
+					fs::remove_file(in_path.with_extension("alt.out"))?;
+					COLLECTION.force(key)?;
+					Ok(())
+				}
+			}),
 			_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 		}
 	}
@@ -186,7 +205,7 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 }
 
 fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
-	let any_failed = tests.iter().any(|test| test.outcome.verdict != ci::test::Verdict::Accepted);
+	let any_failed = tests.iter().any(|test| !test.success());
 	let mut html = String::new();
 	for test in tests {
 		html += &render_test(test, any_failed)?;
@@ -195,20 +214,21 @@ fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
 }
 
 fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
-	if test.outcome.verdict == ci::test::Verdict::Accepted && HIDE_AC.get().should(any_failed) {
+	if test.success() && HIDE_AC.get().should(any_failed) {
 		return Ok(String::new());
 	}
-	let folded = test.outcome.verdict == ci::test::Verdict::Accepted && FOLD_AC.get().should(any_failed);
+	let folded = test.success() && FOLD_AC.get().should(any_failed);
 	Ok(format!(
 		r#"
-		<tr class="test-row {failed_flag}" data-in_path="{in_path}">
+		<tr class="test-row {failed_flag}" data-in_path="{in_path}" data-out_raw="{out_raw}">
 			{input}
 			{out}
 			{desired}
 		</tr>
 	"#,
-		failed_flag = if test.outcome.verdict != ci::test::Verdict::Accepted { "test-row-failed" } else { "" },
+		failed_flag = if !test.success() { "test-row-failed" } else { "" },
 		in_path = test.in_path.display(),
+		out_raw = html_attr_escape(&test.outcome.out),
 		input = render_in_cell(test, folded)?,
 		out = render_out_cell(test, folded)?,
 		desired = render_desired_cell(test, folded)?
@@ -222,17 +242,27 @@ fn render_in_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	use ci::test::Verdict::*;
 	let outcome_class = match test.outcome.verdict {
-		Accepted => "test-good",
+		Accepted { alternative: false } => "test-good",
+		Accepted { alternative: true } => "test-alt",
 		WrongAnswer | RuntimeError | TimeLimitExceeded => "test-bad",
 		IgnoredNoOut => "test-warn",
 	};
+	let mut actions = Vec::new();
+	actions.push(ACTION_COPY);
+	match test.outcome.verdict {
+		Accepted { alternative: true } => actions.push(ACTION_DEL_ALT),
+		WrongAnswer => actions.push(ACTION_SET_ALT),
+		_ => (),
+	};
+	actions.push(ACTION_GDB);
+	actions.push(ACTION_RR);
 	let note = match test.outcome.verdict {
-		Accepted | WrongAnswer => None,
+		Accepted { alternative: _ } | WrongAnswer => None,
 		RuntimeError => Some("Runtime Error"),
 		TimeLimitExceeded => Some("Time Limit Exceeded"),
 		IgnoredNoOut => Some("Ignored"),
 	};
-	Ok(render_cell(outcome_class, &[ACTION_COPY, ACTION_GDB, ACTION_RR], &test.outcome.out, note, folded))
+	Ok(render_cell(outcome_class, &actions, &test.outcome.out, note, folded))
 }
 
 fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
@@ -248,7 +278,7 @@ struct Action {
 	icon: &'static str,
 }
 const ACTION_COPY: Action = Action {
-	onclick: "clipcopy()",
+	onclick: "trigger_copy()",
 	icon: "file_copy",
 };
 const ACTION_GDB: Action = Action {
@@ -258,6 +288,14 @@ const ACTION_GDB: Action = Action {
 const ACTION_RR: Action = Action {
 	onclick: "trigger_rr()",
 	icon: "fast_rewind",
+};
+const ACTION_SET_ALT: Action = Action {
+	onclick: "trigger_set_alt()",
+	icon: "check",
+};
+const ACTION_DEL_ALT: Action = Action {
+	onclick: "trigger_del_alt()",
+	icon: "close",
 };
 
 #[evscode::config(description = "Max test lines displayed in test view. Lines after the limit will be replaced with an ellipsis. Set to 0 to denote no limit.")]
@@ -327,6 +365,9 @@ fn lines(s: &str) -> usize {
 }
 fn html_escape(s: &str) -> String {
 	translate(s, &[('\n', "<br/>"), ('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
+}
+fn html_attr_escape(s: &str) -> String {
+	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
 }
 fn translate(s: &str, table: &[(char, &str)]) -> String {
 	let mut buf = String::new();

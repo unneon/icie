@@ -22,6 +22,16 @@ body {
 }
 .test-cell { border-color: rgba(96, 96, 96, 0.3); background-color: rgba(96, 96, 96, 0.15); }
 .test-good { border-color: rgba(32, 255, 32, 0.3); background-color: rgba(32, 255, 32, 0.15); }
+.test-alt {
+	border-color: rgba(32, 255, 32, 0.3);
+	background: repeating-linear-gradient(
+		45deg,
+		rgba(32, 255, 32, 0.15),
+		rgba(32, 255, 32, 0.15) 10px,
+		transparent 10px,
+		transparent 20px
+	);
+}
 .test-bad { border-color: rgba(255, 32, 32, 0.3); background-color: rgba(255, 32, 32, 0.15); }
 .test-warn { border-color: rgba(255, 127, 0, 0.3); background-color: rgba(255, 127, 0, 0.15); }
 
@@ -52,11 +62,13 @@ body {
 .test-actions { color: rgba(96, 96, 96, 0.3); }
 .test-action:hover { color: rgba(255, 255, 255, 1); }
 .test-good > .test-actions { color: rgba(32, 255, 32, 0.3); }
+.test-alt > .test-actions { color: rgba(32, 255, 32, 0.3); }
 .test-bad > .test-actions { color: rgba(255, 32, 32, 0.3); }
 .test-warn > .test-actions { color: rgba(255, 127, 0, 0.3); }
 
 .test-cell > .test-note { color: rgba(96, 96, 96, 0.3); }
 .test-good > .test-note { color: rgba(32, 255, 32, 0.3); }
+.test-alt > .test-note { color: rgba(32, 255, 32, 0.3); }
 .test-bad > .test-note { color: rgba(255, 32, 32, 0.3); }
 .test-warn > .test-note { color: rgba(255, 127, 0, 0.3); }
 

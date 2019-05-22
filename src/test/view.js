@@ -2,21 +2,34 @@ const vscode = acquireVsCodeApi();
 
 let newing = false;
 
-function trigger_rr() {
-	let el = event.srcElement;
-	vscode.postMessage({
-		tag: "trigger_rr",
-		in_path: el.parentElement.parentElement.parentElement.dataset.in_path
-	});
+function make_action(callback) {
+	return function() {
+		let el = event.target;
+		let row = el.parentElement.parentElement.parentElement;
+		let in_path = row.dataset.in_path;
+		let target_cell = el.parentElement.parentElemente;
+		return callback({
+			row: row,
+			in_path: in_path,
+			target_cell: target_cell,
+		});
+	};
 }
 
-function trigger_gdb() {
-	let el = event.srcElement;
-	vscode.postMessage({
-		tag: "trigger_gdb",
-		in_path: el.parentElement.parentElement.parentElement.dataset.in_path
-	});
-}
+trigger_copy = make_action(ev => {
+	let data_node = Array.from(ev.target_cell.children).find(el => el.classList.contains('test-data'));
+	let selection = window.getSelection();
+	let range = document.createRange();
+	range.selectNodeContents(data_node);
+	selection.removeAllRanges();
+	selection.addRange(range);
+	document.execCommand('Copy');
+	selection.removeAllRanges();
+});
+trigger_rr = make_action(ev => vscode.postMessage({ tag: "trigger_rr", in_path: ev.in_path }));
+trigger_gdb = make_action(ev => vscode.postMessage({ tag: "trigger_gdb", in_path: ev.in_path }));
+trigger_set_alt = make_action(ev => vscode.postMessage({ tag: "set_alt", in_path: ev.in_path, out: ev.row.dataset.out_raw }));
+trigger_del_alt = make_action(ev => vscode.postMessage({ tag: "del_alt", in_path: ev.in_path }));
 
 function new_start() {
 	console.log(`new_start()`);
@@ -27,20 +40,6 @@ function new_start() {
 		newing = true;
 	}
 	document.getElementById('new-input').focus();
-}
-
-function clipcopy() {
-	let action = event.target;
-	let cell = action.parentElement.parentElement;
-	let data_node = Array.from(cell.children).find(el => el.classList.contains('test-data'));
-	let selection = window.getSelection();
-	let range = document.createRange();
-	range.selectNodeContents(data_node);
-	selection.removeAllRanges();
-	selection.addRange(range);
-	document.execCommand('Copy');
-	selection.removeAllRanges();
-	console.log(`copied text to clipboard`);
 }
 
 function new_confirm() {
