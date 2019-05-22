@@ -64,13 +64,13 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 pub fn view() -> evscode::R<()> {
-	view::COLLECTION.force(None)?;
+	view::manage::COLLECTION.force(None)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
 fn view_current() -> evscode::R<()> {
-	view::COLLECTION.force(util::active_tab()?)?;
+	view::manage::COLLECTION.force(util::active_tab()?)?;
 	Ok(())
 }
 
@@ -80,16 +80,16 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 	let id = unused_test_id(&tests)?;
 	fs::write(tests.join(format!("{}.in", id)), input)?;
 	fs::write(tests.join(format!("{}.out", id)), desired)?;
-	view::COLLECTION.update_all()?;
+	view::manage::COLLECTION.update_all()?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
 fn input() -> evscode::R<()> {
-	if let Some(view) = view::COLLECTION.find_active()? {
+	if let Some(view) = view::manage::COLLECTION.find_active()? {
 		view.lock()?.touch_input();
 	} else {
-		let (view, just_created) = view::COLLECTION.tap(None)?;
+		let (view, just_created) = view::manage::COLLECTION.tap(None)?;
 		if just_created {
 			std::thread::sleep(std::time::Duration::from_millis(100));
 		}
