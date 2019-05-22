@@ -276,26 +276,32 @@ fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 struct Action {
 	onclick: &'static str,
 	icon: &'static str,
+	hint: &'static str,
 }
 const ACTION_COPY: Action = Action {
 	onclick: "trigger_copy()",
 	icon: "file_copy",
+	hint: "Copy contents",
 };
 const ACTION_GDB: Action = Action {
 	onclick: "trigger_gdb()",
 	icon: "skip_previous",
+	hint: "Debug in GDB",
 };
 const ACTION_RR: Action = Action {
 	onclick: "trigger_rr()",
 	icon: "fast_rewind",
+	hint: "Debug in RR",
 };
 const ACTION_SET_ALT: Action = Action {
 	onclick: "trigger_set_alt()",
 	icon: "check",
+	hint: "Set as an alternative correct output",
 };
 const ACTION_DEL_ALT: Action = Action {
 	onclick: "trigger_del_alt()",
 	icon: "close",
+	hint: "Stop accepting this output",
 };
 
 #[evscode::config(description = "Max test lines displayed in test view. Lines after the limit will be replaced with an ellipsis. Set to 0 to denote no limit.")]
@@ -318,7 +324,10 @@ fn render_cell(class: &str, actions: &[Action], mut data: &str, note: Option<&st
 	};
 	let mut action_list = String::new();
 	for action in actions {
-		action_list += &format!(r#"<div class="test-action material-icons" onclick="{}">{}</div>"#, action.onclick, action.icon);
+		action_list += &format!(
+			r#"<div class="test-action material-icons" onclick="{}" title="{}">{}</div>"#,
+			action.onclick, action.hint, action.icon
+		);
 	}
 	data = data.trim();
 	let line_limit = MAX_TEST_LINES.get();
