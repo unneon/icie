@@ -15,7 +15,10 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 
 - <kbd>Alt</kbd><kbd>;</kbd> to manually compile a file
 - <kbd>Alt</kbd><kbd>-</kbd> to add a new test
+- <kbd>Alt</kbd><kbd>=</kbd> to create a new file from a template
 - <kbd>Alt</kbd><kbd>t</kbd> to launch a terminal
 - <kbd>Alt</kbd><kbd>0</kbd> to run tests without submitting
 - <kbd>Alt</kbd><kbd>9</kbd> to find small tests using a test generator and a slow solution
 - <kbd>Alt</kbd><kbd>i</kbd> to generate a simple struct with input operator>>
+- ~~<kbd>Alt</kbd><kbd>[</kbd> to copy-paste commonly used algorithms~~ Soon!
+- To customize ICIE behaviour, click <kbd>Ctrl</kbd><kbd>,</kbd> and go to Extensions > ICIE
