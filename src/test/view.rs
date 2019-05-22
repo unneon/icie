@@ -236,7 +236,7 @@ fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
 }
 
 fn render_in_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
-	Ok(render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.in_path)?, None, folded))
+	Ok(render_cell("", &[ACTION_COPY], Data::raw(&fs::read_to_string(&test.in_path)?), None, folded))
 }
 
 fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
@@ -262,14 +262,20 @@ fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 		TimeLimitExceeded => Some("Time Limit Exceeded"),
 		IgnoredNoOut => Some("Ignored"),
 	};
-	Ok(render_cell(outcome_class, &actions, &test.outcome.out, note, folded))
+	Ok(render_cell(
+		outcome_class,
+		&actions,
+		Data::stdout_stderr(&test.outcome.out, &test.outcome.stderr),
+		note,
+		folded,
+	))
 }
 
 fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	Ok(if test.out_path.exists() {
-		render_cell("", &[ACTION_COPY], &fs::read_to_string(&test.out_path)?, None, folded)
+		render_cell("", &[ACTION_COPY], Data::raw(&fs::read_to_string(&test.out_path)?), None, folded)
 	} else {
-		render_cell("", &[], "", Some("File does not exist"), folded)
+		render_cell("", &[], Data::raw(""), Some("File does not exist"), folded)
 	})
 }
 
@@ -307,7 +313,37 @@ const ACTION_DEL_ALT: Action = Action {
 #[evscode::config(description = "Max test lines displayed in test view. Lines after the limit will be replaced with an ellipsis. Set to 0 to denote no limit.")]
 static MAX_TEST_LINES: evscode::Config<usize> = 0usize;
 
-fn render_cell(class: &str, actions: &[Action], mut data: &str, note: Option<&str>, folded: bool) -> String {
+struct Data {
+	html: String,
+}
+
+impl Data {
+	fn raw(text: &str) -> Data {
+		Data { html: html_escape(text.trim()) }
+	}
+
+	fn stdout_stderr(stdout: &str, stderr: &str) -> Data {
+		let stdout = stdout.trim();
+		let stderr = stderr.trim();
+		let mut html = String::new();
+		html += &format!("<div class=\"stderr\">{}</div>", html_escape(stderr));
+		html += &html_escape(stdout);
+		Data { html }
+	}
+
+	fn truncate_lines(&self) -> (String, usize) {
+		let limit = MAX_TEST_LINES.get();
+		let lines = self.html.split("<br/>").collect::<Vec<_>>();
+		if *limit == 0 || lines.len() <= *limit + 1 {
+			(self.html.clone(), lines.len())
+		} else {
+			(lines[..*limit].join("<br/>"), *limit + 1)
+		}
+	}
+}
+
+fn render_cell(class: &str, actions: &[Action], data: Data, note: Option<&str>, folded: bool) -> String {
+	log::info!("data.html = {}", data.html);
 	if folded {
 		return format!(
 			r#"
@@ -329,24 +365,7 @@ fn render_cell(class: &str, actions: &[Action], mut data: &str, note: Option<&st
 			action.onclick, action.hint, action.icon
 		);
 	}
-	data = data.trim();
-	let line_limit = MAX_TEST_LINES.get();
-	let ellipsis = if *line_limit != 0 && lines(data) > *line_limit + 1 {
-		let mut i = 0;
-		for _ in 0..*line_limit {
-			if i + 1 < data.len() {
-				i += 1 + data[i + 1..].find('\n').unwrap_or(data[i + 1..].len());
-			}
-		}
-		data = &data[..i];
-		r#"
-		<div class="ellipsis">
-			...
-		</div>
-		"#
-	} else {
-		""
-	};
+	let (data, lines) = data.truncate_lines();
 	format!(
 		r#"
 		<td style="height: {lines_em}em; line-height: 1.1em;" class="test-cell {class}">
@@ -355,23 +374,18 @@ fn render_cell(class: &str, actions: &[Action], mut data: &str, note: Option<&st
 			</div>
 			<div class="test-data">
 				{data}
-				{ellipsis}
 			</div>
 			{note_div}
 		</td>
 	"#,
-		lines_em = 1.1 * lines(data) as f64,
+		lines_em = 1.1 * lines as f64,
 		class = class,
 		action_list = action_list,
-		data = html_escape(data),
-		ellipsis = ellipsis,
+		data = data,
 		note_div = note_div
 	)
 }
 
-fn lines(s: &str) -> usize {
-	s.trim().chars().filter(|c| char::is_whitespace(*c)).count() + 1
-}
 fn html_escape(s: &str) -> String {
 	translate(s, &[('\n', "<br/>"), ('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
 }

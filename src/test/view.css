@@ -35,6 +35,9 @@ body {
 .test-bad { border-color: rgba(255, 32, 32, 0.3); background-color: rgba(255, 32, 32, 0.15); }
 .test-warn { border-color: rgba(255, 127, 0, 0.3); background-color: rgba(255, 127, 0, 0.15); }
 
+.stderr {
+	opacity: 0.5;
+}
 .test-cell {
 	position: relative;
 	overflow: auto;

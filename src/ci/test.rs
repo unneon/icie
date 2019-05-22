@@ -25,6 +25,7 @@ impl Verdict {
 pub struct Outcome {
 	pub verdict: Verdict,
 	pub out: String,
+	pub stderr: String,
 	pub time: Duration,
 }
 
@@ -62,7 +63,12 @@ pub fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, altern
 		ExitKind::TimeLimitExceeded => Verdict::TimeLimitExceeded,
 	};
 	let out = run.stdout;
-	Ok(Outcome { verdict, out, time })
+	Ok(Outcome {
+		verdict,
+		out,
+		stderr: run.stderr,
+		time,
+	})
 }
 
 impl fmt::Display for Verdict {
