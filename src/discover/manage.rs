@@ -11,7 +11,7 @@ fn webview_create() -> evscode::R<evscode::Webview> {
 		.create())
 }
 
-fn webview_manage(handle: evscode::webview_singleton::Handle) -> evscode::R<()> {
+fn webview_manage(handle: evscode::goodies::WebviewHandle) -> evscode::R<()> {
 	let (stream, worker_tx) = {
 		let view = handle.lock()?;
 		view.set_html(render());

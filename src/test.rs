@@ -17,7 +17,7 @@ impl TestRun {
 	}
 }
 
-pub fn run(main_source: Option<&Path>) -> evscode::R<Vec<TestRun>> {
+pub fn run(main_source: &Option<PathBuf>) -> evscode::R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
@@ -64,13 +64,13 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 pub fn view() -> evscode::R<()> {
-	view::manage::COLLECTION.force(None)?;
+	view::manage::COLLECTION.get_force(None)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
 fn view_current() -> evscode::R<()> {
-	view::manage::COLLECTION.force(util::active_tab()?)?;
+	view::manage::COLLECTION.get_force(util::active_tab()?)?;
 	Ok(())
 }
 
@@ -86,15 +86,12 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
 fn input() -> evscode::R<()> {
-	if let Some(view) = view::manage::COLLECTION.find_active()? {
-		view.lock()?.touch_input();
+	let view = if let Some(view) = view::manage::COLLECTION.find_active() {
+		view
 	} else {
-		let (view, just_created) = view::manage::COLLECTION.tap(None)?;
-		if just_created {
-			std::thread::sleep(std::time::Duration::from_millis(100));
-		}
-		view.lock()?.touch_input();
-	}
+		view::manage::COLLECTION.get_lazy(None)?
+	};
+	view::manage::touch_input(&*view.lock()?);
 	Ok(())
 }
 

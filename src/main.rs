@@ -30,8 +30,8 @@ evscode::plugin! {
 	license: "GPL-3.0-only",
 	repository: "https://github.com/pustaczek/icie",
 	on_activate: Some(launch::activate),
-	extra_activation_events: &[
-		evscode::ActivationEvent::WorkspaceContains { selector: ".icie" },
+	extra_activations: &[
+		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
 	],
 	log_filters: &[
 		("html5ever", log::LevelFilter::Error),

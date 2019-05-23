@@ -6,7 +6,7 @@ use unijudge::RejectionCause;
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Submitting");
-	let (_, tests) = crate::test::view::manage::COLLECTION.force(None)?;
+	let (_, tests) = crate::test::view::manage::COLLECTION.get_force(None)?;
 	if tests.iter().any(|test| !test.success()) {
 		return Err(evscode::E::error("some tests failed, submit aborted"));
 	}
