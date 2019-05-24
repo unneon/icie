@@ -27,7 +27,7 @@ impl Library {
 	}
 
 	fn verify(&self) -> R<()> {
-		for (_, piece) in &self.pieces {
+		for piece in self.pieces.values() {
 			if let Some(parent) = &piece.parent {
 				if !self.pieces.contains_key(parent) {
 					return Err(evscode::E::error("parent does not exist").context("malformed library"));
@@ -84,12 +84,12 @@ impl Library {
 
 	fn build_ordering_graph(&self, dg: &Graph, t1: &HashMap<&str, usize>) -> Graph {
 		let mut og = dg.transpose();
-		for (_, data) in &self.pieces {
+		for data in self.pieces.values() {
 			if let Some(parent) = &data.parent {
 				let p = t1[parent.as_str()];
 				for dep in &data.dependencies {
 					let u = t1[dep.as_str()];
-					if u != p && &data.parent != &self.pieces[dep].parent {
+					if u != p && data.parent != self.pieces[dep].parent {
 						og.add_edge_1(u, p);
 					}
 				}
@@ -106,7 +106,7 @@ impl Library {
 		} else {
 			(
 				if source[..index].ends_with("\n\n") { "" } else { "\n" },
-				if source[index..].starts_with("\n") { "\n" } else { "\n\n" },
+				if source[index..].starts_with('\n') { "\n" } else { "\n\n" },
 			)
 		};
 		let code = if self.pieces[piece_id].parent.is_some() {
@@ -161,7 +161,7 @@ fn skip_to_toplevel(mut pos: usize, source: &str) -> usize {
 		};
 		if source[pos..].starts_with("\n}") {
 			pos += 1;
-			pos += source[pos..].find('\n').unwrap_or(source[pos..].len());
+			pos += source[pos..].find('\n').unwrap_or_else(|| source[pos..].len());
 			break pos + 1;
 		} else if source[pos..].starts_with("\n\n") || source[pos..].starts_with("\n ") || source[pos..].starts_with("\n\t") {
 			pos += 1;
@@ -201,8 +201,8 @@ impl Graph {
 			}
 		}
 		let mut que = Vec::new();
-		for v in 0..self.len() {
-			if deg[v] == 0 {
+		for (v, d) in deg.iter().enumerate() {
+			if *d == 0 {
 				que.push(v);
 			}
 		}

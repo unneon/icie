@@ -48,7 +48,7 @@ impl From<Food> for JsonValue {
 				"tag" => "discovery_row",
 				"number" => number,
 				"outcome" => match outcome {
-					ci::test::Verdict::Accepted { alternative: _ } => "accept",
+					ci::test::Verdict::Accepted { .. } => "accept",
 					ci::test::Verdict::WrongAnswer => "wrong_answer",
 					ci::test::Verdict::RuntimeError => "runtime_error",
 					ci::test::Verdict::TimeLimitExceeded => "time_limit_exceeded",

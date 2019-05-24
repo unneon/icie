@@ -15,7 +15,7 @@ pub enum Verdict {
 impl Verdict {
 	pub fn success(&self) -> bool {
 		match self {
-			Verdict::Accepted { alternative: _ } => true,
+			Verdict::Accepted { .. } => true,
 			_ => false,
 		}
 	}

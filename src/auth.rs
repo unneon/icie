@@ -23,14 +23,14 @@ pub fn site_credentials(site: &str) -> evscode::R<(String, String)> {
 				.ignore_focus_out()
 				.build()
 				.wait()
-				.ok_or_else(|| evscode::E::cancel())?;
+				.ok_or_else(evscode::E::cancel)?;
 			let password = evscode::InputBox::new()
 				.prompt(format!("Password for {} at {}", username, site))
 				.password()
 				.ignore_focus_out()
 				.build()
 				.wait()
-				.ok_or_else(|| evscode::E::cancel())?;
+				.ok_or_else(evscode::E::cancel)?;
 			if !has_errored
 				&& kr
 					.set_password(

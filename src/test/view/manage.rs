@@ -7,7 +7,7 @@ use evscode::{goodies::WebviewHandle, webview::Column, Webview, WebviewResultmap
 use std::{fs, path::PathBuf};
 
 lazy_static::lazy_static! {
-	pub static ref COLLECTION: WebviewResultmap<Option<PathBuf>, Vec<TestRun>> = WebviewResultmap::new(test::run, create, manage);
+	pub static ref COLLECTION: WebviewResultmap<Option<PathBuf>, Report> = WebviewResultmap::new(compute, create, manage);
 }
 
 pub fn touch_input(webview: &Webview) {
@@ -16,13 +16,17 @@ pub fn touch_input(webview: &Webview) {
 	});
 }
 
-fn create(source: &Option<PathBuf>, runs: &Vec<TestRun>) -> R<Webview> {
+fn compute(source: &Option<PathBuf>) -> R<Report> {
+	Ok(Report { runs: test::run(source)? })
+}
+
+fn create(source: &Option<PathBuf>, report: &Report) -> R<Webview> {
 	let title = util::fmt_verb("ICIE Test View", &source);
 	let webview = evscode::Webview::new("icie.test.view", title, evscode::webview::Column::Beside)
 		.enable_scripts()
 		.retain_context_when_hidden()
 		.create();
-	webview.set_html(render(&runs)?);
+	webview.set_html(render(&report.runs)?);
 	webview.reveal(Column::Beside);
 	if *SCROLL_TO_FIRST_FAILED.get() {
 		webview.post_message(json::object! {
@@ -32,7 +36,7 @@ fn create(source: &Option<PathBuf>, runs: &Vec<TestRun>) -> R<Webview> {
 	Ok(webview)
 }
 
-fn manage(source: &Option<PathBuf>, _: &Vec<TestRun>, webview: WebviewHandle) -> R<Box<dyn FnOnce()+Send+'static>> {
+fn manage(source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box<dyn FnOnce()+Send+'static>> {
 	let webview = webview.lock()?;
 	let stream = webview.listener().spawn().cancel_on(webview.disposer());
 	let source = source.clone();
@@ -73,4 +77,8 @@ fn manage(source: &Option<PathBuf>, _: &Vec<TestRun>, webview: WebviewHandle) ->
 			}
 		}
 	}))
+}
+
+pub struct Report {
+	pub runs: Vec<TestRun>,
 }

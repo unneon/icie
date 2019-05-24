@@ -40,32 +40,16 @@ pub struct Status {
 	pub warnings: Vec<Message>,
 }
 
-pub enum Standard {
-	Std03,
-	Std11,
-	Std14,
-	Std17,
-	Std2a,
-}
-
-impl Standard {
-	fn gcc_flag(&self) -> &'static str {
-		match self {
-			Standard::Std03 => "-std=c++03",
-			Standard::Std11 => "-std=c++11",
-			Standard::Std14 => "-std=c++14",
-			Standard::Std17 => "-std=c++17",
-			Standard::Std2a => "-std=c++2a",
-		}
-	}
+pub trait Standard {
+	fn as_gcc_flag(&self) -> &'static str;
 }
 
 pub static ALLOWED_EXTENSIONS: &'static [&'static str] = &["cpp", "cxx", "cc"];
 
-pub fn compile(sources: &[&Path], out: &Path, standard: &Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
+pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
 	let executable = Executable::new(out.to_path_buf());
 	let mut cmd = Command::new("clang++");
-	cmd.arg(standard.gcc_flag());
+	cmd.arg(standard.as_gcc_flag());
 	cmd.args(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
 	cmd.args(codegen.flags());
 	cmd.args(custom_flags);

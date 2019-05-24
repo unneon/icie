@@ -25,7 +25,7 @@ fn quick() -> evscode::R<()> {
 		}))
 		.build()
 		.wait()
-		.ok_or_else(|| evscode::E::cancel())?;
+		.ok_or_else(evscode::E::cancel)?;
 	let context = query_context(&library)?;
 	library.walk_graph(&piece_id, context)?;
 	Ok(())
@@ -39,7 +39,7 @@ fn qistruct() -> evscode::R<()> {
 		.placeholder("Person")
 		.build()
 		.wait()
-		.ok_or_else(|| evscode::E::cancel())?;
+		.ok_or_else(evscode::E::cancel)?;
 	let mut members = Vec::new();
 	loop {
 		let member = match evscode::InputBox::new()

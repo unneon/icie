@@ -14,7 +14,7 @@ pub fn instantiate() -> evscode::R<()> {
 	let qpick = evscode::QuickPick::new()
 		.items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())))
 		.build();
-	let template_id = qpick.wait().ok_or_else(|| evscode::E::cancel())?;
+	let template_id = qpick.wait().ok_or_else(evscode::E::cancel)?;
 	let template_path = &templates[&template_id];
 	let tpl = load(&template_path)?;
 	let filename = evscode::InputBox::new()
@@ -25,7 +25,7 @@ pub fn instantiate() -> evscode::R<()> {
 		.value_selection(0, tpl.suggested_filename.rfind('.').unwrap())
 		.build()
 		.wait()
-		.ok_or_else(|| evscode::E::cancel())?;
+		.ok_or_else(evscode::E::cancel)?;
 	let path = evscode::workspace_root()?.join(filename);
 	if path.exists() {
 		return Err(evscode::E::error("file already exists"));

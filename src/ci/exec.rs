@@ -43,7 +43,7 @@ impl Executable {
 		let _ = kid.stdin.as_mut().unwrap().write_all(input.as_bytes());
 		let _ = kid.stdin.as_mut().unwrap().flush();
 		let (status, exit_kind) = if let Some(time_limit) = environment.time_limit {
-			if let Some(status) = kid.wait_timeout(time_limit.clone())? {
+			if let Some(status) = kid.wait_timeout(time_limit)? {
 				(status, ExitKind::Normal)
 			} else {
 				kid.kill()?;

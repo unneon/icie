@@ -161,7 +161,6 @@ fn add_test_input(input: String) -> evscode::R<()> {
 	let dir = crate::dir::custom_tests()?;
 	std::fs::create_dir_all(&dir)?;
 	let used = std::fs::read_dir(&dir)?
-		.into_iter()
 		.map(|der| {
 			der.ok()
 				.and_then(|de| de.path().file_stem().map(std::ffi::OsStr::to_owned))

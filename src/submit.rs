@@ -6,8 +6,8 @@ use unijudge::RejectionCause;
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Submitting");
-	let (_, tests) = crate::test::view::manage::COLLECTION.get_force(None)?;
-	if tests.iter().any(|test| !test.success()) {
+	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None)?;
+	if report.runs.iter().any(|test| !test.success()) {
 		return Err(evscode::E::error("some tests failed, submit aborted"));
 	}
 	let code = fs::read_to_string(dir::solution()?)?;
@@ -69,7 +69,7 @@ fn fmt_verdict(verdict: &unijudge::Verdict) -> String {
 	match verdict {
 		unijudge::Verdict::Scored { score, max, cause, test } => {
 			message += &format!("Scored {}", score);
-			message += &max.map(|max| format!(" out of {}", max)).unwrap_or("".to_string());
+			message += &max.map(|max| format!(" out of {}", max)).unwrap_or_default();
 			message += fmt_cause_withtest(&cause, &test);
 			message += &fmt_testid(&test);
 		},
@@ -107,5 +107,5 @@ fn fmt_cause_withtest(cause: &Option<RejectionCause>, test: &Option<String>) -> 
 }
 
 fn fmt_testid(test: &Option<String>) -> String {
-	test.as_ref().map(|test| format!(" on {}", test)).unwrap_or("".to_string())
+	test.as_ref().map(|test| format!(" on {}", test)).unwrap_or_default()
 }

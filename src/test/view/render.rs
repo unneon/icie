@@ -109,7 +109,7 @@ fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	actions.push(ACTION_GDB);
 	actions.push(ACTION_RR);
 	let note = match test.outcome.verdict {
-		Accepted { alternative: _ } | WrongAnswer => None,
+		Accepted { .. } | WrongAnswer => None,
 		RuntimeError => Some("Runtime Error"),
 		TimeLimitExceeded => Some("Time Limit Exceeded"),
 		IgnoredNoOut => Some("Ignored"),
@@ -208,7 +208,7 @@ fn render_cell(class: &str, actions: &[Action], data: Data, note: Option<&str>, 
 	let note_div = if let Some(note) = note {
 		format!(r#"<div class="test-note">{note}</div>"#, note = note)
 	} else {
-		format!("")
+		String::new()
 	};
 	let mut action_list = String::new();
 	for action in actions {

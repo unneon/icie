@@ -29,7 +29,7 @@ impl Internal {
 	}
 
 	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(title: T, command: Option<I>) -> evscode::R<()> {
-		Internal::raw(title, command.map(|command| bash_escape_command(command)).unwrap_or(String::new()))
+		Internal::raw(title, command.map(bash_escape_command).unwrap_or_default())
 	}
 }
 

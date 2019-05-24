@@ -116,14 +116,9 @@ impl PathDialog {
 					.value_selection(basic_str.len() - codename.len(), basic_str.len())
 					.build()
 					.wait()
-					.ok_or_else(|| evscode::E::cancel())?,
+					.ok_or_else(evscode::E::cancel)?,
 			)),
-			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new()
-				.directory()
-				.action_label("Init")
-				.build()
-				.wait()
-				.ok_or_else(|| evscode::E::cancel())?),
+			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").build().wait().ok_or_else(evscode::E::cancel)?),
 		}
 	}
 }

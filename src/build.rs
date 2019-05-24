@@ -27,12 +27,7 @@ fn manual() -> evscode::R<()> {
 		.filter(|entry| {
 			entry
 				.as_ref()
-				.map(|entry| {
-					ci::cpp::ALLOWED_EXTENSIONS
-						.iter()
-						.find(|ext| Some(std::ffi::OsStr::new(ext)) == entry.path().extension())
-						.is_some()
-				})
+				.map(|entry| ci::cpp::ALLOWED_EXTENSIONS.iter().any(|ext| Some(std::ffi::OsStr::new(ext)) == entry.path().extension()))
 				.unwrap_or(true)
 		})
 		.collect::<walkdir::Result<Vec<_>>>()?;
@@ -49,7 +44,7 @@ fn manual() -> evscode::R<()> {
 			.build()
 			.spawn()
 			.wait()
-			.ok_or_else(|| evscode::E::cancel())?,
+			.ok_or_else(evscode::E::cancel)?,
 	);
 	let codegen = &ci::cpp::CODEGEN_LIST[evscode::QuickPick::new()
 		.ignore_focus_out()
@@ -63,7 +58,7 @@ fn manual() -> evscode::R<()> {
 		.build()
 		.spawn()
 		.wait()
-		.ok_or_else(|| evscode::E::cancel())?
+		.ok_or_else(evscode::E::cancel)?
 		.parse::<usize>()?];
 	build(source, codegen)?;
 	Ok(())
@@ -86,10 +81,10 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 			return Ok(ci::exec::Executable::new(out));
 		}
 	}
-	let standard = CPP_STANDARD.get().to_compiler();
+	let standard = CPP_STANDARD.get();
 	let flags = ADDITIONAL_CPP_FLAGS.get();
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
-	let status = ci::cpp::compile(&[&source], &out, &standard, &codegen, &flags)?;
+	let status = ci::cpp::compile(&[&source], &out, &*standard, &codegen, &flags)?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if *AUTO_MOVE_TO_ERROR.get() {
@@ -148,16 +143,16 @@ enum Standard {
 	#[evscode(name = "C++17")]
 	Cpp17,
 	#[evscode(name = "C++20")]
-	Cpp20,
+	FutureCpp20,
 }
-impl Standard {
-	fn to_compiler(&self) -> ci::cpp::Standard {
+impl ci::cpp::Standard for Standard {
+	fn as_gcc_flag(&self) -> &'static str {
 		match self {
-			Standard::Cpp03 => ci::cpp::Standard::Std03,
-			Standard::Cpp11 => ci::cpp::Standard::Std11,
-			Standard::Cpp14 => ci::cpp::Standard::Std14,
-			Standard::Cpp17 => ci::cpp::Standard::Std17,
-			Standard::Cpp20 => ci::cpp::Standard::Std2a,
+			Standard::Cpp03 => "-std=c++03",
+			Standard::Cpp11 => "-std=c++11",
+			Standard::Cpp14 => "-std=c++14",
+			Standard::Cpp17 => "-std=c++17",
+			Standard::FutureCpp20 => "-std=c++2a",
 		}
 	}
 }

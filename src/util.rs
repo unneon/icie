@@ -163,7 +163,7 @@ impl<'a> MaybePath for &'a Path {
 }
 impl<'a> MaybePath for Option<&'a Path> {
 	fn as_option_path(&self) -> Option<&Path> {
-		self.clone()
+		*self
 	}
 }
 impl MaybePath for PathBuf {
