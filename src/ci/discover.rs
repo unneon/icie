@@ -1,6 +1,6 @@
 use crate::ci::test::Outcome;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Row {
 	pub number: usize,
 	pub solution: Outcome,

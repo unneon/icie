@@ -1,7 +1,7 @@
 use crate::{ci, test::TestRun, util};
 use std::fs;
 
-#[derive(Clone, Debug, evscode::Configurable)]
+#[derive(Debug, evscode::Configurable)]
 enum HideBehaviour {
 	#[evscode(name = "Always")]
 	Always,

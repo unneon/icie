@@ -176,7 +176,6 @@ fn add_test_input(input: String) -> evscode::R<()> {
 	Ok(())
 }
 
-#[derive(Clone)]
 enum ManagerMessage {
 	Note(Note),
 	Report(WorkerReport),

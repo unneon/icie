@@ -3,7 +3,7 @@ use crate::ci::{
 };
 use std::{fmt, time::Duration};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Verdict {
 	Accepted { alternative: bool },
 	WrongAnswer,
@@ -21,7 +21,7 @@ impl Verdict {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Outcome {
 	pub verdict: Verdict,
 	pub out: String,

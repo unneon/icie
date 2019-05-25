@@ -5,7 +5,7 @@ use std::{
 	fs, path::{Path, PathBuf}
 };
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct TestRun {
 	in_path: PathBuf,
 	out_path: PathBuf,

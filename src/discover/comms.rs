@@ -1,7 +1,6 @@
 use crate::ci;
 use json::{object, JsonValue};
 
-#[derive(Clone)]
 pub enum Note {
 	Start,
 	Pause,

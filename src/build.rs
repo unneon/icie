@@ -132,7 +132,7 @@ fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
 	Ok(())
 }
 
-#[derive(Clone, Debug, evscode::Configurable)]
+#[derive(Debug, evscode::Configurable)]
 enum Standard {
 	#[evscode(name = "C++03")]
 	Cpp03,

@@ -176,7 +176,6 @@ pub trait PasteContext {
 	fn paste(&mut self, piece: &str) -> R<()>;
 }
 
-#[derive(Clone)]
 struct Graph {
 	edges: Vec<Vec<usize>>,
 }

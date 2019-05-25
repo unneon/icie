@@ -92,7 +92,7 @@ fn existing() -> evscode::R<()> {
 #[evscode::config(description = "Ask for path before initializing?")]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
-#[derive(Clone, Debug, evscode::Configurable)]
+#[derive(Debug, evscode::Configurable)]
 enum PathDialog {
 	#[evscode(name = "No")]
 	None,
