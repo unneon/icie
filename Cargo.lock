@@ -412,7 +412,7 @@ dependencies = [
 [[package]]
 name = "evscode"
 version = "0.1.0"
-source = "git+https://github.com/pustaczek/evscode#a282972b394078cb2a19f19fae4f187da12d4fe6"
+source = "git+https://github.com/pustaczek/evscode#ea930ca110cc725749822c86262650886175a5ab"
 dependencies = [
  "arc-swap 0.3.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "evscode-codegen 0.1.0 (git+https://github.com/pustaczek/evscode)",
@@ -427,7 +427,7 @@ dependencies = [
 [[package]]
 name = "evscode-codegen"
 version = "0.1.0"
-source = "git+https://github.com/pustaczek/evscode#a282972b394078cb2a19f19fae4f187da12d4fe6"
+source = "git+https://github.com/pustaczek/evscode#ea930ca110cc725749822c86262650886175a5ab"
 dependencies = [
  "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
