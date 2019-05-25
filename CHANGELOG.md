@@ -1,3 +1,8 @@
+## 0.5.2
+
+- Nicer errors and richer logs when ICIE main process crashes
+- Added instructions for building from source and development
+
 ## 0.5.1
 
 - **Added displaying stderr** in test view
