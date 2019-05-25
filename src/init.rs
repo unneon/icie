@@ -80,7 +80,7 @@ fn new() -> evscode::R<()> {
 	Ok(())
 }
 
-#[evscode::command(title = "ICIE Init existing")]
+#[evscode::command(title = "ICIE Init existing", key = "alt+f10")]
 fn existing() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let root = evscode::workspace_root()?;
