@@ -22,3 +22,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>i</kbd> to generate a simple struct with input operator>>
 - ~~<kbd>Alt</kbd><kbd>[</kbd> to copy-paste commonly used algorithms~~ Soon!
 - To customize ICIE behaviour, click <kbd>Ctrl</kbd><kbd>,</kbd> and go to Extensions > ICIE
+
+## Development & Building from source
+
+The instructions can be found in [CONTRIBUTING.md](https://github.com/pustaczek/icie/blob/master/CONTRIBUTING.md). The project is still in development, the Rust language does not have an official VS Code API, and there is a custom build system, but nevertheless I have tried to make it as streamlined as possible.
