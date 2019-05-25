@@ -73,6 +73,7 @@ fn manage(source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box
 						Ok(())
 					}
 				}),
+				Some("edit") => evscode::open_editor(note["path"].as_str().unwrap(), None, None),
 				_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 			}
 		}

@@ -88,7 +88,7 @@ fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
 }
 
 fn render_in_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
-	Ok(render_cell("", &[ACTION_COPY], Data::raw(&fs::read_to_string(&test.in_path)?), None, folded))
+	Ok(render_cell("", &[ACTION_COPY, ACTION_EDIT], Data::raw(&fs::read_to_string(&test.in_path)?), None, folded))
 }
 
 fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
@@ -125,9 +125,9 @@ fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 
 fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	Ok(if test.out_path.exists() {
-		render_cell("", &[ACTION_COPY], Data::raw(&fs::read_to_string(&test.out_path)?), None, folded)
+		render_cell("test-desired", &[ACTION_COPY, ACTION_EDIT], Data::raw(&fs::read_to_string(&test.out_path)?), None, folded)
 	} else {
-		render_cell("", &[], Data::raw(""), Some("File does not exist"), folded)
+		render_cell("test-desired", &[ACTION_EDIT], Data::raw(""), Some("File does not exist"), folded)
 	})
 }
 
@@ -140,6 +140,11 @@ const ACTION_COPY: Action = Action {
 	onclick: "trigger_copy()",
 	icon: "file_copy",
 	hint: "Copy contents",
+};
+const ACTION_EDIT: Action = Action {
+	onclick: "trigger_edit()",
+	icon: "edit",
+	hint: "Edit",
 };
 const ACTION_GDB: Action = Action {
 	onclick: "trigger_gdb()",

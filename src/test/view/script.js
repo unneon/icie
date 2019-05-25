@@ -7,7 +7,7 @@ function make_action(callback) {
 		let el = event.target;
 		let row = el.parentElement.parentElement.parentElement;
 		let in_path = row.dataset.in_path;
-		let target_cell = el.parentElement.parentElemente;
+		let target_cell = el.parentElement.parentElement;
 		return callback({
 			row: row,
 			in_path: in_path,
@@ -30,6 +30,14 @@ trigger_rr = make_action(ev => vscode.postMessage({ tag: "trigger_rr", in_path: 
 trigger_gdb = make_action(ev => vscode.postMessage({ tag: "trigger_gdb", in_path: ev.in_path }));
 trigger_set_alt = make_action(ev => vscode.postMessage({ tag: "set_alt", in_path: ev.in_path, out: ev.row.dataset.out_raw }));
 trigger_del_alt = make_action(ev => vscode.postMessage({ tag: "del_alt", in_path: ev.in_path }));
+trigger_edit = make_action(ev => {
+	let cell_node = ev.target_cell;
+	let path = ev.in_path;
+	if (cell_node.classList.contains("test-desired")) {
+		path = path.replace(/\.in$/, '.out');
+	}
+	vscode.postMessage({ tag: "edit", path: path });
+});
 
 function new_start() {
 	console.log(`new_start()`);
