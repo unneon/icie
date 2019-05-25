@@ -1,4 +1,4 @@
-use crate::ci::{exec::Executable, util::R};
+use crate::{ci::exec::Executable, term, util};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
@@ -46,7 +46,10 @@ pub trait Standard {
 
 pub static ALLOWED_EXTENSIONS: &'static [&'static str] = &["cpp", "cxx", "cc"];
 
-pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
+pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> evscode::R<Status> {
+	if !util::is_installed("clang++")? {
+		return Err(evscode::E::error("Clang is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_clang));
+	}
 	let executable = Executable::new(out.to_path_buf());
 	let mut cmd = Command::new("clang++");
 	cmd.arg(standard.as_gcc_flag());
@@ -79,6 +82,10 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 		errors,
 		warnings,
 	})
+}
+
+fn install_clang() -> evscode::R<()> {
+	term::install("Clang", &["pkexec", "apt", "install", "-y", "clang"])
 }
 
 lazy_static! {
