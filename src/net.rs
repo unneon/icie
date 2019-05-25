@@ -1,5 +1,3 @@
-use failure::ResultExt;
-
 pub fn connect(url: &unijudge::TaskUrl) -> evscode::R<Box<dyn unijudge::Session>> {
 	let (username, password) = {
 		let _status = crate::STATUS.push("Remembering passwords");
@@ -7,7 +5,7 @@ pub fn connect(url: &unijudge::TaskUrl) -> evscode::R<Box<dyn unijudge::Session>
 	};
 	let sess = {
 		let _status = crate::STATUS.push("Logging in");
-		unijudge::connect_login(&url.site, &username, &password).compat()?
+		unijudge::connect_login(&url.site, &username, &password).map_err(evscode::E::from_failure)?
 	};
 	Ok(sess)
 }

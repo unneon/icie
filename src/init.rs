@@ -1,5 +1,4 @@
 use crate::{dir, util};
-use failure::ResultExt;
 use std::{
 	fs, path::{Path, PathBuf}
 };
@@ -54,14 +53,14 @@ fn init_template(root: &Path) -> evscode::R<()> {
 }
 fn init_examples(root: &Path, url: &Option<String>) -> evscode::R<()> {
 	if let Some(url) = url {
-		let url = unijudge::TaskUrl::deconstruct(&url).compat()?;
+		let url = unijudge::TaskUrl::deconstruct(&url).map_err(evscode::E::from_failure)?;
 		let sess = crate::net::connect(&url)?;
 		let cont = sess.contest(&url.contest);
 		let examples_dir = root.join("tests").join("example");
 		fs::create_dir_all(&examples_dir)?;
 		let tests = {
 			let _status = crate::STATUS.push("Downloading tests");
-			cont.examples(&url.task).compat()?
+			cont.examples(&url.task).map_err(evscode::E::from_failure)?
 		};
 		for (i, test) in tests.into_iter().enumerate() {
 			fs::write(examples_dir.join(format!("{}.in", i + 1)), &test.input)?;
