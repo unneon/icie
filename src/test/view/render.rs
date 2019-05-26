@@ -20,10 +20,16 @@ impl HideBehaviour {
 	}
 }
 
-#[evscode::config(description = "Fold AC in test view")]
+#[evscode::config(
+	description = "This controls when to hide passing tests in test view by collapsing them into a thin color line. Even if this is not set, any failing tests will still be \
+	               visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default)."
+)]
 static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-#[evscode::config(description = "Hide AC in test view")]
+#[evscode::config(
+	description = "This controls when to hide passing tests in test view by not displaying them at all. Even if this is not set, any failing tests will still be visible if the \
+	               icie.test.view.scrollToFirstFailed option is enabled(as is by default)."
+)]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
 pub fn render(tests: &[TestRun]) -> R<String> {
@@ -179,7 +185,10 @@ const ACTION_DEL_ALT: Action = Action {
 	hint: "Stop accepting this output",
 };
 
-#[evscode::config(description = "Max test lines displayed in test view. Lines after the limit will be replaced with an ellipsis. Set to 0 to denote no limit.")]
+#[evscode::config(
+	description = "A maximum number of lines that can be displayed in a test case. If this is set to n, and the test case input or output will have more than lines, only the \
+	               first n-1 lines will be displayed, followed by an ellipse. Set to 0 to denote no limit."
+)]
 static MAX_TEST_LINES: evscode::Config<usize> = 0usize;
 
 struct Data {

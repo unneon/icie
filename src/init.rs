@@ -2,7 +2,10 @@ use crate::{dir, util};
 use evscode::{E, R};
 use std::path::{Path, PathBuf};
 
-#[evscode::config(description = "Which code template to use as the solution file?")]
+#[evscode::config(
+	description = "The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the icie.template.list \
+	               configuration entry."
+)]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 fn init(root: &Path) -> R<()> {
@@ -85,7 +88,10 @@ fn existing() -> R<()> {
 	Ok(())
 }
 
-#[evscode::config(description = "Ask for path before initializing?")]
+#[evscode::config(
+	description = "By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory configuration entry, \
+	               and the name will be chosen from a selection of cute animals. This options allows to instead specify the directory every time."
+)]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
 #[derive(Debug, evscode::Configurable)]

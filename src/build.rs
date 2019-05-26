@@ -2,19 +2,34 @@ use crate::{ci, dir, util, STATUS};
 use evscode::{E, R};
 use std::path::PathBuf;
 
-#[evscode::config(description = "Auto move to error position")]
+#[evscode::config(
+	description = "When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting, an error \
+	               message containing error details will be shown."
+)]
 static AUTO_MOVE_TO_ERROR: vscode::Config<bool> = true;
 
-#[evscode::config(description = "Auto move to warning position")]
+#[evscode::config(
+	description = "When a compilation warning appears, the cursor will automatically move to the file and location which caused the warning. If this is not set, a warning \
+	               message will be shown with a \"Show\" button which will move the cursor to the location of the warning."
+)]
 static AUTO_MOVE_TO_WARNING: evscode::Config<bool> = true;
 
-#[evscode::config(description = "Executable extension")]
+#[evscode::config(
+	description = "An extension used to denote executable files. For example, if this entry is set to \"xyz\", compiling a source file called main.cpp will create an executable \
+	               called main.xyz."
+)]
 static EXECUTABLE_EXTENSION: evscode::Config<String> = "e";
 
-#[evscode::config(description = "C++ language standard")]
+#[evscode::config(
+	description = "C++ ISO language standard version. This corresponds to e.g. -std=c++17 flag on GCC/Clang. Be aware some of these options may not be supported by your \
+	               compiler, which will result in an error."
+)]
 static CPP_STANDARD: evscode::Config<Standard> = Standard::Cpp17;
 
-#[evscode::config(description = "Additional C++ compilation flags. The flags will be appended after ICIE-sourced on both debug and release builds.")]
+#[evscode::config(
+	description = "Additional C++ compilation flags. The flags will be appended to the command line after the standard, warning, debug symbols and optimization flags. These \
+	               flags will be used both in Debug and Release profiles."
+)]
 static ADDITIONAL_CPP_FLAGS: evscode::Config<String> = "";
 
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
