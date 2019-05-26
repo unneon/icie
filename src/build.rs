@@ -36,10 +36,7 @@ fn manual() -> evscode::R<()> {
 		evscode::QuickPick::new()
 			.items(sources.into_iter().map(|entry| {
 				let path = entry.path();
-				let text = match path.strip_prefix(&root) {
-					Ok(relative) => relative.to_str().unwrap(),
-					Err(_) => path.to_str().unwrap(),
-				};
+				let text = path.strip_prefix(&root).unwrap_or(path).to_str().unwrap();
 				evscode::quick_pick::Item::new(path.to_str().unwrap(), text)
 			}))
 			.build()

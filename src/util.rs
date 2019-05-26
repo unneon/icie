@@ -22,10 +22,7 @@ pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 }
 
 pub fn active_tab() -> evscode::R<Option<PathBuf>> {
-	let source = match evscode::active_editor_file().wait() {
-		Some(source) => source,
-		None => return Err(evscode::E::cancel()),
-	};
+	let source = evscode::active_editor_file().wait().ok_or_else(E::cancel)?;
 	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
 }
 
@@ -97,16 +94,14 @@ pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
 }
 
 pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
-	match std::fs::read_to_string(path.as_ref()) {
-		Ok(s) => Ok(s),
-		Err(e) => {
-			if e.kind() == std::io::ErrorKind::NotFound {
-				Err(evscode::E::from_std(e).reform(format!("file {} does not exist", path.as_ref().display())))
-			} else {
-				Err(evscode::E::from_std(e).reform(format!("failed to read file {}", path.as_ref().display())))
-			}
-		},
-	}
+	std::fs::read_to_string(path.as_ref()).map_err(|e| {
+		let is_not_found = e.kind() == std::io::ErrorKind::NotFound;
+		evscode::E::from_std(e).context(if is_not_found {
+			format!("file {} does not exist", path.as_ref().display())
+		} else {
+			format!("failed to read file {}", path.as_ref().display())
+		})
+	})
 }
 
 pub fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> R<()> {

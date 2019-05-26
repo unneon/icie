@@ -42,17 +42,15 @@ fn qistruct() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let mut members = Vec::new();
-	loop {
-		let member = match evscode::InputBox::new()
-			.prompt(format!("Qistruct member {}", members.len() + 1))
-			.placeholder("int age")
-			.build()
-			.wait()
-		{
-			Some(ref member) if member.trim() == "" => break,
-			Some(member) => member,
-			None => break,
-		};
+	while let Some(member) = evscode::InputBox::new()
+		.prompt(format!("Qistruct member {}", members.len() + 1))
+		.placeholder("int age")
+		.build()
+		.wait()
+	{
+		if member.trim().is_empty() {
+			break;
+		}
 		let i = member.rfind(' ').ok_or_else(|| E::error("incorrect member syntax, should be e.g., int age"))?;
 		let typ = &member[..i];
 		let ide = &member[i + 1..];

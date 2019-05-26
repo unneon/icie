@@ -7,17 +7,14 @@ static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 fn init(root: &Path) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	let url = match evscode::InputBox::new()
+	let url = evscode::InputBox::new()
 		.prompt("Enter task URL or leave empty")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
 		.build()
 		.wait()
-	{
-		Some(ref url) if url.trim().is_empty() => None,
-		Some(url) => Some(url),
-		None => return Err(E::cancel()),
-	};
+		.map(|url| if url.trim().is_empty() { None } else { Some(url) })
+		.ok_or_else(E::cancel)?;
 	init_manifest(root, &url)?;
 	init_template(root)?;
 	init_examples(root, &url)?;
@@ -35,16 +32,17 @@ fn init_template(root: &Path) -> R<()> {
 	if !solution.exists() {
 		let req_id = SOLUTION_TEMPLATE.get();
 		let list = crate::template::LIST.get();
-		let path = match list.iter().find(|(id, _)| **id == *req_id) {
-			Some((_, path)) => path,
-			None => {
-				return Err(E::error(format!(
+		let path = list
+			.iter()
+			.find(|(id, _)| **id == *req_id)
+			.ok_or_else(|| {
+				E::error(format!(
 					"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
 					 name(icie.template.list)",
 					req_id
-				)))
-			},
-		};
+				))
+			})?
+			.1;
 		let tpl = crate::template::load(&path)?;
 		util::fs_write(solution, tpl.code)?;
 	}
