@@ -3,7 +3,7 @@ use crate::{
 		self, view::{render::render, SCROLL_TO_FIRST_FAILED}, TestRun
 	}, util
 };
-use evscode::{goodies::WebviewHandle, webview::Column, Webview, WebviewResultmap, R};
+use evscode::{goodies::WebviewHandle, Webview, WebviewResultmap, E, R};
 use std::{fs, path::PathBuf};
 
 lazy_static::lazy_static! {
@@ -22,12 +22,9 @@ fn compute(source: &Option<PathBuf>) -> R<Report> {
 
 fn create(source: &Option<PathBuf>, report: &Report) -> R<Webview> {
 	let title = util::fmt_verb("ICIE Test View", &source);
-	let webview = evscode::Webview::new("icie.test.view", title, evscode::webview::Column::Beside)
-		.enable_scripts()
-		.retain_context_when_hidden()
-		.create();
+	let webview = evscode::Webview::new("icie.test.view", title, 2).enable_scripts().retain_context_when_hidden().create();
 	webview.set_html(render(&report.runs)?);
-	webview.reveal(Column::Beside);
+	webview.reveal(2);
 	if *SCROLL_TO_FIRST_FAILED.get() {
 		webview.post_message(json::object! {
 			"tag" => "scroll_to_wa",
@@ -37,7 +34,7 @@ fn create(source: &Option<PathBuf>, report: &Report) -> R<Webview> {
 }
 
 fn manage(source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box<dyn FnOnce()+Send+'static>> {
-	let webview = webview.lock()?;
+	let webview = webview.lock().unwrap();
 	let stream = webview.listener().spawn().cancel_on(webview.disposer());
 	let source = source.clone();
 	Ok(Box::new(move || {
@@ -59,7 +56,8 @@ fn manage(source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box
 					move || {
 						let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 						let out = note["out"].as_str().unwrap();
-						fs::write(in_path.with_extension("alt.out"), format!("{}\n", out.trim()))?;
+						fs::write(in_path.with_extension("alt.out"), format!("{}\n", out.trim()))
+							.map_err(|e| E::from_std(e).context("failed to save alternative out as a file"))?;
 						COLLECTION.get_force(source)?;
 						Ok(())
 					}
@@ -68,7 +66,7 @@ fn manage(source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box
 					let source = source.clone();
 					move || {
 						let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
-						fs::remove_file(in_path.with_extension("alt.out"))?;
+						fs::remove_file(in_path.with_extension("alt.out")).map_err(|e| E::from_std(e).context("failed to remove alternative out file"))?;
 						COLLECTION.get_force(source)?;
 						Ok(())
 					}

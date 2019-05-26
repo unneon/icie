@@ -1,12 +1,11 @@
 use crate::{dir, util};
-use std::{
-	fs, path::{Path, PathBuf}
-};
+use evscode::{E, R};
+use std::path::{Path, PathBuf};
 
 #[evscode::config(description = "Which code template to use as the solution file?")]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
-fn init(root: &Path) -> evscode::R<()> {
+fn init(root: &Path) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let url = match evscode::InputBox::new()
 		.prompt("Enter task URL or leave empty")
@@ -17,7 +16,7 @@ fn init(root: &Path) -> evscode::R<()> {
 	{
 		Some(ref url) if url.trim().is_empty() => None,
 		Some(url) => Some(url),
-		None => return Err(evscode::E::cancel()),
+		None => return Err(E::cancel()),
 	};
 	init_manifest(root, &url)?;
 	init_template(root)?;
@@ -26,12 +25,12 @@ fn init(root: &Path) -> evscode::R<()> {
 	Ok(())
 }
 
-fn init_manifest(root: &Path, url: &Option<String>) -> evscode::R<()> {
+fn init_manifest(root: &Path, url: &Option<String>) -> R<()> {
 	let manifest = crate::manifest::Manifest::new_project(url.clone());
 	manifest.save(root)?;
 	Ok(())
 }
-fn init_template(root: &Path) -> evscode::R<()> {
+fn init_template(root: &Path) -> R<()> {
 	let solution = root.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
 	if !solution.exists() {
 		let req_id = SOLUTION_TEMPLATE.get();
@@ -39,7 +38,7 @@ fn init_template(root: &Path) -> evscode::R<()> {
 		let path = match list.iter().find(|(id, _)| **id == *req_id) {
 			Some((_, path)) => path,
 			None => {
-				return Err(evscode::E::error(format!(
+				return Err(E::error(format!(
 					"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
 					 name(icie.template.list)",
 					req_id
@@ -47,31 +46,31 @@ fn init_template(root: &Path) -> evscode::R<()> {
 			},
 		};
 		let tpl = crate::template::load(&path)?;
-		fs::write(solution, tpl.code)?;
+		util::fs_write(solution, tpl.code)?;
 	}
 	Ok(())
 }
-fn init_examples(root: &Path, url: &Option<String>) -> evscode::R<()> {
+fn init_examples(root: &Path, url: &Option<String>) -> R<()> {
 	if let Some(url) = url {
-		let url = unijudge::TaskUrl::deconstruct(&url).map_err(evscode::E::from_failure)?;
+		let url = unijudge::TaskUrl::deconstruct(&url).map_err(E::from_failure)?;
 		let sess = crate::net::connect(&url)?;
 		let cont = sess.contest(&url.contest);
 		let examples_dir = root.join("tests").join("example");
-		fs::create_dir_all(&examples_dir)?;
+		util::fs_create_dir_all(&examples_dir)?;
 		let tests = {
 			let _status = crate::STATUS.push("Downloading tests");
-			cont.examples(&url.task).map_err(evscode::E::from_failure)?
+			cont.examples(&url.task).map_err(E::from_failure)?
 		};
 		for (i, test) in tests.into_iter().enumerate() {
-			fs::write(examples_dir.join(format!("{}.in", i + 1)), &test.input)?;
-			fs::write(examples_dir.join(format!("{}.out", i + 1)), &test.output)?;
+			util::fs_write(examples_dir.join(format!("{}.in", i + 1)), &test.input)?;
+			util::fs_write(examples_dir.join(format!("{}.out", i + 1)), &test.output)?;
 		}
 	}
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Init", key = "alt+f11")]
-fn new() -> evscode::R<()> {
+fn new() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let root = ASK_FOR_PATH.get().query(&*dir::PROJECT_DIRECTORY.get(), &dir::random_codename())?;
 	let dir = util::TransactionDir::new(&root)?;
@@ -81,7 +80,7 @@ fn new() -> evscode::R<()> {
 }
 
 #[evscode::command(title = "ICIE Init existing")]
-fn existing() -> evscode::R<()> {
+fn existing() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let root = evscode::workspace_root()?;
 	init(&root)?;
@@ -102,7 +101,7 @@ enum PathDialog {
 }
 
 impl PathDialog {
-	fn query(&self, directory: &Path, codename: &str) -> evscode::R<PathBuf> {
+	fn query(&self, directory: &Path, codename: &str) -> R<PathBuf> {
 		let basic = directory.join(codename);
 		let basic_str = basic.display().to_string();
 		match self {
@@ -115,9 +114,9 @@ impl PathDialog {
 					.value_selection(basic_str.len() - codename.len(), basic_str.len())
 					.build()
 					.wait()
-					.ok_or_else(evscode::E::cancel)?,
+					.ok_or_else(E::cancel)?,
 			)),
-			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").build().wait().ok_or_else(evscode::E::cancel)?),
+			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").build().wait().ok_or_else(E::cancel)?),
 		}
 	}
 }

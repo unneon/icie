@@ -1,5 +1,6 @@
 use crate::{dir, util};
-use std::{collections::HashMap, fs, path::PathBuf};
+use evscode::{E, R};
+use std::{collections::HashMap, path::PathBuf};
 
 #[evscode::config(
 	description = "A list of files used as code templates. If you see \"Edit in settings.json\", click it, then add a new entry starting with \"icie.template.list\" and if you \
@@ -8,13 +9,13 @@ use std::{collections::HashMap, fs, path::PathBuf};
 pub static LIST: evscode::Config<HashMap<String, String>> = vec![("C++".to_owned(), BUILTIN_TEMPLATE_PSEUDOPATH.to_owned())].into_iter().collect();
 
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]
-pub fn instantiate() -> evscode::R<()> {
+pub fn instantiate() -> R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
 	let templates = LIST.get();
 	let qpick = evscode::QuickPick::new()
 		.items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())))
 		.build();
-	let template_id = qpick.wait().ok_or_else(evscode::E::cancel)?;
+	let template_id = qpick.wait().ok_or_else(E::cancel)?;
 	let template_path = &templates[&template_id];
 	let tpl = load(&template_path)?;
 	let filename = evscode::InputBox::new()
@@ -25,12 +26,12 @@ pub fn instantiate() -> evscode::R<()> {
 		.value_selection(0, tpl.suggested_filename.rfind('.').unwrap())
 		.build()
 		.wait()
-		.ok_or_else(evscode::E::cancel)?;
+		.ok_or_else(E::cancel)?;
 	let path = evscode::workspace_root()?.join(filename);
 	if path.exists() {
-		return Err(evscode::E::error("file already exists"));
+		return Err(E::error("file already exists"));
 	}
-	fs::write(&path, tpl.code)?;
+	util::fs_write(&path, tpl.code)?;
 	util::nice_open_editor(&path)?;
 	Ok(())
 }
@@ -39,7 +40,7 @@ pub struct LoadedTemplate {
 	pub suggested_filename: String,
 	pub code: String,
 }
-pub fn load(path: &str) -> evscode::R<LoadedTemplate> {
+pub fn load(path: &str) -> R<LoadedTemplate> {
 	if path != BUILTIN_TEMPLATE_PSEUDOPATH {
 		let path = PathBuf::from(shellexpand::tilde(path).into_owned());
 		let suggested_filename = path.file_name().unwrap().to_str().unwrap().to_owned();

@@ -1,5 +1,5 @@
 use crate::{ci, dir, util, STATUS};
-use evscode::R;
+use evscode::{E, R};
 use std::path::PathBuf;
 
 #[evscode::config(description = "Auto move to error position")]
@@ -30,7 +30,8 @@ fn manual() -> evscode::R<()> {
 				.map(|entry| ci::cpp::ALLOWED_EXTENSIONS.iter().any(|ext| Some(std::ffi::OsStr::new(ext)) == entry.path().extension()))
 				.unwrap_or(true)
 		})
-		.collect::<walkdir::Result<Vec<_>>>()?;
+		.collect::<walkdir::Result<Vec<_>>>()
+		.map_err(|e| E::from_std(e).context("failed to scan tests directory"))?;
 	let source = PathBuf::from(
 		evscode::QuickPick::new()
 			.items(sources.into_iter().map(|entry| {
@@ -59,7 +60,8 @@ fn manual() -> evscode::R<()> {
 		.spawn()
 		.wait()
 		.ok_or_else(evscode::E::cancel)?
-		.parse::<usize>()?];
+		.parse::<usize>()
+		.unwrap()];
 	build(source, codegen)?;
 	Ok(())
 }
@@ -70,14 +72,26 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 	let workspace_source = dir::solution()?;
 	let source = source.unwrap_or_else(|| workspace_source.as_path());
 	if !source.exists() {
-		let pretty_source = source.strip_prefix(evscode::workspace_root()?)?;
+		let pretty_source = source
+			.strip_prefix(evscode::workspace_root()?)
+			.map_err(|e| E::from_std(e).context("tried to build source outside of project directory"))?;
 		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source.display())));
 	}
 	evscode::save_all().wait();
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if out.exists() {
-		let source_mods = &[&source].iter().map(|source| Ok(source.metadata()?.modified()?)).collect::<R<Vec<_>>>()?;
-		if out.metadata()?.modified()? > *source_mods.iter().max().unwrap() {
+		let source_mods = &[&source]
+			.iter()
+			.map(|source| Ok(source.metadata()?.modified()?))
+			.collect::<std::io::Result<Vec<_>>>()
+			.map_err(|e| E::from_std(e).context("failed to query source file metadata"))?;
+		if out
+			.metadata()
+			.map_err(|e| E::from_std(e).context("failed to query executable metadata"))?
+			.modified()
+			.map_err(|e| E::from_std(e).context("failed to query app modification time"))?
+			> *source_mods.iter().max().unwrap()
+		{
 			return Ok(ci::exec::Executable::new(out));
 		}
 	}

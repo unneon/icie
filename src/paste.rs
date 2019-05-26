@@ -1,6 +1,7 @@
 mod logic;
 
 use crate::dir;
+use evscode::{E, R};
 use logic::{Library, Piece};
 use std::path::{Path, PathBuf};
 
@@ -8,7 +9,7 @@ use std::path::{Path, PathBuf};
 static LIBRARY_PATH: evscode::Config<String> = "";
 
 #[evscode::command(title = "ICIE Quick Paste", key = "alt+[")]
-fn quick() -> evscode::R<()> {
+fn quick() -> R<()> {
 	let _status = crate::STATUS.push("Copy-pasting");
 	let library = load_library()?;
 	let piece_id = evscode::QuickPick::new()
@@ -25,21 +26,21 @@ fn quick() -> evscode::R<()> {
 		}))
 		.build()
 		.wait()
-		.ok_or_else(evscode::E::cancel)?;
+		.ok_or_else(E::cancel)?;
 	let context = query_context(&library)?;
 	library.walk_graph(&piece_id, context)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Quick input struct", key = "alt+i")]
-fn qistruct() -> evscode::R<()> {
+fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
 	let name = evscode::InputBox::new()
 		.prompt("Qistruct name")
 		.placeholder("Person")
 		.build()
 		.wait()
-		.ok_or_else(evscode::E::cancel)?;
+		.ok_or_else(E::cancel)?;
 	let mut members = Vec::new();
 	loop {
 		let member = match evscode::InputBox::new()
@@ -52,7 +53,7 @@ fn qistruct() -> evscode::R<()> {
 			Some(member) => member,
 			None => break,
 		};
-		let i = member.rfind(' ').ok_or_else(|| evscode::E::error("incorrect member syntax, should be e.g., int age"))?;
+		let i = member.rfind(' ').ok_or_else(|| E::error("incorrect member syntax, should be e.g., int age"))?;
 		let typ = &member[..i];
 		let ide = &member[i + 1..];
 		members.push((typ.to_string(), ide.to_string()));
@@ -83,16 +84,16 @@ fn qistruct() -> evscode::R<()> {
 	Ok(())
 }
 
-fn load_library() -> evscode::R<Library> {
+fn load_library() -> R<Library> {
 	let path = LIBRARY_PATH.get();
 	if path.trim().is_empty() {
-		return Err(evscode::E::error("Library path not set, change it in settings(Ctrl+,) under Icie Paste Library Path"));
+		return Err(E::error("Library path not set, change it in settings(Ctrl+,) under Icie Paste Library Path"));
 	}
 	let library = Library::load(Path::new(&*shellexpand::tilde(&*path)))?;
 	Ok(library)
 }
 
-fn query_context<'a>(library: &'a Library) -> evscode::R<VscodePaste<'a>> {
+fn query_context<'a>(library: &'a Library) -> R<VscodePaste<'a>> {
 	let solution = dir::solution()?;
 	let text = evscode::query_document_text(solution.clone()).wait();
 	let context = VscodePaste { solution, text, library };
@@ -109,7 +110,7 @@ impl logic::PasteContext for VscodePaste<'_> {
 		self.text.contains(&piece.guarantee)
 	}
 
-	fn paste(&mut self, piece_id: &str) -> evscode::R<()> {
+	fn paste(&mut self, piece_id: &str) -> R<()> {
 		let piece = &self.library.pieces[piece_id];
 		log::info!("Wanna paste: {}", piece.name);
 		let (position, snippet) = self.library.place(piece_id, &self.text)?;

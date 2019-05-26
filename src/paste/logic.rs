@@ -1,4 +1,4 @@
-use evscode::R;
+use evscode::{E, R};
 use serde::Deserialize;
 use std::{collections::HashMap, path::Path};
 
@@ -21,7 +21,7 @@ pub struct Piece {
 impl Library {
 	pub fn load(path: &Path) -> R<Library> {
 		let file = crate::util::fs_read_to_string(path)?;
-		let library: Library = serde_json::from_str(&file)?;
+		let library: Library = serde_json::from_str(&file).map_err(|e| E::from_std(e).context("library.json is not a valid icie::paste::logic::Library"))?;
 		library.verify()?;
 		Ok(library)
 	}
@@ -30,22 +30,22 @@ impl Library {
 		for piece in self.pieces.values() {
 			if let Some(parent) = &piece.parent {
 				if !self.pieces.contains_key(parent) {
-					return Err(evscode::E::error("parent does not exist").context("malformed library"));
+					return Err(E::error("parent does not exist").context("malformed library"));
 				}
 				if self.pieces[parent].parent.is_some() {
-					return Err(evscode::E::error("doubly nested library pieces are not supported yet").context("malformed library"));
+					return Err(E::error("doubly nested library pieces are not supported yet").context("malformed library"));
 				}
 			}
 			for dep in &piece.dependencies {
 				if !self.pieces.contains_key(dep) {
-					return Err(evscode::E::error("dependency does not exist").context("malformed library"));
+					return Err(E::error("dependency does not exist").context("malformed library"));
 				}
 			}
 		}
 		let (dg, t1, _) = self.build_dependency_graph();
 		let og = self.build_ordering_graph(&dg, &t1);
 		if og.toposort().is_none() {
-			return Err(evscode::E::error("dependency/parenting cycle detected").context("malformed library"));
+			return Err(E::error("dependency/parenting cycle detected").context("malformed library"));
 		}
 		Ok(())
 	}

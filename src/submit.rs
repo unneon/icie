@@ -1,41 +1,40 @@
-use crate::dir;
-use std::{fs, time::Duration};
+use crate::{dir, util};
+use evscode::{E, R};
+use std::time::Duration;
 use unijudge::RejectionCause;
 
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
-fn send() -> evscode::R<()> {
+fn send() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None)?;
 	if report.runs.iter().any(|test| !test.success()) {
-		return Err(evscode::E::error("some tests failed, submit aborted"));
+		return Err(E::error("some tests failed, submit aborted"));
 	}
-	let code = fs::read_to_string(dir::solution()?)?;
+	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
-	let url = manifest
-		.task_url
-		.ok_or_else(|| evscode::E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
-	let url = unijudge::TaskUrl::deconstruct(&url).map_err(evscode::E::from_failure)?;
+	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
+	let url = unijudge::TaskUrl::deconstruct(&url).map_err(E::from_failure)?;
 	let sess = crate::net::connect(&url)?;
 	let cont = sess.contest(&url.contest);
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
-		cont.languages().map_err(evscode::E::from_failure)?
+		cont.languages().map_err(E::from_failure)?
 	};
 	let good_langs = ["C++", "GNU G++17 7.3.0"];
 	let lang = langs
 		.iter()
 		.find(|lang| good_langs.contains(&lang.name.as_str()))
-		.ok_or_else(|| evscode::E::error("site does not support C++"))?;
-	cont.submit(&url.task, lang, &code).map_err(evscode::E::from_failure)?;
+		.ok_or_else(|| E::error("site does not support C++"))?;
+	cont.submit(&url.task, lang, &code).map_err(E::from_failure)?;
 	let submissions = {
 		let _status = crate::STATUS.push("Querying submit id");
-		cont.submissions_recent().map_err(evscode::E::from_failure)?
+		cont.submissions_recent().map_err(E::from_failure)?
 	};
 	track(&*cont, &submissions[0].id)?;
 	Ok(())
 }
 
-fn track(cont: &dyn unijudge::Contest, id: &str) -> evscode::R<()> {
+fn track(cont: &dyn unijudge::Contest, id: &str) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
 	let sleep_duration = Duration::from_millis(500);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
@@ -43,7 +42,7 @@ fn track(cont: &dyn unijudge::Contest, id: &str) -> evscode::R<()> {
 	let verdict = loop {
 		let submissions = {
 			let _status = crate::STATUS.push("Tracking...");
-			cont.submissions_recent().map_err(evscode::E::from_failure)?
+			cont.submissions_recent().map_err(E::from_failure)?
 		};
 		let submission = submissions.into_iter().find(|subm| subm.id == id).unwrap();
 		let should_send = match &submission.verdict {
@@ -100,7 +99,7 @@ fn fmt_cause_withtest(cause: &Option<RejectionCause>, test: &Option<String>) -> 
 		(Some(RejectionCause::RuleViolation), _) => " due to a Rule Violation",
 		(Some(RejectionCause::SystemError), _) => " due to a System Error",
 		(Some(RejectionCause::CompilationError), _) => " due to a Compilation Error",
-		(_, Some(_)) => " failing",
+		(None, Some(_)) => " failing",
 		(None, None) => "",
 	}
 }

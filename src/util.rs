@@ -1,3 +1,4 @@
+use evscode::{E, R};
 use std::{
 	path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
 };
@@ -47,7 +48,8 @@ pub fn is_installed(app: &'static str) -> evscode::R<bool> {
 		.stdout(Stdio::null())
 		.stdin(Stdio::null())
 		.stderr(Stdio::null())
-		.status()?
+		.status()
+		.map_err(|e| evscode::E::from_std(e).context("failed to check whether a program in installed with which(1)"))?
 		.success())
 }
 
@@ -99,16 +101,24 @@ pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
 		Ok(s) => Ok(s),
 		Err(e) => {
 			if e.kind() == std::io::ErrorKind::NotFound {
-				Err(evscode::E::from(e).reform(format!("file {} does not exist", path.as_ref().display())))
+				Err(evscode::E::from_std(e).reform(format!("file {} does not exist", path.as_ref().display())))
 			} else {
-				Err(evscode::E::from(e))
+				Err(evscode::E::from_std(e).reform(format!("failed to read file {}", path.as_ref().display())))
 			}
 		},
 	}
 }
 
+pub fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> R<()> {
+	std::fs::write(path.as_ref(), content.as_ref()).map_err(|e| E::from_std(e).context(format!("failed to write to {}", path.as_ref().display())))
+}
+
+pub fn fs_create_dir_all(path: impl AsRef<Path>) -> R<()> {
+	std::fs::create_dir_all(path.as_ref()).map_err(|e| E::from_std(e).context(format!("failed to create directory {}", path.as_ref().display())))
+}
+
 pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
-	let doc = std::fs::read_to_string(path.as_ref())?;
+	let doc = std::fs::read_to_string(path.as_ref()).unwrap_or_default();
 	let mut found_main = false;
 	for (i, line) in doc.lines().enumerate() {
 		if !found_main && line.contains("int main(") {
@@ -134,7 +144,7 @@ pub struct TransactionDir {
 }
 impl TransactionDir {
 	pub fn new(path: &Path) -> evscode::R<TransactionDir> {
-		std::fs::create_dir_all(path)?;
+		fs_create_dir_all(path)?;
 		Ok(TransactionDir {
 			path: path.to_owned(),
 			good: false,

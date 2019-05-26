@@ -1,3 +1,4 @@
+use evscode::{E, R};
 use serde::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
@@ -12,15 +13,15 @@ impl Manifest {
 		Manifest { task_url }
 	}
 
-	pub fn save(&self, root: &Path) -> evscode::R<()> {
-		let f = File::create(root.join(".icie"))?;
-		serde_json::to_writer(f, &self)?;
+	pub fn save(&self, root: &Path) -> R<()> {
+		let f = File::create(root.join(".icie")).map_err(|e| E::from_std(e).context("failed to create manifest file"))?;
+		serde_json::to_writer(f, &self).map_err(|e| E::from_std(e).context("failed to write the manifest to file"))?;
 		Ok(())
 	}
 
-	pub fn load() -> evscode::R<Manifest> {
+	pub fn load() -> R<Manifest> {
 		let s = crate::util::fs_read_to_string(evscode::workspace_root()?.join(".icie"))?;
-		let manifest = serde_json::from_str(&s)?;
+		let manifest = serde_json::from_str(&s).map_err(|e| E::from_std(e).context(".icie is not a valid icie::manifest::Manifest"))?;
 		Ok(manifest)
 	}
 }

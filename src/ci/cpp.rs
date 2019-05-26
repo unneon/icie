@@ -1,4 +1,5 @@
 use crate::{ci::exec::Executable, term, util};
+use evscode::{E, R};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
@@ -46,9 +47,9 @@ pub trait Standard {
 
 pub static ALLOWED_EXTENSIONS: &'static [&'static str] = &["cpp", "cxx", "cc"];
 
-pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> evscode::R<Status> {
+pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
 	if !util::is_installed("clang++")? {
-		return Err(evscode::E::error("Clang is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_clang));
+		return Err(E::error("Clang is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_clang));
 	}
 	let executable = Executable::new(out.to_path_buf());
 	let mut cmd = Command::new("clang++");
@@ -62,8 +63,8 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 	cmd.stdin(Stdio::null());
 	cmd.stdout(Stdio::null());
 	cmd.stderr(Stdio::piped());
-	let kid = cmd.spawn()?;
-	let output = kid.wait_with_output()?;
+	let kid = cmd.spawn().map_err(|e| E::from_std(e).context("failed to spawn compiler(clang++) process"))?;
+	let output = kid.wait_with_output().map_err(|e| E::from_std(e).context("failed to wait for compiler output"))?;
 	let success = output.status.success();
 	let stderr = String::from_utf8(output.stderr).unwrap();
 	let mut errors = Vec::new();
@@ -84,7 +85,7 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 	})
 }
 
-fn install_clang() -> evscode::R<()> {
+fn install_clang() -> R<()> {
 	term::install("Clang", &["pkexec", "apt", "install", "-y", "clang"])
 }
 

@@ -1,9 +1,11 @@
-pub fn site_credentials(site: &str) -> evscode::R<(String, String)> {
+use evscode::{E, R};
+
+pub fn site_credentials(site: &str) -> R<(String, String)> {
 	let entry_name = format!("@credentials {}", site);
 	let kr = keyring::Keyring::new("icie", &entry_name);
 	match kr.get_password() {
 		Ok(creds) => {
-			let creds = json::parse(&creds)?;
+			let creds = json::parse(&creds).map_err(|e| E::from_std(e).context("credentials were saved in an invalid format"))?;
 			Ok((creds["username"].as_str().unwrap().to_owned(), creds["password"].as_str().unwrap().to_owned()))
 		},
 		Err(e) => {
@@ -23,14 +25,14 @@ pub fn site_credentials(site: &str) -> evscode::R<(String, String)> {
 				.ignore_focus_out()
 				.build()
 				.wait()
-				.ok_or_else(evscode::E::cancel)?;
+				.ok_or_else(E::cancel)?;
 			let password = evscode::InputBox::new()
 				.prompt(format!("Password for {} at {}", username, site))
 				.password()
 				.ignore_focus_out()
 				.build()
 				.wait()
-				.ok_or_else(evscode::E::cancel)?;
+				.ok_or_else(E::cancel)?;
 			if !has_errored
 				&& kr
 					.set_password(

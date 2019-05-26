@@ -1,5 +1,5 @@
 use crate::{ci, test::TestRun, util};
-use std::fs;
+use evscode::R;
 
 #[derive(Debug, evscode::Configurable)]
 enum HideBehaviour {
@@ -26,7 +26,7 @@ static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 #[evscode::config(description = "Hide AC in test view")]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-pub fn render(tests: &[TestRun]) -> evscode::R<String> {
+pub fn render(tests: &[TestRun]) -> R<String> {
 	Ok(format!(
 		r#"
 		<html>
@@ -56,7 +56,7 @@ pub fn render(tests: &[TestRun]) -> evscode::R<String> {
 	))
 }
 
-fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
+fn render_test_table(tests: &[TestRun]) -> R<String> {
 	let any_failed = tests.iter().any(|test| !test.success());
 	let mut html = String::new();
 	for test in tests {
@@ -65,7 +65,7 @@ fn render_test_table(tests: &[TestRun]) -> evscode::R<String> {
 	Ok(html)
 }
 
-fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
+fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 	if test.success() && HIDE_AC.get().should(any_failed) {
 		return Ok(String::new());
 	}
@@ -87,11 +87,17 @@ fn render_test(test: &TestRun, any_failed: bool) -> evscode::R<String> {
 	))
 }
 
-fn render_in_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
-	Ok(render_cell("", &[ACTION_COPY, ACTION_EDIT], Data::raw(&fs::read_to_string(&test.in_path)?), None, folded))
+fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
+	Ok(render_cell(
+		"",
+		&[ACTION_COPY, ACTION_EDIT],
+		Data::raw(&util::fs_read_to_string(&test.in_path)?),
+		None,
+		folded,
+	))
 }
 
-fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
+fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 	use ci::test::Verdict::*;
 	let outcome_class = match test.outcome.verdict {
 		Accepted { alternative: false } => "test-good",
@@ -123,9 +129,15 @@ fn render_out_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
 	))
 }
 
-fn render_desired_cell(test: &TestRun, folded: bool) -> evscode::R<String> {
+fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(if test.out_path.exists() {
-		render_cell("test-desired", &[ACTION_COPY, ACTION_EDIT], Data::raw(&fs::read_to_string(&test.out_path)?), None, folded)
+		render_cell(
+			"test-desired",
+			&[ACTION_COPY, ACTION_EDIT],
+			Data::raw(&util::fs_read_to_string(&test.out_path)?),
+			None,
+			folded,
+		)
 	} else {
 		render_cell("test-desired", &[ACTION_EDIT], Data::raw(""), Some("File does not exist"), folded)
 	})

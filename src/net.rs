@@ -1,11 +1,13 @@
-pub fn connect(url: &unijudge::TaskUrl) -> evscode::R<Box<dyn unijudge::Session>> {
+use evscode::{E, R};
+
+pub fn connect(url: &unijudge::TaskUrl) -> R<Box<dyn unijudge::Session>> {
 	let (username, password) = {
 		let _status = crate::STATUS.push("Remembering passwords");
 		crate::auth::site_credentials(&url.site)?
 	};
 	let sess = {
 		let _status = crate::STATUS.push("Logging in");
-		unijudge::connect_login(&url.site, &username, &password).map_err(evscode::E::from_failure)?
+		unijudge::connect_login(&url.site, &username, &password).map_err(E::from_failure)?
 	};
 	Ok(sess)
 }

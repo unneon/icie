@@ -1,9 +1,8 @@
 pub mod view;
 
 use crate::{build, ci, dir, util, STATUS};
-use std::{
-	fs, path::{Path, PathBuf}
-};
+use evscode::{E, R};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct TestRun {
@@ -17,7 +16,7 @@ impl TestRun {
 	}
 }
 
-pub fn run(main_source: &Option<PathBuf>) -> evscode::R<Vec<TestRun>> {
+pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
@@ -32,7 +31,10 @@ pub fn run(main_source: &Option<PathBuf>) -> evscode::R<Vec<TestRun>> {
 	let worker = run_thread(ins, task, solution).cancel_on(progress.canceler());
 	for _ in 0..test_count {
 		let run = worker.wait()??;
-		let name = run.in_path.strip_prefix(&test_dir)?;
+		let name = run
+			.in_path
+			.strip_prefix(&test_dir)
+			.map_err(|e| E::from_std(e).context("found test outside of test directory"))?;
 		progress.update(
 			100.0 / test_count as f64,
 			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
@@ -42,16 +44,26 @@ pub fn run(main_source: &Option<PathBuf>) -> evscode::R<Vec<TestRun>> {
 	Ok(runs)
 }
 
-fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Executable) -> evscode::Future<evscode::R<TestRun>> {
+fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Executable) -> evscode::Future<R<TestRun>> {
 	evscode::LazyFuture::new_worker(move |carrier| {
 		let _status = STATUS.push("Executing");
 		for in_path in ins {
 			let out_path = in_path.with_extension("out");
 			let alt_path = in_path.with_extension("alt.out");
-			let input = fs::read_to_string(&in_path)?;
-			let output = fs::read_to_string(&out_path)?;
-			let alt = if alt_path.exists() { Some(fs::read_to_string(&alt_path)?) } else { None };
-			let outcome = ci::test::simple_test(&solution, &input, Some(&output), alt.as_ref().map(|p| p.as_str()), &task)?;
+			let input = util::fs_read_to_string(&in_path)?;
+			let output = match std::fs::read_to_string(&out_path) {
+				Ok(output) => Some(output),
+				Err(e) => {
+					if e.kind() == std::io::ErrorKind::NotFound {
+						None
+					} else {
+						return Err(E::from_std(e).context(format!("failed to read test out {}", out_path.display())));
+					}
+				},
+			};
+			let alt = if alt_path.exists() { Some(util::fs_read_to_string(&alt_path)?) } else { None };
+			let outcome = ci::test::simple_test(&solution, &input, output.as_ref().map(String::as_str), alt.as_ref().map(|p| p.as_str()), &task)
+				.map_err(|e| E::from_std(e).context("failed to run test"))?;
 			let run = TestRun { in_path, out_path, outcome };
 			if !carrier.send(run) {
 				break;
@@ -63,24 +75,24 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 }
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
-pub fn view() -> evscode::R<()> {
+pub fn view() -> R<()> {
 	view::manage::COLLECTION.get_force(None)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
-fn view_current() -> evscode::R<()> {
+fn view_current() -> R<()> {
 	view::manage::COLLECTION.get_force(util::active_tab()?)?;
 	Ok(())
 }
 
 fn add(input: &str, desired: &str) -> evscode::R<()> {
 	let tests = dir::custom_tests()?;
-	std::fs::create_dir_all(&tests)?;
+	util::fs_create_dir_all(&tests)?;
 	let id = unused_test_id(&tests)?;
-	fs::write(tests.join(format!("{}.in", id)), input)?;
-	fs::write(tests.join(format!("{}.out", id)), desired)?;
-	view::manage::COLLECTION.update_all()?;
+	util::fs_write(tests.join(format!("{}.in", id)), input)?;
+	util::fs_write(tests.join(format!("{}.out", id)), desired)?;
+	view::manage::COLLECTION.update_all();
 	Ok(())
 }
 
@@ -91,14 +103,14 @@ fn input() -> evscode::R<()> {
 	} else {
 		view::manage::COLLECTION.get_lazy(None)?
 	};
-	view::manage::touch_input(&*view.lock()?);
+	view::manage::touch_input(&*view.lock().unwrap());
 	Ok(())
 }
 
 fn unused_test_id(dir: &Path) -> evscode::R<i64> {
 	let mut taken = std::collections::HashSet::new();
-	for test in dir.read_dir()? {
-		let test = test?;
+	for test in dir.read_dir().map_err(|e| E::from_std(e).context("failed to read tests directory"))? {
+		let test = test.map_err(|e| E::from_std(e).context("failed to read a test file entry in tests directory"))?;
 		if let Ok(id) = test.path().file_stem().unwrap().to_str().unwrap().parse::<i64>() {
 			taken.insert(id);
 		}
