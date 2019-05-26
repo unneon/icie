@@ -10,11 +10,11 @@ Aside from that, stuff for VS Code extension build system is also required. Inst
 
 Also evscode build system requires rsync to work(most likely already installed, if not install with system package manager). Windows builds require more dependencies, but they are turned off for now.
 
-ICIE itself has some dependencies - libssl-dev and libdbus-1-dev(probably with system package manager).
+ICIE itself also depends on libdbus-1-dev(probably install with system package manager).
 
 ## Building
 
-[Clone](https://help.github.com/en/articles/cloning-a-repository) the repository and run `cargo run --release -- --package`. The built .vsix can be found in `target/release/icie-vscode` directory. In VS Code, go to Extensions and use "Install from VSIX..." option.
+[Clone](https://help.github.com/en/articles/cloning-a-repository) the repository and run `cargo run --release -- --package`. The built .vsix can be found in `target/release/icie-vscode` directory. In VS Code, go to Extensions and use "Install from VSIX..." option. Plugin built on a newer distro may not work on an older distro(a good choice is Ubuntu 18.04, LTS, recent and builds work also on 16.04).
 
 # Development
 
