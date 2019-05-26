@@ -1,3 +1,12 @@
+## 0.5.3
+
+- **Fixed common launch crashes** which happened due to lack of recent OpenSSL or glibc on the system
+- **Added an edit test action** shorthand, which opens the related .in/.out
+- Improved error messages, making sure all handled errors are described properly
+- Improved documentation on configuration entries
+- Fixed an unclear error message describint a missing compiler
+- Fixed a tracking error that happened due to hacked verdicts in submission history
+
 ## 0.5.2
 
 - Nicer errors and richer logs when ICIE main process crashes
