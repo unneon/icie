@@ -1,0 +1,63 @@
+::-webkit-scrollbar {
+	display: none;
+}
+body {
+	margin-top: 20px;
+}
+
+.table {
+	width: 100%;
+	table-layout: fixed;
+}
+
+.cell {
+	position: relative;
+	padding: 4px;
+	vertical-align: top;
+}
+.row.folded > .cell {
+	padding: 0px;
+}
+
+.data {
+	white-space: nowrap;
+	z-index: 1;
+	overflow: auto;
+}
+
+.actions {
+	position: absolute;
+	right: 0;
+	margin-right: 4px;
+	z-index: 2;
+	user-select: none;
+	pointer-events: none;
+}
+
+.action {
+	margin: 0;
+	pointer-events: all;
+	cursor: pointer;
+}
+
+.note {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	margin-right: 4px;
+	margin-bottom: 4px;
+	z-index: 2;
+	user-select: none;
+	pointer-events: none;
+}
+
+#new-container {
+	margin-top: 10px;
+	display: none;
+}
+#new-container.is-active {
+	display: flex;
+}
+.new {
+	flex-grow: 1;
+}

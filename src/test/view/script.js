@@ -4,20 +4,21 @@ let newing = false;
 
 function make_action(callback) {
 	return function() {
-		let el = event.target;
-		let row = el.parentElement.parentElement.parentElement;
-		let in_path = row.dataset.in_path;
-		let target_cell = el.parentElement.parentElement;
+		let action = event.target;
+		let cell = action.parentElement.parentElement;
+		let row = cell.parentElement;
+		let path_in = row.dataset['path_in'];
 		return callback({
 			row: row,
-			in_path: in_path,
-			target_cell: target_cell,
+			cell: cell,
+			action: action,
+			path_in: path_in
 		});
 	};
 }
 
-trigger_copy = make_action(ev => {
-	let data_node = Array.from(ev.target_cell.children).find(el => el.classList.contains('test-data'));
+action_copy = make_action(ev => {
+	let data_node = class_kid(ev.cell, ['data']);
 	let selection = window.getSelection();
 	let range = document.createRange();
 	range.selectNodeContents(data_node);
@@ -26,14 +27,13 @@ trigger_copy = make_action(ev => {
 	document.execCommand('Copy');
 	selection.removeAllRanges();
 });
-trigger_rr = make_action(ev => vscode.postMessage({ tag: "trigger_rr", in_path: ev.in_path }));
-trigger_gdb = make_action(ev => vscode.postMessage({ tag: "trigger_gdb", in_path: ev.in_path }));
-trigger_set_alt = make_action(ev => vscode.postMessage({ tag: "set_alt", in_path: ev.in_path, out: ev.row.dataset.out_raw }));
-trigger_del_alt = make_action(ev => vscode.postMessage({ tag: "del_alt", in_path: ev.in_path }));
-trigger_edit = make_action(ev => {
-	let cell_node = ev.target_cell;
-	let path = ev.in_path;
-	if (cell_node.classList.contains("test-desired")) {
+action_rr = make_action(ev => vscode.postMessage({ tag: "trigger_rr", in_path: ev.path_in }));
+action_gdb = make_action(ev => vscode.postMessage({ tag: "trigger_gdb", in_path: ev.path_in }));
+action_setalt = make_action(ev => vscode.postMessage({ tag: "set_alt", in_path: ev.path_in, out: ev.row.dataset['raw_out'] }));
+action_delalt = make_action(ev => vscode.postMessage({ tag: "del_alt", in_path: ev.path_in }));
+action_edit = make_action(ev => {
+	let path = ev.path_in;
+	if (ev.cell.classList.contains("desired")) {
 		path = path.replace(/\.in$/, '.out');
 	}
 	vscode.postMessage({ tag: "edit", path: path });
@@ -42,9 +42,7 @@ trigger_edit = make_action(ev => {
 function new_start() {
 	console.log(`new_start()`);
 	if (!newing) {
-		for (let el of document.getElementsByClassName('new')) {
-			el.classList.add("new-active");
-		}
+		document.getElementById('new-container').classList.add("is-active");
 		newing = true;
 	}
 	document.getElementById('new-input').focus();
@@ -55,9 +53,7 @@ function new_confirm() {
 	if (!newing) {
 		throw new Error('confirmed the test even though creation has not been started');
 	}
-	for (let el of document.getElementsByClassName('new')) {
-		el.classList.remove("new-active");
-	}
+	document.getElementById('new-container').classList.remove('is-active');
 	let input = document.getElementById('new-input').value;
 	let desired = document.getElementById('new-desired').value;
 	document.getElementById('new-input').value = '';
@@ -71,9 +67,14 @@ function new_confirm() {
 }
 
 function scroll_to_wa() {
-	let failed = document.getElementsByClassName('test-row-failed');
+	let failed = document.getElementsByClassName('status-failed');
 	if (failed.length > 0) {
 		failed[0].scrollIntoView();
+	} else {
+		let ignore = document.getElementsByClassName('status-ignore');
+		if (ignore.length > 0) {
+			ignore[0].scrollIntoView();
+		}
 	}
 }
 
@@ -91,12 +92,50 @@ window.addEventListener('message', event => {
 });
 
 window.addEventListener('load', () => {
-	let update = function () {
-		this.style.height = 'auto';
-		this.style.height = `${Math.max(86, this.scrollHeight)}px`;
-	};
 	for (let tx of document.getElementsByTagName('textarea')) {
-		tx.setAttribute('style', `height: ${Math.max(86, tx.scrollHeight)}px; overflow-y: hidden;`);
-		tx.addEventListener('input', update, false);
+		autoexpand_textarea(tx);
+	}
+	for (let row of Array.from(document.getElementsByClassName('row'))) {
+		let output = class_kid(row, ['output', 'data']);
+		let desired = class_kid(row, ['desired', 'data']);
+		sync_scroll(output, desired);
 	}
 }, false);
+
+function autoexpand_textarea(tx) {
+	tx.setAttribute('style', `height: ${Math.max(86, tx.scrollHeight)}px; overflow-y: hidden;`);
+	tx.addEventListener('input', function () {
+		this.style.height = 'auto';
+		this.style.height = `${Math.max(86, this.scrollHeight)}px`;
+	}, false);
+}
+
+function sync_scroll(a, b) {
+	let ma = 0;
+	let mb = 0;
+	a.onscroll = () => {
+		if (mb === 0) {
+			++ma;
+			b.scrollTop = a.scrollTop;
+			b.scrollLeft = a.scrollLeft;
+		} else {
+			--mb;
+		}
+	};
+	b.onscroll = () => {
+		if (ma === 0) {
+			++mb;
+			a.scrollTop = b.scrollTop;
+			a.scrollLeft = b.scrollLeft;
+		} else {
+			--ma;
+		}
+	};
+}
+
+function class_kid(v, clss) {
+	for (let cls of clss) {
+		v = Array.from(v.children).find(u => u.classList.contains(cls));
+	}
+	return v;
+}

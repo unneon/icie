@@ -1,5 +1,6 @@
-use crate::{ci, test::TestRun, util};
+use crate::{ci::test::Verdict, test::TestRun, util};
 use evscode::R;
+use std::cmp::max;
 
 #[derive(Debug, evscode::Configurable)]
 enum HideBehaviour {
@@ -37,28 +38,27 @@ pub fn render(tests: &[TestRun]) -> R<String> {
 		r#"
 		<html>
 			<head>
-				<style>{css}</style>
-				{material_icons}
 				<script>{js}</script>
+				{material_icons}
+				<style>{css_layout}</style>
+				<style>{css_paint}</style>
 			</head>
 			<body>
-				<table class="test-table">
-					{test_table}
+				<table class="table">
+					{table}
 				</table>
-				<br/>
-				<div id="new-container" class="new">
+				<div id="new-container">
 					<textarea id="new-input" class="new"></textarea>
 					<textarea id="new-desired" class="new"></textarea>
-					<div id="new-start" class="material-icons button new" onclick="new_start()">add</div>
-					<div id="new-confirm" class="material-icons button new" onclick="new_confirm()">done</div>
 				</div>
 			</body>
 		</html>
-	"#,
-		css = include_str!("./style.css"),
-		material_icons = util::html_material_icons(),
+		"#,
 		js = include_str!("./script.js"),
-		test_table = render_test_table(tests)?
+		material_icons = util::html_material_icons(),
+		css_layout = include_str!("./layout.css"),
+		css_paint = include_str!("./paint.css"),
+		table = render_test_table(tests)?
 	))
 }
 
@@ -78,75 +78,74 @@ fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 	let folded = test.success() && FOLD_AC.get().should(any_failed);
 	Ok(format!(
 		r#"
-		<tr class="test-row {failed_flag}" data-in_path="{in_path}" data-out_raw="{out_raw}">
+		<tr class="row {status} {verdict}" data-path_in="{path_in}" data-raw_out="{raw_out}">
 			{input}
-			{out}
+			{output}
 			{desired}
 		</tr>
-	"#,
-		failed_flag = if !test.success() { "test-row-failed" } else { "" },
-		in_path = test.in_path.display(),
-		out_raw = html_attr_escape(&test.outcome.out),
+		"#,
+		status = match test.outcome.verdict {
+			Verdict::Accepted { .. } => "status-passed",
+			Verdict::WrongAnswer | Verdict::RuntimeError | Verdict::TimeLimitExceeded => "status-failed",
+			Verdict::IgnoredNoOut => "status-ignore",
+		},
+		verdict = match test.outcome.verdict {
+			Verdict::Accepted { alternative: false } => "verdict-accept",
+			Verdict::Accepted { alternative: true } => "verdict-alternative",
+			Verdict::WrongAnswer => "verdict-wrong-answer",
+			Verdict::RuntimeError => "verdict-runtime-error",
+			Verdict::TimeLimitExceeded => "verdict-time-limit-exceeded",
+			Verdict::IgnoredNoOut => "verdict-ignored",
+		},
+		path_in = html_escape(test.in_path.to_str().unwrap()),
+		raw_out = html_escape(&test.outcome.out),
 		input = render_in_cell(test, folded)?,
-		out = render_out_cell(test, folded)?,
-		desired = render_desired_cell(test, folded)?
+		output = render_out_cell(test, folded)?,
+		desired = render_desired_cell(test, folded)?,
 	))
 }
 
 fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(render_cell(
-		"",
-		&[ACTION_COPY, ACTION_EDIT],
-		Data::raw(&util::fs_read_to_string(&test.in_path)?),
+		"input",
+		&[(true, ACTION_COPY), (true, ACTION_EDIT)],
+		None,
+		&util::fs_read_to_string(&test.in_path)?,
 		None,
 		folded,
 	))
 }
 
 fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	use ci::test::Verdict::*;
-	let outcome_class = match test.outcome.verdict {
-		Accepted { alternative: false } => "test-good",
-		Accepted { alternative: true } => "test-alt",
-		WrongAnswer | RuntimeError | TimeLimitExceeded => "test-bad",
-		IgnoredNoOut => "test-warn",
-	};
-	let mut actions = Vec::new();
-	actions.push(ACTION_COPY);
-	match test.outcome.verdict {
-		Accepted { alternative: true } => actions.push(ACTION_DEL_ALT),
-		WrongAnswer => actions.push(ACTION_SET_ALT),
-		_ => (),
-	};
-	actions.push(ACTION_GDB);
-	actions.push(ACTION_RR);
-	let note = match test.outcome.verdict {
-		Accepted { .. } | WrongAnswer => None,
-		RuntimeError => Some("Runtime Error"),
-		TimeLimitExceeded => Some("Time Limit Exceeded"),
-		IgnoredNoOut => Some("Ignored"),
-	};
 	Ok(render_cell(
-		outcome_class,
-		&actions,
-		Data::stdout_stderr(&test.outcome.out, &test.outcome.stderr),
-		note,
+		"output",
+		&[
+			(true, ACTION_COPY),
+			(test.outcome.verdict == Verdict::WrongAnswer, ACTION_SET_ALT),
+			(test.outcome.verdict == Verdict::Accepted { alternative: true }, ACTION_DEL_ALT),
+			(true, ACTION_GDB),
+			(true, ACTION_RR),
+		],
+		Some(test.outcome.stderr.as_str()),
+		&test.outcome.out,
+		match test.outcome.verdict {
+			Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
+			Verdict::RuntimeError => Some("RE"),
+			Verdict::TimeLimitExceeded => Some("TLE"),
+		},
 		folded,
 	))
 }
 
 fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
-	Ok(if test.out_path.exists() {
-		render_cell(
-			"test-desired",
-			&[ACTION_COPY, ACTION_EDIT],
-			Data::raw(&util::fs_read_to_string(&test.out_path)?),
-			None,
-			folded,
-		)
-	} else {
-		render_cell("test-desired", &[ACTION_EDIT], Data::raw(""), Some("File does not exist"), folded)
-	})
+	Ok(render_cell(
+		"desired",
+		&[(test.outcome.verdict != Verdict::IgnoredNoOut, ACTION_COPY), (true, ACTION_EDIT)],
+		None,
+		&std::fs::read_to_string(&test.out_path).unwrap_or_default(),
+		None,
+		folded,
+	))
 }
 
 struct Action {
@@ -155,120 +154,97 @@ struct Action {
 	hint: &'static str,
 }
 const ACTION_COPY: Action = Action {
-	onclick: "trigger_copy()",
+	onclick: "action_copy()",
 	icon: "file_copy",
-	hint: "Copy contents",
+	hint: "Copy",
 };
 const ACTION_EDIT: Action = Action {
-	onclick: "trigger_edit()",
+	onclick: "action_edit()",
 	icon: "edit",
 	hint: "Edit",
 };
 const ACTION_GDB: Action = Action {
-	onclick: "trigger_gdb()",
+	onclick: "action_gdb()",
 	icon: "skip_previous",
 	hint: "Debug in GDB",
 };
 const ACTION_RR: Action = Action {
-	onclick: "trigger_rr()",
+	onclick: "action_rr()",
 	icon: "fast_rewind",
 	hint: "Debug in RR",
 };
 const ACTION_SET_ALT: Action = Action {
-	onclick: "trigger_set_alt()",
+	onclick: "action_setalt()",
 	icon: "check",
-	hint: "Set as an alternative correct output",
+	hint: "Mark as correct",
 };
 const ACTION_DEL_ALT: Action = Action {
-	onclick: "trigger_del_alt()",
+	onclick: "action_delalt()",
 	icon: "close",
-	hint: "Stop accepting this output",
+	hint: "Unmark as correct",
 };
 
-#[evscode::config(
-	description = "A maximum number of lines that can be displayed in a test case. If this is set to n, and the test case input or output will have more than lines, only the \
-	               first n-1 lines will be displayed, followed by an ellipse. Set to 0 to denote no limit."
-)]
-static MAX_TEST_LINES: evscode::Config<usize> = 0usize;
-
-struct Data {
-	html: String,
-}
-
-impl Data {
-	fn raw(text: &str) -> Data {
-		Data { html: html_escape(text.trim()) }
-	}
-
-	fn stdout_stderr(stdout: &str, stderr: &str) -> Data {
-		let stdout = stdout.trim();
-		let stderr = stderr.trim();
-		let mut html = String::new();
-		html += &format!("<div class=\"stderr\">{}</div>", html_escape(stderr));
-		html += &html_escape(stdout);
-		Data { html }
-	}
-
-	fn truncate_lines(&self) -> (String, usize) {
-		let limit = MAX_TEST_LINES.get();
-		let lines = self.html.split("<br/>").collect::<Vec<_>>();
-		if *limit == 0 || lines.len() <= *limit + 1 {
-			(self.html.clone(), lines.len())
-		} else {
-			(lines[..*limit].join("<br/>"), *limit + 1)
-		}
-	}
-}
-
-fn render_cell(class: &str, actions: &[Action], data: Data, note: Option<&str>, folded: bool) -> String {
-	log::info!("data.html = {}", data.html);
-	if folded {
-		return format!(
-			r#"
-			<td class="test-cell {class} folded">
-			</td>
-		"#,
-			class = class
-		);
-	}
-	let note_div = if let Some(note) = note {
-		format!(r#"<div class="test-note">{note}</div>"#, note = note)
+fn render_cell(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>, folded: bool) -> String {
+	if !folded {
+		render_cell_raw(class, actions, stderr, stdout, note)
 	} else {
-		String::new()
-	};
-	let mut action_list = String::new();
-	for action in actions {
-		action_list += &format!(
-			r#"<div class="test-action material-icons" onclick="{}" title="{}">{}</div>"#,
-			action.onclick, action.hint, action.icon
-		);
+		render_cell_raw(&format!("{} folded", class), &[], None, "", None)
 	}
-	let (data, lines) = data.truncate_lines();
-	format!(
-		r#"
-		<td style="height: {lines_em}em; line-height: 1.1em;" class="test-cell {class}">
-			<div class="test-actions">
-				{action_list}
-			</div>
-			<div class="test-data">
-				{data}
-			</div>
-			{note_div}
-		</td>
-	"#,
-		lines_em = 1.1 * lines as f64,
-		class = class,
-		action_list = action_list,
-		data = data,
-		note_div = note_div
-	)
 }
 
-fn html_escape(s: &str) -> String {
-	translate(s, &[('\n', "<br/>"), ('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
+const MIN_CELL_LINES: i64 = 2;
+#[evscode::config(
+	description = "The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can be seen by \
+	               scrolling. Set to a negative value to denote no limit."
+)]
+static MAX_TEST_HEIGHT: evscode::Config<i64> = -1;
+
+fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
+	let actions = actions
+		.iter()
+		.filter_map(|(active, action)| if *active { Some(action) } else { None })
+		.map(|action| {
+			format!(
+				"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
+				action.onclick, action.hint, action.icon
+			)
+		})
+		.collect::<Vec<_>>();
+	let actions = format!("<div class=\"actions\">{}</div>", actions.join("\n"));
+	let note = note.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
+	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
+	let stderr = stderr
+		.as_ref()
+		.map_or(String::new(), |stderr| format!("<span class=\"stderr\">{}</span>", html_escape_spaced(stderr.trim())));
+	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
+	let max_test_height = MAX_TEST_HEIGHT.get();
+	let max_test_height = if *max_test_height < 0 {
+		String::new()
+	} else {
+		format!("style=\"max-height: {}px;\"", *max_test_height)
+	};
+	let data = format!(
+		"<div class=\"data\" {}>{}{}{}</div>",
+		max_test_height,
+		stderr,
+		html_escape_spaced(stdout.trim()),
+		newline_fill
+	);
+	format!("<td class=\"cell {}\">{}{}{}</td>", class, actions, note, data)
 }
-fn html_attr_escape(s: &str) -> String {
+
+fn lines(s: &str) -> usize {
+	if !s.trim().is_empty() {
+		s.trim().matches('\n').count() + 1
+	} else {
+		0
+	}
+}
+fn html_escape(s: &str) -> String {
 	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
+}
+fn html_escape_spaced(s: &str) -> String {
+	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;"), ('\n', "<br/>")])
 }
 fn translate(s: &str, table: &[(char, &str)]) -> String {
 	let mut buf = String::new();
