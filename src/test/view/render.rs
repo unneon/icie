@@ -195,9 +195,9 @@ fn render_cell(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, st
 const MIN_CELL_LINES: i64 = 2;
 #[evscode::config(
 	description = "The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can be seen by \
-	               scrolling. Set to a negative value to denote no limit."
+	               scrolling. Leave empty to denote no limit."
 )]
-static MAX_TEST_HEIGHT: evscode::Config<i64> = -1;
+static MAX_TEST_HEIGHT: evscode::Config<Option<i64>> = None;
 
 fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
 	let actions = actions
@@ -217,11 +217,11 @@ fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>
 		.as_ref()
 		.map_or(String::new(), |stderr| format!("<span class=\"stderr\">{}</span>", html_escape_spaced(stderr.trim())));
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
-	let max_test_height = MAX_TEST_HEIGHT.get();
-	let max_test_height = if *max_test_height < 0 {
+	let max_test_height = MAX_TEST_HEIGHT.get().unwrap_or(-1);
+	let max_test_height = if max_test_height < 0 {
 		String::new()
 	} else {
-		format!("style=\"max-height: {}px;\"", *max_test_height)
+		format!("style=\"max-height: {}px;\"", max_test_height)
 	};
 	let data = format!(
 		"<div class=\"data\" {}>{}{}{}</div>",

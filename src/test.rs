@@ -2,7 +2,9 @@ pub mod view;
 
 use crate::{build, ci, dir, util, STATUS};
 use evscode::{E, R};
-use std::path::{Path, PathBuf};
+use std::{
+	path::{Path, PathBuf}, time::Duration
+};
 
 #[derive(Debug)]
 pub struct TestRun {
@@ -16,12 +18,20 @@ impl TestRun {
 	}
 }
 
+#[evscode::config(
+	description = "The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds. Leaving this empty(which denotes no limit) is \
+	               not recommended, because this will cause stuck processes to run indefinitely, wasting system resources."
+)]
+static TIME_LIMIT: evscode::Config<Option<i64>> = Some(1500);
+
 pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
-		environment: ci::exec::Environment { time_limit: None },
+		environment: ci::exec::Environment {
+			time_limit: TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64)),
+		},
 	};
 	let test_dir = dir::tests()?;
 	let ins = ci::scan::scan_and_order(&test_dir);
