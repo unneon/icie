@@ -26,11 +26,16 @@ impl Codegen {
 }
 
 #[derive(Debug)]
-pub struct Message {
+pub struct Location {
+	pub path: PathBuf,
 	pub line: usize,
 	pub column: usize,
+}
+
+#[derive(Debug)]
+pub struct Message {
 	pub message: String,
-	pub path: PathBuf,
+	pub location: Option<Location>,
 }
 
 #[derive(Debug)]
@@ -39,6 +44,7 @@ pub struct Status {
 	pub executable: Executable,
 	pub errors: Vec<Message>,
 	pub warnings: Vec<Message>,
+	pub stderr: String,
 }
 
 pub trait Standard {
@@ -69,19 +75,27 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 	let stderr = String::from_utf8(output.stderr).unwrap();
 	let mut errors = Vec::new();
 	let mut warnings = Vec::new();
-	for cap in ERROR_RE.captures_iter(&stderr) {
+	for cap in (&ERROR_RE as &Regex).captures_iter(&stderr) {
 		let line = cap[2].parse().unwrap();
 		let column = cap[3].parse().unwrap();
 		let severity = &cap[4];
 		let message = cap[5].to_owned();
 		let path = PathBuf::from(&cap[1]);
-		(if severity == "error" { &mut errors } else { &mut warnings }).push(Message { line, column, message, path });
+		(if severity == "error" { &mut errors } else { &mut warnings }).push(Message {
+			message,
+			location: Some(Location { path, line, column }),
+		});
+	}
+	for cap in (&LINK_RE as &Regex).captures_iter(&stderr) {
+		let message = cap[1].to_owned();
+		errors.push(Message { message, location: None });
 	}
 	Ok(Status {
 		success,
 		executable,
 		errors,
 		warnings,
+		stderr,
 	})
 }
 
@@ -91,4 +105,5 @@ fn install_clang() -> R<()> {
 
 lazy_static! {
 	static ref ERROR_RE: Regex = Regex::new("(.*):(\\d+):(\\d+): (error|warning): (.*)\\n").unwrap();
+	static ref LINK_RE: Regex = Regex::new(".*(undefined reference to .*)").unwrap();
 }

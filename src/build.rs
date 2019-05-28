@@ -139,12 +139,14 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 	let status = ci::cpp::compile(&[&source], &out, &*standard, &codegen, &flags)?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
-			if *AUTO_MOVE_TO_ERROR.get() {
-				evscode::open_editor(&error.path, Some(error.line - 1), Some(error.column - 1));
+			if let Some(location) = &error.location {
+				if *AUTO_MOVE_TO_ERROR.get() {
+					evscode::open_editor(&location.path, Some(location.line - 1), Some(location.column - 1));
+				}
 			}
 			Err(evscode::E::error(error.message.clone()))
 		} else {
-			Err(evscode::E::error("unrecognized compilation error"))
+			Err(evscode::E::error("unrecognized compilation error").extended(status.stderr))
 		}
 	} else {
 		if !status.warnings.is_empty() {
@@ -172,7 +174,9 @@ fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
 		}
 	}
 	for (i, warning) in warnings.iter().enumerate() {
-		evscode::open_editor(&warning.path, Some(warning.line - 1), Some(warning.column - 1));
+		if let Some(location) = &warning.location {
+			evscode::open_editor(&location.path, Some(location.line - 1), Some(location.column - 1));
+		}
 		let mut msg = evscode::Message::new(&warning.message).warning();
 		if i + 1 != warnings.len() {
 			msg = msg.item("next", "Next", false);
