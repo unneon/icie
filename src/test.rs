@@ -22,7 +22,7 @@ impl TestRun {
 	description = "The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds. Leaving this empty(which denotes no limit) is \
 	               not recommended, because this will cause stuck processes to run indefinitely, wasting system resources."
 )]
-static TIME_LIMIT: evscode::Config<Option<i64>> = Some(1500);
+static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
