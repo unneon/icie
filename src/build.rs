@@ -32,6 +32,24 @@ static CPP_STANDARD: evscode::Config<Standard> = Standard::Cpp17;
 )]
 static ADDITIONAL_CPP_FLAGS: evscode::Config<String> = "";
 
+#[evscode::config(
+	description = "Additional C++ compilation flags used in Debug profile. The flags will be appended to the command line after the standard, warning, debug symbols, \
+	               optimization flags and profile-independent custom flags."
+)]
+static ADDITIONAL_CPP_FLAGS_DEBUG: evscode::Config<String> = "";
+
+#[evscode::config(
+	description = "Additional C++ compilation flags used in Release profile. The flags will be appended to the command line after the standard, warning, debug symbols, \
+	               optimization flags and profile-independent custom flags."
+)]
+static ADDITIONAL_CPP_FLAGS_RELEASE: evscode::Config<String> = "";
+
+#[evscode::config(
+	description = "Additional C++ compilation flags used in Profile profile. The flags will be appended to the command line after the standard, warning, debug symbols, \
+	               optimization flags and profile-independent custom flags."
+)]
+static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
+
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
 fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
@@ -108,7 +126,15 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 		}
 	}
 	let standard = CPP_STANDARD.get();
-	let flags = ADDITIONAL_CPP_FLAGS.get();
+	let flags = format!(
+		"{} {}",
+		ADDITIONAL_CPP_FLAGS.get(),
+		match codegen {
+			ci::cpp::Codegen::Debug => ADDITIONAL_CPP_FLAGS_DEBUG.get(),
+			ci::cpp::Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
+			ci::cpp::Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
+		}
+	);
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
 	let status = ci::cpp::compile(&[&source], &out, &*standard, &codegen, &flags)?;
 	if !status.success {
