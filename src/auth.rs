@@ -1,8 +1,8 @@
 use evscode::{E, R};
 
 pub fn site_credentials(site: &str) -> R<(String, String)> {
-	let entry_name = format!("@credentials {}", site);
-	let kr = keyring::Keyring::new("icie", &entry_name);
+	let entry = entry_credentials(site);
+	let kr = keyring_credentials(&entry);
 	match kr.get_password() {
 		Ok(creds) => {
 			let creds = json::parse(&creds).map_err(|e| E::from_std(e).context("credentials were saved in an invalid format"))?;
@@ -53,4 +53,31 @@ pub fn site_credentials(site: &str) -> R<(String, String)> {
 			Ok((username, password))
 		},
 	}
+}
+
+#[evscode::command(title = "ICIE Password reset")]
+fn reset() -> R<()> {
+	let url = evscode::InputBox::new()
+		.prompt("Enter any task URL from the site for which you want to reset the password")
+		.placeholder("https://codeforces.com/contest/.../problem/...")
+		.ignore_focus_out()
+		.build()
+		.wait()
+		.ok_or_else(E::cancel)?;
+	let url = unijudge::TaskUrl::deconstruct(&url).map_err(E::from_failure)?;
+	let entry = entry_credentials(&url.site);
+	let kr = keyring_credentials(&entry);
+	match kr.delete_password() {
+		Ok(()) => Ok(()),
+		Err(keyring::KeyringError::NoPasswordFound) => Ok(()),
+		Err(e) => Err(E::from_std(e).context("failed to use the keyring")),
+	}
+}
+
+fn entry_credentials(site: &str) -> String {
+	format!("@credentials {}", site)
+}
+
+fn keyring_credentials(entry: &str) -> keyring::Keyring {
+	keyring::Keyring::new("icie", entry)
 }
