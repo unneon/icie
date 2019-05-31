@@ -102,6 +102,29 @@ window.addEventListener('load', () => {
 	}
 }, false);
 
+let cursor_x = 0;
+let cursor_y = 0;
+window.addEventListener('mousemove', e => {
+	cursor_x = e.clientX;
+	cursor_y = e.clientY;
+});
+window.addEventListener('copy', e => {
+	let data = window.getSelection().toString();
+	if (data.trim() !== '') {
+		return;
+	}
+	let element = document.elementFromPoint(cursor_x, cursor_y);
+	while (element !== null && !element.classList.contains('cell')) {
+		element = element.parentElement;
+	}
+	if (element === null) {
+		return;
+	}
+	let text = element.dataset.raw;
+	e.clipboardData.setData('text/plain', text);
+	e.preventDefault();
+});
+
 function autoexpand_textarea(tx) {
 	tx.setAttribute('style', `height: ${Math.max(86, tx.scrollHeight)}px; overflow-y: hidden;`);
 	tx.addEventListener('input', function () {

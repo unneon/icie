@@ -106,11 +106,13 @@ fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 }
 
 fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
+	let data = util::fs_read_to_string(&test.in_path)?;
 	Ok(render_cell(
 		"input",
-		&[(true, ACTION_COPY), (true, ACTION_EDIT)],
+		&[("data-raw", &data)],
+		&[(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)],
 		None,
-		&util::fs_read_to_string(&test.in_path)?,
+		&data,
 		None,
 		folded,
 	))
@@ -119,8 +121,9 @@ fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(render_cell(
 		"output",
+		&[("data-raw", &test.outcome.out)],
 		&[
-			(true, ACTION_COPY),
+			(!*HIDE_COPY.get(), ACTION_COPY),
 			(test.outcome.verdict == Verdict::WrongAnswer, ACTION_SET_ALT),
 			(test.outcome.verdict == Verdict::Accepted { alternative: true }, ACTION_DEL_ALT),
 			(true, ACTION_GDB),
@@ -138,11 +141,13 @@ fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 }
 
 fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
+	let data = std::fs::read_to_string(&test.out_path).unwrap_or_default();
 	Ok(render_cell(
 		"desired",
-		&[(test.outcome.verdict != Verdict::IgnoredNoOut, ACTION_COPY), (true, ACTION_EDIT)],
+		&[("data-raw", &data)],
+		&[(test.outcome.verdict != Verdict::IgnoredNoOut && !*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)],
 		None,
-		&std::fs::read_to_string(&test.out_path).unwrap_or_default(),
+		&data,
 		None,
 		folded,
 	))
@@ -184,11 +189,17 @@ const ACTION_DEL_ALT: Action = Action {
 	hint: "Unmark as correct",
 };
 
-fn render_cell(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>, folded: bool) -> String {
+#[evscode::config(
+	description = "Whether to hide the \"Copy\" action in test view. Instead of using it, you can hover over the test cell and press Ctrl+C; if nothing else is selected, the \
+	               cell contents will be copied automatically."
+)]
+static HIDE_COPY: evscode::Config<bool> = false;
+
+fn render_cell(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>, folded: bool) -> String {
 	if !folded {
-		render_cell_raw(class, actions, stderr, stdout, note)
+		render_cell_raw(class, attrs, actions, stderr, stdout, note)
 	} else {
-		render_cell_raw(&format!("{} folded", class), &[], None, "", None)
+		render_cell_raw(&format!("{} folded", class), attrs, &[], None, "", None)
 	}
 }
 
@@ -199,7 +210,7 @@ const MIN_CELL_LINES: i64 = 2;
 )]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = None;
 
-fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
+fn render_cell_raw(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
 	let actions = actions
 		.iter()
 		.filter_map(|(active, action)| if *active { Some(action) } else { None })
@@ -223,6 +234,10 @@ fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>
 	} else {
 		String::new()
 	};
+	let mut attr_html = String::new();
+	for (k, v) in attrs {
+		attr_html += &format!(" {}=\"{}\"", k, html_escape(v));
+	}
 	let data = format!(
 		"<div class=\"data\" {}>{}{}{}</div>",
 		max_test_height,
@@ -230,7 +245,7 @@ fn render_cell_raw(class: &str, actions: &[(bool, Action)], stderr: Option<&str>
 		html_escape_spaced(stdout.trim()),
 		newline_fill
 	);
-	format!("<td class=\"cell {}\">{}{}{}</td>", class, actions, note, data)
+	format!("<td class=\"cell {}\" {}>{}{}{}</td>", class, attr_html, actions, note, data)
 }
 
 fn lines(s: &str) -> usize {
