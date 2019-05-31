@@ -34,10 +34,14 @@ evscode::plugin! {
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
 	],
 	log_filters: &[
+		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Error),
-		("tokio_reactor", log::LevelFilter::Warn),
-		("hyper", log::LevelFilter::Warn),
-		("mio", log::LevelFilter::Warn),
-		("want", log::LevelFilter::Warn),
+		("hyper", log::LevelFilter::Info),
+		("mio", log::LevelFilter::Info),
+		("reqwest", log::LevelFilter::Info),
+		("rustls", log::LevelFilter::Info),
+		("selectors", log::LevelFilter::Info),
+		("tokio_reactor", log::LevelFilter::Info),
+		("want", log::LevelFilter::Info),
 	],
 }

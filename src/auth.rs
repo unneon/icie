@@ -1,3 +1,4 @@
+use crate::util;
 use evscode::{E, R};
 
 pub fn site_credentials(site: &str) -> R<(String, String)> {
@@ -64,7 +65,7 @@ fn reset() -> R<()> {
 		.build()
 		.wait()
 		.ok_or_else(E::cancel)?;
-	let url = unijudge::TaskUrl::deconstruct(&url).map_err(E::from_failure)?;
+	let url = unijudge::TaskUrl::deconstruct(&url).map_err(util::from_unijudge_error)?;
 	let entry = entry_credentials(&url.site);
 	let kr = keyring_credentials(&entry);
 	match kr.delete_password() {

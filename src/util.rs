@@ -158,6 +158,31 @@ impl Drop for TransactionDir {
 	}
 }
 
+pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
+	match e {
+		unijudge::Error::InvalidUrl(_) => E::from_std(e).reform("invalid URL"),
+		unijudge::Error::InvalidTaskURL => E::from_std(e).reform("invalid task URL"),
+		unijudge::Error::InvalidUsernameOrPassword => E::from_std(e).reform("wrong username or password"),
+		unijudge::Error::InvalidSession => E::from_std(e).context("invalid session"),
+		unijudge::Error::InvalidSite => E::from_std(e).reform("unsupported site"),
+		unijudge::Error::InvalidArguments => E::from_std(e).context("ICIE mishandled something internally :("),
+		unijudge::Error::NetworkError(_) => E::from_std(e).context("network error"),
+		unijudge::Error::ServerError { .. } => E::from_std(e).context("server did not respond as expected"),
+		unijudge::Error::ScrapError(e) => {
+			let mut extended = Vec::new();
+			if e.snapshots.len() >= 1 {
+				extended.push(e.snapshots.last().unwrap().clone());
+			}
+			let mut e = evscode::E::from_std(e);
+			for ext in extended {
+				e = e.extended(ext);
+			}
+			e
+		},
+		unijudge::Error::UnknownError(_) => E::from_std(e),
+	}
+}
+
 pub trait MaybePath {
 	fn as_option_path(&self) -> Option<&Path>;
 }
