@@ -226,7 +226,7 @@ fn render_cell_raw(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action
 	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
 	let stderr = stderr
 		.as_ref()
-		.map_or(String::new(), |stderr| format!("<span class=\"stderr\">{}</span>", html_escape_spaced(stderr.trim())));
+		.map_or(String::new(), |stderr| format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())));
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
 	let max_test_height = MAX_TEST_HEIGHT.get();
 	let max_test_height = if let Some(max_test_height) = *max_test_height {
