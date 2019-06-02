@@ -208,7 +208,7 @@ const MIN_CELL_LINES: i64 = 2;
 	description = "The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can be seen by \
 	               scrolling. Leave empty to denote no limit."
 )]
-static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = None;
+static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
 fn render_cell_raw(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
 	let actions = actions
