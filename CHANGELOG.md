@@ -1,3 +1,15 @@
+## 0.5.4
+
+- **Added time limits**, violation of which results in a TLE verdict. The default limit is set to 1500 milliseconds and can be configured or disabled
+- **Added copying test inputs/outputs with a keyboard shortcut** by hovering over the test cell and pressing <kbd>Ctrl</kbd><kbd>C</kbd>. The old copy action icon can be disabled in the configuration
+- **Fixed long and wide tests display** in test view and made other improvements to its UI, such as parallel scroll in output and desired output cells
+- Added individual custom compilation flags for Debug/Release/Profile profiles
+- Added parsing linking errors(ones caused by e.g. a missing main function)
+- Added resetting passwords with an "ICIE Password reset" command
+- Improved some error messages and logs relating to misuse of Codeforces
+- Fixed test view update closing the old test view and breaking custom layouts
+- Fixed crashes caused by setting invalid values in the configuration
+
 ## 0.5.3
 
 - **Fixed common launch crashes** which happened due to lack of recent OpenSSL or glibc on the system
