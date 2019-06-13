@@ -160,15 +160,13 @@ impl Drop for TransactionDir {
 
 pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 	match e {
-		unijudge::Error::InvalidUrl(_) => E::from_std(e).reform("invalid URL"),
-		unijudge::Error::InvalidTaskURL => E::from_std(e).reform("invalid task URL"),
-		unijudge::Error::InvalidUsernameOrPassword => E::from_std(e).reform("wrong username or password"),
-		unijudge::Error::InvalidSession => E::from_std(e).context("invalid session"),
-		unijudge::Error::InvalidSite => E::from_std(e).reform("unsupported site"),
-		unijudge::Error::InvalidArguments => E::from_std(e).context("ICIE mishandled something internally :("),
-		unijudge::Error::NetworkError(_) => E::from_std(e).context("network error"),
-		unijudge::Error::ServerError { .. } => E::from_std(e).context("server did not respond as expected"),
-		unijudge::Error::ScrapError(e) => {
+		unijudge::Error::WrongCredentials => E::from_std(e).reform("wrong username or password"),
+		unijudge::Error::WrongData => E::from_std(e).reform("wrong data passed to API"),
+		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
+		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
+		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
+		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
+		unijudge::Error::UnexpectedHTML(e) => {
 			let mut extended = Vec::new();
 			if e.snapshots.len() >= 1 {
 				extended.push(e.snapshots.last().unwrap().clone());
@@ -179,7 +177,6 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			}
 			e
 		},
-		unijudge::Error::UnknownError(_) => E::from_std(e),
 	}
 }
 

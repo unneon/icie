@@ -13,28 +13,25 @@ fn send() -> R<()> {
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
-	let url = unijudge::TaskUrl::deconstruct(&url).map_err(util::from_unijudge_error)?;
-	let sess = crate::net::connect(&url)?;
-	let cont = sess.contest(&url.contest);
+	let (sess, url) = crate::net::connect(&url)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
-		cont.languages().map_err(util::from_unijudge_error)?
+		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.languages())?
 	};
 	let good_langs = ["C++", "GNU G++17 7.3.0"];
 	let lang = langs
 		.iter()
 		.find(|lang| good_langs.contains(&lang.name.as_str()))
 		.ok_or_else(|| E::error("site does not support C++"))?;
-	cont.submit(&url.task, lang, &code).map_err(util::from_unijudge_error)?;
-	let submissions = {
+	let submit_id = {
 		let _status = crate::STATUS.push("Querying submit id");
-		cont.submissions_recent().map_err(util::from_unijudge_error)?
+		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.submit(lang, &code))?
 	};
-	track(&*cont, &submissions[0].id)?;
+	track(sess, url, submit_id)?;
 	Ok(())
 }
 
-fn track(cont: &dyn unijudge::Contest, id: &str) -> R<()> {
+fn track(sess: crate::net::Session, url: unijudge::TaskUrl, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
 	let sleep_duration = Duration::from_millis(500);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
@@ -42,7 +39,7 @@ fn track(cont: &dyn unijudge::Contest, id: &str) -> R<()> {
 	let verdict = loop {
 		let submissions = {
 			let _status = crate::STATUS.push("Tracking...");
-			cont.submissions_recent().map_err(util::from_unijudge_error)?
+			sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.submissions())?
 		};
 		let submission = submissions.into_iter().find(|subm| subm.id == id).unwrap();
 		let should_send = match &submission.verdict {

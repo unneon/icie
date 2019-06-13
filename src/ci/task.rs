@@ -5,7 +5,7 @@ pub trait Checker {
 }
 
 pub struct Task {
-	pub checker: Box<Checker+Send>,
+	pub checker: Box<dyn Checker+Send>,
 	pub environment: Environment,
 }
 

@@ -53,14 +53,17 @@ fn init_template(root: &Path) -> R<()> {
 }
 fn init_examples(root: &Path, url: &Option<String>) -> R<()> {
 	if let Some(url) = url {
-		let url = unijudge::TaskUrl::deconstruct(&url).map_err(util::from_unijudge_error)?;
-		let sess = crate::net::connect(&url)?;
-		let cont = sess.contest(&url.contest);
+		let (sess, url) = crate::net::connect(&url)?;
 		let examples_dir = root.join("tests").join("example");
 		util::fs_create_dir_all(&examples_dir)?;
 		let tests = {
 			let _status = crate::STATUS.push("Downloading tests");
-			cont.examples(&url.task).map_err(util::from_unijudge_error)?
+			sess.run(|sess| {
+				let cont = sess.contest(&url.contest)?;
+				let task = cont.task(&url.task)?;
+				let examples = task.details()?.examples.unwrap_or_default();
+				Ok(examples)
+			})?
 		};
 		for (i, test) in tests.into_iter().enumerate() {
 			util::fs_write(examples_dir.join(format!("{}.in", i + 1)), &test.input)?;

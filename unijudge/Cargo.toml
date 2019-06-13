@@ -1,0 +1,10 @@
+[package]
+name = "unijudge"
+version = "0.1.0"
+authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
+edition = "2018"
+
+[dependencies]
+backtrace = "0.3"
+debris = { git = "https://github.com/pustaczek/debris" }
+reqwest = { version = "0.9.14", default-features = false }
