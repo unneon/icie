@@ -95,11 +95,11 @@ pub struct TaskUrl {
 	pub task: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Verdict {
 	Scored {
-		score: i64,
-		max: Option<i64>,
+		score: f64,
+		max: Option<f64>,
 		cause: Option<RejectionCause>,
 		test: Option<String>,
 	},

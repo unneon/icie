@@ -63,4 +63,4 @@ pub fn find_backend(url: &str) -> R<Option<(unijudge::TaskUrl, &'static dyn unij
 	return Ok(None);
 }
 
-const BACKENDS: &[&dyn unijudge::Backend] = &[&unijudge_codeforces::Codeforces];
+const BACKENDS: &[&dyn unijudge::Backend] = &[&unijudge_codeforces::Codeforces, &unijudge_spoj::SPOJ];

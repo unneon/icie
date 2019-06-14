@@ -271,7 +271,7 @@ impl unijudge::Task for Task<'_> {
 					},
 					CV::Testing(ti) => UV::Pending { test: Some(ti.desc()) },
 					CV::Partial(score) => UV::Scored {
-						score,
+						score: score as f64,
 						max: None,
 						cause: None,
 						test: None,
