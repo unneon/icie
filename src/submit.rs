@@ -18,7 +18,7 @@ fn send() -> R<()> {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.languages())?
 	};
-	let good_langs = ["C++", "GNU G++17 7.3.0", "C++14 (clang 4.0)"];
+	let good_langs = ["C++", "GNU G++17 7.3.0", "C++14 (clang 4.0)", "C++14 (GCC 5.4.1)"];
 	let lang = langs
 		.iter()
 		.find(|lang| good_langs.contains(&lang.name.as_str()))

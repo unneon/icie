@@ -1,0 +1,9 @@
+[package]
+name = "unijudge-atcoder"
+version = "0.1.0"
+authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
+edition = "2018"
+
+[dependencies]
+serde_json = "1.0"
+unijudge = { path = "../unijudge" }
