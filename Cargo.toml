@@ -5,7 +5,6 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
-dirs = "1.0"
 evscode = { git = "https://github.com/pustaczek/evscode" }
 itertools = "0.8"
 json = "0.11"

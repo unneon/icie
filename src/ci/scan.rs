@@ -24,30 +24,19 @@ pub fn order(tests: &mut Vec<PathBuf>) {
 }
 
 fn comp_by_test_number(lhs: &std::path::PathBuf, rhs: &std::path::PathBuf) -> Ordering {
-	for grp in lhs
-		.to_str()
-		.unwrap()
-		.chars()
-		.group_by(|c| c.is_numeric())
-		.into_iter()
-		.zip_longest(rhs.to_str().unwrap().chars().group_by(|c| c.is_numeric()).into_iter())
-	{
-		match grp {
-			itertools::EitherOrBoth::Both((isdig, lgrp), (_, rgrp)) => {
-				let grp_compr = if isdig {
-					let lnum: i64 = lgrp.collect::<String>().parse().unwrap();
-					let rnum: i64 = rgrp.collect::<String>().parse().unwrap();
-					lnum.cmp(&rnum)
-				} else {
-					lgrp.cmp(rgrp)
-				};
-				if grp_compr != Ordering::Equal {
-					return grp_compr;
-				}
-			},
-			itertools::EitherOrBoth::Left(_) => return Ordering::Greater,
-			itertools::EitherOrBoth::Right(_) => return Ordering::Less,
+	let lgroups = lhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
+	let rgroups = rhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
+	for ((isdig, lgrp), (_, rgrp)) in lgroups.into_iter().zip(rgroups.into_iter()) {
+		let grp_compr = if isdig {
+			let lnum: i64 = lgrp.collect::<String>().parse().unwrap();
+			let rnum: i64 = rgrp.collect::<String>().parse().unwrap();
+			lnum.cmp(&rnum)
+		} else {
+			lgrp.cmp(rgrp)
+		};
+		if grp_compr != Ordering::Equal {
+			return grp_compr;
 		}
 	}
-	Ordering::Equal
+	lhs.to_str().unwrap().len().cmp(&rhs.to_str().unwrap().len())
 }
