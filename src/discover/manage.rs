@@ -55,7 +55,7 @@ fn webview_manage(handle: evscode::goodies::WebviewHandle) -> R<()> {
 						worker_tx.send(WorkerOrder::Pause).unwrap();
 					}
 					view.post_message(Food::State { running: false, reset: false });
-					evscode::spawn(move || add_test_input(input));
+					evscode::runtime::spawn(move || add_test_input(input));
 				},
 			},
 			ManagerMessage::Report(report) => match report {

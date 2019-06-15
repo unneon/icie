@@ -151,7 +151,7 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 	} else {
 		if !status.warnings.is_empty() {
 			let warnings = status.warnings;
-			evscode::spawn(move || show_warnings(warnings));
+			evscode::runtime::spawn(move || show_warnings(warnings));
 		}
 		Ok(status.executable)
 	}

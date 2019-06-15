@@ -52,18 +52,18 @@ impl Computation for TestViewLogic {
 		Ok(Box::new(move || {
 			for note in stream {
 				match note["tag"].as_str() {
-					Some("trigger_rr") => evscode::spawn({
+					Some("trigger_rr") => evscode::runtime::spawn({
 						let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 						let source = source.clone();
 						move || crate::debug::rr(in_path, source)
 					}),
-					Some("trigger_gdb") => evscode::spawn({
+					Some("trigger_gdb") => evscode::runtime::spawn({
 						let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 						let source = source.clone();
 						move || crate::debug::gdb(in_path, source)
 					}),
-					Some("new_test") => evscode::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
-					Some("set_alt") => evscode::spawn({
+					Some("new_test") => evscode::runtime::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
+					Some("set_alt") => evscode::runtime::spawn({
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
@@ -74,7 +74,7 @@ impl Computation for TestViewLogic {
 							Ok(())
 						}
 					}),
-					Some("del_alt") => evscode::spawn({
+					Some("del_alt") => evscode::runtime::spawn({
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
