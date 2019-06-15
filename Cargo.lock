@@ -326,7 +326,7 @@ dependencies = [
 [[package]]
 name = "debris"
 version = "0.1.0"
-source = "git+https://github.com/pustaczek/debris#cfd974fbee13c4f95aa28fd01512bfb3c0d6979a"
+source = "git+https://github.com/pustaczek/debris#c790406ce3955eed44b1923703137a209b7ebe3f"
 dependencies = [
  "backtrace 0.3.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "scraper 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1844,6 +1844,13 @@ name = "unijudge-atcoder"
 version = "0.1.0"
 dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unijudge 0.1.0",
+]
+
+[[package]]
+name = "unijudge-codechef"
+version = "0.1.0"
+dependencies = [
  "unijudge 0.1.0",
 ]
 
