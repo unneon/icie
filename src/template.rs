@@ -59,7 +59,9 @@ const BUILTIN_TEMPLATE_CODE: &str = r#"
 #include <bits/stdc++.h>
 using namespace std;
 
-// 🎉 💖 Edit your template in settings(Ctrl+,) under the position "Icie Template List"
+// 💖 Hi, thanks for using ICIE! 💖
+// 🔧 To use a custom code template, set it in Settings(Ctrl+,) in "Icie Template List" entry 🔧
+// 📝 If you spot any bugs or miss any features, create an issue at https://github.com/pustaczek/icie 📝
 
 int main() {
     ios::sync_with_stdio(false);
