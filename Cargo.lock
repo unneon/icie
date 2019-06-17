@@ -1848,13 +1848,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "unijudge-codechef"
-version = "0.1.0"
-dependencies = [
- "unijudge 0.1.0",
-]
-
-[[package]]
 name = "unijudge-codeforces"
 version = "0.1.0"
 dependencies = [
