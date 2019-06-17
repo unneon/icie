@@ -1,6 +1,6 @@
 use std::iter::FromIterator;
 use unijudge::{
-	debris::Find, reqwest::{
+	debris::{self, Context, Find}, reqwest::{
 		self, header::{ORIGIN, REFERER, USER_AGENT}, multipart, Url
 	}, Error, Language, RejectionCause, Result, TaskDetails, TaskUrl, Verdict
 };
@@ -52,13 +52,21 @@ impl unijudge::Backend for SPOJ {
 
 impl unijudge::Session for Session {
 	fn login(&self, username: &str, password: &str) -> Result<()> {
-		self.client
+		let mut resp = self
+			.client
 			.post("https://www.spoj.com/login/")
 			.header(ORIGIN, "https://www.spoj.com")
 			.header(REFERER, "https://www.spoj.com/")
 			.form(&[("next_raw", "/"), ("autologin", "1"), ("login_user", username), ("password", password)])
 			.send()?;
-		Ok(())
+		let doc = debris::Document::new(&resp.text()?);
+		if resp.url().as_str() == "https://www.spoj.com/login/" {
+			Err(Error::WrongCredentials)
+		} else if resp.url().as_str() == "https://www.spoj.com" {
+			Ok(())
+		} else {
+			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
+		}
 	}
 
 	fn restore_auth(&self, id: &str) -> Result<()> {

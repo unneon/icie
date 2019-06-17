@@ -66,13 +66,27 @@ impl unijudge::Session for Session {
 	fn login(&self, username: &str, password: &str) -> Result<()> {
 		let csrf = self.fetch_login_csrf()?;
 		let url: Url = "https://atcoder.jp/login".parse().unwrap();
-		self.client
+		let mut resp = match self
+			.client
 			.post(url)
 			.header(ORIGIN, "https://atcoder.jp")
 			.header(REFERER, "https://atcoder.jp/login")
 			.form(&[("username", username), ("password", password), ("csrf_token", &csrf)])
-			.send()?;
-		Ok(())
+			.send()
+		{
+			Ok(resp) => resp,
+			// this is the worst way to indicate wrong password I have heard of
+			Err(ref e) if format!("{}", e).contains("Infinite redirect loop") => return Err(Error::WrongCredentials),
+			Err(e) => return Err(Error::NetworkFailure(e)),
+		};
+		let doc = debris::Document::new(&resp.text()?);
+		if doc.find("#main-container > div.row > div.alert.alert-success").is_ok() {
+			Ok(())
+		} else if doc.find("main-container > div.row > div.alert.alert-danger").is_ok() {
+			Err(Error::WrongCredentials)
+		} else {
+			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
+		}
 	}
 
 	fn restore_auth(&self, id: &str) -> Result<()> {

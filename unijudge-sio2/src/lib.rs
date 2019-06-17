@@ -89,7 +89,7 @@ impl unijudge::Session for Session {
 		if doc2.find("#username").is_ok() {
 			*self.username.lock().unwrap() = Some(username.to_owned());
 			Ok(())
-		} else if doc2.find("form")?.text().string().contains("Wprowadź poprawną nazwa użytkownika oraz hasło.") {
+		} else if doc2.find("form")?.find("div.form-group > div > div.alert.alert-danger").is_ok() {
 			Err(Error::WrongCredentials)
 		} else {
 			Err(Error::UnexpectedHTML(doc2.error("unrecognized login outcome")))
@@ -143,8 +143,11 @@ impl unijudge::Contest for Contest<'_> {
 
 impl unijudge::Task for Task<'_> {
 	fn details(&self) -> Result<TaskDetails> {
-		let url: Url = format!("{}/c/{}/p", self.contest.session.site, self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+		let url: Url = format!("{}/c/{}/p/", self.contest.session.site, self.contest.id).parse().unwrap();
+		let mut resp = self.contest.session.client.get(url.clone()).send()?;
+		if resp.url() != &url {
+			return Err(Error::AccessDenied);
+		}
 		let doc = debris::Document::new(&resp.text()?);
 		let problems = doc
 			.find_all("section.main-content > div > table > tbody > tr")
@@ -166,6 +169,9 @@ impl unijudge::Task for Task<'_> {
 		let url: Url = format!("{}/c/{}/submit/", self.contest.session.site, self.contest.id).parse().unwrap();
 		let mut resp = self.contest.session.client.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
+		if doc.find("#id_password").is_ok() {
+			return Err(Error::AccessDenied);
+		}
 		Ok(doc
 			.find_all("#id_prog_lang > option")
 			.filter(|opt| opt.attr("selected").is_err())
