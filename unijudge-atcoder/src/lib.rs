@@ -82,7 +82,7 @@ impl unijudge::Session for Session {
 		let doc = debris::Document::new(&resp.text()?);
 		if doc.find("#main-container > div.row > div.alert.alert-success").is_ok() {
 			Ok(())
-		} else if doc.find("main-container > div.row > div.alert.alert-danger").is_ok() {
+		} else if doc.find("#main-container > div.row > div.alert.alert-danger").is_ok() {
 			Err(Error::WrongCredentials)
 		} else {
 			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
