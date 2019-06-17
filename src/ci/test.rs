@@ -1,5 +1,5 @@
 use crate::ci::{
-	exec::{Executable, ExitKind}, task::Task, util::{self, R}
+	exec::{Executable, ExitKind}, task::Task, util::R
 };
 use std::{fmt, time::Duration};
 
@@ -36,8 +36,7 @@ impl Outcome {
 }
 
 pub fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, alternative: Option<&str>, task: &Task) -> R<Outcome> {
-	let (time, run) = util::time_fn(|| exec.run(input, &task.environment));
-	let run = run?;
+	let run = exec.run(input, &task.environment)?;
 	let verdict = match run.exit_kind {
 		ExitKind::Normal => {
 			if run.status.success() {
@@ -62,12 +61,11 @@ pub fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, altern
 		},
 		ExitKind::TimeLimitExceeded => Verdict::TimeLimitExceeded,
 	};
-	let out = run.stdout;
 	Ok(Outcome {
 		verdict,
-		out,
+		out: run.stdout,
 		stderr: run.stderr,
-		time,
+		time: run.time,
 	})
 }
 

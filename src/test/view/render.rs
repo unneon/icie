@@ -120,7 +120,26 @@ fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	))
 }
 
+#[evscode::config(
+	description = "If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration will be displayed. Set to 0 to always \
+	               display the timings, or to a large value to never display the timings."
+)]
+static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
+
 fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
+	let note_time = if test.outcome.time.as_millis() >= (*TIME_DISPLAY_THRESHOLD.get()) as u128 {
+		let ms = test.outcome.time.as_millis();
+		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
+	} else {
+		None
+	};
+	let note_verdict = match test.outcome.verdict {
+		Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
+		Verdict::RuntimeError => Some("RE"),
+		Verdict::TimeLimitExceeded => Some("TLE"),
+	};
+	let notes = vec![note_time.as_ref().map(|s| s.as_str()), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
+	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
 	Ok(render_cell(
 		"output",
 		&[("data-raw", &test.outcome.out)],
@@ -133,11 +152,7 @@ fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 		],
 		Some(test.outcome.stderr.as_str()),
 		&test.outcome.out,
-		match test.outcome.verdict {
-			Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
-			Verdict::RuntimeError => Some("RE"),
-			Verdict::TimeLimitExceeded => Some("TLE"),
-		},
+		note.as_ref().map(|note| note.as_str()),
 		folded,
 	))
 }

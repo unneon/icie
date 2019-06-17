@@ -1,6 +1,6 @@
 use crate::ci::util::{self, R};
 use std::{
-	io::Write, path::PathBuf, process::{Command, ExitStatus, Stdio}, time::Duration
+	io::Write, path::PathBuf, process::{Command, ExitStatus, Stdio}, time::{Duration, Instant}
 };
 use wait_timeout::ChildExt;
 
@@ -19,6 +19,7 @@ pub struct Run {
 	pub stderr: String,
 	pub status: ExitStatus,
 	pub exit_kind: ExitKind,
+	pub time: Duration,
 }
 
 impl Run {
@@ -39,6 +40,7 @@ impl Executable {
 	pub fn run(&self, input: &str, environment: &Environment) -> R<Run> {
 		let mut cmd = Command::new(&self.path);
 		cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+		let t1 = Instant::now();
 		let mut kid = cmd.spawn()?;
 		let _ = kid.stdin.as_mut().unwrap().write_all(input.as_bytes());
 		let _ = kid.stdin.as_mut().unwrap().flush();
@@ -52,11 +54,13 @@ impl Executable {
 		} else {
 			(kid.wait()?, ExitKind::Normal)
 		};
+		let t2 = Instant::now();
 		Ok(Run {
 			stdout: String::from_utf8(util::io_read(kid.stdout.unwrap())?).unwrap(),
 			stderr: String::from_utf8(util::io_read(kid.stderr.unwrap())?).unwrap(),
 			status,
 			exit_kind,
+			time: t2 - t1,
 		})
 	}
 }
