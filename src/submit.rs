@@ -10,6 +10,13 @@ fn send() -> R<()> {
 	if report.runs.iter().any(|test| !test.success()) {
 		return Err(E::error("some tests failed, submit aborted"));
 	}
+	if report.runs.is_empty() {
+		return Err(E::error("no tests available; add some using Alt+- keyboard shortcut!").action("Submit anyway", send_passed));
+	}
+	send_passed()
+}
+
+fn send_passed() -> R<()> {
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
