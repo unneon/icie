@@ -1,6 +1,6 @@
 use crate::{
 	test::{
-		self, view::{render::render, SCROLL_TO_FIRST_FAILED}, TestRun
+		self, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
 	}, util
 };
 use evscode::{
@@ -84,6 +84,7 @@ impl Computation for TestViewLogic {
 						}
 					}),
 					Some("edit") => evscode::open_editor(note["path"].as_str().unwrap(), None, None),
+					Some("action_notice") => evscode::runtime::spawn(|| Ok(SKILL_ACTIONS.add_use())),
 					_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 				}
 			}

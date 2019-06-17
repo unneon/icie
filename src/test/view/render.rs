@@ -1,4 +1,6 @@
-use crate::{ci::test::Verdict, test::TestRun, util};
+use crate::{
+	ci::test::Verdict, test::{view::SKILL_ACTIONS, TestRun}, util
+};
 use evscode::R;
 use std::cmp::max;
 
@@ -221,7 +223,11 @@ fn render_cell_raw(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action
 			)
 		})
 		.collect::<Vec<_>>();
-	let actions = format!("<div class=\"actions\">{}</div>", actions.join("\n"));
+	let actions = format!(
+		"<div class=\"actions {}\">{}</div>",
+		if !SKILL_ACTIONS.is_proficient() { "tutorialize" } else { "" },
+		actions.join("\n")
+	);
 	let note = note.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
 	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
 	let stderr = stderr

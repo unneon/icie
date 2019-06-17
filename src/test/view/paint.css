@@ -58,6 +58,9 @@
 .cell:hover > .actions {
 	display: unset;
 }
+.actions.tutorialize {
+	display: unset;
+}
 .action {
 	color: var(--col2);
 	font-size: 22px;

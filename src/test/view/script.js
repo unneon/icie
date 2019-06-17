@@ -4,6 +4,7 @@ let newing = false;
 
 function make_action(callback) {
 	return function() {
+		vscode.postMessage({ "tag": "action_notice" });
 		let action = event.target;
 		let cell = action.parentElement.parentElement;
 		let row = cell.parentElement;

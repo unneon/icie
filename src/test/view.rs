@@ -1,3 +1,5 @@
+use crate::tutorial::Skill;
+
 pub mod manage;
 pub mod render;
 
@@ -6,3 +8,5 @@ pub mod render;
 	               as high on the screen as possible."
 )]
 static SCROLL_TO_FIRST_FAILED: evscode::Config<bool> = true;
+
+const SKILL_ACTIONS: Skill = Skill::new("skill.actions", 4);

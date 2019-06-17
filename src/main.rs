@@ -15,6 +15,7 @@ mod submit;
 mod template;
 mod term;
 mod test;
+mod tutorial;
 mod util;
 
 lazy_static::lazy_static! {
