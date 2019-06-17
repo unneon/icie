@@ -20,6 +20,7 @@ shellexpand = "1.0"
 unijudge = { path = "./unijudge" }
 unijudge-atcoder = { path = "./unijudge-atcoder" }
 unijudge-codeforces = { path = "./unijudge-codeforces" }
+unijudge-sio2 = { path = "./unijudge-sio2" }
 unijudge-spoj = { path = "./unijudge-spoj" }
 wait-timeout = "0.2"
 walkdir = "2.2"
@@ -33,5 +34,6 @@ members = [
     "unijudge",
     "unijudge-atcoder",
     "unijudge-codeforces",
+    "unijudge-sio2",
     "unijudge-spoj",
 ]

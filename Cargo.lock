@@ -664,6 +664,7 @@ dependencies = [
  "unijudge 0.1.0",
  "unijudge-atcoder 0.1.0",
  "unijudge-codeforces 0.1.0",
+ "unijudge-sio2 0.1.0",
  "unijudge-spoj 0.1.0",
  "wait-timeout 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "walkdir 2.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1851,6 +1852,15 @@ dependencies = [
 name = "unijudge-codeforces"
 version = "0.1.0"
 dependencies = [
+ "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unijudge 0.1.0",
+]
+
+[[package]]
+name = "unijudge-sio2"
+version = "0.1.0"
+dependencies = [
+ "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0",
 ]
