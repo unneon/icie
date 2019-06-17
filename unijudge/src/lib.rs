@@ -116,7 +116,7 @@ pub enum Verdict {
 
 pub trait Backend {
 	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>>;
-	fn connect<'s>(&'s self, site: &str) -> Result<Box<dyn Session+'s>>;
+	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn Session+'s>>;
 }
 
 pub trait Session {

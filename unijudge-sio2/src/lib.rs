@@ -1,7 +1,8 @@
-use debris::{Context, Find};
-use std::sync::Mutex;
+use std::{iter::FromIterator, sync::Mutex};
 use unijudge::{
-	debris, reqwest::{self, header::REFERER, Url}, Error, Language, RejectionCause, Result, Submission, TaskDetails, TaskUrl, Verdict
+	debris::{self, Context, Find}, reqwest::{
+		self, header::{REFERER, USER_AGENT}, Url
+	}, Error, Language, RejectionCause, Result, Submission, TaskDetails, TaskUrl, Verdict
 };
 
 const RECOGNIZED_DOMAINS: &[&str] = &["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"];
@@ -48,9 +49,16 @@ impl unijudge::Backend for Sio2 {
 		}))
 	}
 
-	fn connect<'s>(&'s self, site: &str) -> Result<Box<dyn unijudge::Session+'s>> {
+	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
 		Ok(Box::new(Session {
-			client: reqwest::Client::builder().cookie_store(true).build().map_err(Error::TLSFailure)?,
+			client: reqwest::Client::builder()
+				.cookie_store(true)
+				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
+					USER_AGENT,
+					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
+				)]))
+				.build()
+				.map_err(Error::TLSFailure)?,
 			site: site.to_owned(),
 			username: Mutex::new(None),
 		}))

@@ -3,7 +3,9 @@ use evscode::{E, R};
 
 pub fn connect(url: &str) -> R<(Session, unijudge::TaskUrl)> {
 	let (url, backend) = find_backend(url)?.ok_or_else(|| E::error("this site is not supported yet"))?;
-	let raw = backend.connect(&url.site).map_err(util::from_unijudge_error)?;
+	let raw = backend
+		.connect(&url.site, &format!("ICIE/{} (+https://github.com/pustaczek/icie)", env!("CARGO_PKG_VERSION")))
+		.map_err(util::from_unijudge_error)?;
 	if let Some(cached_session) = auth::cached(&url.site) {
 		raw.restore_auth(&cached_session).map_err(util::from_unijudge_error)?;
 	}

@@ -1,6 +1,7 @@
+use std::iter::FromIterator;
 use unijudge::{
 	debris::Find, reqwest::{
-		self, header::{ORIGIN, REFERER}, multipart, Url
+		self, header::{ORIGIN, REFERER, USER_AGENT}, multipart, Url
 	}, Error, Language, RejectionCause, Result, TaskDetails, TaskUrl, Verdict
 };
 
@@ -35,9 +36,16 @@ impl unijudge::Backend for SPOJ {
 		}))
 	}
 
-	fn connect<'s>(&'s self, _site: &str) -> Result<Box<dyn unijudge::Session+'s>> {
+	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
 		Ok(Box::new(Session {
-			client: reqwest::Client::builder().cookie_store(true).build().map_err(Error::TLSFailure)?,
+			client: reqwest::Client::builder()
+				.cookie_store(true)
+				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
+					USER_AGENT,
+					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
+				)]))
+				.build()
+				.map_err(Error::TLSFailure)?,
 		}))
 	}
 }
