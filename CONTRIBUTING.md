@@ -14,7 +14,7 @@ ICIE itself also depends on libdbus-1-dev(probably install with system package m
 
 ## Building
 
-[Clone](https://help.github.com/en/articles/cloning-a-repository) the repository and run `cargo run --release -- --package`. The built .vsix can be found in `target/release/icie-vscode` directory. In VS Code, go to Extensions and use "Install from VSIX..." option. Plugin built on a newer distro may not work on an older distro(a good choice is Ubuntu 18.04, LTS, recent and builds work also on 16.04).
+[Clone](https://help.github.com/en/articles/cloning-a-repository) the repository and run `cargo run --release -- --package`. The built .vsix can be found in `target/release/icie-vscode` directory. In VS Code, go to Extensions and use "Install from VSIX..." option. Plugin built on a newer distro may not work on an older distro - if you intend to distribute the package, compile it using the [Dockerfile](deploy/Dockerfile).
 
 # Development
 
