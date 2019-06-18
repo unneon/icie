@@ -1,4 +1,4 @@
-# ICIE
+# ICIE ![](https://img.shields.io/travis/pustaczek/icie.svg) ![](https://img.shields.io/visual-studio-marketplace/d/pustaczek.icie.svg) ![](https://img.shields.io/github/license/pustaczek/icie.svg) ![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg)
 
 ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from setting up template code, through building solutions and running the example tests to submitting the solution. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. More advanced aspects of competitions such as output-only, library and interactive tasks, as well as profiling solutions or using certain technical tricks will also be added in the future.
 
