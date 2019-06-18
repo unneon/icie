@@ -1,3 +1,15 @@
+## 0.5.5
+
+- **Added [Atcoder](https://atcoder.jp/) support**
+- **Added [Sphere Online Judge(SPOJ)](https://www.spoj.com/) support**
+- Added session caching, which should speed up all network-related operations
+- Added displaying execution times if they exceed 100ms or a configured value.
+- Added an empty line and a welcome message to the default code template.
+- Added stopping the submit if there are no tests; adding new tests with a keyboard shortcut will be suggested, unless the user decides to ignore it.
+- Changed test actions to make them easier to discover by showing them at all times. The effect disappears when the user has used them more than s4 times.
+- Changed the value of User-Agent header to contain ICIE's name, version and a link to the repository.
+- Fixed handling of wrong password errors. ICIE will now recognized that it is not logged in, try to log in, and ask for password again if it happens to be invalid.
+
 ## 0.5.4
 
 - **Added time limits**, violation of which results in a TLE verdict. The default limit is set to 1500 milliseconds and can be configured or disabled
