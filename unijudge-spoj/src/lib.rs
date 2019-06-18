@@ -62,7 +62,7 @@ impl unijudge::Session for Session {
 		let doc = debris::Document::new(&resp.text()?);
 		if resp.url().as_str() == "https://www.spoj.com/login/" {
 			Err(Error::WrongCredentials)
-		} else if resp.url().as_str() == "https://www.spoj.com" {
+		} else if resp.url().as_str() == "https://www.spoj.com/" {
 			Ok(())
 		} else {
 			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
