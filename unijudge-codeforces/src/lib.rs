@@ -1,8 +1,8 @@
-use std::{iter::FromIterator, sync::Mutex, time::Duration};
+use std::{iter::FromIterator, sync::Mutex};
 use unijudge::{
 	debris::{Context, Find}, reqwest::{
 		self, header::{ORIGIN, REFERER, USER_AGENT}, Url
-	}, Error, Result, TaskUrl
+	}, Error, Result, Submission, TaskUrl
 };
 
 pub struct Codeforces;
@@ -137,70 +137,6 @@ impl Task<'_> {
 	fn url(&self) -> Url {
 		self.contest.url().join(&format!("problem/{}/", self.id)).unwrap()
 	}
-
-	fn native_submissions(&self) -> Result<Vec<Submission>> {
-		let mut resp = if self.id != "problemset" {
-			let url = self.contest.url().join("my").unwrap();
-			let resp = self.contest.session.client.get(url).send()?;
-			resp
-		} else {
-			let url = self
-				.contest
-				.session
-				.url()
-				.join("submissions/")
-				.unwrap()
-				.join(&self.contest.session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
-				.unwrap();
-			let resp = self.contest.session.client.get(url).send()?;
-			resp
-		};
-		let doc = unijudge::debris::Document::new(&resp.text()?);
-		Ok(doc
-			.find_all("[data-submission-id]")
-			.map(|node| {
-				let kids = node.find_all("td").collect::<Vec<_>>();
-				let id: i64 = kids[0].child(1)?.text().parse()?;
-				let username = kids[2].text().as_str().trim().to_owned();
-				let problem_name = kids[3].text().as_str().trim().to_owned();
-				let problem_url = kids[3].find("a")?.attr("href")?.map(|a| self.contest.session.url().join(a))?;
-				let language_name = kids[4].text().as_str().trim().to_owned();
-				let verdict = if kids[5].text() == "In queue" {
-					Verdict::InQueue
-				} else if kids[5].text() == "Running" {
-					Verdict::TestingStart
-				} else {
-					let verdict_span = kids[5].find_first("span")?;
-					let verdict_tag = verdict_span.attr("submissionverdict")?;
-					match verdict_tag.as_str() {
-						"OK" => Verdict::Accepted,
-						"WRONG_ANSWER" => Verdict::WrongAnswer(TestIndex::scrap(verdict_span)?),
-						"COMPILATION_ERROR" => Verdict::CompilationError,
-						"TESTING" => Verdict::Testing(TestIndex::scrap(verdict_span)?),
-						"RUNTIME_ERROR" => Verdict::RuntimeError(TestIndex::scrap(verdict_span)?),
-						"TIME_LIMIT_EXCEEDED" => Verdict::TimeLimitExceeded(TestIndex::scrap(verdict_span)?),
-						"MEMORY_LIMIT_EXCEEDED" => Verdict::MemoryLimitExceeded(TestIndex::scrap(verdict_span)?),
-						"PARTIAL" => Verdict::Partial(verdict_span.find(".verdict-format-points")?.text().parse()?),
-						"SKIPPED" => Verdict::Skipped,
-						"CHALLENGED" => Verdict::Hacked,
-						_ => Err(verdict_span.error("unrecognized verdict tag"))?,
-					}
-				};
-				let time = Duration::from_millis(kids[6].text().map(|time| time[..time.len() - 4].parse())?);
-				let memory_kb: i64 = kids[7].text().map(|mem| mem[..mem.len() - 4].parse())?;
-				Ok(Submission {
-					id,
-					username,
-					problem_url,
-					problem_name,
-					language_name,
-					verdict,
-					time,
-					memory_kb,
-				})
-			})
-			.collect::<Result<Vec<_>>>()?)
-	}
 }
 impl unijudge::Task for Task<'_> {
 	fn details(&self) -> Result<unijudge::TaskDetails> {
@@ -250,53 +186,54 @@ impl unijudge::Task for Task<'_> {
 		Ok(languages)
 	}
 
-	fn submissions(&self) -> Result<Vec<unijudge::Submission>> {
-		use unijudge::{RejectionCause as UR, Verdict as UV};
-		use Verdict as CV;
-		Ok(self
-			.native_submissions()?
-			.into_iter()
-			.map(|sub| unijudge::Submission {
-				id: sub.id.to_string(),
-				verdict: match sub.verdict {
-					CV::Accepted => UV::Accepted,
-					CV::MemoryLimitExceeded(ti) => UV::Rejected {
-						cause: Some(UR::MemoryLimitExceeded),
-						test: Some(ti.desc()),
-					},
-					CV::WrongAnswer(ti) => UV::Rejected {
-						cause: Some(UR::WrongAnswer),
-						test: Some(ti.desc()),
-					},
-					CV::TimeLimitExceeded(ti) => UV::Rejected {
-						cause: Some(UR::TimeLimitExceeded),
-						test: Some(ti.desc()),
-					},
-					CV::RuntimeError(ti) => UV::Rejected {
-						cause: Some(UR::RuntimeError),
-						test: Some(ti.desc()),
-					},
-					CV::Testing(ti) => UV::Pending { test: Some(ti.desc()) },
-					CV::Partial(score) => UV::Scored {
-						score: score as f64,
-						max: None,
-						cause: None,
-						test: None,
-					},
-					CV::Hacked => UV::Rejected {
-						cause: None,
-						test: Some(String::from("a hack")),
-					},
-					CV::CompilationError => UV::Rejected {
-						cause: Some(UR::CompilationError),
-						test: None,
-					},
-					CV::InQueue => UV::Pending { test: None },
-					CV::TestingStart => UV::Pending { test: None },
-					CV::Skipped => UV::Skipped,
-				},
+	fn submissions(&self) -> Result<Vec<Submission>> {
+		let mut resp = if self.id != "problemset" {
+			let url = self.contest.url().join("my").unwrap();
+			let resp = self.contest.session.client.get(url).send()?;
+			resp
+		} else {
+			let url = self
+				.contest
+				.session
+				.url()
+				.join("submissions/")
+				.unwrap()
+				.join(&self.contest.session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
+				.unwrap();
+			let resp = self.contest.session.client.get(url).send()?;
+			resp
+		};
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		Ok(doc
+			.find_all("[data-submission-id]")
+			.map(|node| {
+				let kids = node.find_all("td").collect::<Vec<_>>();
+				let id = kids[0].child(1)?.text().string();
+				let verdict = if kids[5].text() == "In queue" {
+					Verdict::InQueue
+				} else if kids[5].text() == "Running" {
+					Verdict::TestingStart
+				} else {
+					let verdict_span = kids[5].find_first("span")?;
+					let verdict_tag = verdict_span.attr("submissionverdict")?;
+					match verdict_tag.as_str() {
+						"OK" => Verdict::Accepted,
+						"WRONG_ANSWER" => Verdict::WrongAnswer(TestIndex::scrap(verdict_span)?),
+						"COMPILATION_ERROR" => Verdict::CompilationError,
+						"TESTING" => Verdict::Testing(TestIndex::scrap(verdict_span)?),
+						"RUNTIME_ERROR" => Verdict::RuntimeError(TestIndex::scrap(verdict_span)?),
+						"TIME_LIMIT_EXCEEDED" => Verdict::TimeLimitExceeded(TestIndex::scrap(verdict_span)?),
+						"MEMORY_LIMIT_EXCEEDED" => Verdict::MemoryLimitExceeded(TestIndex::scrap(verdict_span)?),
+						"PARTIAL" => Verdict::Partial(verdict_span.find(".verdict-format-points")?.text().parse()?),
+						"SKIPPED" => Verdict::Skipped,
+						"CHALLENGED" => Verdict::Hacked,
+						_ => Err(verdict_span.error("unrecognized verdict tag"))?,
+					}
+				}
+				.to_unijudge();
+				Ok(Submission { id, verdict })
 			})
-			.collect())
+			.collect::<Result<Vec<_>>>()?)
 	}
 
 	fn submit(&self, language: &unijudge::Language, code: &str) -> Result<String> {
@@ -335,21 +272,10 @@ impl unijudge::Task for Task<'_> {
 			.multipart(form)
 			.send()?;
 
-		Ok(self.native_submissions()?[0].id.to_string())
+		Ok(self.submissions()?[0].id.to_string())
 	}
 }
 
-#[derive(Clone, Debug)]
-struct Submission {
-	pub id: i64,
-	pub username: String, // TODO more user information
-	pub problem_url: Url, // TODO separate contest and problem
-	pub problem_name: String,
-	pub language_name: String,
-	pub verdict: Verdict,
-	pub time: Duration,
-	pub memory_kb: i64,
-}
 #[derive(Clone, Debug)]
 enum TestIndex {
 	Test(i64),
@@ -393,6 +319,50 @@ impl TestIndex {
 			TestIndex::Test(i) => format!("test {}", i),
 			TestIndex::Hack(i) => format!("hack {}", i),
 			TestIndex::Pretest(i) => format!("pretest {}", i),
+		}
+	}
+}
+
+impl Verdict {
+	fn to_unijudge(&self) -> unijudge::Verdict {
+		use unijudge::{RejectionCause as UR, Verdict as UV};
+		use Verdict as CV;
+		match self {
+			CV::Accepted => UV::Accepted,
+			CV::MemoryLimitExceeded(ti) => UV::Rejected {
+				cause: Some(UR::MemoryLimitExceeded),
+				test: Some(ti.desc()),
+			},
+			CV::WrongAnswer(ti) => UV::Rejected {
+				cause: Some(UR::WrongAnswer),
+				test: Some(ti.desc()),
+			},
+			CV::TimeLimitExceeded(ti) => UV::Rejected {
+				cause: Some(UR::TimeLimitExceeded),
+				test: Some(ti.desc()),
+			},
+			CV::RuntimeError(ti) => UV::Rejected {
+				cause: Some(UR::RuntimeError),
+				test: Some(ti.desc()),
+			},
+			CV::Testing(ti) => UV::Pending { test: Some(ti.desc()) },
+			CV::Partial(score) => UV::Scored {
+				score: *score as f64,
+				max: None,
+				cause: None,
+				test: None,
+			},
+			CV::Hacked => UV::Rejected {
+				cause: None,
+				test: Some(String::from("a hack")),
+			},
+			CV::CompilationError => UV::Rejected {
+				cause: Some(UR::CompilationError),
+				test: None,
+			},
+			CV::InQueue => UV::Pending { test: None },
+			CV::TestingStart => UV::Pending { test: None },
+			CV::Skipped => UV::Skipped,
 		}
 	}
 }
