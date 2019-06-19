@@ -1,36 +1,37 @@
 use evscode::{E, R};
-use serde::Deserialize;
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct Library {
+	pub directory: PathBuf,
 	pub pieces: HashMap<String, Piece>,
 }
-#[derive(Debug, Deserialize)]
+
+#[derive(Debug)]
 pub struct Piece {
 	pub name: String,
 	pub description: Option<String>,
 	pub detail: Option<String>,
 	pub code: String,
-	pub request: String,
 	pub guarantee: String,
 	pub dependencies: Vec<String>,
 	pub parent: Option<String>,
+	pub modified: SystemTime,
 }
 
 impl Library {
-	pub fn load(path: &Path) -> R<Library> {
-		let file = crate::util::fs_read_to_string(path)?;
-		let library: Library = serde_json::from_str(&file).map_err(|e| E::from_std(e).context("library.json is not a valid icie::paste::logic::Library"))?;
-		library.verify()?;
-		Ok(library)
+	pub fn new_empty() -> Library {
+		Library {
+			directory: PathBuf::new(),
+			pieces: HashMap::new(),
+		}
 	}
 
-	fn verify(&self) -> R<()> {
-		for piece in self.pieces.values() {
+	pub fn verify(&self) -> R<()> {
+		for (id, piece) in &self.pieces {
 			if let Some(parent) = &piece.parent {
 				if !self.pieces.contains_key(parent) {
-					return Err(E::error("parent does not exist").context("malformed library"));
+					return Err(E::error(format!("parent of {:?} is {:?}, which does not exist", id, Some(parent))).context("malformed library"));
 				}
 				if self.pieces[parent].parent.is_some() {
 					return Err(E::error("doubly nested library pieces are not supported yet").context("malformed library"));
