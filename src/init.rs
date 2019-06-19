@@ -53,7 +53,7 @@ fn init_template(root: &Path) -> R<()> {
 }
 fn init_examples(root: &Path, url: &Option<String>) -> R<()> {
 	if let Some(url) = url {
-		let (sess, url) = crate::net::connect(&url)?;
+		let (sess, url, _) = crate::net::connect(&url)?;
 		let examples_dir = root.join("tests").join("example");
 		util::fs_create_dir_all(&examples_dir)?;
 		let tests = {

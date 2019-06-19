@@ -1,15 +1,16 @@
 use crate::{auth, util};
 use evscode::{E, R};
 
-pub fn connect(url: &str) -> R<(Session, unijudge::TaskUrl)> {
+pub fn connect(url: &str) -> R<(Session, unijudge::TaskUrl, &'static Backend)> {
 	let (url, backend) = find_backend(url)?.ok_or_else(|| E::error("this site is not supported yet"))?;
 	let raw = backend
+		.network
 		.connect(&url.site, &format!("ICIE/{} (+https://github.com/pustaczek/icie)", env!("CARGO_PKG_VERSION")))
 		.map_err(util::from_unijudge_error)?;
 	if let Some(cached_session) = auth::cached(&url.site) {
 		raw.restore_auth(&cached_session).map_err(util::from_unijudge_error)?;
 	}
-	Ok((Session { site: url.site.clone(), raw }, url))
+	Ok((Session { site: url.site.clone(), raw }, url, backend))
 }
 
 pub struct Session {
@@ -56,13 +57,35 @@ impl Session {
 	}
 }
 
-pub fn find_backend(url: &str) -> R<Option<(unijudge::TaskUrl, &'static dyn unijudge::Backend)>> {
+pub fn find_backend(url: &str) -> R<Option<(unijudge::TaskUrl, &'static Backend)>> {
 	for backend in BACKENDS {
-		if let Some(url) = backend.deconstruct_url(url).map_err(util::from_unijudge_error)? {
-			return Ok(Some((url, *backend)));
+		if let Some(url) = backend.network.deconstruct_url(url).map_err(util::from_unijudge_error)? {
+			return Ok(Some((url, backend)));
 		}
 	}
 	return Ok(None);
 }
 
-const BACKENDS: &[&dyn unijudge::Backend] = &[&unijudge_atcoder::Atcoder, &unijudge_codeforces::Codeforces, &unijudge_sio2::Sio2, &unijudge_spoj::SPOJ];
+pub struct Backend {
+	pub network: &'static dyn unijudge::Backend,
+	pub cpp: &'static str,
+}
+
+const BACKENDS: &[Backend] = &[
+	Backend {
+		network: &unijudge_atcoder::Atcoder,
+		cpp: "C++14 (GCC 5.4.1)",
+	},
+	Backend {
+		network: &unijudge_codeforces::Codeforces,
+		cpp: "GNU G++17 7.3.0",
+	},
+	Backend {
+		network: &unijudge_sio2::Sio2,
+		cpp: "C++",
+	},
+	Backend {
+		network: &unijudge_spoj::SPOJ,
+		cpp: "C++14 (clang 4.0)",
+	},
+];

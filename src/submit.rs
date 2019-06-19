@@ -20,16 +20,15 @@ fn send_passed() -> R<()> {
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
-	let (sess, url) = crate::net::connect(&url)?;
+	let (sess, url, backend) = crate::net::connect(&url)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.languages())?
 	};
-	let good_langs = ["C++", "GNU G++17 7.3.0", "C++14 (clang 4.0)", "C++14 (GCC 5.4.1)"];
 	let lang = langs
 		.iter()
-		.find(|lang| good_langs.contains(&lang.name.as_str()))
-		.ok_or_else(|| E::error("site does not support C++"))?;
+		.find(|lang| lang.name == backend.cpp)
+		.ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
 	let submit_id = {
 		let _status = crate::STATUS.push("Querying submit id");
 		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.submit(lang, &code))?
