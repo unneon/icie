@@ -153,7 +153,13 @@ impl unijudge::Task for Task<'_> {
 				})
 				.collect::<debris::Result<_>>()?,
 		);
-		Ok(TaskDetails { symbol, title, examples })
+		Ok(TaskDetails {
+			symbol,
+			title,
+			contest_id: self.contest.id.clone(),
+			site_short: "atc".to_owned(),
+			examples,
+		})
 	}
 
 	fn languages(&self) -> Result<Vec<Language>> {

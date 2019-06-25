@@ -163,6 +163,12 @@ impl unijudge::Task for Task<'_> {
 		Ok(unijudge::TaskDetails {
 			symbol,
 			title,
+			contest_id: if self.contest.id.starts_with("contest/") {
+				self.contest.id[8..].to_owned()
+			} else {
+				self.contest.id.clone()
+			},
+			site_short: "cf".to_owned(),
 			examples: Some(examples),
 		})
 	}

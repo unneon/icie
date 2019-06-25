@@ -161,6 +161,8 @@ impl unijudge::Task for Task<'_> {
 		Ok(TaskDetails {
 			symbol: self.id.to_string(),
 			title,
+			contest_id: self.contest.id.clone(),
+			site_short: "sio2".to_owned(),
 			examples: None,
 		})
 	}

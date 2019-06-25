@@ -7,6 +7,7 @@ mod debug;
 mod dir;
 mod discover;
 mod init;
+mod interpolation;
 mod launch;
 mod manifest;
 mod net;

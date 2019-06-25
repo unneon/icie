@@ -57,7 +57,7 @@ pub fn custom_tests() -> evscode::R<PathBuf> {
 	Ok(tests()?.join(&*CUSTOM_TESTS_SUBDIRECTORY.get()))
 }
 
-pub fn random_codename() -> String {
+pub fn random_adjective() -> &'static str {
 	use rand::seq::SliceRandom;
 	let mut rng = rand::thread_rng();
 	static ADJECTIVES: &[&str] = &[
@@ -82,9 +82,15 @@ pub fn random_codename() -> String {
 		"heavenly",
 		"marshmallow",
 	];
+	ADJECTIVES.choose(&mut rng).unwrap()
+}
+
+pub fn random_animal() -> &'static str {
+	use rand::seq::SliceRandom;
+	let mut rng = rand::thread_rng();
 	static ANIMALS: &[&str] = &[
 		"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug", "platypus", "squid", "koala",
 		"panda",
 	];
-	format!("{}-{}", ADJECTIVES.choose(&mut rng).unwrap(), ANIMALS.choose(&mut rng).unwrap())
+	ANIMALS.choose(&mut rng).unwrap()
 }

@@ -62,6 +62,8 @@ pub struct Example {
 pub struct TaskDetails {
 	pub symbol: String,
 	pub title: String,
+	pub contest_id: String,
+	pub site_short: String,
 	pub examples: Option<Vec<Example>>,
 }
 
