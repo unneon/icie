@@ -252,6 +252,7 @@ fn test_interpolate() {
 	};
 	let expand = |pattern: &str| -> String {
 		let interpolation: Interpolation<InitVariable> = pattern.parse().unwrap();
+		assert_eq!(interpolation.to_string(), pattern);
 		interpolation.interpolate(&vars).0
 	};
 	assert_eq!(expand("{task.symbol case.upper}-{task.name case.kebab}"), "A-diverse-strings");
@@ -270,4 +271,6 @@ fn test_interpolate() {
 	assert_eq!(expand("{task.name case.snake}"), "diverse_strings");
 	assert_eq!(expand("{task.name case.kebab}"), "diverse-strings");
 	assert_eq!(expand("{task.name case.upper}"), "DIVERSE_STRINGS");
+	assert_eq!(expand("{{task.name case.kebab}}"), "{task.name case.kebab}");
+	assert_eq!(expand("cp{contest.id}{task.symbol case.kebab}-icie"), "cp1144a-icie");
 }

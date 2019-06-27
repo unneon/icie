@@ -22,34 +22,27 @@ impl Case {
 		if let Case::None = self {
 			return s.to_owned();
 		}
-		let mut parts: Vec<String> = s.split(' ').filter(|p| !p.is_empty()).map(String::from).collect();
-		let casing = match self {
-			Case::None => (|s: &str| s.to_owned()) as fn(&str) -> String,
-			Case::CamelCase | Case::PascalCase | Case::KebabCase | Case::SnakeCase => (|s: &str| s.to_lowercase()),
-			Case::UpperCase => |s: &str| s.to_uppercase(),
+		let parts: Vec<String> = s.split(' ').filter(|p| !p.is_empty()).map(String::from).collect();
+		let (casing, cap_range, joiner): (fn(&str) -> String, _, _) = match self {
+			Case::None => (str::to_owned, 0..0, ""),
+			Case::CamelCase => (str::to_lowercase, 1..parts.len(), ""),
+			Case::PascalCase => (str::to_lowercase, 0..parts.len(), ""),
+			Case::SnakeCase => (str::to_lowercase, 0..0, "_"),
+			Case::KebabCase => (str::to_lowercase, 0..0, "-"),
+			Case::UpperCase => (str::to_uppercase, 0..0, "_"),
 		};
-		for part in &mut parts {
-			*part = casing(&*part);
-		}
-		match self {
-			Case::CamelCase => {
-				for i in 1..parts.len() {
-					parts[i] = capitalize(&parts[i]);
+		parts
+			.into_iter()
+			.enumerate()
+			.map(|(i, mut part)| {
+				part = casing(&part);
+				if cap_range.contains(&i) {
+					part = capitalize(&part);
 				}
-			},
-			Case::PascalCase => {
-				for part in &mut parts {
-					*part = capitalize(&*part);
-				}
-			},
-			Case::None | Case::SnakeCase | Case::KebabCase | Case::UpperCase => (),
-		}
-		let joiner = match self {
-			Case::None | Case::CamelCase | Case::PascalCase => "",
-			Case::SnakeCase | Case::UpperCase => "_",
-			Case::KebabCase => "-",
-		};
-		parts.join(joiner)
+				part
+			})
+			.collect::<Vec<_>>()
+			.join(joiner)
 	}
 }
 
