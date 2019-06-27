@@ -241,3 +241,33 @@ impl fmt::Display for InitVariable {
 		})
 	}
 }
+
+#[test]
+fn test_interpolate() {
+	let vars = InitVariableMap {
+		task_symbol: Some("A".to_owned()),
+		task_name: Some("Diverse Strings".to_owned()),
+		contest_id: Some("1144".to_owned()),
+		site_short: Some("cf".to_owned()),
+	};
+	let expand = |pattern: &str| -> String {
+		let interpolation: Interpolation<InitVariable> = pattern.parse().unwrap();
+		interpolation.interpolate(&vars).0
+	};
+	assert_eq!(expand("{task.symbol case.upper}-{task.name case.kebab}"), "A-diverse-strings");
+	assert_eq!(
+		expand("{site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab}"),
+		"cf/1144/A-diverse-strings"
+	);
+	assert_eq!(expand("{task.symbol case.upper}-{{"), "A-{");
+	assert_eq!(expand("{task.symbol}"), "A");
+	assert_eq!(expand("{task.name}"), "Diverse Strings");
+	assert_eq!(expand("{contest.id}"), "1144");
+	assert_eq!(expand("{site.short}"), "cf");
+	assert_eq!(expand("{task.name}"), "Diverse Strings");
+	assert_eq!(expand("{task.name case.camel}"), "diverseStrings");
+	assert_eq!(expand("{task.name case.pascal}"), "DiverseStrings");
+	assert_eq!(expand("{task.name case.snake}"), "diverse_strings");
+	assert_eq!(expand("{task.name case.kebab}"), "diverse-strings");
+	assert_eq!(expand("{task.name case.upper}"), "DIVERSE_STRINGS");
+}
