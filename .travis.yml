@@ -1,9 +1,16 @@
 language: rust
 rust: nightly
-before_install:
-  - sudo apt-get update
-  - sudo apt-get install libdbus-1-dev libssl-dev
-  - cargo install cargo-tarpaulin
+addons:
+  apt:
+    packages:
+      - libdbus-1-dev
+      - libssl-dev
+cache:
+  directories:
+    - /home/travis/.cargo/
+install:
+  - cargo install cargo-tarpaulin || which cargo-tarpaulin
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 after_success:
   - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-  - cargo tarpaulin --out Xml && bash <(curl -s https://codecov.io/bash)
