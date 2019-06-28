@@ -255,6 +255,7 @@ fn test_interpolate() {
 		assert_eq!(interpolation.to_string(), pattern);
 		interpolation.interpolate(&vars).0
 	};
+	let compile = |pattern: &str| -> Result<Interpolation<InitVariable>, String> { pattern.parse() };
 	assert_eq!(expand("{task.symbol case.upper}-{task.name case.kebab}"), "A-diverse-strings");
 	assert_eq!(
 		expand("{site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab}"),
@@ -273,4 +274,11 @@ fn test_interpolate() {
 	assert_eq!(expand("{task.name case.upper}"), "DIVERSE_STRINGS");
 	assert_eq!(expand("{{task.name case.kebab}}"), "{task.name case.kebab}");
 	assert_eq!(expand("cp{contest.id}{task.symbol case.kebab}-icie"), "cp1144a-icie");
+	assert!(compile("{task.name case.kebab").is_err());
+	assert!(compile("task.name case.kebab}").is_err());
+	assert!(compile("{{task.name case.kebab}").is_err());
+	assert!(compile("{task.name case.kebab}}").is_err());
+	assert!(compile("{tsak.name}").is_err());
+	assert!(compile("{task.name csae.kebab}").is_err());
+	assert!(compile("{task.name case.keabb}").is_err());
 }
