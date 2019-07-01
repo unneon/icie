@@ -94,7 +94,8 @@ pub struct VscodePaste<'a> {
 	library: &'a Library,
 }
 impl logic::PasteContext for VscodePaste<'_> {
-	fn has(&mut self, piece: &Piece) -> bool {
+	fn has(&mut self, piece_id: &str) -> bool {
+		let piece = &self.library.pieces[piece_id];
 		self.text.contains(&piece.guarantee)
 	}
 

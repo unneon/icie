@@ -1,5 +1,5 @@
 use evscode::{E, R};
-use std::{collections::HashMap, path::PathBuf, time::SystemTime};
+use std::{collections::HashMap, iter::FromIterator, path::PathBuf, time::SystemTime};
 
 #[derive(Debug)]
 pub struct Library {
@@ -54,7 +54,7 @@ impl Library {
 	pub fn walk_graph(&self, piece_id: &str, mut context: impl PasteContext) -> R<()> {
 		let (dg, t1, t2) = self.build_dependency_graph();
 		let og = self.build_ordering_graph(&dg, &t1);
-		let mut missing = dg.vmasked_bfs(t1[piece_id], |v| !context.has(&self.pieces[t2[v]]));
+		let mut missing = dg.vmasked_bfs(t1[piece_id], |v| !context.has(&t2[v]));
 		let ord = og.toposort().unwrap();
 		let mut pos = vec![og.len(); og.len()];
 		for i in 0..ord.len() {
@@ -170,7 +170,7 @@ fn skip_to_toplevel(mut pos: usize, source: &str) -> usize {
 }
 
 pub trait PasteContext {
-	fn has(&mut self, piece: &Piece) -> bool;
+	fn has(&mut self, piece: &str) -> bool;
 	fn paste(&mut self, piece: &str) -> R<()>;
 }
 
@@ -254,5 +254,69 @@ impl Graph {
 			}
 		}
 		g
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn dependency_order() {
+		let lib = example_library();
+		let orders = paste_iter(&lib, "dfs");
+		assert!((orders[0] == "dummyf" && orders[1] == "graph") || (orders[0] == "graph" && orders[1] == "dummyf"));
+		assert_eq!(orders[2], "dfs-impl");
+		assert_eq!(orders[3], "dfs");
+		assert_eq!(orders.len(), 4);
+	}
+
+	fn paste_iter(lib: &Library, piece_id: &str) -> Vec<String> {
+		let mut buf = Vec::new();
+		let ctx = MockContext { buf: &mut buf };
+		lib.walk_graph(piece_id, ctx).unwrap();
+		buf
+	}
+
+	struct MockContext<'a> {
+		buf: &'a mut Vec<String>,
+	}
+	impl PasteContext for MockContext<'_> {
+		fn has(&mut self, piece_id: &str) -> bool {
+			self.buf.contains(&piece_id.to_owned())
+		}
+
+		fn paste(&mut self, piece_id: &str) -> Result<(), E> {
+			self.buf.push(piece_id.to_owned());
+			Ok(())
+		}
+	}
+
+	fn mock_piece(id: &str, dependencies: &[&str], parent: Option<&str>) -> (String, Piece) {
+		(
+			id.to_owned(),
+			Piece {
+				name: id.to_owned(),
+				description: None,
+				detail: None,
+				code: format!("{{{{{}}}}}", id),
+				guarantee: format!("{{{{{}}}}}", id),
+				dependencies: dependencies.iter().map(|s| (*s).to_owned()).collect(),
+				parent: parent.map(|s| s.to_owned()),
+				modified: SystemTime::now(),
+			},
+		)
+	}
+
+	fn example_library() -> Library {
+		Library {
+			directory: PathBuf::new(),
+			pieces: HashMap::from_iter(vec![
+				mock_piece("dummyf", &[], None),
+				mock_piece("graph", &[], None),
+				mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")),
+				mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")),
+			]),
+		}
 	}
 }
