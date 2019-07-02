@@ -100,7 +100,7 @@ impl logic::PasteContext for VscodePaste<'_> {
 	}
 
 	fn paste(&mut self, piece_id: &str) -> R<()> {
-		let (position, snippet) = self.library.place(piece_id, &self.text)?;
+		let (position, snippet) = self.library.place(piece_id, &self.text);
 		evscode::edit_paste(self.solution.clone(), snippet, position).wait();
 		self.text = evscode::query_document_text(self.solution.clone()).wait();
 		Ok(())

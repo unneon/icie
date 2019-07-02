@@ -99,8 +99,8 @@ impl Library {
 		og
 	}
 
-	pub fn place(&self, piece_id: &str, source: &str) -> R<((usize, usize), String)> {
-		let index = self.place_index(piece_id, source)?;
+	pub fn place(&self, piece_id: &str, source: &str) -> ((usize, usize), String) {
+		let index = self.place_index(piece_id, source);
 		let position = index_to_position(index, source);
 		let (pref, suf) = if self.pieces[piece_id].parent.is_some() {
 			("", "\n")
@@ -121,10 +121,10 @@ impl Library {
 		} else {
 			self.pieces[piece_id].code.trim_end().to_owned()
 		};
-		Ok((position, format!("{}{}{}", pref, code, suf)))
+		(position, format!("{}{}{}", pref, code, suf))
 	}
 
-	fn place_index(&self, piece_id: &str, source: &str) -> R<usize> {
+	fn place_index(&self, piece_id: &str, source: &str) -> usize {
 		let piece = &self.pieces[piece_id];
 		if let Some(parent) = &piece.parent {
 			let parent = &self.pieces[parent];
@@ -132,7 +132,7 @@ impl Library {
 			pos += source[pos..].find('{').unwrap();
 			pos += source[pos..].find('\n').unwrap();
 			pos += 1;
-			Ok(pos)
+			pos
 		} else {
 			let (dg, t1, t2) = self.build_dependency_graph();
 			let og = self.build_ordering_graph(&dg, &t1);
@@ -144,7 +144,7 @@ impl Library {
 				pos += source[pos..].find(&dep.guarantee).map(|i| i + 1).unwrap_or(0);
 			}
 			pos = skip_to_toplevel(pos, source);
-			Ok(pos)
+			pos
 		}
 	}
 }
@@ -304,6 +304,104 @@ mod tests {
 		assert!(lib.verify().is_err());
 	}
 
+	#[test]
+	fn placing_basic() {
+		let lib = linear_library();
+		assert_eq!(
+			replace(
+				&lib,
+				"ntt",
+				r#"#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+
+}
+"#
+			),
+			r#"#include <bits/stdc++.h>
+using namespace std;
+
+{{qpow}}
+
+{{mint}}
+
+{{ntt}}
+
+int main() {
+
+}
+"#
+		);
+	}
+
+	#[test]
+	fn placing_partial() {
+		let lib = linear_library();
+		assert_eq!(
+			replace(
+				&lib,
+				"ntt",
+				r#"#include <bits/stdc++.h>
+using namespace std;
+
+{{qpow}}
+
+int main() {
+
+}
+"#
+			),
+			r#"#include <bits/stdc++.h>
+using namespace std;
+
+{{qpow}}
+
+{{mint}}
+
+{{ntt}}
+
+int main() {
+
+}
+"#
+		);
+	}
+
+	fn replace(lib: &Library, piece: &str, code: &str) -> String {
+		let mut buf = code.to_owned();
+		lib.walk_graph(piece, PlaceMockContext { lib: &lib, buf: &mut buf }).unwrap();
+		buf
+	}
+
+	struct PlaceMockContext<'a> {
+		lib: &'a Library,
+		buf: &'a mut String,
+	}
+	impl PasteContext for PlaceMockContext<'_> {
+		fn has(&mut self, piece: &str) -> bool {
+			self.buf.contains(&self.lib.pieces[piece].guarantee)
+		}
+
+		fn paste(&mut self, piece: &str) -> R<()> {
+			let ((line, column), snippet) = self.lib.place(piece, &self.buf);
+			*self.buf = self
+				.buf
+				.split('\n')
+				.enumerate()
+				.map(|(i, row)| {
+					if i == line {
+						format!("{}{}{}", &row[..column], snippet, &row[column..])
+					} else {
+						row.to_owned()
+					}
+				})
+				.collect::<Vec<_>>()
+				.join("\n");
+			Ok(())
+		}
+	}
+
 	fn paste_iter(lib: &Library, piece_id: &str) -> Vec<String> {
 		let mut buf = Vec::new();
 		let ctx = MockContext { buf: &mut buf };
@@ -344,6 +442,15 @@ mod tests {
 		lib.pieces.insert("graph".to_owned(), mock_piece("graph", &[], None));
 		lib.pieces.insert("dfs".to_owned(), mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")));
 		lib.pieces.insert("dfs-impl".to_owned(), mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")));
+		lib.verify().unwrap();
+		lib
+	}
+
+	fn linear_library() -> Library {
+		let mut lib = Library::new_empty();
+		lib.pieces.insert("qpow".to_owned(), mock_piece("qpow", &[], None));
+		lib.pieces.insert("mint".to_owned(), mock_piece("mint", &["qpow"], None));
+		lib.pieces.insert("ntt".to_owned(), mock_piece("ntt", &["mint"], None));
 		lib.verify().unwrap();
 		lib
 	}
