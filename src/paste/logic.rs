@@ -1,5 +1,5 @@
 use evscode::{E, R};
-use std::{collections::HashMap, iter::FromIterator, path::PathBuf, time::SystemTime};
+use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 
 #[derive(Debug)]
 pub struct Library {
