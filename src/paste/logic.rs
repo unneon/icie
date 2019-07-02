@@ -271,6 +271,39 @@ mod tests {
 		assert_eq!(orders.len(), 4);
 	}
 
+	#[test]
+	fn nonexistent_parent() {
+		let mut lib = Library::new_empty();
+		lib.pieces.insert("b".to_owned(), mock_piece("b", &["a"], Some("a")));
+		assert!(lib.verify().is_err());
+	}
+
+	#[test]
+	fn nonexisting_dependency() {
+		let mut lib = Library::new_empty();
+		lib.pieces.insert("b".to_owned(), mock_piece("b", &["a"], None));
+		assert!(lib.verify().is_err());
+	}
+
+	#[test]
+	fn doubly_nested() {
+		let mut lib = Library::new_empty();
+		lib.pieces.insert("a".to_owned(), mock_piece("a", &[], None));
+		lib.pieces.insert("b".to_owned(), mock_piece("b", &["a"], Some("a")));
+		assert!(lib.verify().is_ok());
+		lib.pieces.insert("c".to_owned(), mock_piece("c", &["b", "a"], Some("b")));
+		assert!(lib.verify().is_err());
+	}
+
+	#[test]
+	fn dependency_cycle() {
+		let mut lib = Library::new_empty();
+		lib.pieces.insert("a".to_owned(), mock_piece("a", &["b"], None));
+		lib.pieces.insert("b".to_owned(), mock_piece("b", &["c"], None));
+		lib.pieces.insert("c".to_owned(), mock_piece("c", &["a"], None));
+		assert!(lib.verify().is_err());
+	}
+
 	fn paste_iter(lib: &Library, piece_id: &str) -> Vec<String> {
 		let mut buf = Vec::new();
 		let ctx = MockContext { buf: &mut buf };
@@ -307,10 +340,11 @@ mod tests {
 
 	fn example_library() -> Library {
 		let mut lib = Library::new_empty();
-		lib.pieces["dummyf"] = mock_piece("dummyf", &[], None);
-		lib.pieces["graph"] = mock_piece("graph", &[], None);
-		lib.pieces["dfs"] = mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph"));
-		lib.pieces["dfs-impl"] = mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph"));
+		lib.pieces.insert("dummyf".to_owned(), mock_piece("dummyf", &[], None));
+		lib.pieces.insert("graph".to_owned(), mock_piece("graph", &[], None));
+		lib.pieces.insert("dfs".to_owned(), mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")));
+		lib.pieces.insert("dfs-impl".to_owned(), mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")));
+		lib.verify().unwrap();
 		lib
 	}
 }
