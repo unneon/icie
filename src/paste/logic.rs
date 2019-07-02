@@ -292,31 +292,25 @@ mod tests {
 		}
 	}
 
-	fn mock_piece(id: &str, dependencies: &[&str], parent: Option<&str>) -> (String, Piece) {
-		(
-			id.to_owned(),
-			Piece {
-				name: id.to_owned(),
-				description: None,
-				detail: None,
-				code: format!("{{{{{}}}}}", id),
-				guarantee: format!("{{{{{}}}}}", id),
-				dependencies: dependencies.iter().map(|s| (*s).to_owned()).collect(),
-				parent: parent.map(|s| s.to_owned()),
-				modified: SystemTime::now(),
-			},
-		)
+	fn mock_piece(id: &str, dependencies: &[&str], parent: Option<&str>) -> Piece {
+		Piece {
+			name: id.to_owned(),
+			description: None,
+			detail: None,
+			code: format!("{{{{{}}}}}", id),
+			guarantee: format!("{{{{{}}}}}", id),
+			dependencies: dependencies.iter().map(|s| (*s).to_owned()).collect(),
+			parent: parent.map(|s| s.to_owned()),
+			modified: SystemTime::now(),
+		}
 	}
 
 	fn example_library() -> Library {
-		Library {
-			directory: PathBuf::new(),
-			pieces: HashMap::from_iter(vec![
-				mock_piece("dummyf", &[], None),
-				mock_piece("graph", &[], None),
-				mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")),
-				mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")),
-			]),
-		}
+		let mut lib = Library::new_empty();
+		lib.pieces["dummyf"] = mock_piece("dummyf", &[], None);
+		lib.pieces["graph"] = mock_piece("graph", &[], None);
+		lib.pieces["dfs"] = mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph"));
+		lib.pieces["dfs-impl"] = mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph"));
+		lib
 	}
 }
