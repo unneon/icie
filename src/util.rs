@@ -9,6 +9,12 @@ pub fn fmt_time_short(t: &Duration) -> String {
 	format!("{}.{:03}s", s, ms)
 }
 
+#[test]
+fn test_fmt_time() {
+	assert_eq!(fmt_time_short(&Duration::from_millis(2137)), "2.137s");
+	assert_eq!(fmt_time_short(&Duration::from_millis(42)), "0.042s");
+}
+
 pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	if let Some(path) = path.as_option_path() {
 		let file = match evscode::workspace_root() {
@@ -32,11 +38,19 @@ pub fn bash_escape(raw: &str) -> String {
 		match c {
 			'"' => escaped += "\\\"",
 			'\\' => escaped += "\\\\",
+			'$' => escaped += "\\$",
+			'!' => escaped += "\\!",
 			c => escaped.push(c),
 		};
 	}
 	escaped += "\"";
 	escaped
+}
+
+#[test]
+fn test_bash_escape() {
+	assert_eq!(bash_escape("\"Hello, world!\""), r#""\"Hello, world\!\"""#);
+	assert_eq!(bash_escape("${HOME}\\Projects"), r#""\${HOME}\\Projects""#);
 }
 
 pub fn is_installed(app: &'static str) -> evscode::R<bool> {
@@ -48,6 +62,12 @@ pub fn is_installed(app: &'static str) -> evscode::R<bool> {
 		.status()
 		.map_err(|e| evscode::E::from_std(e).context("failed to check whether a program in installed with which(1)"))?
 		.success())
+}
+
+#[test]
+fn test_is_installed() {
+	assert_eq!(is_installed("cargo").unwrap(), true);
+	assert_eq!(is_installed("icie-this-executable-does-no-exist").unwrap(), false);
 }
 
 pub fn html_material_icons() -> String {
@@ -93,6 +113,14 @@ pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
 	x0 + xs.len() as i64
 }
 
+#[test]
+fn test_mex() {
+	assert_eq!(mex(0, vec![5, 3, 2, 0, 1]), 4);
+	assert_eq!(mex(0, vec![]), 0);
+	assert_eq!(mex(5, vec![10, 5, 7, 9, 8]), 6);
+	assert_eq!(mex(5, vec![]), 5);
+}
+
 pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
 	std::fs::read_to_string(path.as_ref()).map_err(|e| {
 		let is_not_found = e.kind() == std::io::ErrorKind::NotFound;
@@ -131,6 +159,14 @@ pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
 pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
 	let path = path.as_ref();
 	path.parent().unwrap().join(path.file_stem().unwrap())
+}
+
+#[test]
+fn test_pathmanip() {
+	assert_eq!(without_extension("/home/wizard/file.txt"), Path::new("/home/wizard/file"));
+	assert_eq!(without_extension("/home/wizard/source.old.cpp"), Path::new("/home/wizard/source.old"));
+	assert_eq!(without_extension("../manifest.json"), Path::new("../manifest"));
+	assert_eq!(without_extension("./inner/dev0"), Path::new("./inner/dev0"));
 }
 
 pub struct TransactionDir {
