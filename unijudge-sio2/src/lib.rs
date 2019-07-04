@@ -150,7 +150,8 @@ impl unijudge::Task for Task<'_> {
 		}
 		let doc = debris::Document::new(&resp.text()?);
 		let problems = doc
-			.find_all("section.main-content > div > table > tbody > tr")
+			.find(".main-content > div > table > tbody")?
+			.find_all("tr")
 			.filter(|tr| tr.child(3).is_ok())
 			.map(|tr| Ok((tr.child(1)?.text().string(), tr.find("a")?.text().string())))
 			.collect::<Result<Vec<_>>>()?;
