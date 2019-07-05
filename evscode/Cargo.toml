@@ -1,0 +1,15 @@
+[package]
+name = "evscode"
+version = "0.1.0"
+authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
+edition = "2018"
+
+[dependencies]
+arc-swap = "0.3"
+backtrace = "0.3"
+json = "0.11"
+lazy_static = "1.0"
+log = "0.4"
+evscode-codegen = { path = "../evscode-codegen" }
+radix_trie = "0.1.4"
+shellexpand = "1.0"

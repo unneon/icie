@@ -18,9 +18,15 @@ ICIE itself also depends on libdbus-1-dev(probably install with system package m
 
 # Development
 
-In order to launch a debug build, run `cargo run`(without `--release` to shorten the compile times). The plugin uses code from several repositories, so depending on what you want to modify you may have to clone them too and [override the dependency](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#overriding-repository-url) in ICIE's Cargo.toml, which means appending the two lines from the link. The connected repositories are:
+In order to launch a debug build, run `cargo run`(without `--release` to shorten the compile times).
+Most of the logic resides in the src/ directory. The exceptions are network interactions and VS Code interactions, which live respectively in the unijudge*/ and evscode*/ directory families.
+Inside src/, adding new commands or config options will be registered automatically.
 
-- **icie** This is the most important repository, where the all building, testing, configurating, UI and networking happens. New command/config entries will be handled by the build system automatically if they have `evscode::command` or `evscode::config` attribute. To see the docs for VS Code API, run `cargo doc --open -p evscode` - the most important stuff is in the `stdlib` module. To add support to new competitive programming sites, implement it like in `unijudge-codeforces` and add it to backend list in `src/net.rs` and `Cargo.toml`.
-- [**evscode**](https://github.com/pustaczek/evscode) This is where the VS Code API is defined. Adding new stuff here is kind of a pain because I have not automated TypeScript compilation yet and it requires running the scripts from `backup-ts-env/` and launching the extension manually. I will probably change it to run on WASM when it becomes usable.
+To see Rust VS Code API docs, run `cargo doc --open -p evscode`.
+Currently, it is hard to add support for uncovered parts of the API(it requires manually running scripts from evscode/backup-ts-env and editing a Typescript file).
+The current approach is too boilerplate-heavy and limited anyway and will be replaced with a different solution eventually.
+
+To add support for other competitive programming sites, add a new unijudge-something/ directory and fill it with code similar to unijudge-atcoder.
+After that, add its metadata to src/net.rs and Cargo.toml, and ICIE will start using it.
 
 To add your changes back to the plugin, open a [pull request](https://help.github.com/en/articles/creating-a-pull-request).

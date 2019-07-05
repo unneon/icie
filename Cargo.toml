@@ -5,7 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
-evscode = { git = "https://github.com/pustaczek/evscode" }
+evscode = { path = "./evscode" }
 itertools = "0.8"
 json = "0.11"
 keyring = "0.7"
@@ -31,6 +31,8 @@ reqwest = { git = "https://github.com/pustaczek/reqwest" }
 [workspace]
 members = [
     ".",
+	"evscode",
+	"evscode-codegen",
     "unijudge",
     "unijudge-atcoder",
     "unijudge-codeforces",
