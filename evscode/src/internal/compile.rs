@@ -1,7 +1,7 @@
 use crate::meta::{Activation, Package};
-use json::object;
+use json::{object, JsonValue};
 use std::{
-	collections::HashMap, fs, io::{self, Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
+	fs, io::{self, Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
 };
 
 pub struct Toolchain<'a> {
@@ -380,13 +380,13 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 		"repository" => pkg.repository,
 		"main" => "./out/extension",
 		"contributes" => object! {
-			"commands" => pkg.commands.iter().map(|command| {
+			"commands" => sorted_svk(&pkg.commands, |cmd| cmd.inner_id).map(|command| {
 				object! {
 					"command" => format!("{}.{}", pkg.identifier, command.inner_id),
 					"title" => command.title,
 				}
 			}).collect::<Vec<_>>(),
-			"keybindings" => pkg.commands.iter().filter_map(|command| {
+			"keybindings" => sorted_svk(&pkg.commands, |cmd| cmd.inner_id).filter_map(|command| {
 				command.key.clone().map(|key| {
 					object! {
 						"command" => format!("{}.{}", pkg.identifier, command.inner_id),
@@ -397,12 +397,12 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 			"configuration" => object! {
 				"type" => "object",
 				"title" => pkg.name,
-				"properties" => pkg.configuration.iter().map(|ce| {
+				"properties" => collect_json_obj(sorted_svk(&pkg.configuration, |ce| ce.id).map(|ce| {
 					(format!("{}.{}", pkg.identifier, ce.id), (ce.schema)(ce.description))
-				}).collect::<HashMap<_, _>>()
+				})),
 			}
 		},
-		"activationEvents" => collect_activation_events(pkg).iter().map(|ev| ev.package_json_format()).collect::<Vec<_>>(),
+		"activationEvents" => collect_activation_events(pkg).into_iter().map(|ev| ev.package_json_format()).collect::<Vec<_>>(),
 		"badges" => json::array! [],
 		"markdown" => "github",
 		"qna" => "marketplace",
@@ -440,4 +440,18 @@ fn render_meta(pkg: &Package) -> String {
 
 fn json_slice_strs(ss: &[&str]) -> json::JsonValue {
 	json::JsonValue::Array(ss.iter().map(|ss| json::JsonValue::String(ss.to_string())).collect())
+}
+
+fn sorted_svk<T, K: Ord>(slice: &[T], mut key: impl FnMut(&T) -> K) -> impl Iterator<Item=&T> {
+	let mut vec = slice.iter().collect::<Vec<_>>();
+	vec.sort_by_key(|x| key(*x));
+	vec.into_iter()
+}
+
+fn collect_json_obj(i: impl Iterator<Item=(String, JsonValue)>) -> json::object::Object {
+	let mut obj = json::object::Object::new();
+	for (key, value) in i {
+		obj.insert(&key, value);
+	}
+	obj
 }

@@ -145,8 +145,7 @@ static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<InitVariable>> = "{t
 
 #[evscode::config(
 	description = "By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory configuration entry, \
-	               and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This options allows to instead specify the directory every \
-	               time."
+	               and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead specify the directory every time."
 )]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
