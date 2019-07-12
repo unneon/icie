@@ -32,6 +32,7 @@ impl unijudge::Backend for Codeforces {
 		}
 		let (contest, task) = match segs.as_slice() {
 			["problemset", "problem", contest, task] => (format!("problemset"), format!("{}/{}", contest, task)),
+			// TODO if the first task is not A(e.g. A1), this won't work
 			["contest", contest, "problem", "0"] => (format!("contest/{}", contest), format!("A")),
 			["contest", contest, "problem", task] => (format!("contest/{}", contest), format!("{}", task)),
 			["gym", contest, "problem", task] => (format!("gym/{}", contest), format!("{}", task)),

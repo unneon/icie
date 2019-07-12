@@ -133,7 +133,7 @@ impl<V: VariableSet> Interpolation<V> {
 						},
 					};
 					;
-					r += &case.apply(&variable.replace('/', " ").replace('-', " ").replace('_', " "));
+					r += &case.apply(&variable.replace('/', " ").replace('-', " ").replace('_', " ").replace(":", ""));
 				},
 			}
 		}

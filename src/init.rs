@@ -281,3 +281,24 @@ fn test_interpolate() {
 	assert!(compile("{task.name csae.kebab}").is_err());
 	assert!(compile("{task.name case.keabb}").is_err());
 }
+
+#[test]
+fn test_corner() {
+	let work = |vars: &InitVariableMap, pattern: &str| -> String {
+		let interp: Interpolation<InitVariable> = pattern.parse().unwrap();
+		assert_eq!(interp.to_string(), pattern);
+		interp.interpolate(vars).0
+	};
+	let task = |symbol: &str, title: &str, cid: &str, site: &str| -> InitVariableMap {
+		InitVariableMap {
+			task_symbol: Some(symbol.to_owned()),
+			task_name: Some(title.to_owned()),
+			contest_id: Some(cid.to_owned()),
+			site_short: Some(site.to_owned()),
+		}
+	};
+	let c1188a2 = task("A2", "Add on a Tree: Revolution", "1188", "cf");
+	assert_eq!(work(&c1188a2, "{task.name} {task.symbol}"), "Add on a Tree Revolution A2");
+	assert_eq!(work(&c1188a2, "{task.symbol case.upper}-{task.name case.kebab}"), "A2-add-on-a-tree-revolution");
+	assert_eq!(work(&c1188a2, "{site.short}{contest.id}/{task.name case.upper}"), "cf1188/ADD_ON_A_TREE_REVOLUTION");
+}
