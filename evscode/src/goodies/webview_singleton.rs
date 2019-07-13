@@ -18,11 +18,7 @@ pub struct WebviewSingleton {
 impl WebviewSingleton {
 	/// Create a new instance of the webview
 	pub fn new(create: Creator, manage: Manager) -> WebviewSingleton {
-		WebviewSingleton {
-			create,
-			manage,
-			container: Mutex::new(None),
-		}
+		WebviewSingleton { create, manage, container: Mutex::new(None) }
 	}
 
 	/// Get a webview handle, creating it if it does not exist or was closed.

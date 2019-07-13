@@ -36,10 +36,7 @@ pub struct StackedStatus {
 impl StackedStatus {
 	/// Create a state instance with a given message prefix
 	pub fn new(prefix: &'static str) -> StackedStatus {
-		StackedStatus {
-			prefix,
-			stacks: Mutex::new(HashMap::new()),
-		}
+		StackedStatus { prefix, stacks: Mutex::new(HashMap::new()) }
 	}
 
 	/// Set the current thread status message and return a guard object that will control its lifetime
@@ -52,10 +49,8 @@ impl StackedStatus {
 	}
 
 	fn update(&self, lck: MutexGuard<HashMap<ThreadId, (Instant, Vec<String>)>>) {
-		let mut entries = lck
-			.values()
-			.map(|(t, s)| (t.clone(), s.last().expect("evscode::StackedStatus::update empty stack").as_str()))
-			.collect::<Vec<_>>();
+		let mut entries =
+			lck.values().map(|(t, s)| (t.clone(), s.last().expect("evscode::StackedStatus::update empty stack").as_str())).collect::<Vec<_>>();
 		entries.sort();
 		let words = entries.iter().map(|(_, word)| *word).collect::<Vec<_>>();
 		let buf = format!("{}{}", self.prefix, words.join(", "));

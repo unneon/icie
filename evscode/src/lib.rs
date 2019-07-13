@@ -2,7 +2,10 @@
 //!
 //! # Evscode
 //!
-//! Evscode is a Rust framework for writing Visual Studio Code extensions. Extensions are based on native code, not wasm, despite it being discouraged. This approach is rather hacky, requires nightly and works only on Linux, but is designed mainly to be pleasant to use. This means following a batteries-included mindset, so Evscode contains a custom build system, handles application event loops, configuration and offers some helpers for common webview usage patterns.
+//! Evscode is a Rust framework for writing Visual Studio Code extensions. Extensions are based on native code, not wasm, despite it being
+//! discouraged. This approach is rather hacky, requires nightly and works only on Linux, but is designed mainly to be pleasant to use. This means
+//! following a batteries-included mindset, so Evscode contains a custom build system, handles application event loops, configuration and offers some
+//! helpers for common webview usage patterns.
 //!
 //! ## Developing extensions
 //!

@@ -90,11 +90,7 @@ pub fn edit_paste(path: impl AsRef<Path>+'static, text: impl AsRef<str>+'static,
 /// Get the path to workspace folder.
 /// Returns an error if no folder is opened.
 pub fn workspace_root() -> R<PathBuf> {
-	crate::internal::executor::WORKSPACE_ROOT
-		.lock()
-		.unwrap()
-		.clone()
-		.ok_or_else(|| E::error("this operation requires a folder to be open"))
+	crate::internal::executor::WORKSPACE_ROOT.lock().unwrap().clone().ok_or_else(|| E::error("this operation requires a folder to be open"))
 }
 
 /// Get the path to the root directory of the extension installation.

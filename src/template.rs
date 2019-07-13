@@ -12,9 +12,8 @@ pub static LIST: evscode::Config<HashMap<String, String>> = vec![("C++".to_owned
 pub fn instantiate() -> R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
 	let templates = LIST.get();
-	let qpick = evscode::QuickPick::new()
-		.items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())))
-		.build();
+	let qpick =
+		evscode::QuickPick::new().items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone()))).build();
 	let template_id = qpick.wait().ok_or_else(E::cancel)?;
 	let template_path = &templates[&template_id];
 	let tpl = load(&template_path)?;

@@ -14,9 +14,7 @@ pub struct External;
 
 pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: impl AsRef<Path>, command: impl IntoIterator<Item=A>) -> R<()> {
 	let test = util::without_extension(
-		test.as_ref()
-			.strip_prefix(evscode::workspace_root()?)
-			.map_err(|e| E::from_std(e).context("found test outside of test directory"))?,
+		test.as_ref().strip_prefix(evscode::workspace_root()?).map_err(|e| E::from_std(e).context("found test outside of test directory"))?,
 	);
 	External::command(Some(format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
 }

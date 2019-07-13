@@ -220,10 +220,7 @@ impl FromStr for InitVariable {
 			"task.name" => Ok(InitVariable::TaskName),
 			"contest.id" => Ok(InitVariable::ContestId),
 			"site.short" => Ok(InitVariable::SiteShort),
-			_ => Err(format!(
-				"unrecognized variable name {:?}, see icie.init.projectNameTemplate for a full list of available variables",
-				s
-			)),
+			_ => Err(format!("unrecognized variable name {:?}, see icie.init.projectNameTemplate for a full list of available variables", s)),
 		}
 	}
 }
@@ -256,10 +253,7 @@ fn test_interpolate() {
 	};
 	let compile = |pattern: &str| -> Result<Interpolation<InitVariable>, String> { pattern.parse() };
 	assert_eq!(expand("{task.symbol case.upper}-{task.name case.kebab}"), "A-diverse-strings");
-	assert_eq!(
-		expand("{site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab}"),
-		"cf/1144/A-diverse-strings"
-	);
+	assert_eq!(expand("{site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab}"), "cf/1144/A-diverse-strings");
 	assert_eq!(expand("{task.symbol case.upper}-{{"), "A-{");
 	assert_eq!(expand("{task.symbol}"), "A");
 	assert_eq!(expand("{task.name}"), "Diverse Strings");

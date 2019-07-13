@@ -30,10 +30,7 @@ pub struct WebviewResultmap<T: Computation> {
 impl<T: Computation> WebviewResultmap<T> {
 	/// Create a new instance of the webview collection.
 	pub fn new(computation: T) -> WebviewResultmap<T> {
-		WebviewResultmap {
-			computation,
-			collection: Mutex::new(HashMap::new()),
-		}
+		WebviewResultmap { computation, collection: Mutex::new(HashMap::new()) }
 	}
 
 	/// Run the computation, update the view and return both the webview and the computed values.

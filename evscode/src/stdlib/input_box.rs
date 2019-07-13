@@ -83,13 +83,6 @@ pub struct InputBox {
 impl InputBox {
 	/// Create a new builder to configure the input box.
 	pub fn new() -> Builder {
-		Builder {
-			ignore_focus_out: false,
-			password: false,
-			placeholder: None,
-			prompt: None,
-			value: None,
-			value_selection: None,
-		}
+		Builder { ignore_focus_out: false, password: false, placeholder: None, prompt: None, value: None, value_selection: None }
 	}
 }

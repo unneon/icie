@@ -29,11 +29,7 @@ impl unijudge::Backend for SPOJ {
 			["problems", task] => format!("{}", task),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Some(TaskUrl {
-			site: "https://www.spoj.com".to_owned(),
-			contest: String::new(),
-			task,
-		}))
+		Ok(Some(TaskUrl { site: "https://www.spoj.com".to_owned(), contest: String::new(), task }))
 	}
 
 	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
@@ -122,13 +118,7 @@ impl unijudge::Task for Task<'_> {
 		let mut resp = self.session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
-		Ok(TaskDetails {
-			symbol: self.id.clone(),
-			title,
-			contest_id: "problems".to_owned(),
-			site_short: "spoj".to_owned(),
-			examples: None,
-		})
+		Ok(TaskDetails { symbol: self.id.clone(), title, contest_id: "problems".to_owned(), site_short: "spoj".to_owned(), examples: None })
 	}
 
 	fn languages(&self) -> Result<Vec<Language>> {
@@ -136,27 +126,13 @@ impl unijudge::Task for Task<'_> {
 		let mut resp = self.session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		doc.find_all("#lang > option")
-			.map(|node| {
-				Ok(Language {
-					id: node.attr("value")?.string(),
-					name: node.text().string(),
-				})
-			})
+			.map(|node| Ok(Language { id: node.attr("value")?.string(), name: node.text().string() }))
 			.collect::<Result<_>>()
 	}
 
 	fn submissions(&self) -> Result<Vec<unijudge::Submission>> {
-		let user = self
-			.session
-			.client
-			.cookies()
-			.read()
-			.unwrap()
-			.0
-			.get("spoj.com", "/", "autologin_login")
-			.ok_or(Error::AccessDenied)?
-			.value()
-			.to_owned();
+		let user =
+			self.session.client.cookies().read().unwrap().0.get("spoj.com", "/", "autologin_login").ok_or(Error::AccessDenied)?.value().to_owned();
 		let url = Url::parse(&format!("https://www.spoj.com/status/{}/", user)).unwrap();
 		let mut resp = self.session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
@@ -169,38 +145,20 @@ impl unijudge::Task for Task<'_> {
 						let part = &text[..text.find("\n").unwrap_or(text.len())];
 						match part {
 							"accepted" => Ok(Verdict::Accepted),
-							"wrong answer" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::WrongAnswer),
-								test: None,
-							}),
-							"time limit exceeded" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::TimeLimitExceeded),
-								test: None,
-							}),
-							"compilation error" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::CompilationError),
-								test: None,
-							}),
-							"runtime error    (SIGFPE)" | "runtime error    (SIGSEGV)" | "runtime error    (SIGABRT)" | "runtime error    (NZEC)" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::RuntimeError),
-								test: None,
-							}),
-							"internal error" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::SystemError),
-								test: None,
-							}),
+							"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
+							"time limit exceeded" => Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None }),
+							"compilation error" => Ok(Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None }),
+							"runtime error    (SIGFPE)" | "runtime error    (SIGSEGV)" | "runtime error    (SIGABRT)" | "runtime error    (NZEC)" => {
+								Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None })
+							},
+							"internal error" => Ok(Verdict::Rejected { cause: Some(RejectionCause::SystemError), test: None }),
 							"waiting.." => Ok(Verdict::Pending { test: None }),
 							"compiling.." => Ok(Verdict::Pending { test: None }),
 							"running judge.." => Ok(Verdict::Pending { test: None }),
 							"running.." => Ok(Verdict::Pending { test: None }),
 							_ => {
 								if let Ok(score) = part.parse::<f64>() {
-									Ok(Verdict::Scored {
-										score,
-										max: None,
-										cause: None,
-										test: None,
-									})
+									Ok(Verdict::Scored { score, max: None, cause: None, test: None })
 								} else {
 									Err(format!("unrecognized SPOJ verdict {:?}", part))
 								}

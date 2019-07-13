@@ -14,13 +14,7 @@ pub struct Item {
 impl Item {
 	/// Create a new item with the given ID and label.
 	pub fn new(id: impl AsRef<str>, label: impl AsRef<str>) -> Item {
-		Item {
-			always_show: false,
-			description: None,
-			detail: None,
-			label: label.as_ref().to_owned(),
-			id: id.as_ref().to_owned(),
-		}
+		Item { always_show: false, description: None, detail: None, label: label.as_ref().to_owned(), id: id.as_ref().to_owned() }
 	}
 
 	/// Set to show item regardless of whether what user typed matches the item.
@@ -133,12 +127,6 @@ pub struct QuickPick {
 impl QuickPick {
 	/// Create a new builder to configure the quick pick.
 	pub fn new() -> Builder {
-		Builder {
-			ignore_focus_out: false,
-			match_on_detail: false,
-			match_on_description: false,
-			placeholder: None,
-			items: Vec::new(),
-		}
+		Builder { ignore_focus_out: false, match_on_detail: false, match_on_description: false, placeholder: None, items: Vec::new() }
 	}
 }

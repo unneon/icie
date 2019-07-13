@@ -28,11 +28,7 @@ impl<T: Marshal+Send> State<T> {
 	/// Create a new storage entry with a given identifier and scope.
 	/// Multiple storage objects with the same key will refer to the same entry.
 	pub const fn new(key: &'static str, scope: Scope) -> State<T> {
-		State {
-			key,
-			scope,
-			_phantom: PhantomData,
-		}
+		State { key, scope, _phantom: PhantomData }
 	}
 
 	/// Query the stored value, if it was ever saved.

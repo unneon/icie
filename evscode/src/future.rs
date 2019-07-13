@@ -19,12 +19,7 @@ impl<T: 'static> Future<T> {
 	/// Synchronously wait for the computation to yield a value.
 	pub fn wait(&self) -> T {
 		let packet = self.rx.recv().expect("evscode::Future::wait RecvError");
-		let parser = &self
-			.parsers
-			.iter()
-			.find(|(aid, _)| *aid == packet.aid)
-			.expect("evscode::Future::wait received message with unknown aid")
-			.1;
+		let parser = &self.parsers.iter().find(|(aid, _)| *aid == packet.aid).expect("evscode::Future::wait received message with unknown aid").1;
 		let obj = parser(packet);
 		obj
 	}
@@ -98,10 +93,7 @@ pub struct LazyFuture<T> {
 }
 impl<T: Send+'static> LazyFuture<T> {
 	pub(crate) fn new_vscode(spawner: impl FnOnce(u64)+'static, parser: impl Fn(json::JsonValue) -> T+Send+'static) -> LazyFuture<T> {
-		LazyFuture {
-			spawner: Box::new(move |aid, _| spawner(aid)),
-			parser: Box::new(move |raw| parser(raw.downcast::<json::JsonValue>().unwrap())),
-		}
+		LazyFuture { spawner: Box::new(move |aid, _| spawner(aid)), parser: Box::new(move |raw| parser(raw.downcast::<json::JsonValue>().unwrap())) }
 	}
 
 	/// Spawn a worker thread that will receive a [`Carrier`] instance.
@@ -114,11 +106,7 @@ impl<T: Send+'static> LazyFuture<T> {
 				let tx = tx.clone();
 				let tx2 = tx.clone();
 				std::thread::spawn(move || {
-					let carrier = Carrier {
-						aid,
-						tx,
-						_phantom: std::marker::PhantomData,
-					};
+					let carrier = Carrier { aid, tx, _phantom: std::marker::PhantomData };
 					match f(carrier) {
 						Ok(()) => (),
 						Err(e) => {
@@ -141,11 +129,7 @@ impl<T: Send+'static> LazyFuture<T> {
 		let (tx, rx) = channel();
 		ASYNC_OPS.lock().expect("evscode::LazyFuture::spawn ASYNC_OPS PoisonError").insert(aid, tx.clone());
 		spawner(aid, &tx);
-		Future {
-			tx,
-			rx,
-			parsers: vec![(aid, parser)],
-		}
+		Future { tx, rx, parsers: vec![(aid, parser)] }
 	}
 
 	/// Synchronously wait for the computation to yield a value.
@@ -156,10 +140,7 @@ impl<T: Send+'static> LazyFuture<T> {
 	/// Apply a function to the value after is will be computed.
 	pub fn map<U>(self, f: impl 'static+Fn(T) -> U+Send) -> LazyFuture<U> {
 		let parser = self.parser;
-		LazyFuture {
-			spawner: self.spawner,
-			parser: Box::new(move |raw| f(parser(raw))),
-		}
+		LazyFuture { spawner: self.spawner, parser: Box::new(move |raw| f(parser(raw))) }
 	}
 
 	/// Return a future yielding all values from both arguments, whichever is faster

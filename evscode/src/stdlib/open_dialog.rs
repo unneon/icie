@@ -50,10 +50,7 @@ impl<C: Count> Builder<C> {
 		if self.filters.is_none() {
 			self.filters = Some(HashMap::new());
 		}
-		self.filters
-			.as_mut()
-			.unwrap()
-			.insert(name.as_ref().to_owned(), extensions.into_iter().map(|s| s.as_ref().to_owned()).collect());
+		self.filters.as_mut().unwrap().insert(name.as_ref().to_owned(), extensions.into_iter().map(|s| s.as_ref().to_owned()).collect());
 		self
 	}
 
@@ -94,14 +91,7 @@ pub struct OpenDialog {
 impl OpenDialog {
 	/// Create a new builder to configure the dialog
 	pub fn new() -> Builder<Single> {
-		Builder {
-			files: true,
-			folders: false,
-			default: None,
-			filters: None,
-			action_label: None,
-			_count: PhantomData,
-		}
+		Builder { files: true, folders: false, default: None, filters: None, action_label: None, _count: PhantomData }
 	}
 }
 
@@ -114,10 +104,20 @@ pub struct Single;
 #[doc(hidden)]
 pub struct Many;
 
-impl Count for Single {}
-impl Count for Many {}
+impl Count for Single {
+}
+impl Count for Many {
+}
 
-fn send_request(files: bool, folders: bool, many: bool, default: Option<PathBuf>, filters: Option<HashMap<String, Vec<String>>>, label: Option<String>, aid: u64) {
+fn send_request(
+	files: bool,
+	folders: bool,
+	many: bool,
+	default: Option<PathBuf>,
+	filters: Option<HashMap<String, Vec<String>>>,
+	label: Option<String>,
+	aid: u64,
+) {
 	send_object(object! {
 		"tag" => "open_dialog",
 		"canSelectFiles" => files,
@@ -131,9 +131,5 @@ fn send_request(files: bool, folders: bool, many: bool, default: Option<PathBuf>
 }
 
 fn parse_response(raw: JsonValue) -> Option<Vec<PathBuf>> {
-	if raw.is_null() {
-		None
-	} else {
-		Some(raw.members().map(|p| PathBuf::from(p.as_str().unwrap())).collect())
-	}
+	if raw.is_null() { None } else { Some(raw.members().map(|p| PathBuf::from(p.as_str().unwrap())).collect()) }
 }

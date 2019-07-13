@@ -27,16 +27,7 @@ impl Piece {
 			.collect::<Vec<_>>();
 		let parent = headers.optfield("Parent").map(String::from);
 		let code = code.lines().filter(|line| !line.starts_with("///")).collect::<Vec<_>>().join("\n");
-		Ok(Piece {
-			name,
-			description,
-			detail,
-			code,
-			guarantee,
-			dependencies,
-			parent,
-			modified,
-		})
+		Ok(Piece { name, description, detail, code, guarantee, dependencies, parent, modified })
 	}
 }
 
@@ -127,10 +118,7 @@ template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typen
 	let piece = Piece::parse(code, "__".to_owned(), modified).unwrap();
 	assert_eq!(piece.name, "DFS");
 	assert_eq!(piece.description, Some("Depth First Search".to_owned()));
-	assert_eq!(
-		piece.detail,
-		Some("An algorithm for traversing or searching tree or graph data structures with backtracking.".to_owned())
-	);
+	assert_eq!(piece.detail, Some("An algorithm for traversing or searching tree or graph data structures with backtracking.".to_owned()));
 	assert_eq!(piece.code, r#"template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typename PostE=Dummyf, typename FailE=Dummyf> void DFS(int source, Pre pre, Post post, PreE pree, PostE poste, FailE faile) const {
 	auto visit = vector<bool>(size(), false);
 	implDFS(source, visit, pre, post, pree, poste, faile);

@@ -22,12 +22,7 @@ pub struct LibraryCache {
 
 impl LibraryCache {
 	pub fn new() -> LibraryCache {
-		LibraryCache {
-			lock: Mutex::new(Library {
-				directory: PathBuf::new(),
-				pieces: HashMap::new(),
-			}),
-		}
+		LibraryCache { lock: Mutex::new(Library { directory: PathBuf::new(), pieces: HashMap::new() }) }
 	}
 
 	pub fn update(&'static self) -> R<MutexGuard<Library>> {
@@ -37,18 +32,10 @@ impl LibraryCache {
 			lib.pieces = HashMap::new();
 		}
 		let mut new_pieces = HashMap::new();
-		for entry in directory
-			.read_dir()
-			.map_err(|e| E::from_std(e).context(format!("error when reading {} directory", directory.display())))?
-		{
+		for entry in directory.read_dir().map_err(|e| E::from_std(e).context(format!("error when reading {} directory", directory.display())))? {
 			let entry = entry.map_err(E::from_std)?;
 			let path = entry.path();
-			let id = crate::util::without_extension(&path)
-				.strip_prefix(&directory)
-				.map_err(E::from_std)?
-				.to_str()
-				.unwrap()
-				.to_owned();
+			let id = crate::util::without_extension(&path).strip_prefix(&directory).map_err(E::from_std)?.to_str().unwrap().to_owned();
 			if path.extension() == Some(OsStr::new("cpp")) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces)?;
 				new_pieces.insert(id, dbg!(piece));
@@ -66,11 +53,7 @@ impl LibraryCache {
 	fn maybe_load_piece(&self, path: PathBuf, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
 		let modified = path.metadata().map_err(E::from_std)?.modified().map_err(E::from_std)?;
 		let cached = if let Some(cached) = cached_pieces.remove(id) {
-			if cached.modified == modified {
-				Some(cached)
-			} else {
-				None
-			}
+			if cached.modified == modified { Some(cached) } else { None }
 		} else {
 			None
 		};

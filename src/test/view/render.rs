@@ -109,15 +109,7 @@ fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 
 fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	let data = util::fs_read_to_string(&test.in_path)?;
-	Ok(render_cell(
-		"input",
-		&[("data-raw", &data)],
-		&[(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)],
-		None,
-		&data,
-		None,
-		folded,
-	))
+	Ok(render_cell("input", &[("data-raw", &data)], &[(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)], None, &data, None, folded))
 }
 
 #[evscode::config(
@@ -175,36 +167,12 @@ struct Action {
 	icon: &'static str,
 	hint: &'static str,
 }
-const ACTION_COPY: Action = Action {
-	onclick: "action_copy()",
-	icon: "file_copy",
-	hint: "Copy",
-};
-const ACTION_EDIT: Action = Action {
-	onclick: "action_edit()",
-	icon: "edit",
-	hint: "Edit",
-};
-const ACTION_GDB: Action = Action {
-	onclick: "action_gdb()",
-	icon: "skip_previous",
-	hint: "Debug in GDB",
-};
-const ACTION_RR: Action = Action {
-	onclick: "action_rr()",
-	icon: "fast_rewind",
-	hint: "Debug in RR",
-};
-const ACTION_SET_ALT: Action = Action {
-	onclick: "action_setalt()",
-	icon: "check",
-	hint: "Mark as correct",
-};
-const ACTION_DEL_ALT: Action = Action {
-	onclick: "action_delalt()",
-	icon: "close",
-	hint: "Unmark as correct",
-};
+const ACTION_COPY: Action = Action { onclick: "action_copy()", icon: "file_copy", hint: "Copy" };
+const ACTION_EDIT: Action = Action { onclick: "action_edit()", icon: "edit", hint: "Edit" };
+const ACTION_GDB: Action = Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
+const ACTION_RR: Action = Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
+const ACTION_SET_ALT: Action = Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
+const ACTION_DEL_ALT: Action = Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
 
 #[evscode::config(
 	description = "Whether to hide the \"Copy\" action in test view. Instead of using it, you can hover over the test cell and press Ctrl+C; if nothing else is selected, the \
@@ -212,7 +180,15 @@ const ACTION_DEL_ALT: Action = Action {
 )]
 static HIDE_COPY: evscode::Config<bool> = false;
 
-fn render_cell(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>, folded: bool) -> String {
+fn render_cell(
+	class: &str,
+	attrs: &[(&str, &str)],
+	actions: &[(bool, Action)],
+	stderr: Option<&str>,
+	stdout: &str,
+	note: Option<&str>,
+	folded: bool,
+) -> String {
 	if !folded {
 		render_cell_raw(class, attrs, actions, stderr, stdout, note)
 	} else {
@@ -227,54 +203,37 @@ const MIN_CELL_LINES: i64 = 2;
 )]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
-fn render_cell_raw(class: &str, attrs: &[(&str, &str)], actions: &[(bool, Action)], stderr: Option<&str>, stdout: &str, note: Option<&str>) -> String {
+fn render_cell_raw(
+	class: &str,
+	attrs: &[(&str, &str)],
+	actions: &[(bool, Action)],
+	stderr: Option<&str>,
+	stdout: &str,
+	note: Option<&str>,
+) -> String {
 	let actions = actions
 		.iter()
 		.filter_map(|(active, action)| if *active { Some(action) } else { None })
-		.map(|action| {
-			format!(
-				"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
-				action.onclick, action.hint, action.icon
-			)
-		})
+		.map(|action| format!("<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>", action.onclick, action.hint, action.icon))
 		.collect::<Vec<_>>();
-	let actions = format!(
-		"<div class=\"actions {}\">{}</div>",
-		if !SKILL_ACTIONS.is_proficient() { "tutorialize" } else { "" },
-		actions.join("\n")
-	);
+	let actions = format!("<div class=\"actions {}\">{}</div>", if !SKILL_ACTIONS.is_proficient() { "tutorialize" } else { "" }, actions.join("\n"));
 	let note = note.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
 	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
-	let stderr = stderr
-		.as_ref()
-		.map_or(String::new(), |stderr| format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())));
+	let stderr = stderr.as_ref().map_or(String::new(), |stderr| format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())));
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
 	let max_test_height = MAX_TEST_HEIGHT.get();
-	let max_test_height = if let Some(max_test_height) = *max_test_height {
-		format!("style=\"max-height: {}px;\"", max_test_height)
-	} else {
-		String::new()
-	};
+	let max_test_height =
+		if let Some(max_test_height) = *max_test_height { format!("style=\"max-height: {}px;\"", max_test_height) } else { String::new() };
 	let mut attr_html = String::new();
 	for (k, v) in attrs {
 		attr_html += &format!(" {}=\"{}\"", k, html_escape(v));
 	}
-	let data = format!(
-		"<div class=\"data\" {}>{}{}{}</div>",
-		max_test_height,
-		stderr,
-		html_escape_spaced(stdout.trim()),
-		newline_fill
-	);
+	let data = format!("<div class=\"data\" {}>{}{}{}</div>", max_test_height, stderr, html_escape_spaced(stdout.trim()), newline_fill);
 	format!("<td class=\"cell {}\" {}>{}{}{}</td>", class, attr_html, actions, note, data)
 }
 
 fn lines(s: &str) -> usize {
-	if !s.trim().is_empty() {
-		s.trim().matches('\n').count() + 1
-	} else {
-		0
-	}
+	if !s.trim().is_empty() { s.trim().matches('\n').count() + 1 } else { 0 }
 }
 fn html_escape(s: &str) -> String {
 	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])

@@ -42,11 +42,7 @@ impl unijudge::Backend for Sio2 {
 			["c", contest, "p", task, _] => (contest, task),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Some(TaskUrl {
-			site: format!("https://{}", domain),
-			contest: String::from(*contest),
-			task: String::from(*task),
-		}))
+		Ok(Some(TaskUrl { site: format!("https://{}", domain), contest: String::from(*contest), task: String::from(*task) }))
 	}
 
 	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
@@ -109,14 +105,7 @@ impl unijudge::Session for Session {
 				Some(username) => username.to_owned(),
 				None => return Ok(None),
 			},
-			sessionid: match self
-				.client
-				.cookies()
-				.read()
-				.unwrap()
-				.0
-				.get(Url::parse(&self.site).unwrap().domain().unwrap(), "/", "sessionid")
-			{
+			sessionid: match self.client.cookies().read().unwrap().0.get(Url::parse(&self.site).unwrap().domain().unwrap(), "/", "sessionid") {
 				Some(c) => c.clone().into_owned(),
 				None => return Ok(None),
 			},
@@ -159,13 +148,7 @@ impl unijudge::Task for Task<'_> {
 			Some((_, title)) => title,
 			None => return Err(Error::WrongData),
 		};
-		Ok(TaskDetails {
-			symbol: self.id.to_string(),
-			title,
-			contest_id: self.contest.id.clone(),
-			site_short: "sio2".to_owned(),
-			examples: None,
-		})
+		Ok(TaskDetails { symbol: self.id.to_string(), title, contest_id: self.contest.id.clone(), site_short: "sio2".to_owned(), examples: None })
 	}
 
 	fn languages(&self) -> Result<Vec<Language>> {
@@ -178,12 +161,7 @@ impl unijudge::Task for Task<'_> {
 		Ok(doc
 			.find_all("#id_prog_lang > option")
 			.filter(|opt| opt.attr("selected").is_err())
-			.map(|opt| {
-				Ok(Language {
-					id: opt.attr("value")?.string(),
-					name: opt.text().string(),
-				})
-			})
+			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
 			.collect::<Result<_>>()?)
 	}
 
@@ -216,18 +194,12 @@ impl unijudge::Task for Task<'_> {
 					})
 					.ok();
 				Ok(Submission {
-					id: tr
-						.find("a")?
-						.attr("href")?
-						.map(|href| match href.split("/").filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
-							Some(id) => Ok(String::from(*id)),
-							None => Err("empty submission href"),
-						})?,
+					id: tr.find("a")?.attr("href")?.map(|href| match href.split("/").filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
+						Some(id) => Ok(String::from(*id)),
+						None => Err("empty submission href"),
+					})?,
 					verdict: match (status, score) {
-						(Some(Status::CompilationFailed), _) => Verdict::Rejected {
-							cause: Some(RejectionCause::CompilationError),
-							test: None,
-						},
+						(Some(Status::CompilationFailed), _) => Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None },
 						(Some(Status::Pending), _) => Verdict::Pending { test: None },
 						(status, Some(score)) => Verdict::Scored {
 							score: score as f64,

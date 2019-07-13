@@ -50,10 +50,7 @@ pub struct Config<T: Configurable+Sized> {
 impl<T: Configurable> Config<T> {
 	#[doc(hidden)]
 	pub fn new(default: T) -> Config<T> {
-		Config {
-			arc: ArcSwapOption::new(None),
-			default: Arc::new(default),
-		}
+		Config { arc: ArcSwapOption::new(None), default: Arc::new(default) }
 	}
 
 	/// Return a reference-counted pointer to the current configuration values.

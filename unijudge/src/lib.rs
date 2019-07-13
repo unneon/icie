@@ -99,20 +99,10 @@ pub struct TaskUrl {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Verdict {
-	Scored {
-		score: f64,
-		max: Option<f64>,
-		cause: Option<RejectionCause>,
-		test: Option<String>,
-	},
+	Scored { score: f64, max: Option<f64>, cause: Option<RejectionCause>, test: Option<String> },
 	Accepted,
-	Rejected {
-		cause: Option<RejectionCause>,
-		test: Option<String>,
-	},
-	Pending {
-		test: Option<String>,
-	},
+	Rejected { cause: Option<RejectionCause>, test: Option<String> },
+	Pending { test: Option<String> },
 	Skipped,
 }
 

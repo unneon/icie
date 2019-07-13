@@ -126,15 +126,11 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 		}
 	}
 	let standard = CPP_STANDARD.get();
-	let flags = format!(
-		"{} {}",
-		ADDITIONAL_CPP_FLAGS.get(),
-		match codegen {
-			ci::cpp::Codegen::Debug => ADDITIONAL_CPP_FLAGS_DEBUG.get(),
-			ci::cpp::Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
-			ci::cpp::Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
-		}
-	);
+	let flags = format!("{} {}", ADDITIONAL_CPP_FLAGS.get(), match codegen {
+		ci::cpp::Codegen::Debug => ADDITIONAL_CPP_FLAGS_DEBUG.get(),
+		ci::cpp::Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
+		ci::cpp::Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
+	});
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
 	let status = ci::cpp::compile(&[&source], &out, &*standard, &codegen, &flags)?;
 	if !status.success {

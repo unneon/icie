@@ -21,10 +21,7 @@ pub struct Piece {
 
 impl Library {
 	pub fn new_empty() -> Library {
-		Library {
-			directory: PathBuf::new(),
-			pieces: HashMap::new(),
-		}
+		Library { directory: PathBuf::new(), pieces: HashMap::new() }
 	}
 
 	pub fn verify(&self) -> R<()> {
@@ -105,10 +102,7 @@ impl Library {
 		let (pref, suf) = if self.pieces[piece_id].parent.is_some() {
 			("", "\n")
 		} else {
-			(
-				if source[..index].ends_with("\n\n") { "" } else { "\n" },
-				if source[index..].starts_with('\n') { "\n" } else { "\n\n" },
-			)
+			(if source[..index].ends_with("\n\n") { "" } else { "\n" }, if source[index..].starts_with('\n') { "\n" } else { "\n\n" })
 		};
 		let code = if self.pieces[piece_id].parent.is_some() {
 			let mut buf = String::new();
@@ -215,11 +209,7 @@ impl Graph {
 				}
 			}
 		}
-		if que.len() == self.len() {
-			Some(que)
-		} else {
-			None
-		}
+		if que.len() == self.len() { Some(que) } else { None }
 	}
 
 	fn vmasked_bfs(&self, source: usize, mut vmask: impl FnMut(usize) -> bool) -> Vec<usize> {
@@ -389,13 +379,7 @@ int main() {
 				.buf
 				.split('\n')
 				.enumerate()
-				.map(|(i, row)| {
-					if i == line {
-						format!("{}{}{}", &row[..column], snippet, &row[column..])
-					} else {
-						row.to_owned()
-					}
-				})
+				.map(|(i, row)| if i == line { format!("{}{}{}", &row[..column], snippet, &row[column..]) } else { row.to_owned() })
 				.collect::<Vec<_>>()
 				.join("\n");
 			Ok(())

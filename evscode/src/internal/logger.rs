@@ -35,5 +35,6 @@ impl Log for VSCodeLoger {
 		}
 	}
 
-	fn flush(&self) {}
+	fn flush(&self) {
+	}
 }

@@ -34,19 +34,9 @@ fn quick() -> R<()> {
 #[evscode::command(title = "ICIE Quick input struct", key = "alt+i")]
 fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
-	let name = evscode::InputBox::new()
-		.prompt("Qistruct name")
-		.placeholder("Person")
-		.build()
-		.wait()
-		.ok_or_else(E::cancel)?;
+	let name = evscode::InputBox::new().prompt("Qistruct name").placeholder("Person").build().wait().ok_or_else(E::cancel)?;
 	let mut members = Vec::new();
-	while let Some(member) = evscode::InputBox::new()
-		.prompt(format!("Qistruct member {}", members.len() + 1))
-		.placeholder("int age")
-		.build()
-		.wait()
-	{
+	while let Some(member) = evscode::InputBox::new().prompt(format!("Qistruct member {}", members.len() + 1)).placeholder("int age").build().wait() {
 		if member.trim().is_empty() {
 			break;
 		}

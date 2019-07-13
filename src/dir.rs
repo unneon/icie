@@ -28,7 +28,9 @@ pub static CPP_EXTENSION: evscode::Config<String> = "cpp";
 )]
 static TESTS_DIRECTORY: evscode::Config<String> = "tests";
 
-#[evscode::config(description = "The subdirectory used for storing test cases entered by the user. See icie.dir.testsDirectory configuration entry for details.")]
+#[evscode::config(
+	description = "The subdirectory used for storing test cases entered by the user. See icie.dir.testsDirectory configuration entry for details."
+)]
 static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 
 #[evscode::config(
@@ -89,8 +91,8 @@ pub fn random_animal() -> &'static str {
 	use rand::seq::SliceRandom;
 	let mut rng = rand::thread_rng();
 	static ANIMALS: &[&str] = &[
-		"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug", "platypus", "squid", "koala",
-		"panda",
+		"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug",
+		"platypus", "squid", "koala", "panda",
 	];
 	ANIMALS.choose(&mut rng).unwrap()
 }

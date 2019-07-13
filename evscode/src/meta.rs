@@ -72,7 +72,8 @@ pub struct Package {
 	pub description: &'static str,
 	/// Up to 5 keywords to make it easier to find the extension.
 	pub keywords: &'static [&'static str],
-	/// Categories that describe your extension, out of the following list: `Programming Languages, Snippets, Linters, Themes, Debuggers, Formatters, Keymaps, SCM Providers, Other, Extension Packs, Language Packs`
+	/// Categories that describe your extension, out of the following list: `Programming Languages, Snippets, Linters, Themes, Debuggers, Formatters,
+	/// Keymaps, SCM Providers, Other, Extension Packs, Language Packs`
 	pub categories: &'static [&'static str],
 	/// [SPDX 2.0](https://spdx.org/licenses/) identifier of your extension's license.
 	pub license: &'static str,

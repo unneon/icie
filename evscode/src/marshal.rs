@@ -73,11 +73,7 @@ impl<T: Marshal> Marshal for Option<T> {
 	}
 
 	fn from_json(raw: JsonValue) -> Result<Self, String> {
-		if raw.is_null() {
-			Ok(None)
-		} else {
-			Ok(Some(T::from_json(raw)?))
-		}
+		if raw.is_null() { Ok(None) } else { Ok(Some(T::from_json(raw)?)) }
 	}
 }
 impl<T: Marshal> Marshal for HashMap<String, T> {
@@ -91,10 +87,7 @@ impl<T: Marshal> Marshal for HashMap<String, T> {
 
 	fn from_json(mut raw: JsonValue) -> Result<Self, String> {
 		if raw.is_object() {
-			Ok(raw
-				.entries_mut()
-				.map(|(k, v)| Ok((k.to_owned(), T::from_json(v.take())?)))
-				.collect::<Result<Self, String>>()?)
+			Ok(raw.entries_mut().map(|(k, v)| Ok((k.to_owned(), T::from_json(v.take())?))).collect::<Result<Self, String>>()?)
 		} else {
 			Err(type_error("object", &raw))
 		}

@@ -12,14 +12,7 @@ pub fn js_path(modpath: &[String], id: impl AsRef<str>) -> String {
 }
 
 pub fn get_modpath(input: &proc_macro::TokenStream) -> Vec<String> {
-	let source_path = input
-		.clone()
-		.into_iter()
-		.next()
-		.expect("evscode_codegen::get_modpath empty TokenStream")
-		.span()
-		.source_file()
-		.path();
+	let source_path = input.clone().into_iter().next().expect("evscode_codegen::get_modpath empty TokenStream").span().source_file().path();
 	let mut parts = source_path
 		.components()
 		.map(|comp| match comp {

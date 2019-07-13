@@ -38,11 +38,7 @@ impl unijudge::Backend for Codeforces {
 			["gym", contest, "problem", task] => (format!("gym/{}", contest), format!("{}", task)),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Some(TaskUrl {
-			site: "https://codeforces.com".to_owned(),
-			contest,
-			task,
-		}))
+		Ok(Some(TaskUrl { site: "https://codeforces.com".to_owned(), contest, task }))
 	}
 
 	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
@@ -82,18 +78,11 @@ impl unijudge::Session for Session {
 			.header(ORIGIN, "https://codeforces.com")
 			.header(REFERER, "https://codeforces.com/enter?back=/")
 			.query(&[("back", "/")])
-			.form(&[
-				("action", "enter"),
-				("csrf_token", &csrf),
-				("handleOrEmail", username),
-				("password", password),
-				("remember", "on"),
-			])
+			.form(&[("action", "enter"), ("csrf_token", &csrf), ("handleOrEmail", username), ("password", password), ("remember", "on")])
 			.send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
-		let login_succeeded = doc
-			.find_all(".lang-chooser a")
-			.any(|v| v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username)));
+		let login_succeeded =
+			doc.find_all(".lang-chooser a").any(|v| v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username)));
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
 		if login_succeeded {
 			Ok(())
@@ -154,21 +143,12 @@ impl unijudge::Task for Task<'_> {
 		let examples = doc
 			.find_all(".sample-test .input")
 			.zip(doc.find_all(".sample-test .output"))
-			.map(|(input, output)| {
-				Ok(unijudge::Example {
-					input: input.child(1)?.text_br().string(),
-					output: output.child(1)?.text_br().string(),
-				})
-			})
+			.map(|(input, output)| Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() }))
 			.collect::<Result<_>>()?;
 		Ok(unijudge::TaskDetails {
 			symbol,
 			title,
-			contest_id: if self.contest.id.starts_with("contest/") {
-				self.contest.id[8..].to_owned()
-			} else {
-				self.contest.id.clone()
-			},
+			contest_id: if self.contest.id.starts_with("contest/") { self.contest.id[8..].to_owned() } else { self.contest.id.clone() },
 			site_short: "cf".to_owned(),
 			examples: Some(examples),
 		})
@@ -183,12 +163,7 @@ impl unijudge::Task for Task<'_> {
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let languages = doc
 			.find_all("[name=\"programTypeId\"] option")
-			.map(|opt| {
-				Ok(unijudge::Language {
-					id: opt.attr("value")?.as_str().trim().to_owned(),
-					name: opt.text().string(),
-				})
-			})
+			.map(|opt| Ok(unijudge::Language { id: opt.attr("value")?.as_str().trim().to_owned(), name: opt.text().string() }))
 			.collect::<Result<_>>()?;
 		Ok(languages)
 	}
@@ -336,37 +311,14 @@ impl Verdict {
 		use Verdict as CV;
 		match self {
 			CV::Accepted => UV::Accepted,
-			CV::MemoryLimitExceeded(ti) => UV::Rejected {
-				cause: Some(UR::MemoryLimitExceeded),
-				test: Some(ti.desc()),
-			},
-			CV::WrongAnswer(ti) => UV::Rejected {
-				cause: Some(UR::WrongAnswer),
-				test: Some(ti.desc()),
-			},
-			CV::TimeLimitExceeded(ti) => UV::Rejected {
-				cause: Some(UR::TimeLimitExceeded),
-				test: Some(ti.desc()),
-			},
-			CV::RuntimeError(ti) => UV::Rejected {
-				cause: Some(UR::RuntimeError),
-				test: Some(ti.desc()),
-			},
+			CV::MemoryLimitExceeded(ti) => UV::Rejected { cause: Some(UR::MemoryLimitExceeded), test: Some(ti.desc()) },
+			CV::WrongAnswer(ti) => UV::Rejected { cause: Some(UR::WrongAnswer), test: Some(ti.desc()) },
+			CV::TimeLimitExceeded(ti) => UV::Rejected { cause: Some(UR::TimeLimitExceeded), test: Some(ti.desc()) },
+			CV::RuntimeError(ti) => UV::Rejected { cause: Some(UR::RuntimeError), test: Some(ti.desc()) },
 			CV::Testing(ti) => UV::Pending { test: Some(ti.desc()) },
-			CV::Partial(score) => UV::Scored {
-				score: *score as f64,
-				max: None,
-				cause: None,
-				test: None,
-			},
-			CV::Hacked => UV::Rejected {
-				cause: None,
-				test: Some(String::from("a hack")),
-			},
-			CV::CompilationError => UV::Rejected {
-				cause: Some(UR::CompilationError),
-				test: None,
-			},
+			CV::Partial(score) => UV::Scored { score: *score as f64, max: None, cause: None, test: None },
+			CV::Hacked => UV::Rejected { cause: None, test: Some(String::from("a hack")) },
+			CV::CompilationError => UV::Rejected { cause: Some(UR::CompilationError), test: None },
 			CV::InQueue => UV::Pending { test: None },
 			CV::TestingStart => UV::Pending { test: None },
 			CV::Skipped => UV::Skipped,

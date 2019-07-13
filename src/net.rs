@@ -72,20 +72,8 @@ pub struct Backend {
 }
 
 const BACKENDS: &[Backend] = &[
-	Backend {
-		network: &unijudge_atcoder::Atcoder,
-		cpp: "C++14 (GCC 5.4.1)",
-	},
-	Backend {
-		network: &unijudge_codeforces::Codeforces,
-		cpp: "GNU G++17 7.3.0",
-	},
-	Backend {
-		network: &unijudge_sio2::Sio2,
-		cpp: "C++",
-	},
-	Backend {
-		network: &unijudge_spoj::SPOJ,
-		cpp: "C++14 (clang 4.0)",
-	},
+	Backend { network: &unijudge_atcoder::Atcoder, cpp: "C++14 (GCC 5.4.1)" },
+	Backend { network: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
+	Backend { network: &unijudge_sio2::Sio2, cpp: "C++" },
+	Backend { network: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 4.0)" },
 ];

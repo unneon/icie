@@ -68,10 +68,7 @@ pub struct Command {
 impl Parse for Command {
 	fn parse(input: ParseStream) -> R<Command> {
 		let mut params: Params = input.parse()?;
-		let r = Command {
-			title: params.get("title")?,
-			key: params.get("key")?,
-		};
+		let r = Command { title: params.get("title")?, key: params.get("key")? };
 		params.finish()?;
 		Ok(r)
 	}
@@ -84,9 +81,7 @@ pub struct Config {
 impl Parse for Config {
 	fn parse(input: ParseStream) -> R<Config> {
 		let mut params: Params = input.parse()?;
-		let r = Config {
-			description: params.get("description")?,
-		};
+		let r = Config { description: params.get("description")? };
 		params.finish()?;
 		Ok(r)
 	}

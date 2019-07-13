@@ -102,14 +102,7 @@ pub struct Terminal {
 impl Terminal {
 	/// Create a new builder to configure the terminal.
 	pub fn new() -> Builder {
-		Builder {
-			cwd: None,
-			env: None,
-			name: None,
-			shell_args: None,
-			shell_path: None,
-			strict_env: false,
-		}
+		Builder { cwd: None, env: None, name: None, shell_args: None, shell_path: None, strict_env: false }
 	}
 
 	/// Write a text line to the terminal.

@@ -29,9 +29,7 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
 		checker: Box::new(ci::task::FreeWhitespaceChecker),
-		environment: ci::exec::Environment {
-			time_limit: TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64)),
-		},
+		environment: ci::exec::Environment { time_limit: TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64)) },
 	};
 	let test_dir = dir::tests()?;
 	let ins = ci::scan::scan_and_order(&test_dir);
@@ -41,10 +39,7 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let worker = run_thread(ins, task, solution).cancel_on(progress.canceler());
 	for _ in 0..test_count {
 		let run = worker.wait()??;
-		let name = run
-			.in_path
-			.strip_prefix(&test_dir)
-			.map_err(|e| E::from_std(e).context("found test outside of test directory"))?;
+		let name = run.in_path.strip_prefix(&test_dir).map_err(|e| E::from_std(e).context("found test outside of test directory"))?;
 		progress.update(
 			100.0 / test_count as f64,
 			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
@@ -108,11 +103,7 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
 fn input() -> evscode::R<()> {
-	let view = if let Some(view) = view::manage::COLLECTION.find_active() {
-		view
-	} else {
-		view::manage::COLLECTION.get_lazy(None)?
-	};
+	let view = if let Some(view) = view::manage::COLLECTION.find_active() { view } else { view::manage::COLLECTION.get_lazy(None)? };
 	view::manage::touch_input(&*view.lock().unwrap());
 	Ok(())
 }

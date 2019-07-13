@@ -9,7 +9,9 @@ mod util;
 
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
-use syn::{export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, ReturnType};
+use syn::{
+	export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, ReturnType
+};
 
 static COMMAND_INVOKELIST: invoke_list::InvocationList = invoke_list::InvocationList::new("Command");
 static CONFIG_INVOKELIST: invoke_list::InvocationList = invoke_list::InvocationList::new("Config");
@@ -137,7 +139,9 @@ pub fn config(params: TokenStream, item: TokenStream) -> TokenStream {
 	});
 	TokenStream::from(quote! {
 		evscode::internal::macros::lazy_static! {
-			#visibility static ref #reference: evscode::Config<#rust_inner_type> = evscode::Config::new(<#rust_inner_type as From<_>>::from(#default));
+			#visibility static ref #reference: evscode::Config<#rust_inner_type> = evscode::Config::new(<#rust_inner_type as From<_>>::from(
+				#default
+			));
 		}
 		#machinery
 	})
@@ -259,10 +263,7 @@ fn collect_configurable_variants(item: &ItemEnum) -> Option<Vec<ConfVar>> {
 					match stuff.as_slice() {
 						[syn::NestedMeta::Meta(syn::Meta::NameValue(mnv))] => match &mnv.lit {
 							syn::Lit::Str(s) => {
-								conf_vars.push(ConfVar {
-									ident: variant.ident.clone(),
-									name: s.clone(),
-								});
+								conf_vars.push(ConfVar { ident: variant.ident.clone(), name: s.clone() });
 								if !found {
 									found = true;
 								} else {
@@ -278,13 +279,9 @@ fn collect_configurable_variants(item: &ItemEnum) -> Option<Vec<ConfVar>> {
 			}
 		}
 		if !found {
-			Diagnostic::spanned(
-				vec![proc_macro::Span::call_site(), item.ident.span().unwrap()],
-				Level::Error,
-				"some variants do not have names",
-			)
-			.span_help(variant.span().unwrap(), "add a name attribute to this variant, e.g. #[evscode(name = \"Do nothing\")]")
-			.emit();
+			Diagnostic::spanned(vec![proc_macro::Span::call_site(), item.ident.span().unwrap()], Level::Error, "some variants do not have names")
+				.span_help(variant.span().unwrap(), "add a name attribute to this variant, e.g. #[evscode(name = \"Do nothing\")]")
+				.emit();
 			return None;
 		}
 	}

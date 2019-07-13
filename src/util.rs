@@ -176,10 +176,7 @@ pub struct TransactionDir {
 impl TransactionDir {
 	pub fn new(path: &Path) -> evscode::R<TransactionDir> {
 		fs_create_dir_all(path)?;
-		Ok(TransactionDir {
-			path: path.to_owned(),
-			good: false,
-		})
+		Ok(TransactionDir { path: path.to_owned(), good: false })
 	}
 
 	pub fn commit(mut self) {

@@ -1,7 +1,8 @@
 //! Rich error typee, supporting cancellation, backtraces, automatic logging and followup actions.
 //!
-//! It should also be used by extensions instead of custom error types, because it supports follow-up actions, cancellations, hiding error details from the user, backtraces and carrying extended logs.
-//! Properly connecting these features to VS Code API is a little bit code-heavy, and keeping this logic inside Evscode allows to improve error message format across all extensions.
+//! It should also be used by extensions instead of custom error types, because it supports follow-up actions, cancellations, hiding error details
+//! from the user, backtraces and carrying extended logs. Properly connecting these features to VS Code API is a little bit code-heavy, and keeping
+//! this logic inside Evscode allows to improve error message format across all extensions.
 
 use backtrace::Backtrace;
 use std::ops::Try;
@@ -54,7 +55,8 @@ impl E {
 		E::from(Cancellation)
 	}
 
-	/// Convert an error implementing [`std::error::Error`] to an Evscode error. Error messages will be collected from [`std::fmt::Display`] implementations on each error in the [`std::error::Error::source`] chain.
+	/// Convert an error implementing [`std::error::Error`] to an Evscode error. Error messages will be collected from [`std::fmt::Display`]
+	/// implementations on each error in the [`std::error::Error::source`] chain.
 	pub fn from_std(native: impl std::error::Error) -> E {
 		let mut e = E {
 			was_cancelled: false,
@@ -113,20 +115,13 @@ impl E {
 
 	/// Add a follow-up action that can be taken by the user, who will see the action as a button on the error message.
 	pub fn action(mut self, title: impl AsRef<str>, trigger: fn() -> R<()>) -> Self {
-		self.actions.push(Action {
-			title: title.as_ref().to_owned(),
-			trigger,
-		});
+		self.actions.push(Action { title: title.as_ref().to_owned(), trigger });
 		self
 	}
 
 	/// A convenience function to add a follow-up action if the condition is true. See [`E::action`] for details.
 	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: fn() -> R<()>) -> Self {
-		if cond {
-			self.action(title, trigger)
-		} else {
-			self
-		}
+		if cond { self.action(title, trigger) } else { self }
 	}
 
 	/// Add an extended error log, which typically is a multiline string, like a compilation log or a subprocess output.
@@ -163,13 +158,6 @@ impl<T> Try for Cancellable<T> {
 
 impl From<Cancellation> for E {
 	fn from(_: Cancellation) -> Self {
-		E {
-			was_cancelled: true,
-			reasons: Vec::new(),
-			details: Vec::new(),
-			actions: Vec::new(),
-			backtrace: Backtrace::new(),
-			extended: Vec::new(),
-		}
+		E { was_cancelled: true, reasons: Vec::new(), details: Vec::new(), actions: Vec::new(), backtrace: Backtrace::new(), extended: Vec::new() }
 	}
 }

@@ -33,11 +33,7 @@ impl unijudge::Backend for Atcoder {
 			["contests", contest, "tasks", task] => (String::from(*contest), String::from(*task)),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Some(TaskUrl {
-			site: "https://atcoder.jp".to_owned(),
-			contest,
-			task,
-		}))
+		Ok(Some(TaskUrl { site: "https://atcoder.jp".to_owned(), contest, task }))
 	}
 
 	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
@@ -145,21 +141,12 @@ impl unijudge::Task for Task<'_> {
 			parts
 				.chunks(2)
 				.map(|pres| match pres {
-					[input, output] => Ok(Example {
-						input: input.to_string(),
-						output: output.to_string(),
-					}),
+					[input, output] => Ok(Example { input: input.to_string(), output: output.to_string() }),
 					_ => Err(doc.error("sample input with no matching output")),
 				})
 				.collect::<debris::Result<_>>()?,
 		);
-		Ok(TaskDetails {
-			symbol,
-			title,
-			contest_id: self.contest.id.clone(),
-			site_short: "atc".to_owned(),
-			examples,
-		})
+		Ok(TaskDetails { symbol, title, contest_id: self.contest.id.clone(), site_short: "atc".to_owned(), examples })
 	}
 
 	fn languages(&self) -> Result<Vec<Language>> {
@@ -181,12 +168,7 @@ impl unijudge::Task for Task<'_> {
 			})
 			.ok_or_else(|| doc.error(format!("no lang list with id equal to {}", selection_id)))?
 			.find_all("option")
-			.map(|opt| {
-				Ok(Language {
-					id: opt.attr("value")?.string(),
-					name: opt.text().string(),
-				})
-			})
+			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
 			.collect::<Result<_>>()?)
 	}
 
@@ -217,11 +199,20 @@ impl unijudge::Task for Task<'_> {
 							"RE" => Some(RejectionCause::RuntimeError),
 							"TLE" => Some(RejectionCause::TimeLimitExceeded),
 							"CE" => Some(RejectionCause::CompilationError),
-							_ => return Err(status.error(format!("unrecognized Atcoder verdict {:?} [{:?} {:?}]", status.as_str(), verdict, test_index))),
+							_ => {
+								return Err(status.error(format!(
+									"unrecognized Atcoder verdict {:?} [{:?} {:?}]",
+									status.as_str(),
+									verdict,
+									test_index
+								)));
+							},
 						},
 						test: None,
 					},
-					(None, None) => return Err(status.error(format!("unrecognized Atcoder verdict {:?} [{:?} {:?}]", status.as_str(), verdict, test_index))),
+					(None, None) => {
+						return Err(status.error(format!("unrecognized Atcoder verdict {:?} [{:?} {:?}]", status.as_str(), verdict, test_index)));
+					},
 				};
 				Ok(Submission { id, verdict })
 			})
@@ -235,12 +226,7 @@ impl unijudge::Task for Task<'_> {
 			.session
 			.client
 			.post(url)
-			.form(&[
-				("data.TaskScreenName", &self.id),
-				("data.LanguageId", &language.id),
-				("sourceCode", &String::from(code)),
-				("csrf_token", &csrf),
-			])
+			.form(&[("data.TaskScreenName", &self.id), ("data.LanguageId", &language.id), ("sourceCode", &String::from(code)), ("csrf_token", &csrf)])
 			.send()?;
 		Ok(self.submissions()?[0].id.to_string())
 	}

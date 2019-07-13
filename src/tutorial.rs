@@ -6,10 +6,7 @@ pub struct Skill {
 }
 impl Skill {
 	pub const fn new(state_entry_name: &'static str, proficiency_threshold: u64) -> Skill {
-		Skill {
-			use_count: State::new(state_entry_name, Scope::Global),
-			proficiency_threshold,
-		}
+		Skill { use_count: State::new(state_entry_name, Scope::Global), proficiency_threshold }
 	}
 
 	pub fn is_proficient(&'static self) -> bool {

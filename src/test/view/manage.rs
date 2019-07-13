@@ -62,7 +62,9 @@ impl Computation for TestViewLogic {
 						let source = source.clone();
 						move || crate::debug::gdb(in_path, source)
 					}),
-					Some("new_test") => evscode::runtime::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap())),
+					Some("new_test") => {
+						evscode::runtime::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap()))
+					},
 					Some("set_alt") => evscode::runtime::spawn({
 						let source = source.clone();
 						move || {
@@ -78,7 +80,8 @@ impl Computation for TestViewLogic {
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
-							fs::remove_file(in_path.with_extension("alt.out")).map_err(|e| E::from_std(e).context("failed to remove alternative out file"))?;
+							fs::remove_file(in_path.with_extension("alt.out"))
+								.map_err(|e| E::from_std(e).context("failed to remove alternative out file"))?;
 							COLLECTION.get_force(source)?;
 							Ok(())
 						}

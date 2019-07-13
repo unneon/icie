@@ -11,9 +11,7 @@ use std::{
 
 pub fn execute(pkg: &crate::meta::Package) {
 	set_panic_hook();
-	let logger = crate::internal::logger::VSCodeLoger {
-		blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect(),
-	};
+	let logger = crate::internal::logger::VSCodeLoger { blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect() };
 	unsafe {
 		crate::internal::logger::LOGGER_SLOT = Some(logger);
 	}

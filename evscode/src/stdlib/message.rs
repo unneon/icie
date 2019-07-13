@@ -34,8 +34,8 @@ impl Builder {
 	}
 
 	/// Make message modal.
-	/// Instead of displaying the message in the bottom right corner, VS Code will display it as a popup and block the rest of the editor until user responds.
-	/// Probably only use this for messages which require urgent user interaction.
+	/// Instead of displaying the message in the bottom right corner, VS Code will display it as a popup and block the rest of the editor until user
+	/// responds. Probably only use this for messages which require urgent user interaction.
 	pub fn modal(mut self) -> Self {
 		self.modal = true;
 		self
@@ -45,11 +45,7 @@ impl Builder {
 	/// The id will be returned if the item is selected.
 	/// There can be at most one close affordance item, which will be selected as default if the message is closed.
 	pub fn item(mut self, id: impl AsRef<str>, title: impl AsRef<str>, is_close_affordance: bool) -> Self {
-		self.items.push(Action {
-			id: id.as_ref().to_owned(),
-			title: title.as_ref().to_owned(),
-			is_close_affordance,
-		});
+		self.items.push(Action { id: id.as_ref().to_owned(), title: title.as_ref().to_owned(), is_close_affordance });
 		self
 	}
 
@@ -86,11 +82,6 @@ pub struct Message {
 impl Message {
 	/// Create a new builder to configure the message.
 	pub fn new(message: impl AsRef<str>) -> Builder {
-		Builder {
-			message: message.as_ref().to_owned(),
-			kind: "info",
-			modal: false,
-			items: Vec::new(),
-		}
+		Builder { message: message.as_ref().to_owned(), kind: "info", modal: false, items: Vec::new() }
 	}
 }

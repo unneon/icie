@@ -47,10 +47,7 @@ impl Builder {
 			"location" => self.location,
 			"cancellable" => self.cancellable,
 		});
-		Progress {
-			hid,
-			canceler_spawned: AtomicBool::new(false),
-		}
+		Progress { hid, canceler_spawned: AtomicBool::new(false) }
 	}
 }
 /// Progress bar provided by the VS Code API.
@@ -61,11 +58,7 @@ pub struct Progress {
 impl Progress {
 	/// Create a new builder to configure the progress bar.
 	pub fn new() -> Builder {
-		Builder {
-			title: None,
-			location: "notification",
-			cancellable: false,
-		}
+		Builder { title: None, location: "notification", cancellable: false }
 	}
 
 	/// Update both components of the progress bar, see [`Progress::increment`] and [`Progress::message`].
@@ -113,7 +106,8 @@ impl Progress {
 	}
 
 	/// Close the progress bar.
-	pub fn end(self) {}
+	pub fn end(self) {
+	}
 }
 
 /// Dropping the object closes the progress bar

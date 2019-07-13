@@ -6,10 +6,7 @@ use crate::{
 use evscode::{E, R};
 
 fn webview_create() -> R<evscode::Webview> {
-	Ok(evscode::Webview::new("icie.discover", "ICIE Discover", 1)
-		.enable_scripts()
-		.retain_context_when_hidden()
-		.create())
+	Ok(evscode::Webview::new("icie.discover", "ICIE Discover", 1).enable_scripts().retain_context_when_hidden().create())
 }
 
 fn webview_manage(handle: evscode::goodies::WebviewHandle) -> R<()> {
@@ -105,10 +102,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 	let solution = crate::build::build(crate::dir::solution()?, &ci::cpp::Codegen::Debug)?;
 	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
 	let gen = crate::build::build(crate::dir::gen()?, &ci::cpp::Codegen::Release)?;
-	let task = ci::task::Task {
-		checker: Box::new(ci::task::FreeWhitespaceChecker),
-		environment: ci::exec::Environment { time_limit: None },
-	};
+	let task = ci::task::Task { checker: Box::new(ci::task::FreeWhitespaceChecker), environment: ci::exec::Environment { time_limit: None } };
 	let mut _status = crate::STATUS.push("Discovering");
 	for number in 1.. {
 		match orders.try_recv() {
@@ -139,14 +133,10 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 			return Err(E::error(format!("brut failed {:?}", run_brut)));
 		}
 		let desired = run_brut.stdout;
-		let outcome = ci::test::simple_test(&solution, &input, Some(&desired), None, &task).map_err(|e| E::from_std(e).context("failed to run test in discover"))?;
+		let outcome = ci::test::simple_test(&solution, &input, Some(&desired), None, &task)
+			.map_err(|e| E::from_std(e).context("failed to run test in discover"))?;
 		let fitness = ci::fit::ByteLength.evaluate(&input);
-		let row = ci::discover::Row {
-			number,
-			solution: outcome,
-			fitness,
-			input,
-		};
+		let row = ci::discover::Row { number, solution: outcome, fitness, input };
 		carrier.send(Ok(row));
 	}
 	Ok(())

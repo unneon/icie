@@ -61,27 +61,18 @@ pub fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, altern
 		},
 		ExitKind::TimeLimitExceeded => Verdict::TimeLimitExceeded,
 	};
-	Ok(Outcome {
-		verdict,
-		out: run.stdout,
-		stderr: run.stderr,
-		time: run.time,
-	})
+	Ok(Outcome { verdict, out: run.stdout, stderr: run.stderr, time: run.time })
 }
 
 impl fmt::Display for Verdict {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use Verdict::*;
-		write!(
-			f,
-			"{}",
-			match self {
-				Accepted { .. } => "Accept",
-				WrongAnswer => "Wrong Answer",
-				RuntimeError => "Runtime Error",
-				TimeLimitExceeded => "Time Limit Exceeded",
-				IgnoredNoOut => "Ignored (no out)",
-			}
-		)
+		write!(f, "{}", match self {
+			Accepted { .. } => "Accept",
+			WrongAnswer => "Wrong Answer",
+			RuntimeError => "Runtime Error",
+			TimeLimitExceeded => "Time Limit Exceeded",
+			IgnoredNoOut => "Ignored (no out)",
+		})
 	}
 }

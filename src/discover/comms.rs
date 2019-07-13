@@ -14,25 +14,15 @@ impl From<JsonValue> for Note {
 			"discovery_start" => Note::Start,
 			"discovery_pause" => Note::Pause,
 			"discovery_reset" => Note::Reset,
-			"discovery_save" => Note::Save {
-				input: String::from(val["input"].as_str().unwrap()),
-			},
+			"discovery_save" => Note::Save { input: String::from(val["input"].as_str().unwrap()) },
 			_ => panic!("unrecognized discover::comms::Note .tag"),
 		}
 	}
 }
 
 pub enum Food {
-	State {
-		running: bool,
-		reset: bool,
-	},
-	Row {
-		number: usize,
-		outcome: ci::test::Verdict,
-		fitness: i64,
-		input: Option<String>,
-	},
+	State { running: bool, reset: bool },
+	Row { number: usize, outcome: ci::test::Verdict, fitness: i64, input: Option<String> },
 }
 
 impl From<Food> for JsonValue {

@@ -1,12 +1,7 @@
 use evscode::{E, R};
 
 pub fn ask(site: &str) -> R<(String, String)> {
-	let username = evscode::InputBox::new()
-		.prompt(format!("Username at {}", site))
-		.ignore_focus_out()
-		.build()
-		.wait()
-		.ok_or_else(E::cancel)?;
+	let username = evscode::InputBox::new().prompt(format!("Username at {}", site)).ignore_focus_out().build().wait().ok_or_else(E::cancel)?;
 	let password = evscode::InputBox::new()
 		.prompt(format!("Password for {} at {}", username, site))
 		.password()
@@ -22,10 +17,7 @@ pub fn ask(site: &str) -> R<(String, String)> {
 		}
 		.dump(),
 	) {
-		evscode::Message::new("failed to save password to a secure keyring, so it will not be remembered")
-			.warning()
-			.build()
-			.spawn();
+		evscode::Message::new("failed to save password to a secure keyring, so it will not be remembered").warning().build().spawn();
 	}
 	Ok((username, password))
 }

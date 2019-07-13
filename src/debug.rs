@@ -11,17 +11,13 @@ pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 	if !util::is_installed("gdb")? {
 		return Err(E::error("GDB is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_gdb));
 	}
-	term::debugger(
-		"GDB",
-		&in_path,
-		&[
-			"gdb",
-			"-q",
-			build::exec_path(source)?.to_str().unwrap(),
-			"-ex",
-			&format!("set args < {}", util::bash_escape(in_path.to_str().unwrap())),
-		],
-	)
+	term::debugger("GDB", &in_path, &[
+		"gdb",
+		"-q",
+		build::exec_path(source)?.to_str().unwrap(),
+		"-ex",
+		&format!("set args < {}", util::bash_escape(in_path.to_str().unwrap())),
+	])
 }
 
 pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {

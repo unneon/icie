@@ -27,14 +27,7 @@ impl<'a> Toolchain<'a> {
 			target_windows = target_windows.join("examples");
 		}
 		let _exec_windows = target_windows.join(format!("{}.exe", pkg.identifier));
-		Toolchain {
-			meta: pkg,
-			manifest,
-			package,
-			exec_linux,
-			_exec_windows,
-			_is_example,
-		}
+		Toolchain { meta: pkg, manifest, package, exec_linux, _exec_windows, _is_example }
 	}
 
 	pub fn compile(&self, _cross_compile: bool) -> io::Result<()> {
@@ -78,33 +71,17 @@ impl<'a> Toolchain<'a> {
 
 	pub fn launch(&self) -> io::Result<()> {
 		let r1 = Command::new("code").arg("--extensionDevelopmentPath").arg(&self.package).status()?;
-		if r1.success() {
-			Ok(())
-		} else {
-			Err(io::Error::from(io::ErrorKind::Other))
-		}
+		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
 	}
 
 	pub fn package(&self) -> io::Result<()> {
-		let r1 = Command::new("vsce")
-			.arg("package")
-			.current_dir(&self.package)
-			.status()
-			.expect("evscode::package vsce spawn errored");
-		if r1.success() {
-			Ok(())
-		} else {
-			Err(io::Error::from(io::ErrorKind::Other))
-		}
+		let r1 = Command::new("vsce").arg("package").current_dir(&self.package).status().expect("evscode::package vsce spawn errored");
+		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
 	}
 
 	pub fn publish(&self) -> io::Result<()> {
 		let r1 = Command::new("vsce").arg("publish").current_dir(&self.package).status()?;
-		if r1.success() {
-			Ok(())
-		} else {
-			Err(io::Error::from(io::ErrorKind::Other))
-		}
+		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
 	}
 }
 
@@ -218,21 +195,14 @@ impl<'a> BuildContext<'a> {
 	}
 
 	pub fn task(&self, cmd: &mut Command, desc: &str, dependencies: &[&str]) -> io::Result<()> {
-		let updates = dependencies
-			.iter()
-			.map(|dep| Ok(self.base.join(dep).metadata()?.modified()?))
-			.collect::<io::Result<Vec<_>>>()?;
+		let updates = dependencies.iter().map(|dep| Ok(self.base.join(dep).metadata()?.modified()?)).collect::<io::Result<Vec<_>>>()?;
 		let last_update = updates.into_iter().max().expect("evscode::BuildContext::task no dependencies");
 		let trimmed = self.make_identifier(desc);
 		let marker = self.base.join(format!(".{}.buildmark", trimmed));
 		self.run_multiline(
 			"npm install",
 			|| {
-				if (!marker.exists()) || marker.metadata()?.modified()? < last_update {
-					BuildResult::Built
-				} else {
-					BuildResult::Ignored
-				}
+				if (!marker.exists()) || marker.metadata()?.modified()? < last_update { BuildResult::Built } else { BuildResult::Ignored }
 			},
 			|| {
 				let stat = cmd.status()?;
@@ -261,11 +231,7 @@ impl<'a> BuildContext<'a> {
 				let kid = Command::new("rsync").arg("-ari").arg("--delete").arg(&source).arg(&dest).stdout(Stdio::piped()).spawn()?;
 				let mut out_buf = Vec::new();
 				kid.stdout.expect("evscode::BuildContext::rsync stdout absent").read_to_end(&mut out_buf)?;
-				if out_buf.is_empty() {
-					BuildResult::Ignored
-				} else {
-					BuildResult::Built
-				}
+				if out_buf.is_empty() { BuildResult::Ignored } else { BuildResult::Built }
 			}
 		})
 	}
@@ -418,9 +384,7 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 fn collect_activation_events(pkg: &Package) -> Vec<Activation<String>> {
 	let mut events = Vec::new();
 	for command in &pkg.commands {
-		events.push(Activation::OnCommand {
-			command: format!("{}.{}", pkg.identifier, command.inner_id),
-		});
+		events.push(Activation::OnCommand { command: format!("{}.{}", pkg.identifier, command.inner_id) });
 	}
 	events.extend(pkg.extra_activations.iter().map(|ev| ev.own()));
 	events

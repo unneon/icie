@@ -1,7 +1,7 @@
 //! Tabs with custom interface built on HTML/CSS/JS.
 //!
-//! Consider using one of the [predefined webview patterns](../../goodies/index.html) or writing your own general pattern instead of using this directly.
-//! See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
+//! Consider using one of the [predefined webview patterns](../../goodies/index.html) or writing your own general pattern instead of using this
+//! directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
 
 use crate::{
 	internal::executor::{send_object, HANDLE_FACTORY}, LazyFuture
@@ -149,11 +149,7 @@ impl Builder {
 			"retain_context_when_hidden" => self.retain_context_when_hidden,
 			"hid" => hid,
 		});
-		Webview {
-			hid,
-			listener_spawned: AtomicBool::new(false),
-			disposer_spawned: AtomicBool::new(false),
-		}
+		Webview { hid, listener_spawned: AtomicBool::new(false), disposer_spawned: AtomicBool::new(false) }
 	}
 }
 
