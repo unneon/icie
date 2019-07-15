@@ -204,11 +204,14 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			if e.snapshots.len() >= 1 {
 				extended.push(e.snapshots.last().unwrap().clone());
 			}
-			let mut e = evscode::E::from_std(e);
-			for ext in extended {
-				e = e.extended(ext);
+			evscode::E {
+				was_cancelled: false,
+				reasons: vec![format!("unexpected HTML structure ({:?} at {:?})", e.reason, e.operations)],
+				details: Vec::new(),
+				actions: Vec::new(),
+				backtrace: e.backtrace,
+				extended,
 			}
-			e
 		},
 	}
 }

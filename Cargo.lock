@@ -321,7 +321,7 @@ dependencies = [
 [[package]]
 name = "debris"
 version = "0.1.0"
-source = "git+https://github.com/pustaczek/debris#c790406ce3955eed44b1923703137a209b7ebe3f"
+source = "git+https://github.com/pustaczek/debris#ec00d4187460816271de2bc6fb332df8abf76bcb"
 dependencies = [
  "backtrace 0.3.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "scraper 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",

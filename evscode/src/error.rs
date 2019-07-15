@@ -10,9 +10,14 @@ use std::ops::Try;
 /// Result type used for errors in Evscode. See [`E`] for details.
 pub type R<T> = Result<T, E>;
 
+/// A button on an error message that the user can press.
 #[derive(Clone, Debug)]
-pub(crate) struct Action {
+pub struct Action {
+	/// Title displayed to the user.
+	/// Preferably one-word, because wider buttons look weird.
 	pub title: String,
+	/// The function that will be launched upon clicking the button.
+	/// It will be called in a separate thread.
 	pub trigger: fn() -> R<()>,
 }
 
@@ -29,7 +34,8 @@ pub struct E {
 	/// List of error messages not meant for the end user, ordered from low-level to high level.
 	/// These messages will not be displayed in the UI.
 	pub details: Vec<String>,
-	pub(crate) actions: Vec<Action>,
+	/// List of actions available as buttons in the message, if displayed.
+	pub actions: Vec<Action>,
 	/// Stack trace from either where the error was converted to [`E`] or from a lower-level error.
 	/// The backtrace will only be converted from foreign errors if it is done manually.
 	pub backtrace: Backtrace,
