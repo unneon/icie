@@ -1,3 +1,13 @@
+## 0.5.7
+
+- Added a "report issue?" link to error messages, which opens ICIE's GitHub issue tracker
+- Improved backtraces from HTML scrappers to give a more precise error location
+- Improved some common error messages
+- Fixed HTML scrapping on main2.edu.pl
+- Fixed non-alphabetical commands and configuration ordering in extension page
+- Fixed not removing : characters from task titles
+- Fixed HTML scrapping on Atcoder tasks with multiple pre elements
+
 ## 0.5.6
 
 This release concludes the month-long rapid development following the 0.5 rewrite. The next planned feature is contest mode, which will take more than a few days - meanwhile, feel free to [ask for other features or bugfixes on GitHub](https://github.com/pustaczek/icie/issues)!
