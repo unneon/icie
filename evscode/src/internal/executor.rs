@@ -1,4 +1,4 @@
-use crate::R;
+use crate::{error::Severity, R};
 use backtrace::Backtrace;
 use json::object;
 use lazy_static::lazy_static;
@@ -84,7 +84,13 @@ pub fn spawn(f: impl FnOnce() -> R<()>+Send+'static) {
 }
 
 pub fn error_show(e: crate::E) {
-	if !e.was_cancelled {
+	let should_show = match e.severity {
+		Severity::Error => true,
+		Severity::Cancel => false,
+		Severity::Warning => true,
+		Severity::Workflow => true,
+	};
+	if should_show {
 		{
 			let mut log_msg = String::new();
 			for reason in &e.reasons {
@@ -99,7 +105,15 @@ pub fn error_show(e: crate::E) {
 				log::info!("{}", extended);
 			}
 		}
-		let mut msg = crate::Message::new(e.human()).error();
+		let should_suggest_report = match e.severity {
+			Severity::Error => true,
+			Severity::Cancel => false,
+			Severity::Warning => true,
+			Severity::Workflow => false,
+		};
+		let message =
+			format!("{}{}", e.human(), if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues)" } else { "" });
+		let mut msg = crate::Message::new(message).error();
 		for (i, action) in e.actions.iter().enumerate() {
 			msg = msg.item(i.to_string(), action.title.as_str(), false);
 		}

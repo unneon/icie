@@ -205,7 +205,7 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 				extended.push(e.snapshots.last().unwrap().clone());
 			}
 			evscode::E {
-				was_cancelled: false,
+				severity: evscode::error::Severity::Error,
 				reasons: vec![format!("unexpected HTML structure ({:?} at {:?})", e.reason, e.operations)],
 				details: Vec::new(),
 				actions: Vec::new(),

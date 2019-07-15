@@ -140,7 +140,7 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 					evscode::open_editor(&location.path, Some(location.line - 1), Some(location.column - 1));
 				}
 			}
-			Err(evscode::E::error(error.message.clone()))
+			Err(evscode::E::error(error.message.clone()).context("compilation error").workflow_error())
 		} else {
 			Err(evscode::E::error("unrecognized compilation error").extended(status.stderr))
 		}

@@ -8,10 +8,10 @@ fn send() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None)?;
 	if report.runs.iter().any(|test| !test.success()) {
-		return Err(E::error("some tests failed, submit aborted"));
+		return Err(E::error("some tests failed, submit aborted").workflow_error());
 	}
 	if report.runs.is_empty() {
-		return Err(E::error("no tests available; add some using Alt+- keyboard shortcut!").action("Submit anyway", send_passed));
+		return Err(E::error("no tests available; add some using Alt+- keyboard shortcut!").action("Submit anyway", send_passed).workflow_error());
 	}
 	send_passed()
 }

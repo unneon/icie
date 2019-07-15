@@ -21,14 +21,27 @@ pub struct Action {
 	pub trigger: fn() -> R<()>,
 }
 
+/// Indication of how serious the error is.
+#[derive(Clone, Debug)]
+pub enum Severity {
+	/// Abort the operation, display an error message, provide a link to GitHub issues.
+	Error,
+	/// Abort the operation, do not display an error message or provide a link to GitHub issues.
+	Cancel,
+	/// Do not abort the operation, display a warning message, do not provide a link to GitHub issues.
+	/// Do not use the `?` operator to avoid aborting the operation.
+	Warning,
+	/// Abort the operation, display an error message, do not provide a link to GitHub issues.
+	Workflow,
+}
+
 /// Error type used by Evscode.
 ///
 /// See [module documentation](index.html) for details.
 #[derive(Clone, Debug)]
 pub struct E {
-	/// Marks if the error is not an error, but a cancellation requested by the user.
-	/// If this is true, the error message will not be displayed.
-	pub was_cancelled: bool,
+	/// Marks whose fault this error is and how serious is it.
+	pub severity: Severity,
 	/// List of human-facing error messages, ordered from low-level to high-level.
 	pub reasons: Vec<String>,
 	/// List of error messages not meant for the end user, ordered from low-level to high level.
@@ -47,7 +60,7 @@ impl E {
 	/// Create an error from a user-facing string, capturing a backtrace.
 	pub fn error(s: impl AsRef<str>) -> E {
 		E {
-			was_cancelled: false,
+			severity: Severity::Error,
 			reasons: vec![s.as_ref().to_owned()],
 			details: Vec::new(),
 			actions: Vec::new(),
@@ -65,7 +78,7 @@ impl E {
 	/// implementations on each error in the [`std::error::Error::source`] chain.
 	pub fn from_std(native: impl std::error::Error) -> E {
 		let mut e = E {
-			was_cancelled: false,
+			severity: Severity::Error,
 			reasons: Vec::new(),
 			details: Vec::new(),
 			actions: Vec::new(),
@@ -136,6 +149,13 @@ impl E {
 		self.extended.push(extended.as_ref().to_owned());
 		self
 	}
+
+	/// Mark the error as something common in extension's workflow, that does not need to be put on project's issue tracker.
+	/// This will remove the "report issue?" suffix, which may irritate users in when the error is common.
+	pub fn workflow_error(mut self) -> Self {
+		self.severity = Severity::Workflow;
+		self
+	}
 }
 
 /// Error type representing a operation intentionally cancelled by the user.
@@ -164,6 +184,13 @@ impl<T> Try for Cancellable<T> {
 
 impl From<Cancellation> for E {
 	fn from(_: Cancellation) -> Self {
-		E { was_cancelled: true, reasons: Vec::new(), details: Vec::new(), actions: Vec::new(), backtrace: Backtrace::new(), extended: Vec::new() }
+		E {
+			severity: Severity::Cancel,
+			reasons: Vec::new(),
+			details: Vec::new(),
+			actions: Vec::new(),
+			backtrace: Backtrace::new(),
+			extended: Vec::new(),
+		}
 	}
 }
