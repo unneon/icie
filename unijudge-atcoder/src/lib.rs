@@ -135,7 +135,7 @@ impl unijudge::Task for Task<'_> {
 				.string();
 				title.starts_with("Sample Input") || title.starts_with("Sample Output")
 			})
-			.map(|node| Ok(node.find("pre")?.text().string()))
+			.map(|node| Ok(node.find_first("pre")?.text().string()))
 			.collect::<Result<Vec<_>>>()?;
 		let examples = Some(
 			parts
