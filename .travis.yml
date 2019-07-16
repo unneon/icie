@@ -8,5 +8,10 @@ addons:
 cache:
   directories:
     - /home/travis/.cargo/
+install:
+  - rustup component add rustfmt
+script:
+  - cargo test
+  - cargo fmt --all -- --check
 before_cache:
   - rm -rf /home/travis/.cargo/registry
