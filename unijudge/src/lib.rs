@@ -107,7 +107,23 @@ pub enum Verdict {
 }
 
 pub trait Backend {
-	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>>;
+	fn accepted_domains(&self) -> &'static [&'static str];
+	fn deconstruct_segments(&self, domain: &str, segments: &[&str]) -> Result<TaskUrl>;
+	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>> {
+		let url: reqwest::Url = match url.parse() {
+			Ok(url) => url,
+			Err(_) => return Ok(None),
+		};
+		let segments: Vec<_> = url.path_segments().map_or(Vec::new(), |segs| segs.filter(|seg| !seg.is_empty()).collect());
+		let domain = match url.domain() {
+			Some(domain) => domain,
+			None => return Ok(None),
+		};
+		if !self.accepted_domains().contains(&domain) {
+			return Ok(None);
+		}
+		self.deconstruct_segments(domain, &segments).map(Some)
+	}
 	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn Session+'s>>;
 }
 
@@ -127,4 +143,24 @@ pub trait Task {
 	fn languages(&self) -> Result<Vec<Language>>;
 	fn submissions(&self) -> Result<Vec<Submission>>;
 	fn submit(&self, language: &Language, code: &str) -> Result<String>;
+}
+
+pub struct FixedSiteTaskUrl {
+	site: String,
+}
+
+impl TaskUrl {
+	pub fn new(site: impl Into<String>, contest: impl Into<String>, task: impl Into<String>) -> TaskUrl {
+		TaskUrl { site: site.into(), contest: contest.into(), task: task.into() }
+	}
+
+	pub fn fix_site(site: impl Into<String>) -> FixedSiteTaskUrl {
+		FixedSiteTaskUrl { site: site.into() }
+	}
+}
+
+impl FixedSiteTaskUrl {
+	pub fn new(self, contest: impl Into<String>, task: impl Into<String>) -> TaskUrl {
+		TaskUrl::new(self.site, contest, task)
+	}
 }

@@ -16,20 +16,15 @@ struct Task<'s> {
 }
 
 impl unijudge::Backend for SPOJ {
-	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>> {
-		let url: Url = match url.parse() {
-			Ok(url) => url,
-			Err(_) => return Ok(None),
-		};
-		let segs: Vec<_> = url.path_segments().map_or(Vec::new(), |segs| segs.filter(|seg| !seg.is_empty()).collect());
-		if url.domain() != Some("www.spoj.com") {
-			return Ok(None);
+	fn accepted_domains(&self) -> &'static [&'static str] {
+		&["www.spoj.com"]
+	}
+
+	fn deconstruct_segments(&self, _domain: &str, segments: &[&str]) -> Result<TaskUrl> {
+		match segments {
+			["problems", task] => Ok(TaskUrl::new("https://www.spoj.com", "", *task)),
+			_ => Err(Error::WrongTaskUrl),
 		}
-		let task = match segs.as_slice() {
-			["problems", task] => format!("{}", task),
-			_ => return Err(Error::WrongTaskUrl),
-		};
-		Ok(Some(TaskUrl { site: "https://www.spoj.com".to_owned(), contest: String::new(), task }))
 	}
 
 	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {

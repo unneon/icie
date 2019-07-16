@@ -5,8 +5,6 @@ use unijudge::{
 	}, Error, Language, RejectionCause, Result, Submission, TaskDetails, TaskUrl, Verdict
 };
 
-const RECOGNIZED_DOMAINS: &[&str] = &["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"];
-
 pub struct Sio2;
 
 struct Session {
@@ -24,25 +22,17 @@ struct Task<'s> {
 }
 
 impl unijudge::Backend for Sio2 {
-	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>> {
-		let url: Url = match url.parse() {
-			Ok(url) => url,
-			Err(_) => return Ok(None),
-		};
-		let segs: Vec<_> = url.path_segments().map_or(Vec::new(), |segs| segs.filter(|seg| !seg.is_empty()).collect());
-		let domain = match url.domain() {
-			Some(domain) => domain,
-			None => return Ok(None),
-		};
-		if !RECOGNIZED_DOMAINS.contains(&domain) {
-			return Ok(None);
+	fn accepted_domains(&self) -> &'static [&'static str] {
+		&["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"]
+	}
+
+	fn deconstruct_segments(&self, domain: &str, segments: &[&str]) -> Result<TaskUrl> {
+		let sio = TaskUrl::fix_site(format!("https://{}", domain));
+		match segments {
+			["c", contest, "p", task] => Ok(sio.new(*contest, *task)),
+			["c", contest, "p", task, _] => Ok(sio.new(*contest, *task)),
+			_ => Err(Error::WrongTaskUrl),
 		}
-		let (contest, task) = match segs.as_slice() {
-			["c", contest, "p", task] => (contest, task),
-			["c", contest, "p", task, _] => (contest, task),
-			_ => return Err(Error::WrongTaskUrl),
-		};
-		Ok(Some(TaskUrl { site: format!("https://{}", domain), contest: String::from(*contest), task: String::from(*task) }))
 	}
 
 	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {

@@ -21,24 +21,20 @@ struct Task<'s> {
 }
 
 impl unijudge::Backend for Codeforces {
-	fn deconstruct_url(&self, url: &str) -> Result<Option<TaskUrl>> {
-		let url: Url = match url.parse() {
-			Ok(url) => url,
-			Err(_) => return Ok(None),
-		};
-		let segs: Vec<_> = url.path_segments().map_or(Vec::new(), |segs| segs.filter(|seg| !seg.is_empty()).collect());
-		if url.domain() != Some("codeforces.com") {
-			return Ok(None);
-		}
-		let (contest, task) = match segs.as_slice() {
-			["problemset", "problem", contest, task] => (format!("problemset"), format!("{}/{}", contest, task)),
+	fn accepted_domains(&self) -> &'static [&'static str] {
+		&["codeforces.com"]
+	}
+
+	fn deconstruct_segments(&self, _domain: &str, segments: &[&str]) -> Result<TaskUrl> {
+		let cf = TaskUrl::fix_site("https://codeforces.com");
+		match segments {
+			["problemset", "problem", contest, task] => Ok(cf.new("problemset", format!("{}/{}", contest, task))),
 			// TODO if the first task is not A(e.g. A1), this won't work
-			["contest", contest, "problem", "0"] => (format!("contest/{}", contest), format!("A")),
-			["contest", contest, "problem", task] => (format!("contest/{}", contest), format!("{}", task)),
-			["gym", contest, "problem", task] => (format!("gym/{}", contest), format!("{}", task)),
-			_ => return Err(Error::WrongTaskUrl),
-		};
-		Ok(Some(TaskUrl { site: "https://codeforces.com".to_owned(), contest, task }))
+			["contest", contest, "problem", "0"] => Ok(cf.new(format!("contest/{}", contest), "A")),
+			["contest", contest, "problem", task] => Ok(cf.new(format!("contest/{}", contest), *task)),
+			["gym", contest, "problem", task] => Ok(cf.new(format!("gym/{}", contest), *task)),
+			_ => Err(Error::WrongTaskUrl),
+		}
 	}
 
 	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
