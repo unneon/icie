@@ -9,6 +9,7 @@ mod util;
 
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
+use std::iter::FromIterator;
 use syn::{
 	export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, ReturnType
 };
@@ -104,14 +105,15 @@ pub fn plugin(input: TokenStream) -> TokenStream {
 ///
 /// Use at any point in global scope, but insides of inline modules can cause problems.
 /// The entry id will be derived from the current module path.
+/// The description will be extracted from the obligatory Rust doc comment.
 /// ```ignore
-/// #[evscode::config(description = "Fooification time limit, expressed in milliseconds")]
+/// /// Fooification time limit, expressed in milliseconds
+/// #[evscode::config]
 /// static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 /// ```
 #[proc_macro_attribute]
-pub fn config(params: TokenStream, item: TokenStream) -> TokenStream {
+pub fn config(_params: TokenStream, item: TokenStream) -> TokenStream {
 	let modpath = util::get_modpath(&item);
-	let params: params::Config = syn::parse_macro_input!(params);
 	let item: ItemStatic = syn::parse_macro_input!(item);
 	let rust_type = item.ty.clone();
 	let rust_inner_type = match *rust_type {
@@ -123,7 +125,22 @@ pub fn config(params: TokenStream, item: TokenStream) -> TokenStream {
 	};
 	let default = item.expr.clone();
 	let id = util::js_path(&modpath, util::caps_to_camel(item.ident.to_string()));
-	let description = params.description;
+	let description = item
+		.attrs
+		.iter()
+		.find(|attr| attr.path.is_ident("doc"))
+		.and_then(|attr| attr.tts.clone().into_iter().nth(1))
+		.and_then(|lit| syn::parse2(proc_macro2::TokenStream::from_iter(std::iter::once(lit))).ok())
+		.map(|lit: LitStr| LitStr::new(lit.value().trim(), lit.span()))
+		.unwrap_or_else(|| {
+			item.ident
+				.span()
+				.unwrap()
+				.error("#[evscode::config] calls must have a rustdoc comment attached")
+				.help(format!("write the config entry description before the call, e.g. /// Controls the number of bees"))
+				.emit();
+			LitStr::new("", proc_macro2::Span::call_site())
+		});
 	let reference = item.ident.clone();
 	let visibility = item.vis.clone();
 	let machinery = CONFIG_INVOKELIST.invoke(quote! {

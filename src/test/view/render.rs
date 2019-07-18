@@ -23,16 +23,14 @@ impl HideBehaviour {
 	}
 }
 
-#[evscode::config(
-	description = "This controls when to hide passing tests in test view by collapsing them into a thin color line. Even if this is not set, any failing tests will still be \
-	               visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default)."
-)]
+/// This controls when to hide passing tests in test view by collapsing them into a thin color line. Even if this is not set, any failing tests will
+/// still be visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+#[evscode::config]
 static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-#[evscode::config(
-	description = "This controls when to hide passing tests in test view by not displaying them at all. Even if this is not set, any failing tests will still be visible if the \
-	               icie.test.view.scrollToFirstFailed option is enabled(as is by default)."
-)]
+/// This controls when to hide passing tests in test view by not displaying them at all. Even if this is not set, any failing tests will still be
+/// visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+#[evscode::config]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
 pub fn render(tests: &[TestRun]) -> R<String> {
@@ -112,10 +110,9 @@ fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(render_cell("input", &[("data-raw", &data)], &[(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)], None, &data, None, folded))
 }
 
-#[evscode::config(
-	description = "If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration will be displayed. Set to 0 to always \
-	               display the timings, or to a large value to never display the timings."
-)]
+/// If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration will be displayed. Set to 0 to
+/// always display the timings, or to a large value to never display the timings.
+#[evscode::config]
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
 fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
@@ -174,10 +171,9 @@ const ACTION_RR: Action = Action { onclick: "action_rr()", icon: "fast_rewind", 
 const ACTION_SET_ALT: Action = Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
 const ACTION_DEL_ALT: Action = Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
 
-#[evscode::config(
-	description = "Whether to hide the \"Copy\" action in test view. Instead of using it, you can hover over the test cell and press Ctrl+C; if nothing else is selected, the \
-	               cell contents will be copied automatically."
-)]
+/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test cell and press Ctrl+C; if nothing else is
+/// selected, the cell contents will be copied automatically.
+#[evscode::config]
 static HIDE_COPY: evscode::Config<bool> = false;
 
 fn render_cell(
@@ -197,10 +193,10 @@ fn render_cell(
 }
 
 const MIN_CELL_LINES: i64 = 2;
-#[evscode::config(
-	description = "The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can be seen by \
-	               scrolling. Leave empty to denote no limit."
-)]
+
+/// The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can
+/// be seen by scrolling. Leave empty to denote no limit.
+#[evscode::config]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
 fn render_cell_raw(

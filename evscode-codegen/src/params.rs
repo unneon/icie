@@ -73,16 +73,3 @@ impl Parse for Command {
 		Ok(r)
 	}
 }
-
-#[derive(Debug)]
-pub struct Config {
-	pub description: String,
-}
-impl Parse for Config {
-	fn parse(input: ParseStream) -> R<Config> {
-		let mut params: Params = input.parse()?;
-		let r = Config { description: params.get("description")? };
-		params.finish()?;
-		Ok(r)
-	}
-}

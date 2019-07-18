@@ -2,7 +2,8 @@
 //!
 //! To add a configuration entry, write this in global scope of any file of an extension:
 //! ```ignore
-//! #[evscode::config(description = "Fooification time limit, expressed in milliseconds")]
+//! /// Fooification time limit, expressed in milliseconds
+//! #[evscode::config]
 //! static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 //! ```
 //! The entry will be automatically added to the extension manifest and registered for updates.

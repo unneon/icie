@@ -2,10 +2,10 @@ use crate::{dir, util};
 use evscode::{E, R};
 use std::{collections::HashMap, path::PathBuf};
 
-#[evscode::config(
-	description = "A list of files used as code templates. If you see \"Edit in settings.json\", click it, then add a new entry starting with \"icie.template.list\" and if you \
-	               use autocomplete, VS Code should autofill the current config. Replace the path placeholder with a path to your template file or add more templates"
-)]
+/// A list of files used as code templates. If you see "Edit in settings.json", click it, then add a new entry starting with "icie.template.list" and
+/// if you use autocomplete, VS Code should autofill the current config. Replace the path placeholder with a path to your template file or add more
+/// templates
+#[evscode::config]
 pub static LIST: evscode::Config<HashMap<String, String>> = vec![("C++".to_owned(), BUILTIN_TEMPLATE_PSEUDOPATH.to_owned())].into_iter().collect();
 
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]

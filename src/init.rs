@@ -5,10 +5,9 @@ use std::{
 };
 use unijudge::Example;
 
-#[evscode::config(
-	description = "The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the icie.template.list \
-	               configuration entry."
-)]
+/// The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the
+/// icie.template.list configuration entry.
+#[evscode::config]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 fn init(root: &Path, url: Option<String>, meta: Option<TaskMeta>) -> R<()> {
@@ -133,20 +132,33 @@ fn ask_task_url() -> R<Option<String>> {
 		.ok_or_else(E::cancel)?)
 }
 
-#[evscode::config(
-	description = "Default project directory name. This key uses special syntax to allow using dynamic content, like task names. See example list:\n\n{task.symbol \
-	               case.upper}-{task.name case.kebab} -> A-diverse-strings (default)\n{random.cute}-{random.animal} -> kawaii-hedgehog\n{site.short}/{contest.id \
-	               case.kebab}/{task.symbol case.upper}-{task.name case.kebab} -> cf/1144/A-diverse-strings\n{task.symbol case.upper}-{{ -> A-{\n\n{random.cute} -> \
-	               kawaii\n{random.animal} -> hedgehog\n{task.symbol} -> A\n{task.name} -> Diverse Strings\n{contest.id} -> 1144\n{site.short} -> cf\n\n{task.name} -> Diverse \
-	               Strings\n{task.name case.camel} -> diverseStrings\n{task.name case.pascal} -> DiverseStrings\n{task.name case.snake} -> diverse_strings\n{task.name \
-	               case.kebab} -> diverse-strings\n{task.name case.upper} -> DIVERSE_STRINGS"
-)]
+/// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. See example list:
+///
+/// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)
+/// {random.cute}-{random.animal} -> kawaii-hedgehog
+/// {site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab} -> cf/1144/A-diverse-strings
+/// {task.symbol case.upper}-{{ -> A-{
+///
+/// {random.cute} -> kawaii
+/// {random.animal} -> hedgehog
+/// {task.symbol} -> A
+/// {task.name} -> Diverse Strings
+/// {contest.id} -> 1144
+/// {site.short} -> cf
+///
+/// {task.name} -> Diverse Strings
+/// {task.name case.camel} -> diverseStrings
+/// {task.name case.pascal} -> DiverseStrings
+/// {task.name case.snake} -> diverse_strings
+/// {task.name case.kebab} -> diverse-strings
+/// {task.name case.upper} -> DIVERSE_STRINGS
+#[evscode::config]
 static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<InitVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-#[evscode::config(
-	description = "By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory configuration entry, \
-	               and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead specify the directory every time."
-)]
+/// By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory
+/// configuration entry, and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead
+/// specify the directory every time.
+#[evscode::config]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
 #[derive(Debug, evscode::Configurable)]

@@ -10,10 +10,9 @@ lazy_static::lazy_static! {
 	pub static ref CACHED_LIBRARY: LibraryCache = LibraryCache::new();
 }
 
-#[evscode::config(
-	description = "Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press Alt+[ with this not set to see how to set up this \
-	               functionality."
-)]
+/// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press Alt+[ with this not set to see how to set up this
+/// functionality.
+#[evscode::config]
 static PATH: evscode::Config<String> = "";
 
 pub struct LibraryCache {
