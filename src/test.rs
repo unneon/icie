@@ -26,10 +26,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
-	let task = ci::task::Task {
-		checker: crate::checker::get_checker()?,
-		environment: ci::exec::Environment { time_limit: TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64)) },
-	};
+	let task = ci::task::Task { checker: crate::checker::get_checker()?, environment: ci::exec::Environment { time_limit: time_limit() } };
 	let test_dir = dir::tests()?;
 	let ins = ci::scan::scan_and_order(&test_dir);
 	let mut runs = Vec::new();
@@ -46,6 +43,10 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 		runs.push(run);
 	}
 	Ok(runs)
+}
+
+pub fn time_limit() -> Option<Duration> {
+	TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64))
 }
 
 fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Executable) -> evscode::Future<R<TestRun>> {
