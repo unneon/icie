@@ -17,6 +17,15 @@ static BRUT_STEM: evscode::Config<String> = "brut";
 #[evscode::config]
 static GEN_STEM: evscode::Config<String> = "gen";
 
+/// File stem of the task checker source file. For tasks where there exist multiple correct answers, this is the program which will be called to check
+/// if a given answer is correct. If the source exists, the program will be called; otherwise, the answers will be checked for text equality. To read
+/// the test case as well as your and a correct answer, you should declare main in a different way than usual - `int main(int, char* argv[])` and open
+/// the test case files `ifstream in(argv[1]), my(argv[2]), out(argv[3])`. After that, use `in`, `my` and `out` in the same way as `cin`. If the
+/// answer is correct, the program should return a 0 exit code(e.g. normal return from main). If the answer is not, is should return a non-zero exit
+/// code, e.g. by using `exit(1)`. A good way to do so is with assertions, like `assert(index[i] <= n);`.
+#[evscode::config]
+static CHECKER_STEM: evscode::Config<String> = "checker";
+
 /// The file extension used for sources written in the C++ language.
 #[evscode::config]
 pub static CPP_EXTENSION: evscode::Config<String> = "cpp";
@@ -45,6 +54,10 @@ pub fn brut() -> evscode::R<PathBuf> {
 
 pub fn gen() -> evscode::R<PathBuf> {
 	Ok(evscode::workspace_root()?.join(&*GEN_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
+}
+
+pub fn checker() -> evscode::R<PathBuf> {
+	Ok(evscode::workspace_root()?.join(&*CHECKER_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn tests() -> evscode::R<PathBuf> {

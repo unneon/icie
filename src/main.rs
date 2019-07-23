@@ -2,6 +2,7 @@
 
 mod auth;
 mod build;
+mod checker;
 mod ci;
 mod debug;
 mod dir;

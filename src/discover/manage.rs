@@ -102,7 +102,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 	let solution = crate::build::build(crate::dir::solution()?, &ci::cpp::Codegen::Debug)?;
 	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
 	let gen = crate::build::build(crate::dir::gen()?, &ci::cpp::Codegen::Release)?;
-	let task = ci::task::Task { checker: Box::new(ci::task::FreeWhitespaceChecker), environment: ci::exec::Environment { time_limit: None } };
+	let task = ci::task::Task { checker: crate::checker::get_checker()?, environment: ci::exec::Environment { time_limit: None } };
 	let mut _status = crate::STATUS.push("Discovering");
 	for number in 1.. {
 		match orders.try_recv() {
@@ -123,18 +123,18 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 			Err(std::sync::mpsc::TryRecvError::Empty) => (),
 			Err(std::sync::mpsc::TryRecvError::Disconnected) => return Err(E::cancel()),
 		}
-		let run_gen = gen.run("", &task.environment).map_err(|e| E::from_std(e).context("failed to run the test generator"))?;
+		let run_gen = gen.run("", &[], &task.environment).map_err(|e| e.context("failed to run the test generator"))?;
 		if !run_gen.success() {
 			return Err(E::error(format!("test generator failed {:?}", run_gen)));
 		}
 		let input = run_gen.stdout;
-		let run_brut = brut.run(&input, &task.environment).map_err(|e| E::from_std(e).context("failed to run slow solution"))?;
+		let run_brut = brut.run(&input, &[], &task.environment).map_err(|e| e.context("failed to run slow solution"))?;
 		if !run_brut.success() {
 			return Err(E::error(format!("brut failed {:?}", run_brut)));
 		}
 		let desired = run_brut.stdout;
-		let outcome = ci::test::simple_test(&solution, &input, Some(&desired), None, &task)
-			.map_err(|e| E::from_std(e).context("failed to run test in discover"))?;
+		let outcome =
+			ci::test::simple_test(&solution, &input, Some(&desired), None, &task).map_err(|e| e.context("failed to run test in discover"))?;
 		let fitness = ci::fit::ByteLength.evaluate(&input);
 		let row = ci::discover::Row { number, solution: outcome, fitness, input };
 		carrier.send(Ok(row));
@@ -145,9 +145,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 fn add_test_input(input: String) -> R<()> {
 	let _status = crate::STATUS.push("Adding new test");
 	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
-	let run = brut
-		.run(&input, &ci::exec::Environment { time_limit: None })
-		.map_err(|e| E::from_std(e).context("failed to generate output for the test"))?;
+	let run = brut.run(&input, &[], &ci::exec::Environment { time_limit: None }).map_err(|e| e.context("failed to generate output for the test"))?;
 	if !run.success() {
 		return Err(E::error("brut failed when generating output for the added test"));
 	}

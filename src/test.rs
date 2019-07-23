@@ -27,7 +27,7 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
 	let task = ci::task::Task {
-		checker: Box::new(ci::task::FreeWhitespaceChecker),
+		checker: crate::checker::get_checker()?,
 		environment: ci::exec::Environment { time_limit: TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64)) },
 	};
 	let test_dir = dir::tests()?;
@@ -67,7 +67,7 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 			};
 			let alt = if alt_path.exists() { Some(util::fs_read_to_string(&alt_path)?) } else { None };
 			let outcome = ci::test::simple_test(&solution, &input, output.as_ref().map(String::as_str), alt.as_ref().map(|p| p.as_str()), &task)
-				.map_err(|e| E::from_std(e).context("failed to run test"))?;
+				.map_err(|e| e.context("failed to run test"))?;
 			let run = TestRun { in_path, out_path, outcome };
 			if !carrier.send(run) {
 				break;
