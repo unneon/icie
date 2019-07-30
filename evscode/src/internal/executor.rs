@@ -1,5 +1,4 @@
-use crate::{error::Severity, R};
-use backtrace::Backtrace;
+use crate::{error::Severity, E, R};
 use json::object;
 use lazy_static::lazy_static;
 use log::LevelFilter;
@@ -145,12 +144,15 @@ lazy_static! {
 
 fn set_panic_hook() {
 	std::panic::set_hook(Box::new(move |info| {
-		if let Some(loc) = info.location() {
-			let bt = Backtrace::new();
-			log::error!("panic occured in file '{}' at line '{}', {:?}\n{:?}", loc.file(), loc.line(), info, bt);
+		let payload = if let Some(payload) = info.payload().downcast_ref::<&str>() {
+			(*payload).to_owned()
+		} else if let Some(payload) = info.payload().downcast_ref::<String>() {
+			payload.clone()
 		} else {
-			log::error!("panic occured, {:?}", info)
+			"...".to_owned()
 		};
+		let location = if let Some(location) = info.location() { format!("{}:{}", location.file(), location.line()) } else { "--:--".to_owned() };
+		error_show(E::error(format!("ICIE panicked, {} at {}", payload, location)));
 	}));
 }
 
