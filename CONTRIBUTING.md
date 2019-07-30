@@ -26,7 +26,7 @@ To see Rust VS Code API docs, run `cargo doc --open -p evscode`.
 Currently, it is hard to add support for uncovered parts of the API(it requires manually running scripts from evscode/backup-ts-env and editing a Typescript file).
 The current approach is too boilerplate-heavy and limited anyway and will be replaced with a different solution eventually.
 
-To add support for other competitive programming sites, add a new unijudge-something/ directory and fill it with code similar to unijudge-atcoder.
+To add support for other competitive programming sites, add a new unijudge-something/ directory and fill it with code similar to unijudge-spoj.
 After that, add its metadata to src/net.rs and Cargo.toml, and ICIE will start using it.
 
 To add your changes back to the plugin, open a [pull request](https://help.github.com/en/articles/creating-a-pull-request).

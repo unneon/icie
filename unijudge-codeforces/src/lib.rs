@@ -1,74 +1,68 @@
-use std::{iter::FromIterator, sync::Mutex};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use unijudge::{
 	debris::{Context, Find}, reqwest::{
-		self, header::{ORIGIN, REFERER, USER_AGENT}, Url
-	}, Error, Result, Submission, TaskUrl
+		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
+	}, Error, Language, Result, Submission, TaskDetails
 };
 
 pub struct Codeforces;
 
-struct Session {
+#[derive(Debug)]
+pub enum TaskID {
+	Normal(String),
+	Zero,
+}
+#[derive(Debug)]
+pub enum TaskSource {
+	Contest,
+	Gym,
+	Problemset,
+}
+#[derive(Debug)]
+pub struct Task {
+	source: TaskSource,
+	contest: String,
+	task: TaskID,
+}
+
+pub struct Session {
 	client: reqwest::Client,
 	username: Mutex<Option<String>>,
 }
-struct Contest<'s> {
-	id: String,
-	session: &'s Session,
-}
-struct Task<'s> {
-	id: String,
-	contest: &'s Contest<'s>,
+
+#[derive(Serialize, Deserialize)]
+pub struct CachedAuth {
+	jsessionid: Cookie<'static>,
+	username: String,
 }
 
 impl unijudge::Backend for Codeforces {
-	fn accepted_domains(&self) -> &'static [&'static str] {
+	type CachedAuth = CachedAuth;
+	type Session = Session;
+	type Task = Task;
+
+	fn accepted_domains(&self) -> &[&str] {
 		&["codeforces.com"]
 	}
 
-	fn deconstruct_segments(&self, _domain: &str, segments: &[&str]) -> Result<TaskUrl> {
-		let cf = TaskUrl::fix_site("https://codeforces.com");
-		match segments {
-			["problemset", "problem", contest, task] => Ok(cf.new("problemset", format!("{}/{}", contest, task))),
-			// TODO if the first task is not A(e.g. A1), this won't work
-			["contest", contest, "problem", "0"] => Ok(cf.new(format!("contest/{}", contest), "A")),
-			["contest", contest, "problem", task] => Ok(cf.new(format!("contest/{}", contest), *task)),
-			["gym", contest, "problem", task] => Ok(cf.new(format!("gym/{}", contest), *task)),
-			_ => Err(Error::WrongTaskUrl),
-		}
+	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+		let (source, contest, task) = match segments {
+			["contest", contest, "problem", task] => (TaskSource::Contest, contest, task),
+			["gym", contest, "problem", task] => (TaskSource::Gym, contest, task),
+			["problemset", "problem", contest, task] => (TaskSource::Problemset, contest, task),
+			_ => return Err(Error::WrongTaskUrl),
+		};
+		Ok(Task { source, contest: (*contest).to_owned(), task: if *task == "0" { TaskID::Zero } else { TaskID::Normal((*task).to_owned()) } })
 	}
 
-	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
-		Ok(Box::new(Session {
-			client: reqwest::Client::builder()
-				.cookie_store(true)
-				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
-					USER_AGENT,
-					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
-				)]))
-				.build()
-				.map_err(Error::TLSFailure)?,
-			username: Mutex::new(None),
-		}))
-	}
-}
-
-impl Session {
-	fn fetch_csrf(&self) -> Result<String> {
-		let url = self.url();
-		let mut resp = self.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
-		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
-		Ok(csrf)
+	fn connect(&self, client: reqwest::Client, _: &str) -> Self::Session {
+		Session { client, username: Mutex::new(None) }
 	}
 
-	fn url(&self) -> Url {
-		"https://codeforces.com".parse().unwrap()
-	}
-}
-impl unijudge::Session for Session {
-	fn login(&self, username: &str, password: &str) -> Result<()> {
-		let csrf = self.fetch_csrf()?;
-		let mut resp = self
+	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let csrf = self.fetch_csrf(session)?;
+		let mut resp = session
 			.client
 			.post("https://codeforces.com/enter")
 			.header(ORIGIN, "https://codeforces.com")
@@ -81,6 +75,7 @@ impl unijudge::Session for Session {
 			doc.find_all(".lang-chooser a").any(|v| v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username)));
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
 		if login_succeeded {
+			*session.username.lock().unwrap() = Some(username.to_owned());
 			Ok(())
 		} else if wrong_password_or_handle {
 			Err(Error::WrongCredentials)?
@@ -89,45 +84,29 @@ impl unijudge::Session for Session {
 		}
 	}
 
-	fn restore_auth(&self, id: &str) -> Result<()> {
-		let c = serde_json::from_str(id).map_err(|_| Error::WrongData)?;
-		let mut cs = self.client.cookies().write().unwrap();
-		cs.0.insert(c, &"https://codeforces.com".parse().unwrap()).unwrap();
+	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
+		*session.username.lock().unwrap() = Some(auth.username);
+		let mut cookies = session.client.cookies().write().unwrap();
+		cookies.0.insert(auth.jsessionid, &"https://codeforces.com".parse().unwrap()).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self) -> Result<Option<String>> {
-		let cs = self.client.cookies().read().unwrap();
-		let c = cs.0.get("codeforces.com", "/", "JSESSIONID");
-		let serialized = c.map(|c| serde_json::to_string(&c).unwrap());
-		Ok(serialized)
+	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let username = match session.username.lock().unwrap().clone() {
+			Some(username) => username,
+			None => return Ok(None),
+		};
+		let cookies = session.client.cookies().read().unwrap();
+		let jsessionid = match cookies.0.get("codeforces.com", "/", "JSESSIONID") {
+			Some(cookie) => cookie.clone().into_owned(),
+			None => return Ok(None),
+		};
+		Ok(Some(CachedAuth { jsessionid, username }))
 	}
 
-	fn contest<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Contest+'s>> {
-		Ok(Box::new(Contest { id: id.to_owned(), session: self }))
-	}
-}
-
-impl Contest<'_> {
-	fn url(&self) -> Url {
-		self.session.url().join(&format!("{}/", self.id)).unwrap()
-	}
-}
-impl unijudge::Contest for Contest<'_> {
-	fn task<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Task+'s>> {
-		Ok(Box::new(Task { id: id.to_owned(), contest: self }))
-	}
-}
-
-impl Task<'_> {
-	fn url(&self) -> Url {
-		self.contest.url().join(&format!("problem/{}/", self.id)).unwrap()
-	}
-}
-impl unijudge::Task for Task<'_> {
-	fn details(&self) -> Result<unijudge::TaskDetails> {
-		let url = self.url();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		let url = self.task_url(task);
+		let mut resp = session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find(".problem-statement > .header > .title")?.text().map(|full| {
 			let i = match full.find('.') {
@@ -141,18 +120,12 @@ impl unijudge::Task for Task<'_> {
 			.zip(doc.find_all(".sample-test .output"))
 			.map(|(input, output)| Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() }))
 			.collect::<Result<_>>()?;
-		Ok(unijudge::TaskDetails {
-			symbol,
-			title,
-			contest_id: if self.contest.id.starts_with("contest/") { self.contest.id[8..].to_owned() } else { self.contest.id.clone() },
-			site_short: "cf".to_owned(),
-			examples: Some(examples),
-		})
+		Ok(unijudge::TaskDetails { symbol, title, contest_id: self.pretty_contest(task), site_short: "cf".to_owned(), examples: Some(examples) })
 	}
 
-	fn languages(&self) -> Result<Vec<unijudge::Language>> {
-		let url = self.contest.url().join("submit").unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+		let url = self.contest_url(task).join("submit").unwrap();
+		let mut resp = session.client.get(url).send()?;
 		if resp.url().as_str() == "https://codeforces.com/" {
 			return Err(Error::AccessDenied);
 		}
@@ -164,23 +137,16 @@ impl unijudge::Task for Task<'_> {
 		Ok(languages)
 	}
 
-	fn submissions(&self) -> Result<Vec<Submission>> {
-		let mut resp = if self.id != "problemset" {
-			let url = self.contest.url().join("my").unwrap();
-			let resp = self.contest.session.client.get(url).send()?;
-			resp
-		} else {
-			let url = self
-				.contest
-				.session
-				.url()
-				.join("submissions/")
-				.unwrap()
-				.join(&self.contest.session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
-				.unwrap();
-			let resp = self.contest.session.client.get(url).send()?;
-			resp
+	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		let url = match task.source {
+			TaskSource::Contest | TaskSource::Gym => self.contest_url(task).join("my").unwrap(),
+			TaskSource::Problemset => {
+				format!("https://codeforces.com/submissions/{}", session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
+					.parse()
+					.unwrap()
+			},
 		};
+		let mut resp = session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		Ok(doc
 			.find_all("[data-submission-id]")
@@ -214,34 +180,25 @@ impl unijudge::Task for Task<'_> {
 			.collect::<Result<Vec<_>>>()?)
 	}
 
-	fn submit(&self, language: &unijudge::Language, code: &str) -> Result<String> {
-		let url = self.contest.url().join("submit").unwrap();
-		let mut resp1 = self.contest.session.client.get(url.clone()).send()?;
-
+	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+		let url = self.contest_url(task).join("submit").unwrap();
+		let mut resp1 = session.client.get(url.clone()).send()?;
 		let referer = resp1.url().clone();
 		let csrf = {
 			let doc = unijudge::debris::Document::new(&resp1.text()?);
 			doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string()
-		};
-
-		let (contest_id, problem_index) = if self.contest.id == "problemset" {
-			(self.id[..self.id.find('/').unwrap()].to_string(), self.id[self.id.find('/').unwrap() + 1..].to_string())
-		} else {
-			(self.contest.id.clone(), self.id.clone())
 		};
 		let form = reqwest::multipart::Form::new()
 			.text("csrf_token", csrf.clone())
 			.text("ftaa", "")
 			.text("bfaa", "")
 			.text("action", "submitSolutionFormSubmitted")
-			.text("contestId", contest_id)
-			.text("submittedProblemIndex", problem_index)
+			.text("contestId", task.contest.clone())
+			.text("submittedProblemIndex", self.resolve_task_id(task).to_owned())
 			.text("programTypeId", language.id.clone())
 			.text("source", code.to_string())
 			.text("tabSize", "4");
-
-		self.contest
-			.session
+		session
 			.client
 			.post(url.clone())
 			.header(ORIGIN, "https://codeforces.com")
@@ -250,7 +207,52 @@ impl unijudge::Task for Task<'_> {
 			.multipart(form)
 			.send()?;
 
-		Ok(self.submissions()?[0].id.to_string())
+		Ok(self.task_submissions(session, task)?[0].id.to_string())
+	}
+}
+
+impl Codeforces {
+	fn resolve_task_id<'a>(&self, task: &'a Task) -> &'a str {
+		match &task.task {
+			TaskID::Normal(task_id) => task_id.as_str(),
+			TaskID::Zero => "A", // TODO fix https://codeforces.com/contest/1188/problem/A1
+		}
+	}
+
+	fn task_url(&self, task: &Task) -> Url {
+		let task_id = self.resolve_task_id(task);
+		match task.source {
+			TaskSource::Contest => format!("https://codeforces.com/contest/{}/problem/{}", task.contest, task_id),
+			TaskSource::Gym => format!("https://codeforces.com/gym/{}/problem/{}", task.contest, task_id),
+			TaskSource::Problemset => format!("https://codeforces.com/problemset/problem/{}/{}", task.contest, task_id),
+		}
+		.parse()
+		.unwrap()
+	}
+
+	fn contest_url(&self, task: &Task) -> Url {
+		match task.source {
+			TaskSource::Contest => format!("https://codeforces.com/contest/{}/", task.contest),
+			TaskSource::Gym => format!("https://codeforces.com/gym/{}/", task.contest),
+			TaskSource::Problemset => "https://codeforces.com/problemset/".to_owned(),
+		}
+		.parse()
+		.unwrap()
+	}
+
+	fn pretty_contest(&self, task: &Task) -> String {
+		match task.source {
+			TaskSource::Contest => task.contest.clone(),
+			TaskSource::Gym => format!("gym {}", task.contest),
+			TaskSource::Problemset => format!("problemset {}", task.contest),
+		}
+	}
+
+	fn fetch_csrf(&self, session: &Session) -> Result<String> {
+		let mut resp = session.client.get("https://codeforces.com").send()?;
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
+		Ok(csrf)
 	}
 }
 

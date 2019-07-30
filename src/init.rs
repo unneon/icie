@@ -106,9 +106,7 @@ fn fetch_task_meta(url: &Option<String>) -> R<Option<TaskMeta>> {
 	let meta = {
 		let _status = crate::STATUS.push("Fetching task");
 		sess.run(|sess| {
-			let cont = sess.contest(&url.contest)?;
-			let task = cont.task(&url.task)?;
-			let details = task.details()?;
+			let details = sess.task_details(&url)?;
 			Ok(TaskMeta {
 				symbol: details.symbol,
 				name: details.title,

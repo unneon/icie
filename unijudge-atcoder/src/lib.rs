@@ -1,64 +1,41 @@
-use std::iter::FromIterator;
 use unijudge::{
 	debris::{self, Context, Find}, reqwest::{
-		self, header::{ORIGIN, REFERER, USER_AGENT}, Url
-	}, Error, Example, Language, RejectionCause, Result, Submission, TaskDetails, TaskUrl, Verdict
+		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
+	}, Error, Example, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct Atcoder;
 
-struct Session {
-	client: reqwest::Client,
-}
-struct Contest<'s> {
-	id: String,
-	session: &'s Session,
-}
-struct Task<'s> {
-	id: String,
-	contest: &'s Contest<'s>,
+#[derive(Debug)]
+pub struct Task {
+	contest: String,
+	task: String,
 }
 
 impl unijudge::Backend for Atcoder {
-	fn accepted_domains(&self) -> &'static [&'static str] {
+	type CachedAuth = Cookie<'static>;
+	type Session = reqwest::Client;
+	type Task = Task;
+
+	fn accepted_domains(&self) -> &[&str] {
 		&["atcoder.jp"]
 	}
 
-	fn deconstruct_segments(&self, _domain: &str, segments: &[&str]) -> Result<TaskUrl> {
+	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
 		match segments {
-			["contests", contest, "tasks", task] => Ok(TaskUrl::new("https://atcoder.jp", *contest, *task)),
+			["contests", contest, "tasks", task] => Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }),
 			_ => return Err(Error::WrongTaskUrl),
 		}
 	}
 
-	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
-		Ok(Box::new(Session {
-			client: reqwest::Client::builder()
-				.cookie_store(true)
-				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
-					USER_AGENT,
-					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
-				)]))
-				.build()
-				.map_err(Error::TLSFailure)?,
-		}))
+	fn connect(&self, client: reqwest::Client, _domain: &str) -> Self::Session {
+		client
 	}
-}
 
-impl Session {
-	fn fetch_login_csrf(&self) -> Result<String> {
+	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let csrf = self.fetch_login_csrf(session)?;
 		let url: Url = "https://atcoder.jp/login".parse().unwrap();
-		let mut resp = self.client.get(url).send()?;
-		let doc = debris::Document::new(&resp.text()?);
-		Ok(doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string())
-	}
-}
-impl unijudge::Session for Session {
-	fn login(&self, username: &str, password: &str) -> Result<()> {
-		let csrf = self.fetch_login_csrf()?;
-		let url: Url = "https://atcoder.jp/login".parse().unwrap();
-		let mut resp = match self
-			.client
+		let mut resp = match session
 			.post(url)
 			.header(ORIGIN, "https://atcoder.jp")
 			.header(REFERER, "https://atcoder.jp/login")
@@ -67,7 +44,7 @@ impl unijudge::Session for Session {
 		{
 			Ok(resp) => resp,
 			// this is the worst way to indicate wrong password I have heard of
-			Err(ref e) if format!("{}", e).contains("Infinite redirect loop") => return Err(Error::WrongCredentials),
+			Err(ref e) if e.to_string().contains("Infinite redirect loop") => return Err(Error::WrongCredentials),
 			Err(e) => return Err(Error::NetworkFailure(e)),
 		};
 		let doc = debris::Document::new(&resp.text()?);
@@ -80,40 +57,20 @@ impl unijudge::Session for Session {
 		}
 	}
 
-	fn restore_auth(&self, id: &str) -> Result<()> {
-		self.client
-			.cookies()
-			.write()
-			.unwrap()
-			.0
-			.insert(serde_json::from_str(id).map_err(|_| Error::WrongData)?, &"https://atcoder.jp".parse().unwrap())
-			.map_err(|_| Error::WrongData)?;
+	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
+		let mut cookies = session.cookies().write().unwrap();
+		cookies.0.insert(auth, &"https://atcoder.jp".parse().unwrap()).map_err(|_| Error::WrongData)?;
 		Ok(())
 	}
 
-	fn cache_auth(&self) -> Result<Option<String>> {
-		let cookies = self.client.cookies().read().unwrap();
-		match cookies.0.get("atcoder.jp", "/", "REVEL_SESSION") {
-			Some(c) => Ok(Some(serde_json::to_string(c).unwrap())),
-			None => Ok(None),
-		}
+	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let cookies = session.cookies().read().unwrap();
+		Ok(cookies.0.get("atcoder.jp", "/", "REVEL_SESSION").map(|c| c.clone().into_owned()))
 	}
 
-	fn contest<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Contest+'s>> {
-		Ok(Box::new(Contest { id: id.to_owned(), session: self }))
-	}
-}
-
-impl unijudge::Contest for Contest<'_> {
-	fn task<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Task+'s>> {
-		Ok(Box::new(Task { id: id.to_owned(), contest: self }))
-	}
-}
-
-impl unijudge::Task for Task<'_> {
-	fn details(&self) -> Result<TaskDetails> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", self.contest.id, self.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse().unwrap();
+		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find("#main-container > .row > div > span.h2")?.text().map(|text| {
 			let mark = text.find("-").ok_or("no dash(-) found in task title")?;
@@ -141,17 +98,17 @@ impl unijudge::Task for Task<'_> {
 				})
 				.collect::<debris::Result<_>>()?,
 		);
-		Ok(TaskDetails { symbol, title, contest_id: self.contest.id.clone(), site_short: "atc".to_owned(), examples })
+		Ok(TaskDetails { symbol, title, contest_id: task.contest.clone(), site_short: "atc".to_owned(), examples })
 	}
 
-	fn languages(&self) -> Result<Vec<Language>> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/submit", self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse().unwrap();
+		let mut resp = session.get(url).send()?;
 		if resp.url().path() == "/login" {
 			return Err(Error::AccessDenied);
 		}
 		let doc = debris::Document::new(&resp.text()?);
-		let selection_id = format!("select-lang-{}", self.id);
+		let selection_id = format!("select-lang-{}", task.task);
 		Ok(doc
 			.find_all("#select-lang > div")
 			.find(|pll| {
@@ -167,9 +124,9 @@ impl unijudge::Task for Task<'_> {
 			.collect::<Result<_>>()?)
 	}
 
-	fn submissions(&self) -> Result<Vec<Submission>> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/submissions/me", self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		let url: Url = format!("https://atcoder.jp/contests/{}/submissions/me", task.contest).parse().unwrap();
+		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
 			.find_all(".panel-submission tbody > tr")
@@ -214,15 +171,27 @@ impl unijudge::Task for Task<'_> {
 			.collect::<debris::Result<_>>()?)
 	}
 
-	fn submit(&self, language: &Language, code: &str) -> Result<String> {
-		let csrf = self.contest.session.fetch_login_csrf()?;
-		let url: Url = format!("https://atcoder.jp/contests/{}/submit", self.contest.id).parse().unwrap();
-		self.contest
-			.session
-			.client
+	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+		let csrf = self.fetch_login_csrf(session)?;
+		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse().unwrap();
+		session
 			.post(url)
-			.form(&[("data.TaskScreenName", &self.id), ("data.LanguageId", &language.id), ("sourceCode", &String::from(code)), ("csrf_token", &csrf)])
+			.form(&[
+				("data.TaskScreenName", &task.task),
+				("data.LanguageId", &language.id),
+				("sourceCode", &String::from(code)),
+				("csrf_token", &csrf),
+			])
 			.send()?;
-		Ok(self.submissions()?[0].id.to_string())
+		Ok(self.task_submissions(session, task)?[0].id.to_string())
+	}
+}
+
+impl Atcoder {
+	fn fetch_login_csrf(&self, session: &reqwest::Client) -> Result<String> {
+		let url: Url = "https://atcoder.jp/login".parse().unwrap();
+		let mut resp = session.get(url).send()?;
+		let doc = debris::Document::new(&resp.text()?);
+		Ok(doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string())
 	}
 }

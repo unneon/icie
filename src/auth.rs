@@ -1,6 +1,6 @@
 use evscode::{E, R};
 
-pub fn ask(site: &str) -> R<(String, String)> {
+pub fn get_force_ask(site: &str) -> R<(String, String)> {
 	let username = evscode::InputBox::new().prompt(format!("Username at {}", site)).ignore_focus_out().build().wait().ok_or_else(E::cancel)?;
 	let password = evscode::InputBox::new()
 		.prompt(format!("Password for {} at {}", username, site))
@@ -22,23 +22,23 @@ pub fn ask(site: &str) -> R<(String, String)> {
 	Ok((username, password))
 }
 
-pub fn cached(site: &str) -> Option<String> {
-	Keyring::new("session", site).get()
-}
-
-pub fn save_session(site: &str, value: &str) {
-	Keyring::new("session", site).set(value); // ignore save fail
-}
-
-pub fn query(site: &str) -> R<(String, String)> {
+pub fn get_cached_or_ask(site: &str) -> R<(String, String)> {
 	let kr = Keyring::new("credentials", site);
 	match kr.get() {
 		Some(encoded) => {
 			let creds = json::parse(&encoded).unwrap();
 			Ok((creds["username"].as_str().unwrap().to_owned(), creds["password"].as_str().unwrap().to_owned()))
 		},
-		None => ask(site),
+		None => get_force_ask(site),
 	}
+}
+
+pub fn get_if_cached(site: &str) -> Option<String> {
+	Keyring::new("session", site).get()
+}
+
+pub fn save_cache(site: &str, value: &str) {
+	Keyring::new("session", site).set(value); // ignore save fail
 }
 
 #[evscode::command(title = "ICIE Password reset")]
@@ -50,9 +50,9 @@ fn reset() -> R<()> {
 		.build()
 		.wait()
 		.ok_or_else(E::cancel)?;
-	let url = crate::net::find_backend(&url)?.ok_or_else(|| E::error("this site is not supported yet"))?.0;
-	Keyring::new("credentials", &url.site).delete();
-	Keyring::new("session", &url.site).delete();
+	let task = crate::net::find_backend(&url)?.ok_or_else(|| E::error("this site is not supported yet"))?;
+	Keyring::new("credentials", &task.site).delete();
+	Keyring::new("session", &task.site).delete();
 	Ok(())
 }
 

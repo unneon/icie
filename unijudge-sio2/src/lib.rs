@@ -1,64 +1,58 @@
-use std::{iter::FromIterator, sync::Mutex};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use unijudge::{
-	debris::{self, Context, Find}, reqwest::{
-		self, header::{REFERER, USER_AGENT}, Url
-	}, Error, Language, RejectionCause, Result, Submission, TaskDetails, TaskUrl, Verdict
+	debris::{self, Context, Find}, reqwest::{self, cookie_store::Cookie, header::REFERER, Url}, Error, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct Sio2;
 
-struct Session {
+pub struct Session {
 	client: reqwest::Client,
 	site: String,
 	username: Mutex<Option<String>>,
 }
-struct Contest<'s> {
-	id: String,
-	session: &'s Session,
+
+#[derive(Debug)]
+pub struct Task {
+	contest: String,
+	task: String,
 }
-struct Task<'s> {
-	id: String,
-	contest: &'s Contest<'s>,
+
+#[derive(Serialize, Deserialize)]
+pub struct CachedAuth {
+	username: String,
+	sessionid: Cookie<'static>,
 }
 
 impl unijudge::Backend for Sio2 {
-	fn accepted_domains(&self) -> &'static [&'static str] {
+	type CachedAuth = CachedAuth;
+	type Session = Session;
+	type Task = Task;
+
+	fn accepted_domains(&self) -> &[&str] {
 		&["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"]
 	}
 
-	fn deconstruct_segments(&self, domain: &str, segments: &[&str]) -> Result<TaskUrl> {
-		let sio = TaskUrl::fix_site(format!("https://{}", domain));
-		match segments {
-			["c", contest, "p", task] => Ok(sio.new(*contest, *task)),
-			["c", contest, "p", task, _] => Ok(sio.new(*contest, *task)),
-			_ => Err(Error::WrongTaskUrl),
-		}
+	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+		let (contest, task) = match segments {
+			["c", contest, "p", task] => (contest, task),
+			["c", contest, "p", task, _] => (contest, task),
+			_ => return Err(Error::WrongTaskUrl),
+		};
+		Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() })
 	}
 
-	fn connect<'s>(&'s self, site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
-		Ok(Box::new(Session {
-			client: reqwest::Client::builder()
-				.cookie_store(true)
-				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
-					USER_AGENT,
-					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
-				)]))
-				.build()
-				.map_err(Error::TLSFailure)?,
-			site: site.to_owned(),
-			username: Mutex::new(None),
-		}))
+	fn connect(&self, client: reqwest::Client, domain: &str) -> Self::Session {
+		Session { client, site: format!("https://{}", domain), username: Mutex::new(None) }
 	}
-}
 
-impl unijudge::Session for Session {
-	fn login(&self, username: &str, password: &str) -> Result<()> {
-		let url1: Url = format!("{}/login/", self.site).parse().unwrap();
-		let mut resp1 = self.client.get(url1).send()?;
+	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let url1: Url = format!("{}/login/", session.site).parse().unwrap();
+		let mut resp1 = session.client.get(url1).send()?;
 		let url2 = resp1.url().clone();
 		let doc1 = debris::Document::new(&resp1.text()?);
 		let csrf = doc1.find("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
-		let mut resp2 = self
+		let mut resp2 = session
 			.client
 			.post(url2.clone())
 			.header(REFERER, url2.as_str())
@@ -73,7 +67,7 @@ impl unijudge::Session for Session {
 			.send()?;
 		let doc2 = debris::Document::new(&resp2.text()?);
 		if doc2.find("#username").is_ok() {
-			*self.username.lock().unwrap() = Some(username.to_owned());
+			*session.username.lock().unwrap() = Some(username.to_owned());
 			Ok(())
 		} else if doc2.find("form")?.find("div.form-group > div > div.alert.alert-danger").is_ok() {
 			Err(Error::WrongCredentials)
@@ -82,48 +76,27 @@ impl unijudge::Session for Session {
 		}
 	}
 
-	fn restore_auth(&self, id: &str) -> Result<()> {
-		let cached: CachedAuth = serde_json::from_str(id).map_err(|_| Error::WrongData)?;
-		*self.username.lock().unwrap() = Some(cached.username);
-		self.client.cookies().write().unwrap().0.insert(cached.sessionid, &self.site.parse().unwrap()).unwrap();
+	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
+		*session.username.lock().unwrap() = Some(auth.username);
+		session.client.cookies().write().unwrap().0.insert(auth.sessionid, &session.site.parse().unwrap()).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self) -> Result<Option<String>> {
-		let cached = CachedAuth {
-			username: match self.username.lock().unwrap().as_ref() {
-				Some(username) => username.to_owned(),
-				None => return Ok(None),
-			},
-			sessionid: match self.client.cookies().read().unwrap().0.get(Url::parse(&self.site).unwrap().domain().unwrap(), "/", "sessionid") {
-				Some(c) => c.clone().into_owned(),
-				None => return Ok(None),
-			},
+	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let username = match session.username.lock().unwrap().as_ref() {
+			Some(username) => username.to_owned(),
+			None => return Ok(None),
 		};
-		Ok(Some(serde_json::to_string(&cached).unwrap()))
+		let sessionid = match session.client.cookies().read().unwrap().0.get(Url::parse(&session.site).unwrap().domain().unwrap(), "/", "sessionid") {
+			Some(c) => c.clone().into_owned(),
+			None => return Ok(None),
+		};
+		Ok(Some(CachedAuth { username, sessionid }))
 	}
 
-	fn contest<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Contest+'s>> {
-		Ok(Box::new(Contest { id: id.to_owned(), session: self }))
-	}
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CachedAuth {
-	username: String,
-	sessionid: unijudge::reqwest::cookie_store::Cookie<'static>,
-}
-
-impl unijudge::Contest for Contest<'_> {
-	fn task<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Task+'s>> {
-		Ok(Box::new(Task { id: id.to_owned(), contest: self }))
-	}
-}
-
-impl unijudge::Task for Task<'_> {
-	fn details(&self) -> Result<TaskDetails> {
-		let url: Url = format!("{}/c/{}/p/", self.contest.session.site, self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url.clone()).send()?;
+	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse().unwrap();
+		let mut resp = session.client.get(url.clone()).send()?;
 		if resp.url() != &url {
 			return Err(Error::AccessDenied);
 		}
@@ -134,16 +107,16 @@ impl unijudge::Task for Task<'_> {
 			.filter(|tr| tr.child(3).is_ok())
 			.map(|tr| Ok((tr.child(1)?.text().string(), tr.find("a")?.text().string())))
 			.collect::<Result<Vec<_>>>()?;
-		let title = match problems.into_iter().find(|(id, _)| id == &self.id) {
+		let title = match problems.into_iter().find(|(id, _)| id == &task.task) {
 			Some((_, title)) => title,
 			None => return Err(Error::WrongData),
 		};
-		Ok(TaskDetails { symbol: self.id.to_string(), title, contest_id: self.contest.id.clone(), site_short: "sio2".to_owned(), examples: None })
+		Ok(TaskDetails { symbol: task.task.clone(), title, contest_id: task.contest.clone(), site_short: "sio2".to_owned(), examples: None })
 	}
 
-	fn languages(&self) -> Result<Vec<Language>> {
-		let url: Url = format!("{}/c/{}/submit/", self.contest.session.site, self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse().unwrap();
+		let mut resp = session.client.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		if doc.find("#id_password").is_ok() {
 			return Err(Error::AccessDenied);
@@ -155,9 +128,9 @@ impl unijudge::Task for Task<'_> {
 			.collect::<Result<_>>()?)
 	}
 
-	fn submissions(&self) -> Result<Vec<Submission>> {
-		let url: Url = format!("{}/c/{}/submissions/", self.contest.session.site, self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url).send()?;
+	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		let url: Url = format!("{}/c/{}/submissions/", session.site, task.contest).parse().unwrap();
+		let mut resp = session.client.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
 			.find_all("section.main-content > div > table > tbody > tr")
@@ -175,14 +148,7 @@ impl unijudge::Task for Task<'_> {
 					"Pending" | "Oczekuje" => Ok(Some(Status::Pending)),
 					_ => Err(format!("unrecognized submission status {:?}", status)),
 				})?;
-				let score = tr
-					.child(11)?
-					.text()
-					.map(|score| {
-						let score = &score[..score.find(" ").unwrap_or(score.len())];
-						score.parse::<i64>()
-					})
-					.ok();
+				let score = tr.child(11)?.text().map(|score| score[..score.find(" ").unwrap_or(score.len())].parse::<i64>()).ok();
 				Ok(Submission {
 					id: tr.find("a")?.attr("href")?.map(|href| match href.split("/").filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
 						Some(id) => Ok(String::from(*id)),
@@ -210,9 +176,9 @@ impl unijudge::Task for Task<'_> {
 			.collect::<Result<_>>()?)
 	}
 
-	fn submit(&self, language: &Language, code: &str) -> Result<String> {
-		let url: Url = format!("{}/c/{}/submit/", self.contest.session.site, self.contest.id).parse().unwrap();
-		let mut resp = self.contest.session.client.get(url.clone()).send()?;
+	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse().unwrap();
+		let mut resp = session.client.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let problem_instance_id = doc
 			.find("#id_problem_instance_id")?
@@ -230,7 +196,7 @@ impl unijudge::Task for Task<'_> {
 			})
 			.collect::<Result<Vec<_>>>()?
 			.into_iter()
-			.find(|(_, symbol)| *symbol == self.id)
+			.find(|(_, symbol)| *symbol == task.task)
 			.ok_or(Error::WrongData)?
 			.0;
 		let csrf = doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
@@ -241,12 +207,10 @@ impl unijudge::Task for Task<'_> {
 			.text("code", code.to_owned())
 			.text("prog_lang", language.id.to_owned());
 		if is_admin {
-			form = form
-				.text("user", self.contest.session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?.to_owned())
-				.text("kind", "IGNORED");
+			form = form.text("user", session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?.to_owned()).text("kind", "IGNORED");
 		}
-		self.contest.session.client.post(url.clone()).header(REFERER, url.to_string()).multipart(form).send()?;
-		Ok(self.submissions()?[0].id.to_string())
+		session.client.post(url.clone()).header(REFERER, url.to_string()).multipart(form).send()?;
+		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 }
 

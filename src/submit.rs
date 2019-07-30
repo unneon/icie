@@ -23,18 +23,18 @@ fn send_passed() -> R<()> {
 	let (sess, url, backend) = crate::net::connect(&url)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
-		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.languages())?
+		sess.run(|sess| sess.task_languages(&url))?
 	};
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
 	let submit_id = {
 		let _status = crate::STATUS.push("Querying submit id");
-		sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.submit(lang, &code))?
+		sess.run(|sess| sess.task_submit(&url, lang, &code))?
 	};
 	track(sess, url, submit_id)?;
 	Ok(())
 }
 
-fn track(sess: crate::net::Session, url: unijudge::TaskUrl, id: String) -> R<()> {
+fn track(sess: crate::net::Session, url: unijudge::boxed::Task, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
 	let sleep_duration = Duration::from_millis(500);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
@@ -42,7 +42,7 @@ fn track(sess: crate::net::Session, url: unijudge::TaskUrl, id: String) -> R<()>
 	let verdict = loop {
 		let submissions = {
 			let _status = crate::STATUS.push("Tracking...");
-			sess.run(|sess| sess.contest(&url.contest)?.task(&url.task)?.submissions())?
+			sess.run(|sess| sess.task_submissions(&url))?
 		};
 		let submission = submissions.into_iter().find(|subm| subm.id == id).unwrap();
 		let should_send = match &submission.verdict {

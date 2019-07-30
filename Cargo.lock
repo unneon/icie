@@ -1883,14 +1883,16 @@ version = "0.1.0"
 dependencies = [
  "backtrace 0.3.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "debris 0.1.0 (git+https://github.com/pustaczek/debris)",
+ "log 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.18 (git+https://github.com/pustaczek/reqwest)",
+ "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "unijudge-atcoder"
 version = "0.1.0"
 dependencies = [
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0",
 ]
 
@@ -1898,7 +1900,7 @@ dependencies = [
 name = "unijudge-codeforces"
 version = "0.1.0"
 dependencies = [
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0",
 ]
 
@@ -1907,7 +1909,6 @@ name = "unijudge-sio2"
 version = "0.1.0"
 dependencies = [
  "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0",
 ]
 
@@ -1915,8 +1916,6 @@ dependencies = [
 name = "unijudge-spoj"
 version = "0.1.0"
 dependencies = [
- "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "unijudge 0.1.0",
 ]
 

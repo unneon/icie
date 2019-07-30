@@ -1,50 +1,33 @@
-use std::iter::FromIterator;
 use unijudge::{
 	debris::{self, Context, Find}, reqwest::{
-		self, header::{ORIGIN, REFERER, USER_AGENT}, multipart, Url
-	}, Error, Language, RejectionCause, Result, TaskDetails, TaskUrl, Verdict
+		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, multipart, Url
+	}, Error, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct SPOJ;
 
-struct Session {
-	client: reqwest::Client,
-}
-struct Task<'s> {
-	id: String,
-	session: &'s Session,
-}
-
 impl unijudge::Backend for SPOJ {
-	fn accepted_domains(&self) -> &'static [&'static str] {
+	type CachedAuth = [Cookie<'static>; 3];
+	type Session = reqwest::Client;
+	type Task = String;
+
+	fn accepted_domains(&self) -> &[&str] {
 		&["www.spoj.com"]
 	}
 
-	fn deconstruct_segments(&self, _domain: &str, segments: &[&str]) -> Result<TaskUrl> {
+	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
 		match segments {
-			["problems", task] => Ok(TaskUrl::new("https://www.spoj.com", "", *task)),
+			["problems", task] => Ok((*task).to_owned()),
 			_ => Err(Error::WrongTaskUrl),
 		}
 	}
 
-	fn connect<'s>(&'s self, _site: &str, user_agent: &str) -> Result<Box<dyn unijudge::Session+'s>> {
-		Ok(Box::new(Session {
-			client: reqwest::Client::builder()
-				.cookie_store(true)
-				.default_headers(reqwest::header::HeaderMap::from_iter(vec![(
-					USER_AGENT,
-					reqwest::header::HeaderValue::from_str(user_agent).unwrap(),
-				)]))
-				.build()
-				.map_err(Error::TLSFailure)?,
-		}))
+	fn connect(&self, client: reqwest::Client, _domain: &str) -> Self::Session {
+		client
 	}
-}
 
-impl unijudge::Session for Session {
-	fn login(&self, username: &str, password: &str) -> Result<()> {
-		let mut resp = self
-			.client
+	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let mut resp = session
 			.post("https://www.spoj.com/login/")
 			.header(ORIGIN, "https://www.spoj.com")
 			.header(REFERER, "https://www.spoj.com/")
@@ -60,18 +43,18 @@ impl unijudge::Session for Session {
 		}
 	}
 
-	fn restore_auth(&self, id: &str) -> Result<()> {
-		let cached: CachedAuth = serde_json::from_str(id).map_err(|_| Error::WrongData)?;
-		let mut cookies = self.client.cookies().write().unwrap();
+	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
 		let url = "https://www.spoj.com/".parse().unwrap();
-		cookies.0.insert(cached.spoj, &url).unwrap();
-		cookies.0.insert(cached.login, &url).unwrap();
-		cookies.0.insert(cached.hash, &url).unwrap();
+		let [c1, c2, c3] = auth;
+		let mut cookies = session.cookies().write().unwrap();
+		cookies.0.insert(c1, &url).unwrap();
+		cookies.0.insert(c2, &url).unwrap();
+		cookies.0.insert(c3, &url).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self) -> Result<Option<String>> {
-		let cookies = self.client.cookies().read().unwrap();
+	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let cookies = session.cookies().read().unwrap();
 		let spoj = match cookies.0.get("spoj.com", "/", "SPOJ") {
 			Some(c) => c.clone().into_owned(),
 			None => return Ok(None),
@@ -84,53 +67,31 @@ impl unijudge::Session for Session {
 			Some(c) => c.clone().into_owned(),
 			None => return Ok(None),
 		};
-		let cached = CachedAuth { spoj, login, hash };
-		let encoded = serde_json::to_string(&cached).unwrap();
-		Ok(Some(encoded))
+		Ok(Some([spoj, login, hash]))
 	}
 
-	fn contest<'s>(&'s self, _id: &str) -> Result<Box<dyn unijudge::Contest+'s>> {
-		Ok(Box::new(self))
-	}
-}
-
-#[derive(serde::Deserialize, serde::Serialize)]
-struct CachedAuth {
-	spoj: unijudge::reqwest::cookie_store::Cookie<'static>,
-	login: unijudge::reqwest::cookie_store::Cookie<'static>,
-	hash: unijudge::reqwest::cookie_store::Cookie<'static>,
-}
-
-impl unijudge::Contest for &Session {
-	fn task<'s>(&'s self, id: &str) -> Result<Box<dyn unijudge::Task+'s>> {
-		Ok(Box::new(Task { id: id.to_owned(), session: self }))
-	}
-}
-
-impl unijudge::Task for Task<'_> {
-	fn details(&self) -> Result<TaskDetails> {
-		let url = Url::parse(&format!("https://www.spoj.com/problems/{}/", self.id)).unwrap();
-		let mut resp = self.session.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse().unwrap();
+		let mut resp = session.get(url).send()?;
+		let doc = debris::Document::new(&resp.text()?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
-		Ok(TaskDetails { symbol: self.id.clone(), title, contest_id: "problems".to_owned(), site_short: "spoj".to_owned(), examples: None })
+		Ok(TaskDetails { symbol: task.to_owned(), title, contest_id: "problems".to_owned(), site_short: "spoj".to_owned(), examples: None })
 	}
 
-	fn languages(&self) -> Result<Vec<Language>> {
-		let url = Url::parse(&format!("https://www.spoj.com/submit/{}/", self.id)).unwrap();
-		let mut resp = self.session.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse().unwrap();
+		let mut resp = session.get(url).send()?;
+		let doc = debris::Document::new(&resp.text()?);
 		doc.find_all("#lang > option")
 			.map(|node| Ok(Language { id: node.attr("value")?.string(), name: node.text().string() }))
 			.collect::<Result<_>>()
 	}
 
-	fn submissions(&self) -> Result<Vec<unijudge::Submission>> {
-		let user =
-			self.session.client.cookies().read().unwrap().0.get("spoj.com", "/", "autologin_login").ok_or(Error::AccessDenied)?.value().to_owned();
-		let url = Url::parse(&format!("https://www.spoj.com/status/{}/", user)).unwrap();
-		let mut resp = self.session.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+	fn task_submissions(&self, session: &Self::Session, _task: &Self::Task) -> Result<Vec<Submission>> {
+		let user = session.cookies().read().unwrap().0.get("spoj.com", "/", "autologin_login").ok_or(Error::AccessDenied)?.value().to_owned();
+		let url: Url = format!("https://www.spoj.com/status/{}/", user).parse().unwrap();
+		let mut resp = session.get(url).send()?;
+		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
 			.find_all("table.newstatus > tbody > tr")
 			.map(|row| {
@@ -151,13 +112,10 @@ impl unijudge::Task for Task<'_> {
 							"compiling.." => Ok(Verdict::Pending { test: None }),
 							"running judge.." => Ok(Verdict::Pending { test: None }),
 							"running.." => Ok(Verdict::Pending { test: None }),
-							_ => {
-								if let Ok(score) = part.parse::<f64>() {
-									Ok(Verdict::Scored { score, max: None, cause: None, test: None })
-								} else {
-									Err(format!("unrecognized SPOJ verdict {:?}", part))
-								}
-							},
+							_ => part
+								.parse::<f64>()
+								.map(|score| Verdict::Scored { score, max: None, cause: None, test: None })
+								.map_err(|_| Err::<Verdict, String>(format!("unrecognized SPOJ verdict {:?}", part))),
 						}
 					})?,
 				})
@@ -165,17 +123,15 @@ impl unijudge::Task for Task<'_> {
 			.collect::<Result<_>>()?)
 	}
 
-	fn submit(&self, language: &Language, code: &str) -> Result<String> {
-		let mut resp = self
-			.session
-			.client
+	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+		let mut resp = session
 			.post("https://www.spoj.com/submit/complete/")
 			.multipart(
 				multipart::Form::new()
 					.part("subm_file", multipart::Part::bytes(Vec::new()).file_name("").mime_str("application/octet-stream").unwrap())
 					.text("file", code.to_owned())
 					.text("lang", language.id.to_owned())
-					.text("problemcode", self.id.to_owned())
+					.text("problemcode", task.to_owned())
 					.text("submit", "Submit!"),
 			)
 			.header(ORIGIN, "https://www.spoj.com")

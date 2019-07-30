@@ -199,6 +199,7 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
 		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
 		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
+		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
 		unijudge::Error::UnexpectedHTML(e) => {
 			let mut extended = Vec::new();
 			if e.snapshots.len() >= 1 {
