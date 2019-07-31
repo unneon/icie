@@ -3,6 +3,9 @@ use std::{
 	cmp::min, fmt::{self, Write}, str::FromStr
 };
 
+const SPACE_CHARACTERS: &[char] = &['/', '-', '_'];
+const BLANK_CHARACTERS: &[char] = &[':', '(', ')', ',', '!', '\'', '"'];
+
 pub trait VariableSet: FromStr<Err=String>+fmt::Display {
 	type Map;
 	fn expand(&self, map: &Self::Map) -> Option<String>;
@@ -125,15 +128,20 @@ impl<V: VariableSet> Interpolation<V> {
 			match segment {
 				Segment::Literal(literal) => r += literal,
 				Segment::Substitution { variable, case } => {
-					let variable = match variable.expand(map) {
+					let mut variable = match variable.expand(map) {
 						Some(v) => v,
 						None => {
 							all_good = false;
 							String::new()
 						},
 					};
-					;
-					r += &case.apply(&variable.replace('/', " ").replace('-', " ").replace('_', " ").replace(":", ""));
+					for c in SPACE_CHARACTERS {
+						variable = variable.replace(*c, " ");
+					}
+					for c in BLANK_CHARACTERS {
+						variable = variable.replace(*c, "");
+					}
+					r += &case.apply(&variable);
 				},
 			}
 		}
