@@ -1,3 +1,5 @@
+#![feature(slice_patterns)]
+
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
