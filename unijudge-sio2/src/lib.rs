@@ -36,7 +36,7 @@ impl unijudge::Backend for Sio2 {
 	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
 		let (contest, task) = match segments {
 			["c", contest, "p", task] => (contest, task),
-			["c", contest, "p", task, _] => (contest, task),
+			["c", contest, "p", task, ..] => (contest, task),
 			_ => return Err(Error::WrongTaskUrl),
 		};
 		Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() })
