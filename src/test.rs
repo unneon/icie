@@ -36,7 +36,7 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	for _ in 0..test_count {
 		let run = worker.wait()??;
 		let name = run.in_path.strip_prefix(&test_dir).map_err(|e| E::from_std(e).context("found test outside of test directory"))?;
-		progress.update(
+		progress.update_inc(
 			100.0 / test_count as f64,
 			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
 		);

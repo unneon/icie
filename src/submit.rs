@@ -1,7 +1,7 @@
-use crate::{dir, util};
+use crate::{dir, net, util};
 use evscode::{E, R};
 use std::time::Duration;
-use unijudge::RejectionCause;
+use unijudge::{RejectionCause, Resource};
 
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> R<()> {
@@ -20,21 +20,26 @@ fn send_passed() -> R<()> {
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
-	let (sess, url, backend) = crate::net::connect(&url)?;
+	let (url, backend) = net::interpret_url(&url)?;
+	let task = match &url.resource {
+		Resource::Task(task) => task,
+		_ => return Err(E::error(format!("unexpected {:?} in .task_url manifest field", url.resource))),
+	};
+	let sess = net::Session::connect(&url, backend)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
-		sess.run(|sess| sess.task_languages(&url))?
+		sess.run(|sess| sess.task_languages(&task))?
 	};
-	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
+	let lang = langs.iter().find(|lang| &lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
 	let submit_id = {
 		let _status = crate::STATUS.push("Querying submit id");
-		sess.run(|sess| sess.task_submit(&url, lang, &code))?
+		sess.run(|sess| sess.task_submit(&task, lang, &code))?
 	};
-	track(sess, url, submit_id)?;
+	track(sess, task, submit_id)?;
 	Ok(())
 }
 
-fn track(sess: crate::net::Session, url: unijudge::boxed::Task, id: String) -> R<()> {
+fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
 	let sleep_duration = Duration::from_millis(500);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();

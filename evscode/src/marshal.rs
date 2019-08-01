@@ -76,6 +76,19 @@ impl<T: Marshal> Marshal for Option<T> {
 		if raw.is_null() { Ok(None) } else { Ok(Some(T::from_json(raw)?)) }
 	}
 }
+impl<T: Marshal> Marshal for Vec<T> {
+	fn to_json(&self) -> JsonValue {
+		JsonValue::Array(self.iter().map(Marshal::to_json).collect())
+	}
+
+	fn from_json(mut raw: JsonValue) -> Result<Self, String> {
+		if raw.is_array() {
+			Ok(raw.members_mut().map(|x| T::from_json(x.take())).collect::<Result<Self, String>>()?)
+		} else {
+			Err(type_error("array", &raw))
+		}
+	}
+}
 impl<T: Marshal> Marshal for HashMap<String, T> {
 	fn to_json(&self) -> JsonValue {
 		let mut obj = json::object::Object::with_capacity(self.len());

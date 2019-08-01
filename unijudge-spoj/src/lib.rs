@@ -1,23 +1,28 @@
+#![feature(never_type)]
+
 use unijudge::{
 	debris::{self, Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, multipart, Url
-	}, Error, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
+	}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct SPOJ;
 
 impl unijudge::Backend for SPOJ {
 	type CachedAuth = [Cookie<'static>; 3];
+	type Contest = !;
 	type Session = reqwest::Client;
 	type Task = String;
 
-	fn accepted_domains(&self) -> &[&str] {
+	const SUPPORTS_CONTESTS: bool = false;
+
+	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["www.spoj.com"]
 	}
 
-	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		match segments {
-			["problems", task] => Ok((*task).to_owned()),
+			["problems", task] => Ok(Resource::Task((*task).to_owned())),
 			_ => Err(Error::WrongTaskUrl),
 		}
 	}
@@ -72,10 +77,17 @@ impl unijudge::Backend for SPOJ {
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse().unwrap();
-		let mut resp = session.get(url).send()?;
+		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
-		Ok(TaskDetails { symbol: task.to_owned(), title, contest_id: "problems".to_owned(), site_short: "spoj".to_owned(), examples: None })
+		Ok(TaskDetails {
+			id: task.to_owned(),
+			title,
+			contest_id: "problems".to_owned(),
+			site_short: "spoj".to_owned(),
+			examples: None,
+			url: url.to_string(),
+		})
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
@@ -142,5 +154,21 @@ impl unijudge::Backend for SPOJ {
 			return Err(Error::AccessDenied);
 		}
 		Ok(doc.find("#content > input")?.attr("value")?.string())
+	}
+
+	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		Ok(Vec::new())
+	}
+
+	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		*contest
+	}
+
+	fn site_short(&self) -> &'static str {
+		"SPOJ"
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		*contest
 	}
 }

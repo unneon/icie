@@ -3,7 +3,9 @@
 use crate::{
 	internal::executor::{send_object, HANDLE_FACTORY}, LazyFuture
 };
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+	atomic::{AtomicBool, Ordering}, Mutex
+};
 
 /// Builder for configuring progress bars. Use [`Progress::new`] to create.
 #[must_use]
@@ -47,13 +49,14 @@ impl Builder {
 			"location" => self.location,
 			"cancellable" => self.cancellable,
 		});
-		Progress { hid, canceler_spawned: AtomicBool::new(false) }
+		Progress { hid, canceler_spawned: AtomicBool::new(false), value: Mutex::new(0.0) }
 	}
 }
 /// Progress bar provided by the VS Code API.
 pub struct Progress {
 	hid: u64,
 	canceler_spawned: AtomicBool,
+	value: Mutex<f64>,
 }
 impl Progress {
 	/// Create a new builder to configure the progress bar.
@@ -61,14 +64,26 @@ impl Progress {
 		Builder { title: None, location: "notification", cancellable: false }
 	}
 
-	/// Update both components of the progress bar, see [`Progress::increment`] and [`Progress::message`].
-	pub fn update(&self, inc: f64, msg: impl AsRef<str>) {
+	/// Increment and set message on the progress bar, see [`Progress::increment`] and [`Progress::message`].
+	pub fn update_inc(&self, inc: f64, msg: impl AsRef<str>) {
 		self.partial_update(Some(inc), Some(msg.as_ref()));
+	}
+
+	/// Set value and message on the progress bar, see [`Progress::increment`] and [`Progress::message`].
+	pub fn update_set(&self, val: f64, msg: impl AsRef<str>) {
+		let old_val = *self.value.lock().unwrap();
+		self.partial_update(Some(val - old_val), Some(msg.as_ref()));
 	}
 
 	/// Increment the progress bar by the given percentage.
 	pub fn increment(&self, inc: f64) {
 		self.partial_update(Some(inc), None);
+	}
+
+	/// Set the progress bar to the given percentage.
+	pub fn set(&self, val: f64) {
+		let old_val = *self.value.lock().unwrap();
+		self.increment(val - old_val)
 	}
 
 	/// Change the progress bar message to a specified value.
@@ -78,7 +93,12 @@ impl Progress {
 	}
 
 	/// Update each components of the progress bar if given, see [`Progress::increment`] and [`Progress::message`].
+	/// This will panic if the progress exceeds 110%.
 	pub fn partial_update(&self, inc: Option<f64>, msg: Option<&str>) {
+		if let Some(inc) = inc {
+			*self.value.lock().unwrap() += inc;
+			assert!(*self.value.lock().unwrap() <= 110.0);
+		}
 		send_object(json::object! {
 			"tag" => "progress_update",
 			"hid" => self.hid.to_string(),

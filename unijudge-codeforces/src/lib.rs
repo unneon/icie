@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::{sync::Mutex, time::Duration};
 use unijudge::{
-	debris::{Context, Find}, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
-	}, Error, Language, Result, Submission, TaskDetails
+	}, Error, Language, Resource, Result, Submission, TaskDetails
 };
 
 pub struct Codeforces;
@@ -13,16 +13,20 @@ pub enum TaskID {
 	Normal(String),
 	Zero,
 }
-#[derive(Debug)]
-pub enum TaskSource {
+#[derive(Debug, Clone, PartialEq)]
+pub enum Source {
 	Contest,
 	Gym,
 	Problemset,
 }
+#[derive(Debug, Clone)]
+pub struct Contest {
+	source: Source,
+	id: String,
+}
 #[derive(Debug)]
 pub struct Task {
-	source: TaskSource,
-	contest: String,
+	contest: Contest,
 	task: TaskID,
 }
 
@@ -39,21 +43,28 @@ pub struct CachedAuth {
 
 impl unijudge::Backend for Codeforces {
 	type CachedAuth = CachedAuth;
+	type Contest = Contest;
 	type Session = Session;
 	type Task = Task;
 
-	fn accepted_domains(&self) -> &[&str] {
+	const SUPPORTS_CONTESTS: bool = true;
+
+	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["codeforces.com"]
 	}
 
-	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		let (source, contest, task) = match segments {
-			["contest", contest, "problem", task] => (TaskSource::Contest, contest, task),
-			["gym", contest, "problem", task] => (TaskSource::Gym, contest, task),
-			["problemset", "problem", contest, task] => (TaskSource::Problemset, contest, task),
+			["contest", contest] => return Ok(Resource::Contest(Contest { source: Source::Contest, id: (*contest).to_owned() })),
+			["contest", contest, "problem", task] => (Source::Contest, contest, task),
+			["gym", contest, "problem", task] => (Source::Gym, contest, task),
+			["problemset", "problem", contest, task] => (Source::Problemset, contest, task),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Task { source, contest: (*contest).to_owned(), task: if *task == "0" { TaskID::Zero } else { TaskID::Normal((*task).to_owned()) } })
+		Ok(Resource::Task(Task {
+			contest: Contest { source, id: (*contest).to_owned() },
+			task: if *task == "0" { TaskID::Zero } else { TaskID::Normal((*task).to_owned()) },
+		}))
 	}
 
 	fn connect(&self, client: reqwest::Client, _: &str) -> Self::Session {
@@ -106,7 +117,7 @@ impl unijudge::Backend for Codeforces {
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.task_url(task);
-		let mut resp = session.client.get(url).send()?;
+		let mut resp = session.client.get(url.clone()).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find(".problem-statement > .header > .title")?.text().map(|full| {
 			let i = match full.find('.') {
@@ -120,7 +131,14 @@ impl unijudge::Backend for Codeforces {
 			.zip(doc.find_all(".sample-test .output"))
 			.map(|(input, output)| Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() }))
 			.collect::<Result<_>>()?;
-		Ok(unijudge::TaskDetails { symbol, title, contest_id: self.pretty_contest(task), site_short: "cf".to_owned(), examples: Some(examples) })
+		Ok(unijudge::TaskDetails {
+			id: symbol,
+			title,
+			contest_id: self.pretty_contest(task),
+			site_short: "cf".to_owned(),
+			examples: Some(examples),
+			url: url.to_string(),
+		})
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
@@ -138,9 +156,9 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
-		let url = match task.source {
-			TaskSource::Contest | TaskSource::Gym => self.contest_url(task).join("my").unwrap(),
-			TaskSource::Problemset => {
+		let url = match task.contest.source {
+			Source::Contest | Source::Gym => self.contest_url(task).join("my").unwrap(),
+			Source::Problemset => {
 				format!("https://codeforces.com/submissions/{}", session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
 					.parse()
 					.unwrap()
@@ -193,7 +211,7 @@ impl unijudge::Backend for Codeforces {
 			.text("ftaa", "")
 			.text("bfaa", "")
 			.text("action", "submitSolutionFormSubmitted")
-			.text("contestId", task.contest.clone())
+			.text("contestId", task.contest.id.clone())
 			.text("submittedProblemIndex", self.resolve_task_id(task).to_owned())
 			.text("programTypeId", language.id.clone())
 			.text("source", code.to_string())
@@ -209,6 +227,69 @@ impl unijudge::Backend for Codeforces {
 
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
+
+	fn contests(&self, session: &Self::Session) -> Result<Vec<unijudge::ContestDetails<Self::Contest>>> {
+		let url: Url = format!("https://codeforces.com/contests").parse().unwrap();
+		let mut resp = session.client.get(url).send()?;
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		doc.find("#pageContent > .contestList")?
+			.find_first(".datatable")?
+			.find("table")?
+			.find_all("tr[data-contestid]")
+			.map(|row| {
+				let id = row.attr("data-contestid")?.string();
+				let title = row.find_nth("td", 0)?.text().string();
+				let start = row.find_nth("td", 2)?.find("a")?.attr("href")?.map(|url| {
+					let moscow_standard_time = FixedOffset::east(3 * 3600);
+					moscow_standard_time.datetime_from_str(
+						url,
+						"https://www.timeanddate.com/worldclock/fixedtime.html?day=%e&month=%m&year=%Y&hour=%k&min=%M&sec=%S&p1=166",
+					)
+				})?;
+				let duration = row.find_nth("td", 3)?.text().map(|duration| {
+					let segs: Vec<u64> = duration
+						.split(':')
+						.map(|seg| seg.parse())
+						.collect::<std::result::Result<Vec<_>, _>>()
+						.map_err(|_| "one of duration segments was not a nubmer".to_owned())?;
+					match segs.as_slice() {
+						[hour, min] => Ok(Duration::from_secs(min * 60 + hour * 60 * 60)),
+						[day, hour, min] => Ok(Duration::from_secs(min * 60 + hour * 60 * 60 + day * 60 * 60 * 24)),
+						_ => Err(format!("unexpected contest duration layout {:?}", segs)),
+					}
+				})?;
+				let id = Contest { source: Source::Contest, id };
+				Ok(unijudge::ContestDetails { id, title, start, duration })
+			})
+			.collect()
+	}
+
+	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		assert_eq!(contest.source, Source::Contest);
+		let url: Url = format!("https://codeforces.com/contest/{}", contest.id).parse().unwrap();
+		let mut resp = session.client.get(url).send()?;
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		doc.find(".problems")?
+			.find_all("tr")
+			.skip(1)
+			.map(|row| {
+				let task = row.find_first("td")?.text().string();
+				Ok(Task { contest: contest.clone(), task: TaskID::Normal(task) })
+			})
+			.collect()
+	}
+
+	fn site_short(&self) -> &'static str {
+		"cf"
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		match contest.source {
+			Source::Contest => contest.id.clone(),
+			Source::Gym => format!("gym{}", contest.id),
+			Source::Problemset => "problemset".to_owned(),
+		}
+	}
 }
 
 impl Codeforces {
@@ -221,30 +302,30 @@ impl Codeforces {
 
 	fn task_url(&self, task: &Task) -> Url {
 		let task_id = self.resolve_task_id(task);
-		match task.source {
-			TaskSource::Contest => format!("https://codeforces.com/contest/{}/problem/{}", task.contest, task_id),
-			TaskSource::Gym => format!("https://codeforces.com/gym/{}/problem/{}", task.contest, task_id),
-			TaskSource::Problemset => format!("https://codeforces.com/problemset/problem/{}/{}", task.contest, task_id),
+		match task.contest.source {
+			Source::Contest => format!("https://codeforces.com/contest/{}/problem/{}", task.contest.id, task_id),
+			Source::Gym => format!("https://codeforces.com/gym/{}/problem/{}", task.contest.id, task_id),
+			Source::Problemset => format!("https://codeforces.com/problemset/problem/{}/{}", task.contest.id, task_id),
 		}
 		.parse()
 		.unwrap()
 	}
 
 	fn contest_url(&self, task: &Task) -> Url {
-		match task.source {
-			TaskSource::Contest => format!("https://codeforces.com/contest/{}/", task.contest),
-			TaskSource::Gym => format!("https://codeforces.com/gym/{}/", task.contest),
-			TaskSource::Problemset => "https://codeforces.com/problemset/".to_owned(),
+		match task.contest.source {
+			Source::Contest => format!("https://codeforces.com/contest/{}/", task.contest.id),
+			Source::Gym => format!("https://codeforces.com/gym/{}/", task.contest.id),
+			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
 		}
 		.parse()
 		.unwrap()
 	}
 
 	fn pretty_contest(&self, task: &Task) -> String {
-		match task.source {
-			TaskSource::Contest => task.contest.clone(),
-			TaskSource::Gym => format!("gym {}", task.contest),
-			TaskSource::Problemset => format!("problemset {}", task.contest),
+		match task.contest.source {
+			Source::Contest => task.contest.id.clone(),
+			Source::Gym => format!("gym {}", task.contest.id),
+			Source::Problemset => format!("problemset {}", task.contest.id),
 		}
 	}
 

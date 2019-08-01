@@ -1,14 +1,14 @@
 # ICIE [![](https://travis-ci.org/pustaczek/icie.svg?branch=master)](https://travis-ci.org/pustaczek/icie) [![](https://img.shields.io/visual-studio-marketplace/d/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/license/pustaczek/icie.svg)](https://github.com/pustaczek/icie/blob/master/LICENSE)
 
-ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from setting up template code, through building solutions and running the example tests to submitting the solution. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. More advanced aspects of competitions such as output-only, library and interactive tasks, as well as profiling solutions or using certain technical tricks will also be added in the future.
+ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from setting up template code, through building solutions and running the example tests to submitting the solution. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties.
 
 ## Quick start
 
 - Start Linux, launch [Visual Studio Code](https://code.visualstudio.com/), go to Extensions, search for ICIE and click Install.
-- Open a Codeforces task in your browser(e.g. [560A Remainder](https://codeforces.com/contest/1165/problem/A))
-- Press <kbd>Alt</kbd><kbd>F11</kbd> in VS Code and paste the task URL into the input box
-- Solve the problem :)
-- Press <kbd>Alt</kbd><kbd>F12</kbd> to automatically build, run example tests and submit if tests passed
+- **To participate in a contest**, press <kbd>Alt</kbd><kbd>F9</kbd> before it starts and select it from the list.
+- Use <kbd>Alt</kbd><kbd>F12</kbd> to automatically build, run example tests and submit if tests pass.
+- Use <kbd>Alt</kbd><kbd>Backspace</kbd> to quickly switch between tasks.
+- **To open a single task or an old contest**, press <kbd>Alt</kbd><kbd>F11</kbd> and copy-paste its URL.
 - Check out all the other features below!
 
 ### More features
@@ -63,12 +63,12 @@ Most lines are self-explanatory, except for the `/// Guarantee: struct FU {` one
 You can also specify the Dependencies header with a comma-separated list of things that need to be pasted before this piece(e.g. if your modular arithmetic implementation uses a quick exponentiation function from `qpow.cpp`, write `/// Dependencies: qpow` and it will be pasted automatically).
 
 ### Supported sites
-| Site | Support | Example test support |
-| - | - | - |
-| [Codeforces](https://codeforces.com) | Yes | Yes |
-| [Atcoder](https://atcoder.jp) | Yes | Yes |
-| [SPOJ](https://spoj.com) | Yes | No |
-| *sio2 sites* | Yes | No |
+| Site | Submit | Examples | Contests |
+| - | - | - | - |
+| [Codeforces](https://codeforces.com) | Yes | Yes | Yes |
+| [Atcoder](https://atcoder.jp) | Yes | Yes | Yes |
+| [SPOJ](https://spoj.com) | Yes | | |
+| *sio2 sites* | Yes | | |
 
 ## Development & Building from source
 

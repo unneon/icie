@@ -1,9 +1,9 @@
-#![feature(slice_patterns)]
+#![feature(never_type, slice_patterns)]
 
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	debris::{self, Context, Find}, reqwest::{self, cookie_store::Cookie, header::REFERER, Url}, Error, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
+	debris::{self, Context, Find}, reqwest::{self, cookie_store::Cookie, header::REFERER, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct Sio2;
@@ -28,20 +28,23 @@ pub struct CachedAuth {
 
 impl unijudge::Backend for Sio2 {
 	type CachedAuth = CachedAuth;
+	type Contest = !;
 	type Session = Session;
 	type Task = Task;
 
-	fn accepted_domains(&self) -> &[&str] {
+	const SUPPORTS_CONTESTS: bool = false;
+
+	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"]
 	}
 
-	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		let (contest, task) = match segments {
 			["c", contest, "p", task] => (contest, task),
 			["c", contest, "p", task, ..] => (contest, task),
 			_ => return Err(Error::WrongTaskUrl),
 		};
-		Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() })
+		Ok(Resource::Task(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }))
 	}
 
 	fn connect(&self, client: reqwest::Client, domain: &str) -> Self::Session {
@@ -113,7 +116,14 @@ impl unijudge::Backend for Sio2 {
 			Some((_, title)) => title,
 			None => return Err(Error::WrongData),
 		};
-		Ok(TaskDetails { symbol: task.task.clone(), title, contest_id: task.contest.clone(), site_short: "sio2".to_owned(), examples: None })
+		Ok(TaskDetails {
+			id: task.task.clone(),
+			title,
+			contest_id: task.contest.clone(),
+			site_short: "sio2".to_owned(),
+			examples: None,
+			url: url.to_string(),
+		})
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
@@ -213,6 +223,22 @@ impl unijudge::Backend for Sio2 {
 		}
 		session.client.post(url.clone()).header(REFERER, url.to_string()).multipart(form).send()?;
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
+	}
+
+	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		Ok(Vec::new())
+	}
+
+	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		*contest
+	}
+
+	fn site_short(&self) -> &'static str {
+		"sio2"
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		*contest
 	}
 }
 

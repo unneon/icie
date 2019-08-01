@@ -1,133 +1,201 @@
-use crate::{dir, interpolation::Interpolation, util};
-use evscode::{E, R};
-use std::{
-	fmt, path::{Path, PathBuf}, str::FromStr
+use crate::{
+	interpolation::Interpolation, net::{self, Backend}, util
 };
-use unijudge::Example;
+use evscode::{quick_pick, QuickPick, E, R};
+use std::{
+	path::{Path, PathBuf}, time::{Duration, SystemTime}
+};
+use unijudge::{
+	boxed::{BoxedContest, BoxedContestDetails, BoxedContestURL, BoxedTask, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
+};
+
+mod files;
+pub mod names;
+mod scan;
 
 /// The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the
 /// icie.template.list configuration entry.
 #[evscode::config]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
-fn init(root: &Path, url: Option<String>, meta: Option<TaskMeta>) -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
-	let examples = meta.map(|meta| meta.examples.unwrap_or_default()).unwrap_or_default();
-	init_manifest(root, &url)?;
-	init_template(root)?;
-	init_examples(root, &examples)?;
-	evscode::open_folder(root, false);
+#[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
+fn scan() -> R<()> {
+	#[evscode::status("Fetching")]
+	let contests = scan::fetch_contests()?;
+	#[evscode::status("Picking contest")]
+	let pick = QuickPick::new()
+		.items(contests.iter().enumerate().map(|(index, (_, contest))| {
+			let start = contest.start.with_timezone(&Local).to_rfc2822();
+			quick_pick::Item::new(index.to_string(), &contest.title).description(start)
+		}))
+		.match_on_description()
+		.build()
+		.wait()
+		.ok_or_else(E::cancel)?;
+	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
+	wait_for_contest(contest)?;
+	start_contest(&*sess, &contest.id)?;
 	Ok(())
 }
 
-fn init_manifest(root: &Path, url: &Option<String>) -> R<()> {
-	let manifest = crate::manifest::Manifest::new_project(url.clone());
-	manifest.save(root)?;
-	Ok(())
-}
-fn init_template(root: &Path) -> R<()> {
-	let solution = root.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
-	if !solution.exists() {
-		let req_id = SOLUTION_TEMPLATE.get();
-		let list = crate::template::LIST.get();
-		let path = list
-			.iter()
-			.find(|(id, _)| **id == *req_id)
-			.ok_or_else(|| {
-				E::error(format!(
-					"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
-					 name(icie.template.list)",
-					req_id
-				))
-			})?
-			.1;
-		let tpl = crate::template::load(&path)?;
-		util::fs_write(solution, tpl.code)?;
-	}
-	Ok(())
-}
-fn init_examples(root: &Path, examples: &[Example]) -> R<()> {
-	let examples_dir = root.join("tests").join("example");
-	util::fs_create_dir_all(&examples_dir)?;
-	for (i, test) in examples.iter().enumerate() {
-		util::fs_write(examples_dir.join(format!("{}.in", i + 1)), &test.input)?;
-		util::fs_write(examples_dir.join(format!("{}.out", i + 1)), &test.output)?;
+#[evscode::command(title = "ICIE Init URL", key = "alt+f11")]
+fn url() -> R<()> {
+	let _status = crate::STATUS.push("Initializing");
+	let raw_url = ask_url()?;
+	match url_to_command(raw_url.as_ref())? {
+		InitCommand::Task(url) => {
+			let meta = url.map(|(url, backend)| fetch_task_details(url, backend)).transpose()?;
+			let root = names::design_task_name(&*crate::dir::PROJECT_DIRECTORY.get(), meta.as_ref())?;
+			let dir = util::TransactionDir::new(&root)?;
+			init_task(&root, raw_url, meta)?;
+			dir.commit();
+			evscode::open_folder(root, false);
+		},
+		InitCommand::Contest { url, backend } => {
+			let sess = net::Session::connect(&url, backend)?;
+			let Resource::Contest(contest) = url.resource;
+			start_contest(&sess, &contest)?;
+		},
 	}
 	Ok(())
 }
 
-#[evscode::command(title = "ICIE Init", key = "alt+f11")]
-fn new() -> R<()> {
+#[evscode::command(title = "ICIE Init URL (current directory)")]
+fn url_existing() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	let url = ask_task_url()?;
-	let meta = fetch_task_meta(&url)?;
-	let variables = InitVariableMap {
-		task_symbol: meta.as_ref().map(|meta| meta.symbol.clone()),
-		task_name: meta.as_ref().map(|meta| meta.name.clone()),
-		contest_id: meta.as_ref().map(|meta| meta.contest_id.clone()),
-		site_short: meta.as_ref().map(|meta| meta.site_short.clone()),
+	let raw_url = ask_url()?;
+	let url = match url_to_command(raw_url.as_ref())? {
+		InitCommand::Task(task) => task,
+		InitCommand::Contest { .. } => return Err(E::error("it is forbidden to init a contest in an existing directory")),
 	};
-	let (codename, all_good) = PROJECT_NAME_TEMPLATE.get().interpolate(&variables);
-	let config_strategy = ASK_FOR_PATH.get();
-	let strategy = match (&*config_strategy, all_good) {
-		(_, false) => &PathDialog::InputBox,
-		(s, true) => s,
-	};
-	let root = strategy.query(&*dir::PROJECT_DIRECTORY.get(), &codename)?;
-	let dir = util::TransactionDir::new(&root)?;
-	init(&root, url, meta)?;
-	dir.commit();
-	Ok(())
-}
-
-#[evscode::command(title = "ICIE Init existing")]
-fn existing() -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
-	let url = ask_task_url()?;
-	let meta = fetch_task_meta(&url)?;
+	let meta = url.map(|(url, backend)| fetch_task_details(url, backend)).transpose()?;
 	let root = evscode::workspace_root()?;
-	init(&root, url, meta)?;
+	init_task(&root, raw_url, meta)?;
 	Ok(())
 }
 
-struct TaskMeta {
-	symbol: String,
-	name: String,
-	contest_id: String,
-	site_short: String,
-	examples: Option<Vec<Example>>,
-}
-fn fetch_task_meta(url: &Option<String>) -> R<Option<TaskMeta>> {
-	let url = match url {
-		Some(url) => url,
-		None => return Ok(None),
-	};
-	let (sess, url, _) = crate::net::connect(&url)?;
-	let meta = {
-		let _status = crate::STATUS.push("Fetching task");
-		sess.run(|sess| {
-			let details = sess.task_details(&url)?;
-			Ok(TaskMeta {
-				symbol: details.symbol,
-				name: details.title,
-				contest_id: details.contest_id,
-				site_short: details.site_short,
-				examples: details.examples,
-			})
-		})?
-	};
-	Ok(Some(meta))
-}
-
-fn ask_task_url() -> R<Option<String>> {
+fn ask_url() -> R<Option<String>> {
 	Ok(evscode::InputBox::new()
-		.prompt("Enter task URL or leave empty")
+		.prompt("Enter task/contest URL or leave empty")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
 		.build()
 		.wait()
 		.map(|url| if url.trim().is_empty() { None } else { Some(url) })
 		.ok_or_else(E::cancel)?)
+}
+
+#[allow(unused)]
+enum InitCommand {
+	Task(Option<(BoxedTaskURL, &'static Backend)>),
+	Contest { url: BoxedContestURL, backend: &'static Backend },
+}
+fn url_to_command(url: Option<&String>) -> R<InitCommand> {
+	Ok(match url {
+		Some(raw_url) => {
+			let (URL { domain, site, resource }, backend) = net::interpret_url(&raw_url)?;
+			match resource {
+				Resource::Task(task) => InitCommand::Task(Some((URL { domain, site, resource: Resource::Task(task) }, backend))),
+				Resource::Contest(contest) => InitCommand::Contest { url: URL { domain, site, resource: Resource::Contest(contest) }, backend },
+			}
+		},
+		None => InitCommand::Task(None),
+	})
+}
+
+fn wait_for_contest(contest: &BoxedContestDetails) -> R<()> {
+	let deadline = SystemTime::from(contest.start.clone());
+	let total = match deadline.duration_since(SystemTime::now()) {
+		Ok(total) => total,
+		Err(_) => return Ok(()),
+	};
+	let _status = crate::STATUS.push("Waiting for contest");
+	let progress = evscode::Progress::new().title(format!("Waiting for {}", contest.title)).cancellable().show();
+	let canceler = progress.canceler().spawn();
+	loop {
+		if canceler.try_wait().is_some() {
+			return Err(E::cancel());
+		}
+		let now = SystemTime::now();
+		let left = match deadline.duration_since(now) {
+			Ok(left) => left,
+			Err(_) => break,
+		};
+		progress.update_set(100.0 - 100.0 * left.as_millis() as f64 / total.as_millis() as f64, fmt_time_left(left));
+		std::thread::sleep(Duration::from_millis(1000));
+	}
+	progress.end();
+	Ok(())
+}
+fn fmt_time_left(mut t: Duration) -> String {
+	let mut s = {
+		let x = t.as_secs() % 60;
+		t -= Duration::from_secs(x);
+		format!("{} seconds left", x)
+	};
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 % 60;
+		t -= Duration::from_secs(x * 60);
+		s = format!("{} minutes, {}", x, s);
+	}
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 / 60 % 24;
+		t -= Duration::from_secs(x * 60 * 60);
+		s = format!("{} hours, {}", x, s);
+	}
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 / 60 / 24;
+		t -= Duration::from_secs(x * 60 * 60 * 24);
+		s = format!("{} days, {}", x, s)
+	}
+	s
+}
+
+fn start_contest(sess: &net::Session, contest: &BoxedContest) -> R<()> {
+	#[evscode::status("Fetching contest")]
+	let meta = sess.run(|sess| sess.contest_tasks(&contest))?;
+	let (contest_id, site_short) = sess.run(|sess| Ok((sess.contest_id(&contest)?, sess.site_short())))?;
+	let root = names::design_contest_name(&contest_id, site_short)?;
+	let dir = util::TransactionDir::new(&root)?;
+	let root_task = init_contest(&root, &meta, &sess)?;
+	dir.commit();
+	evscode::open_folder(root_task, false);
+	Ok(())
+}
+
+fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDetails> {
+	let Resource::Task(task) = &url.resource;
+	let sess = net::Session::connect(&url, backend)?;
+	#[evscode::status("Fetching task")]
+	let meta = sess.run(|sess| sess.task_details(&task))?;
+	Ok(meta)
+}
+
+fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+	let _status = crate::STATUS.push("Initializing");
+	let examples = meta.map(|meta| meta.examples.unwrap_or_default()).unwrap_or_default();
+	files::init_manifest(root, &url)?;
+	files::init_template(root)?;
+	files::init_examples(root, &examples)?;
+	Ok(())
+}
+fn init_contest(root: &Path, tasks: &[BoxedTask], sess: &net::Session) -> R<PathBuf> {
+	let tasks: Vec<(TaskDetails, PathBuf)> = tasks
+		.iter()
+		.enumerate()
+		.map(|(index, task)| {
+			#[evscode::status("Fetching task {}/{}", index+1, tasks.len())]
+			let details = sess.run(|sess| sess.task_details(task))?;
+			let root = names::design_task_name(root, Some(&details))?;
+			Ok((details, root))
+		})
+		.collect::<R<Vec<_>>>()?;
+	let first_root = tasks[0].1.clone();
+	for task in tasks {
+		util::fs_create_dir_all(&task.1)?;
+		init_task(&task.1, Some(task.0.url.clone()), Some(task.0))?;
+	}
+	Ok(first_root)
 }
 
 /// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. See example list:
@@ -151,7 +219,8 @@ fn ask_task_url() -> R<Option<String>> {
 /// {task.name case.kebab} -> diverse-strings
 /// {task.name case.upper} -> DIVERSE_STRINGS
 #[evscode::config]
-static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<InitVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
+static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>> =
+	"{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
 /// By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory
 /// configuration entry, and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead
@@ -187,122 +256,4 @@ impl PathDialog {
 			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").build().wait().ok_or_else(E::cancel)?),
 		}
 	}
-}
-
-enum InitVariable {
-	RandomCute,
-	RandomAnimal,
-	TaskSymbol,
-	TaskName,
-	ContestId,
-	SiteShort,
-}
-struct InitVariableMap {
-	task_symbol: Option<String>,
-	task_name: Option<String>,
-	contest_id: Option<String>,
-	site_short: Option<String>,
-}
-
-impl crate::interpolation::VariableSet for InitVariable {
-	type Map = InitVariableMap;
-
-	fn expand(&self, map: &Self::Map) -> Option<String> {
-		match self {
-			InitVariable::RandomCute => Some(crate::dir::random_adjective().to_owned()),
-			InitVariable::RandomAnimal => Some(crate::dir::random_animal().to_owned()),
-			InitVariable::TaskSymbol => map.task_symbol.clone(),
-			InitVariable::TaskName => map.task_name.clone(),
-			InitVariable::ContestId => map.contest_id.clone(),
-			InitVariable::SiteShort => map.site_short.clone(),
-		}
-	}
-}
-
-impl FromStr for InitVariable {
-	type Err = String;
-
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"random.cute" => Ok(InitVariable::RandomCute),
-			"random.animal" => Ok(InitVariable::RandomAnimal),
-			"task.symbol" => Ok(InitVariable::TaskSymbol),
-			"task.name" => Ok(InitVariable::TaskName),
-			"contest.id" => Ok(InitVariable::ContestId),
-			"site.short" => Ok(InitVariable::SiteShort),
-			_ => Err(format!("unrecognized variable name {:?}, see icie.init.projectNameTemplate for a full list of available variables", s)),
-		}
-	}
-}
-
-impl fmt::Display for InitVariable {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(match self {
-			InitVariable::RandomCute => "random.cute",
-			InitVariable::RandomAnimal => "random.animal",
-			InitVariable::TaskSymbol => "task.symbol",
-			InitVariable::TaskName => "task.name",
-			InitVariable::ContestId => "contest.id",
-			InitVariable::SiteShort => "site.short",
-		})
-	}
-}
-
-#[test]
-fn test_interpolate() {
-	let vars = InitVariableMap {
-		task_symbol: Some("A".to_owned()),
-		task_name: Some("Diverse Strings".to_owned()),
-		contest_id: Some("1144".to_owned()),
-		site_short: Some("cf".to_owned()),
-	};
-	let expand = |pattern: &str| -> String {
-		let interpolation: Interpolation<InitVariable> = pattern.parse().unwrap();
-		assert_eq!(interpolation.to_string(), pattern);
-		interpolation.interpolate(&vars).0
-	};
-	let compile = |pattern: &str| -> Result<Interpolation<InitVariable>, String> { pattern.parse() };
-	assert_eq!(expand("{task.symbol case.upper}-{task.name case.kebab}"), "A-diverse-strings");
-	assert_eq!(expand("{site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab}"), "cf/1144/A-diverse-strings");
-	assert_eq!(expand("{task.symbol case.upper}-{{"), "A-{");
-	assert_eq!(expand("{task.symbol}"), "A");
-	assert_eq!(expand("{task.name}"), "Diverse Strings");
-	assert_eq!(expand("{contest.id}"), "1144");
-	assert_eq!(expand("{site.short}"), "cf");
-	assert_eq!(expand("{task.name}"), "Diverse Strings");
-	assert_eq!(expand("{task.name case.camel}"), "diverseStrings");
-	assert_eq!(expand("{task.name case.pascal}"), "DiverseStrings");
-	assert_eq!(expand("{task.name case.snake}"), "diverse_strings");
-	assert_eq!(expand("{task.name case.kebab}"), "diverse-strings");
-	assert_eq!(expand("{task.name case.upper}"), "DIVERSE_STRINGS");
-	assert_eq!(expand("{{task.name case.kebab}}"), "{task.name case.kebab}");
-	assert_eq!(expand("cp{contest.id}{task.symbol case.kebab}-icie"), "cp1144a-icie");
-	assert!(compile("{task.name case.kebab").is_err());
-	assert!(compile("task.name case.kebab}").is_err());
-	assert!(compile("{{task.name case.kebab}").is_err());
-	assert!(compile("{task.name case.kebab}}").is_err());
-	assert!(compile("{tsak.name}").is_err());
-	assert!(compile("{task.name csae.kebab}").is_err());
-	assert!(compile("{task.name case.keabb}").is_err());
-}
-
-#[test]
-fn test_corner() {
-	let work = |vars: &InitVariableMap, pattern: &str| -> String {
-		let interp: Interpolation<InitVariable> = pattern.parse().unwrap();
-		assert_eq!(interp.to_string(), pattern);
-		interp.interpolate(vars).0
-	};
-	let task = |symbol: &str, title: &str, cid: &str, site: &str| -> InitVariableMap {
-		InitVariableMap {
-			task_symbol: Some(symbol.to_owned()),
-			task_name: Some(title.to_owned()),
-			contest_id: Some(cid.to_owned()),
-			site_short: Some(site.to_owned()),
-		}
-	};
-	let c1188a2 = task("A2", "Add on a Tree: Revolution", "1188", "cf");
-	assert_eq!(work(&c1188a2, "{task.name} {task.symbol}"), "Add on a Tree Revolution A2");
-	assert_eq!(work(&c1188a2, "{task.symbol case.upper}-{task.name case.kebab}"), "A2-add-on-a-tree-revolution");
-	assert_eq!(work(&c1188a2, "{site.short}{contest.id}/{task.name case.upper}"), "cf1188/ADD_ON_A_TREE_REVOLUTION");
 }

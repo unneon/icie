@@ -48,15 +48,15 @@ pub fn save_cache(site: &str, value: &str) {
 #[evscode::command(title = "ICIE Password reset")]
 fn reset() -> R<()> {
 	let url = evscode::InputBox::new()
-		.prompt("Enter any task URL from the site for which you want to reset the password")
+		.prompt("Enter any contest/task URL from the site for which you want to reset the password")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
 		.build()
 		.wait()
 		.ok_or_else(E::cancel)?;
-	let task = crate::net::find_backend(&url)?.ok_or_else(|| E::error("this site is not supported yet"))?;
-	Keyring::new("credentials", &task.site).delete();
-	Keyring::new("session", &task.site).delete();
+	let site = crate::net::interpret_url(&url)?.0.site;
+	Keyring::new("credentials", &site).delete();
+	Keyring::new("session", &site).delete();
 	Ok(())
 }
 

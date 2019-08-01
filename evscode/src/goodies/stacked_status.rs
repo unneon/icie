@@ -31,7 +31,7 @@ use std::{
 /// A structure that holds stacked status state. See [module documentation](index.html) for details.
 pub struct StackedStatus {
 	prefix: &'static str,
-	stacks: Mutex<HashMap<ThreadId, (Instant, Vec<String>)>>,
+	stacks: Mutex<HashMap<ThreadId, (Instant, Vec<Option<String>>)>>,
 }
 impl StackedStatus {
 	/// Create a state instance with a given message prefix
@@ -41,18 +41,26 @@ impl StackedStatus {
 
 	/// Set the current thread status message and return a guard object that will control its lifetime
 	pub fn push(&self, msg: impl AsRef<str>) -> Guard<'_> {
+		self.push_impl(Some(msg.as_ref().to_owned()))
+	}
+
+	/// Hide the message from the current thread, indicating it is waiting for other threads to progress.
+	pub fn push_silence(&self) -> Guard<'_> {
+		self.push_impl(None)
+	}
+
+	fn push_impl(&self, value: Option<String>) -> Guard<'_> {
 		let tid = std::thread::current().id();
-		let mut lck = self.stacks.lock().expect("evscode::StackedStatus::push stacks PoisonError");
-		lck.entry(tid).or_insert_with(|| (Instant::now(), Vec::new())).1.push(msg.as_ref().to_owned());
+		let mut lck = self.stacks.lock().expect("evscode::StackedStatus::push_impl stacks PoisonError");
+		lck.entry(tid).or_insert_with(|| (Instant::now(), Vec::new())).1.push(value);
 		self.update(lck);
 		Guard { stacked: self, tid }
 	}
 
-	fn update(&self, lck: MutexGuard<HashMap<ThreadId, (Instant, Vec<String>)>>) {
-		let mut entries =
-			lck.values().map(|(t, s)| (t.clone(), s.last().expect("evscode::StackedStatus::update empty stack").as_str())).collect::<Vec<_>>();
+	fn update(&self, lck: MutexGuard<HashMap<ThreadId, (Instant, Vec<Option<String>>)>>) {
+		let mut entries = lck.values().map(|(t, s)| (t.clone(), s.last().expect("evscode::StackedStatus::update empty stack"))).collect::<Vec<_>>();
 		entries.sort();
-		let words = entries.iter().map(|(_, word)| *word).collect::<Vec<_>>();
+		let words = entries.iter().filter_map(|(_, word)| word.as_ref()).map(|word| word.as_str()).collect::<Vec<_>>();
 		let buf = format!("{}{}", self.prefix, words.join(", "));
 		if !words.is_empty() {
 			crate::stdlib::status(Some(&buf));

@@ -1,4 +1,4 @@
-#![feature(specialization)]
+#![feature(never_type, proc_macro_hygiene, exhaustive_patterns, specialization, try_blocks)]
 
 mod auth;
 mod build;

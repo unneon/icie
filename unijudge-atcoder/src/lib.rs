@@ -1,7 +1,10 @@
+#![feature(never_type)]
+
+use std::time::Duration;
 use unijudge::{
-	debris::{self, Context, Find}, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
-	}, Error, Example, Language, RejectionCause, Result, Submission, TaskDetails, Verdict
+	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct Atcoder;
@@ -14,16 +17,21 @@ pub struct Task {
 
 impl unijudge::Backend for Atcoder {
 	type CachedAuth = Cookie<'static>;
+	type Contest = String;
 	type Session = reqwest::Client;
 	type Task = Task;
 
-	fn accepted_domains(&self) -> &[&str] {
+	const SUPPORTS_CONTESTS: bool = true;
+
+	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["atcoder.jp"]
 	}
 
-	fn deconstruct_task(&self, _domain: &str, segments: &[&str]) -> Result<Self::Task> {
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		match segments {
-			["contests", contest, "tasks", task] => Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }),
+			["contests", contest] => Ok(Resource::Contest((*contest).to_owned())),
+			["contests", contest, "tasks"] => Ok(Resource::Contest((*contest).to_owned())),
+			["contests", contest, "tasks", task] => Ok(Resource::Task(Task { contest: (*contest).to_owned(), task: (*task).to_owned() })),
 			_ => return Err(Error::WrongTaskUrl),
 		}
 	}
@@ -70,7 +78,7 @@ impl unijudge::Backend for Atcoder {
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse().unwrap();
-		let mut resp = session.get(url).send()?;
+		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find("#main-container > .row > div > span.h2")?.text().map(|text| {
 			let mark = text.find("-").ok_or("no dash(-) found in task title")?;
@@ -98,7 +106,7 @@ impl unijudge::Backend for Atcoder {
 				})
 				.collect::<debris::Result<_>>()?,
 		);
-		Ok(TaskDetails { symbol, title, contest_id: task.contest.clone(), site_short: "atc".to_owned(), examples })
+		Ok(TaskDetails { id: symbol, title, contest_id: task.contest.clone(), site_short: "atc".to_owned(), examples, url: url.to_string() })
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
@@ -184,6 +192,61 @@ impl unijudge::Backend for Atcoder {
 			])
 			.send()?;
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
+	}
+
+	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		let mut resp = session.get("https://atcoder.jp/contests/").send()?;
+		let doc = debris::Document::new(&resp.text()?);
+		doc.find("#main-container > .row")?
+			.find_nth("table", 1)?
+			.find_all("tbody > tr")
+			.map(|row| {
+				let id = row
+					.find_nth("td", 1)?
+					.find("a")?
+					.attr("href")?
+					.map(|href| Ok::<_, &'static str>(href[href.rfind('/').ok_or("no '/' in /contests/{}")? + 1..].to_owned()))?;
+				let title = row.find_nth("td", 1)?.text().string();
+				let start = row.find_nth("td", 0)?.find("a")?.attr("href")?.map(|href| {
+					let japan_standard_time = FixedOffset::east(9 * 3600);
+					japan_standard_time.datetime_from_str(href, "http://www.timeanddate.com/worldclock/fixedtime.html?iso=%Y%m%dT%H%M&p1=248")
+				})?;
+				let duration = row.find_nth("td", 2)?.text().map(|duration| {
+					let parts: Vec<u64> = duration
+						.split(':')
+						.map(|s| s.parse())
+						.collect::<std::result::Result<Vec<u64>, _>>()
+						.map_err(|_| format!("invalid-I duration format {:?}", duration))?;
+					match parts.as_slice() {
+						[hour, min] => Ok(Duration::from_secs(60 * 60 * hour + 60 * min)),
+						_ => Err(format!("invalid-II duration format {:?}", duration)),
+					}
+				})?;
+				Ok(ContestDetails { id, title, start, duration })
+			})
+			.collect()
+	}
+
+	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		let mut resp = session.get(&format!("https://atcoder.jp/contests/{}/tasks", contest)).send()?;
+		let doc = debris::Document::new(&resp.text()?);
+		doc.find("table")?
+			.find_all("tbody > tr")
+			.map(|row| {
+				Ok(row.find_nth("td", 1)?.find("a")?.attr("href")?.map(|href| match href.split('/').collect::<Vec<_>>().as_slice() {
+					["", "contests", contest, "tasks", task] => Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }),
+					_ => Err(format!("invalid task url {:?}", href)),
+				})?)
+			})
+			.collect()
+	}
+
+	fn site_short(&self) -> &'static str {
+		"atc"
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		contest.clone()
 	}
 }
 

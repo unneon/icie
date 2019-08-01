@@ -6,7 +6,7 @@ use crate::{
 	error::Cancellable, internal::executor::{ASYNC_ID_FACTORY, ASYNC_OPS}, R
 };
 use std::{
-	any::Any, fmt::Debug, mem, sync::mpsc::{channel, Receiver, Sender}
+	any::Any, fmt::Debug, mem, sync::mpsc::{channel, Receiver, Sender, TryRecvError}
 };
 
 /// Value representing a stream of asynchronous computations.
@@ -22,6 +22,18 @@ impl<T: 'static> Future<T> {
 		let parser = &self.parsers.iter().find(|(aid, _)| *aid == packet.aid).expect("evscode::Future::wait received message with unknown aid").1;
 		let obj = parser(packet);
 		obj
+	}
+
+	/// Check if the computation has yielded a value already, and return it if it did.
+	pub fn try_wait(&self) -> Option<T> {
+		let packet = match self.rx.try_recv() {
+			Ok(packet) => packet,
+			Err(TryRecvError::Empty) => return None,
+			Err(TryRecvError::Disconnected) => panic!("evscode::Future::try_wait RecvError"),
+		};
+		let parser = &self.parsers.iter().find(|(aid, _)| *aid == packet.aid).expect("evscode::Future::wait received message with unknown aid").1;
+		let obj = parser(packet);
+		Some(obj)
 	}
 
 	/// Apply a function to the value after is will be computed.
