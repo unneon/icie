@@ -1,6 +1,6 @@
 use evscode::{E, R};
 use std::{
-	path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
+	path::{Path, PathBuf}, time::Duration
 };
 
 pub fn fmt_time_short(t: &Duration) -> String {
@@ -54,14 +54,13 @@ fn test_bash_escape() {
 }
 
 pub fn is_installed(app: &'static str) -> evscode::R<bool> {
-	Ok(Command::new("which")
-		.arg(app)
-		.stdout(Stdio::null())
-		.stdin(Stdio::null())
-		.stderr(Stdio::null())
-		.status()
-		.map_err(|e| evscode::E::from_std(e).context("failed to check whether a program in installed with which(1)"))?
-		.success())
+	let exec_lookups = std::env::var("PATH").map_err(|e| E::from_std(e).context("env var PATH does not exist"))?;
+	for exec_lookup in std::env::split_paths(&exec_lookups) {
+		if exec_lookup.join(app).exists() {
+			return Ok(true);
+		}
+	}
+	Ok(false)
 }
 
 #[test]
