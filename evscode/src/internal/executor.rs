@@ -116,6 +116,9 @@ pub fn error_show(e: crate::E) {
 		for (i, action) in e.actions.iter().enumerate() {
 			msg = msg.item(i.to_string(), action.title.as_str(), false);
 		}
+		if let Severity::Warning = e.severity {
+			msg = msg.warning();
+		}
 		let msg = msg.build().spawn();
 		if !e.actions.is_empty() {
 			std::thread::spawn(move || {

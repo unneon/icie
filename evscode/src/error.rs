@@ -28,7 +28,7 @@ pub enum Severity {
 	Error,
 	/// Abort the operation, do not display an error message or provide a link to GitHub issues.
 	Cancel,
-	/// Do not abort the operation, display a warning message, do not provide a link to GitHub issues.
+	/// Do not abort the operation, display a warning message, but do provide a link to GitHub issues.
 	/// Do not use the `?` operator to avoid aborting the operation.
 	Warning,
 	/// Abort the operation, display an error message, do not provide a link to GitHub issues.
@@ -155,6 +155,20 @@ impl E {
 	pub fn workflow_error(mut self) -> Self {
 		self.severity = Severity::Workflow;
 		self
+	}
+
+	/// Mark the error as a warning that does not break the ongoing operation.
+	/// This will change the icon on the error message to a warning sign.
+	pub fn warning(mut self) -> Self {
+		self.severity = Severity::Warning;
+		self
+	}
+
+	/// Show the error to the end user.
+	/// Prefer to return this value from event handlers instead.
+	/// This is meant to be used e.g. for warnings.
+	pub fn emit(self) {
+		crate::internal::executor::error_show(self)
 	}
 }
 

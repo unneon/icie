@@ -221,6 +221,10 @@ export function activate(ctx: vscode.ExtensionContext) {
                     logic.send({ tag: 'async', aid: reaction.aid, value: null });
                 }
             });
+        } else if (reaction.tag === 'open_external') {
+            vscode.env.openExternal(vscode.Uri.parse(reaction.url)).then(success => {
+                logic.send({ tag: 'async', aid: reaction.aid, value: success });
+            })
         }
     };
     logic.recv(callback);
@@ -522,9 +526,14 @@ namespace native {
     export interface ReactionConsoleGroupEnd {
         tag: 'console_group_end';
     }
+    export interface ReactionOpenExternal {
+        tag: 'open_external';
+        url: string;
+        aid: number;
+    }
 
     export type Impulse = ImpulseTrigger | ImpulseAsync | ImpulseConfig | ImpulseMeta;
-    export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsole | ReactionSaveAll | ReactionOpenFolder | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressRegisterCancel | ReactionProgressEnd | ReactionQueryDocumentText | ReactionPasteEdit | ReactionWebviewCreate | ReactionWebviewSetHTML | ReactionWebviewPostMessage | ReactionWebviewRegisterListener | ReactionWebviewRegisterDisposer | ReactionWebviewWasDisposed | ReactionWebviewReveal | ReactionWebviewDispose | ReactionWebviewIsVisible | ReactionMementoSet | ReactionMementoGet | ReactionActiveEditorFile | ReactionWebviewIsActive | ReactionClipboardWrite | ReactionTerminalCreate | ReactionTerminalWrite | ReactionTerminalShow | ReactionOpenDialog | ReactionConsoleGroup | ReactionConsoleGroupEnd;
+    export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsole | ReactionSaveAll | ReactionOpenFolder | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressRegisterCancel | ReactionProgressEnd | ReactionQueryDocumentText | ReactionPasteEdit | ReactionWebviewCreate | ReactionWebviewSetHTML | ReactionWebviewPostMessage | ReactionWebviewRegisterListener | ReactionWebviewRegisterDisposer | ReactionWebviewWasDisposed | ReactionWebviewReveal | ReactionWebviewDispose | ReactionWebviewIsVisible | ReactionMementoSet | ReactionMementoGet | ReactionActiveEditorFile | ReactionWebviewIsActive | ReactionClipboardWrite | ReactionTerminalCreate | ReactionTerminalWrite | ReactionTerminalShow | ReactionOpenDialog | ReactionConsoleGroup | ReactionConsoleGroupEnd | ReactionOpenExternal;
 
     export class Logic {
         path: string;

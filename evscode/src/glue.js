@@ -261,6 +261,11 @@ function activate(ctx) {
                 }
             });
         }
+        else if (reaction.tag === 'open_external') {
+            vscode.env.openExternal(vscode.Uri.parse(reaction.url)).then(success => {
+                logic.send({ tag: 'async', aid: reaction.aid, value: success });
+            });
+        }
     };
     logic.recv(callback);
 }

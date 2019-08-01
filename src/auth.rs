@@ -1,3 +1,4 @@
+use crate::util::is_installed;
 use evscode::{E, R};
 
 pub fn get_force_ask(site: &str) -> R<(String, String)> {
@@ -17,7 +18,10 @@ pub fn get_force_ask(site: &str) -> R<(String, String)> {
 		}
 		.dump(),
 	) {
-		evscode::Message::new("failed to save password to a secure keyring, so it will not be remembered").warning().build().spawn();
+		E::error("failed to save password to a secure keyring, so it will not be remembered")
+			.warning()
+			.action_if(is_installed("kwalletd5")?, "How to fix (KWallet)", help_fix_kwallet)
+			.emit();
 	}
 	Ok((username, password))
 }
@@ -54,6 +58,10 @@ fn reset() -> R<()> {
 	Keyring::new("credentials", &task.site).delete();
 	Keyring::new("session", &task.site).delete();
 	Ok(())
+}
+
+fn help_fix_kwallet() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").wait()
 }
 
 struct Keyring {

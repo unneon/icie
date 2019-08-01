@@ -53,6 +53,34 @@ pub fn open_editor(path: impl AsRef<Path>, row: Option<usize>, column: Option<us
 	});
 }
 
+/// Open an external item(e.g. http/https/mailto URL), using the default system application.
+/// Use [`open_editor`] to open text files instead.
+pub fn open_external(url: impl AsRef<str>) -> LazyFuture<R<()>> {
+	let url = url.as_ref().to_owned();
+	LazyFuture::new_vscode(
+		{
+			let url = url.clone();
+			move |aid| {
+				send_object(json::object! {
+					"tag" => "open_external",
+					"url" => url,
+					"aid" => aid,
+				})
+			}
+		},
+		{
+			let url = url;
+			move |raw| {
+				if raw.as_bool().expect("evscode::open_external raw not a [bool]") {
+					Ok(())
+				} else {
+					Err(E::error(format!("could not open external URL {}", url)))
+				}
+			}
+		},
+	)
+}
+
 /// Get the text present in the editor of a given path.
 pub fn query_document_text(path: impl AsRef<Path>+'static) -> LazyFuture<String> {
 	LazyFuture::new_vscode(
