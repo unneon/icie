@@ -197,8 +197,14 @@ impl unijudge::Backend for Atcoder {
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let mut resp = session.get("https://atcoder.jp/contests/").send()?;
 		let doc = debris::Document::new(&resp.text()?);
-		doc.find("#main-container > .row")?
-			.find_nth("table", 1)?
+		let container = doc.find("#main-container > .row > div.col-lg-9.col-md-8")?;
+		let headers = container.find_all("h3").map(|h3| h3.text().string()).collect::<Vec<_>>();
+		let table = match headers.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+			["Permanent Contests", "Upcoming Contests", "Recent Contests"] => container.find_nth("table", 1)?,
+			["Permanent Contests", "Recent Contests"] => return Ok(Vec::new()),
+			_ => return Err(Error::from(container.error(format!("unrecognized header layout {:?}", headers)))),
+		};
+		table
 			.find_all("tbody > tr")
 			.map(|row| {
 				let id = row
