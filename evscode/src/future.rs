@@ -20,8 +20,7 @@ impl<T: 'static> Future<T> {
 	pub fn wait(&self) -> T {
 		let packet = self.rx.recv().expect("evscode::Future::wait RecvError");
 		let parser = &self.parsers.iter().find(|(aid, _)| *aid == packet.aid).expect("evscode::Future::wait received message with unknown aid").1;
-		let obj = parser(packet);
-		obj
+		parser(packet)
 	}
 
 	/// Check if the computation has yielded a value already, and return it if it did.

@@ -89,7 +89,7 @@ impl<T: Marshal> Marshal for Vec<T> {
 		}
 	}
 }
-impl<T: Marshal> Marshal for HashMap<String, T> {
+impl<T: Marshal, S: std::hash::BuildHasher+Default> Marshal for HashMap<String, T, S> {
 	fn to_json(&self) -> JsonValue {
 		let mut obj = json::object::Object::with_capacity(self.len());
 		for (k, v) in self {

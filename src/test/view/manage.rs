@@ -87,7 +87,10 @@ impl Computation for TestViewLogic {
 						}
 					}),
 					Some("edit") => evscode::open_editor(note["path"].as_str().unwrap(), None, None),
-					Some("action_notice") => evscode::runtime::spawn(|| Ok(SKILL_ACTIONS.add_use())),
+					Some("action_notice") => evscode::runtime::spawn(|| {
+						SKILL_ACTIONS.add_use();
+						Ok(())
+					}),
 					_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
 				}
 			}

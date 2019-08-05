@@ -24,14 +24,14 @@ impl Builder {
 
 	/// Add multiple environment variables.
 	pub fn envs(mut self, env: impl IntoIterator<Item=(impl AsRef<str>, impl AsRef<str>)>) -> Self {
-		let hm = self.env.get_or_insert_with(|| Vec::new());
+		let hm = self.env.get_or_insert_with(Vec::new);
 		hm.extend(env.into_iter().map(|(a, b)| (a.as_ref().to_owned(), b.as_ref().to_owned())));
 		self
 	}
 
 	/// Add an environment variable.
 	pub fn env(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Self {
-		let hm = self.env.get_or_insert_with(|| Vec::new());
+		let hm = self.env.get_or_insert_with(Vec::new);
 		hm.push((key.as_ref().to_owned(), value.as_ref().to_owned()));
 		self
 	}
@@ -44,14 +44,14 @@ impl Builder {
 
 	/// Add multiple arguments to the shell.
 	pub fn shell_args(mut self, shell_args: impl IntoIterator<Item=impl AsRef<str>>) -> Self {
-		let sa = self.shell_args.get_or_insert_with(|| Vec::new());
+		let sa = self.shell_args.get_or_insert_with(Vec::new);
 		sa.extend(shell_args.into_iter().map(|a| a.as_ref().to_owned()));
 		self
 	}
 
 	/// Add an argument to the shell.
 	pub fn shell_arg(mut self, arg: impl AsRef<str>) -> Self {
-		let sa = self.shell_args.get_or_insert_with(|| Vec::new());
+		let sa = self.shell_args.get_or_insert_with(Vec::new);
 		sa.push(arg.as_ref().to_owned());
 		self
 	}

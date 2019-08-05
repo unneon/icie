@@ -28,10 +28,12 @@ use std::{
 	collections::HashMap, sync::{Mutex, MutexGuard}, thread::ThreadId, time::Instant
 };
 
+type ThreadStack = (Instant, Vec<Option<String>>);
+
 /// A structure that holds stacked status state. See [module documentation](index.html) for details.
 pub struct StackedStatus {
 	prefix: &'static str,
-	stacks: Mutex<HashMap<ThreadId, (Instant, Vec<Option<String>>)>>,
+	stacks: Mutex<HashMap<ThreadId, ThreadStack>>,
 }
 impl StackedStatus {
 	/// Create a state instance with a given message prefix
@@ -57,8 +59,8 @@ impl StackedStatus {
 		Guard { stacked: self, tid }
 	}
 
-	fn update(&self, lck: MutexGuard<HashMap<ThreadId, (Instant, Vec<Option<String>>)>>) {
-		let mut entries = lck.values().map(|(t, s)| (t.clone(), s.last().expect("evscode::StackedStatus::update empty stack"))).collect::<Vec<_>>();
+	fn update(&self, lck: MutexGuard<HashMap<ThreadId, ThreadStack>>) {
+		let mut entries = lck.values().map(|(t, s)| (*t, s.last().expect("evscode::StackedStatus::update empty stack"))).collect::<Vec<_>>();
 		entries.sort();
 		let words = entries.iter().filter_map(|(_, word)| word.as_ref()).map(|word| word.as_str()).collect::<Vec<_>>();
 		let buf = format!("{}{}", self.prefix, words.join(", "));

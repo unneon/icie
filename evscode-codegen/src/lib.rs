@@ -87,15 +87,15 @@ pub fn plugin(input: TokenStream) -> TokenStream {
 		#base_defs
 		#base_defs2
 		fn main() {
-			let manifest_dir = env!("CARGO_MANIFEST_DIR");
-			let package = evscode::meta::Package {
+			const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
+			let package: evscode::meta::Package = evscode::meta::Package {
 				identifier: env!("CARGO_PKG_NAME"),
 				version: env!("CARGO_PKG_VERSION"),
 				commands: #commands,
 				configuration: #config,
 				#fields
 			};
-			evscode::internal::cli::run_main(&package, manifest_dir).expect("running failed");
+			evscode::internal::cli::run_main(&package, MANIFEST_DIR).expect("running failed");
 		}
 	};
 	TokenStream::from(r)
@@ -137,7 +137,7 @@ pub fn config(_params: TokenStream, item: TokenStream) -> TokenStream {
 				.span()
 				.unwrap()
 				.error("#[evscode::config] calls must have a rustdoc comment attached")
-				.help(format!("write the config entry description before the call, e.g. /// Controls the number of bees"))
+				.help("write the config entry description before the call, e.g. /// Controls the number of bees")
 				.emit();
 			LitStr::new("", proc_macro2::Span::call_site())
 		});

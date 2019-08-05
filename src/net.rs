@@ -4,7 +4,7 @@ use crate::{
 use evscode::{E, R};
 use unijudge::{boxed::BoxedURL, URL};
 
-pub const USER_AGENT: &'static str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
+pub const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
 
 pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
 	Ok(BACKENDS

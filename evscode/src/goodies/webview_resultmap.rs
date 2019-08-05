@@ -103,13 +103,10 @@ impl<T: Computation> WebviewResultmap<T> {
 		crate::runtime::spawn(move || {
 			worker();
 			let mut collection = self.collection.lock().unwrap();
-			match collection.entry(key) {
-				std::collections::hash_map::Entry::Occupied(e) => {
-					if Arc::ptr_eq(e.get(), &handle) {
-						e.remove_entry();
-					}
-				},
-				_ => (),
+			if let std::collections::hash_map::Entry::Occupied(e) = collection.entry(key) {
+				if Arc::ptr_eq(e.get(), &handle) {
+					e.remove_entry();
+				}
 			}
 			Ok(())
 		});

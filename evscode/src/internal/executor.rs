@@ -58,8 +58,7 @@ pub fn execute(pkg: &crate::meta::Package) {
 			*WORKSPACE_ROOT.lock().unwrap() = impulse["workspace"].as_str().map(PathBuf::from);
 			*EXTENSION_ROOT.lock().unwrap() = Some(PathBuf::from(impulse["extension"].as_str().unwrap()));
 			if let Some(on_activate) = &pkg.on_activate {
-				let on_activate = on_activate.clone();
-				spawn(on_activate);
+				spawn(*on_activate);
 			}
 		} else {
 			send_object(object! {

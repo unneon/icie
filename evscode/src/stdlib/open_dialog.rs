@@ -76,7 +76,7 @@ impl Builder<Many> {
 	pub fn build(self) -> LazyFuture<Option<Vec<PathBuf>>> {
 		LazyFuture::new_vscode(
 			move |aid| send_request(self.files, self.folders, true, self.default, self.filters, self.action_label, aid),
-			|raw| parse_response(raw),
+			parse_response,
 		)
 	}
 }

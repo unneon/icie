@@ -116,7 +116,7 @@ fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
 fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	let note_time = if test.outcome.time.as_millis() >= (*TIME_DISPLAY_THRESHOLD.get()) as u128 {
+	let note_time = if test.outcome.time.as_millis() >= u128::from(*TIME_DISPLAY_THRESHOLD.get()) {
 		let ms = test.outcome.time.as_millis();
 		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
 	} else {

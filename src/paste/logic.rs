@@ -150,7 +150,7 @@ fn index_to_position(index: usize, source: &str) -> (usize, usize) {
 
 fn skip_to_toplevel(mut pos: usize, source: &str) -> usize {
 	loop {
-		pos += source[pos..].find('\n').unwrap_or(source.len());
+		pos += source[pos..].find('\n').unwrap_or_else(|| source.len());
 		if source[pos..].starts_with("\n}") {
 			pos += 1;
 			pos += source[pos..].find('\n').unwrap_or_else(|| source[pos..].len());

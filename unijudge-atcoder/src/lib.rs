@@ -32,7 +32,7 @@ impl unijudge::Backend for Atcoder {
 			["contests", contest] => Ok(Resource::Contest((*contest).to_owned())),
 			["contests", contest, "tasks"] => Ok(Resource::Contest((*contest).to_owned())),
 			["contests", contest, "tasks", task] => Ok(Resource::Task(Task { contest: (*contest).to_owned(), task: (*task).to_owned() })),
-			_ => return Err(Error::WrongTaskUrl),
+			_ => Err(Error::WrongTaskUrl),
 		}
 	}
 
@@ -81,7 +81,7 @@ impl unijudge::Backend for Atcoder {
 		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find("#main-container > .row > div > span.h2")?.text().map(|text| {
-			let mark = text.find("-").ok_or("no dash(-) found in task title")?;
+			let mark = text.find('-').ok_or("no dash(-) found in task title")?;
 			std::result::Result::<_, &'static str>::Ok((text[..mark - 1].to_owned(), text[mark + 2..].to_owned()))
 		})?;
 		let parts = doc
@@ -142,7 +142,7 @@ impl unijudge::Backend for Atcoder {
 				let id = row.find(".submission-score")?.attr("data-id")?.string();
 				let status = row.find("td > span")?;
 				let status = status.text();
-				let (test_index, verdict) = match status.as_str().find(" ") {
+				let (test_index, verdict) = match status.as_str().find(' ') {
 					Some(i) => (Some(&status.as_str()[..i]), Some(&status.as_str()[i + 1..])),
 					None if status.as_str().starts_with(char::is_numeric) => (Some(status.as_str()), None),
 					None => (None, Some(status.as_str())),

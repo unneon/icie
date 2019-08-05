@@ -123,7 +123,7 @@ impl<T: Configurable> Configurable for Option<T> {
 /// This implementation is not editable in VS Code setting UI.
 /// I am not sure why, because VS Code has builtin configuration entries that have the same manifest entry, but are editable.
 /// Naturally, the [documentation](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) of this behaviour does not exist.
-impl<T: Configurable> Configurable for HashMap<String, T> {
+impl<T: Configurable, S: std::hash::BuildHasher+Default> Configurable for HashMap<String, T, S> {
 	fn schema(description: Option<&str>, default: Option<&Self>) -> JsonValue {
 		optobject! {
 			"type" => "object",

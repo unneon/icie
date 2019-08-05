@@ -104,7 +104,7 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 }
 
 fn wait_for_contest(contest: &BoxedContestDetails) -> R<()> {
-	let deadline = SystemTime::from(contest.start.clone());
+	let deadline = SystemTime::from(contest.start);
 	let total = match deadline.duration_since(SystemTime::now()) {
 		Ok(total) => total,
 		Err(_) => return Ok(()),

@@ -183,13 +183,11 @@ impl<'a> BuildContext<'a> {
 					},
 					Err(e) => BuildResult::Error(e),
 				}
+			} else if path.exists() {
+				fs::remove_file(path)?;
+				BuildResult::Built
 			} else {
-				if path.exists() {
-					fs::remove_file(path)?;
-					BuildResult::Built
-				} else {
-					BuildResult::Ignored
-				}
+				BuildResult::Ignored
 			}
 		})
 	}

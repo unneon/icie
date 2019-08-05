@@ -13,7 +13,7 @@ pub enum Codegen {
 	Profile,
 }
 
-pub static CODEGEN_LIST: &'static [Codegen] = &[Codegen::Debug, Codegen::Release, Codegen::Profile];
+pub static CODEGEN_LIST: &[Codegen] = &[Codegen::Debug, Codegen::Release, Codegen::Profile];
 
 impl Codegen {
 	pub fn flags(&self) -> &'static [&'static str] {
@@ -51,7 +51,7 @@ pub trait Standard {
 	fn as_gcc_flag(&self) -> &'static str;
 }
 
-pub static ALLOWED_EXTENSIONS: &'static [&'static str] = &["cpp", "cxx", "cc"];
+pub static ALLOWED_EXTENSIONS: &[&str] = &["cpp", "cxx", "cc"];
 
 pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
 	if !util::is_installed("clang++")? {

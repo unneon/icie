@@ -89,9 +89,9 @@ impl unijudge::Backend for Codeforces {
 			*session.username.lock().unwrap() = Some(username.to_owned());
 			Ok(())
 		} else if wrong_password_or_handle {
-			Err(Error::WrongCredentials)?
+			Err(Error::WrongCredentials)
 		} else {
-			Err(doc.error("unrecognized logic outcome"))?
+			Err(Error::from(doc.error("unrecognized logic outcome")))
 		}
 	}
 
@@ -189,7 +189,7 @@ impl unijudge::Backend for Codeforces {
 						"PARTIAL" => Verdict::Partial(verdict_span.find(".verdict-format-points")?.text().parse()?),
 						"SKIPPED" => Verdict::Skipped,
 						"CHALLENGED" => Verdict::Hacked,
-						_ => Err(verdict_span.error("unrecognized verdict tag"))?,
+						_ => return Err(Error::from(verdict_span.error("unrecognized verdict tag"))),
 					}
 				}
 				.to_unijudge();
@@ -229,7 +229,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn contests(&self, session: &Self::Session) -> Result<Vec<unijudge::ContestDetails<Self::Contest>>> {
-		let url: Url = format!("https://codeforces.com/contests").parse().unwrap();
+		let url: Url = "https://codeforces.com/contests".parse().unwrap();
 		let mut resp = session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		doc.find("#pageContent > .contestList")?
@@ -364,15 +364,15 @@ impl TestIndex {
 		let txt = span.child(0)?;
 		let txt = txt.text_child(0)?;
 		let num = span.find(".verdict-format-judged")?.text().parse()?;
-		Ok(if txt.as_str().contains("hack") {
-			TestIndex::Hack(num)
+		if txt.as_str().contains("hack") {
+			Ok(TestIndex::Hack(num))
 		} else if txt.as_str().contains("pretest") {
-			TestIndex::Pretest(num)
+			Ok(TestIndex::Pretest(num))
 		} else if txt.as_str().contains("test") {
-			TestIndex::Test(num)
+			Ok(TestIndex::Test(num))
 		} else {
-			Err(txt.error("unrecognized test index"))?
-		})
+			Err(txt.error("unrecognized test index"))
+		}
 	}
 
 	fn desc(&self) -> String {

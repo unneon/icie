@@ -21,7 +21,7 @@ impl Piece {
 		let dependencies = headers
 			.optfield("Dependencies")
 			.unwrap_or("")
-			.split(",")
+			.split(',')
 			.filter(|s| !s.trim().is_empty())
 			.map(|s| s.trim().to_owned())
 			.collect::<Vec<_>>();

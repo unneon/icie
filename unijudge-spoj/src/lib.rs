@@ -110,7 +110,7 @@ impl unijudge::Backend for SPOJ {
 				Ok(unijudge::Submission {
 					id: row.child(1)?.text().string(),
 					verdict: row.find(".statusres")?.text().map(|text| {
-						let part = &text[..text.find("\n").unwrap_or(text.len())];
+						let part = &text[..text.find('\n').unwrap_or_else(|| text.len())];
 						match part {
 							"accepted" => Ok(Verdict::Accepted),
 							"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),

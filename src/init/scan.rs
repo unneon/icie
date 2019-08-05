@@ -1,6 +1,8 @@
 use crate::net::{self, Backend, BACKENDS};
 use evscode::{E, R};
-use std::{sync::Arc, thread};
+use std::{
+	sync::Arc, thread::{self, JoinHandle}
+};
 use unijudge::{boxed::BoxedContestDetails, URL};
 
 pub fn fetch_contests() -> R<Vec<(Arc<net::Session>, BoxedContestDetails)>> {
@@ -10,7 +12,7 @@ pub fn fetch_contests() -> R<Vec<(Arc<net::Session>, BoxedContestDetails)>> {
 		.flat_map(|backend| backend.network.accepted_domains().iter().map(move |domain| (*domain, backend)))
 		.collect();
 	let _status = crate::STATUS.push_silence();
-	let tasks: Vec<thread::JoinHandle<R<(net::Session, Vec<BoxedContestDetails>)>>> = domains
+	let tasks: Vec<_> = domains
 		.into_iter()
 		.map(|(domain, backend)| {
 			thread::spawn(move || {
@@ -25,7 +27,7 @@ pub fn fetch_contests() -> R<Vec<(Arc<net::Session>, BoxedContestDetails)>> {
 		.collect();
 	tasks
 		.into_iter()
-		.flat_map(|handle| {
+		.flat_map(|handle: JoinHandle<R<_>>| {
 			match {
 				try {
 					let (sess, contests) = handle.join().map_err(|p| -> E { panic!(p) })??;

@@ -160,9 +160,9 @@ impl unijudge::Backend for Sio2 {
 					"Pending" | "Oczekuje" => Ok(Some(Status::Pending)),
 					_ => Err(format!("unrecognized submission status {:?}", status)),
 				})?;
-				let score = tr.child(11)?.text().map(|score| score[..score.find(" ").unwrap_or(score.len())].parse::<i64>()).ok();
+				let score = tr.child(11)?.text().map(|score| score[..score.find(' ').unwrap_or_else(|| score.len())].parse::<i64>()).ok();
 				Ok(Submission {
-					id: tr.find("a")?.attr("href")?.map(|href| match href.split("/").filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
+					id: tr.find("a")?.attr("href")?.map(|href| match href.split('/').filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
 						Some(id) => Ok(String::from(*id)),
 						None => Err("empty submission href"),
 					})?,

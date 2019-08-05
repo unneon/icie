@@ -135,7 +135,7 @@ pub fn active_editor_file() -> LazyFuture<Option<PathBuf>> {
 				"aid" => aid,
 			})
 		},
-		|raw| raw.as_str().map(|s| PathBuf::from(s)),
+		|raw| raw.as_str().map(PathBuf::from),
 	)
 }
 

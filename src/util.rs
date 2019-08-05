@@ -201,7 +201,7 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
 		unijudge::Error::UnexpectedHTML(e) => {
 			let mut extended = Vec::new();
-			if e.snapshots.len() >= 1 {
+			if !e.snapshots.is_empty() {
 				extended.push(e.snapshots.last().unwrap().clone());
 			}
 			evscode::E {

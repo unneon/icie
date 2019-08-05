@@ -13,11 +13,11 @@ pub trait VariableSet: FromStr<Err=String>+fmt::Display {
 
 enum Case {
 	None,
-	CamelCase,  // camelCase
-	PascalCase, // PascalCase
-	SnakeCase,  // snake_case
-	KebabCase,  // kebab-case
-	UpperCase,  // UPPER_CASE
+	Camel,  // camelCase
+	Pascal, // PascalCase
+	Snake,  // snake_case
+	Kebab,  // kebab-case
+	Upper,  // UPPER_CASE
 }
 
 impl Case {
@@ -28,11 +28,11 @@ impl Case {
 		let parts: Vec<String> = s.split(' ').filter(|p| !p.is_empty()).map(String::from).collect();
 		let (casing, cap_range, joiner): (fn(&str) -> String, _, _) = match self {
 			Case::None => (str::to_owned, 0..0, ""),
-			Case::CamelCase => (str::to_lowercase, 1..parts.len(), ""),
-			Case::PascalCase => (str::to_lowercase, 0..parts.len(), ""),
-			Case::SnakeCase => (str::to_lowercase, 0..0, "_"),
-			Case::KebabCase => (str::to_lowercase, 0..0, "-"),
-			Case::UpperCase => (str::to_uppercase, 0..0, "_"),
+			Case::Camel => (str::to_lowercase, 1..parts.len(), ""),
+			Case::Pascal => (str::to_lowercase, 0..parts.len(), ""),
+			Case::Snake => (str::to_lowercase, 0..0, "_"),
+			Case::Kebab => (str::to_lowercase, 0..0, "-"),
+			Case::Upper => (str::to_uppercase, 0..0, "_"),
 		};
 		parts
 			.into_iter()
@@ -51,7 +51,7 @@ impl Case {
 
 fn capitalize(s: &str) -> String {
 	let mut cs = s.chars();
-	let c1 = cs.next().map(|c1| c1.to_uppercase().into_iter());
+	let c1 = cs.next().map(|c1| c1.to_uppercase());
 	c1.into_iter().flatten().chain(cs).collect()
 }
 
@@ -59,11 +59,11 @@ impl fmt::Display for Case {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
 			Case::None => Ok(()),
-			Case::CamelCase => f.write_str(" case.camel"),
-			Case::PascalCase => f.write_str(" case.pascal"),
-			Case::SnakeCase => f.write_str(" case.snake"),
-			Case::KebabCase => f.write_str(" case.kebab"),
-			Case::UpperCase => f.write_str(" case.upper"),
+			Case::Camel => f.write_str(" case.camel"),
+			Case::Pascal => f.write_str(" case.pascal"),
+			Case::Snake => f.write_str(" case.snake"),
+			Case::Kebab => f.write_str(" case.kebab"),
+			Case::Upper => f.write_str(" case.upper"),
 		}
 	}
 }
@@ -73,11 +73,11 @@ impl FromStr for Case {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"case.camel" => Ok(Case::CamelCase),
-			"case.pascal" => Ok(Case::PascalCase),
-			"case.snake" => Ok(Case::SnakeCase),
-			"case.kebab" => Ok(Case::KebabCase),
-			"case.upper" => Ok(Case::UpperCase),
+			"case.camel" => Ok(Case::Camel),
+			"case.pascal" => Ok(Case::Pascal),
+			"case.snake" => Ok(Case::Snake),
+			"case.kebab" => Ok(Case::Kebab),
+			"case.upper" => Ok(Case::Upper),
 			_ => Err(format!(
 				"unrecognized case type {:?}, choose one of: \"case.camel\", \"case.pascal\", \"case.snake\", \"case.kebab\", \"case.upper\"",
 				s
@@ -161,8 +161,8 @@ impl<V: VariableSet> FromStr for Interpolation<V> {
 			} else if s.starts_with("}}") {
 				segments.push(Segment::Literal("}".to_owned()));
 				s = &s[2..];
-			} else if s.starts_with("{") {
-				let i2 = s.find("}").ok_or("unterminated variable block")?;
+			} else if s.starts_with('{') {
+				let i2 = s.find('}').ok_or("unterminated variable block")?;
 				let inner = &s[1..i2];
 				let mut parts = inner.split(' ');
 				let variable = parts.next().ok_or("variable block has no content")?;
@@ -170,7 +170,7 @@ impl<V: VariableSet> FromStr for Interpolation<V> {
 				let case = parts.next().map(|case| case.parse()).unwrap_or(Ok(Case::None))?;
 				segments.push(Segment::Substitution { variable, case });
 				s = &s[i2 + 1..];
-			} else if s.starts_with("}") {
+			} else if s.starts_with('}') {
 				return Err("variable block end } without a matching start {".to_owned());
 			} else {
 				let i = match (s.find('{'), s.find('}')) {
