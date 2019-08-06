@@ -57,9 +57,7 @@ impl Rewrite {
 		let good_siblings = v.next_sibling().map(|sib| Self::impl_fix_hide(sib, f)).unwrap_or(false);
 		if !good_path {
 			if let scraper::Node::Element(v) = v.value() {
-				let old_style = v.attr("style").unwrap_or("").to_owned();
-				let new_style = format!("{} display: none !important;", old_style);
-				v.attrs.insert(qn!("style"), new_style.into());
+				add_style(v, "display: none !important;");
 			}
 		}
 		good_path | good_siblings
@@ -86,6 +84,11 @@ pub fn fix_url(v: &mut scraper::node::Element, key: markup5ever::QualName, scan:
 			*val = format!("{}{}", prepend, val).into();
 		}
 	}
+}
+
+pub fn add_style(v: &mut scraper::node::Element, part: &str) {
+	let old = v.attr("style").unwrap_or("").to_owned();
+	v.attrs.insert(qn!("style"), format!("{}{}", old, part).into());
 }
 
 pub fn any_sibling(v: &mut ego_tree::NodeMut<scraper::Node>, mut f: impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool) -> bool {

@@ -80,13 +80,34 @@ impl unijudge::Backend for SPOJ {
 		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
+		let mut statement = unijudge::statement::Rewrite::start(doc);
+		statement.fix_hide(|v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				v.id().map_or(false, |id| ["problem-name", "problem-tags", "problem-body"].contains(&id))
+			} else {
+				false
+			}
+		});
+		statement.fix_override_csp();
+		statement.fix_traverse(|mut v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://www.spoj.com");
+				if v.name() == "body" {
+					unijudge::statement::add_style(v, "background: #fff;");
+				}
+				if v.id() == Some("content") {
+					unijudge::statement::add_style(v, "border: none;");
+				}
+			}
+		});
 		Ok(TaskDetails {
 			id: task.to_owned(),
 			title,
 			contest_id: "problems".to_owned(),
 			site_short: "spoj".to_owned(),
 			examples: None,
-			statement: None,
+			statement: Some(statement.export()),
 			url: url.to_string(),
 		})
 	}
