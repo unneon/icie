@@ -41,7 +41,7 @@ fn send_passed() -> R<()> {
 
 fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
-	let sleep_duration = Duration::from_millis(500);
+	let sleep_duration = Duration::from_millis(2000);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
 	let mut last_verdict = None;
 	let verdict = loop {
