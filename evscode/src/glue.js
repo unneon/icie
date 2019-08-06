@@ -125,14 +125,19 @@ function activate(ctx) {
         else if (reaction.tag === "open_editor") {
             vscode.workspace.openTextDocument(reaction.path)
                 .then(source => {
-                return vscode.window.showTextDocument(source);
+                return vscode.window.showTextDocument(source, {
+                    preserveFocus: nullmap(reaction.preserve_focus),
+                    preview: nullmap(reaction.preview),
+                    selection: reaction.selection !== null ? convrange(reaction.selection) : undefined,
+                    viewColumn: reaction.view_column !== null ? webview.convert_view_column(reaction.view_column) : undefined,
+                });
             })
                 .then(editor => {
-                let oldPosition = editor.selection.active;
-                let newPosition = oldPosition.with(reaction.row !== null ? reaction.row : oldPosition.line, reaction.column !== null ? reaction.column : oldPosition.character);
-                let newSelection = new vscode.Selection(newPosition, newPosition);
-                editor.selection = newSelection;
-                editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
+                if (reaction.cursor !== null) {
+                    let newPosition = convpos(reaction.cursor);
+                    editor.selection = new vscode.Selection(newPosition, newPosition);
+                    editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
+                }
             });
         }
         else if (reaction.tag === "progress_start") {
@@ -272,6 +277,12 @@ function activate(ctx) {
 exports.activate = activate;
 function nullmap(x) {
     return x === null ? undefined : x;
+}
+function convpos(x) {
+    return new vscode.Position(x.line, x.column);
+}
+function convrange(x) {
+    return new vscode.Range(convpos(x.start), convpos(x.end));
 }
 function deactivate() {
 }
@@ -644,6 +655,7 @@ var webview;
             throw new Error('unrecognized view column');
         }
     }
+    webview.convert_view_column = convert_view_column;
 })(webview || (webview = {}));
 var register;
 (function (register) {

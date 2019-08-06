@@ -106,7 +106,38 @@ impl unijudge::Backend for Atcoder {
 				})
 				.collect::<debris::Result<_>>()?,
 		);
-		Ok(TaskDetails { id: symbol, title, contest_id: task.contest.clone(), site_short: "atc".to_owned(), examples, url: url.to_string() })
+		let mut statement = unijudge::statement::Rewrite::start(doc);
+		statement.fix_hide(|v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				if v.name() == "form" || v.attr("id") == Some("task-statement") {
+					return false;
+				}
+				if v.has_class("lang-en", unijudge::selectors::attr::CaseSensitivity::CaseSensitive) {
+					return true;
+				}
+			}
+			unijudge::statement::any_sibling(v, |u| {
+				if let unijudge::scraper::Node::Element(u) = u.value() { u.attr("id") == Some("task-statement") } else { false }
+			})
+		});
+		statement.fix_override_csp();
+		statement.fix_traverse(|mut v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				if v.name() == "link" && v.attr("href").map_or(false, |href| href.contains("contests.css") || href.contains("bootstrap.min.css")) {
+					unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
+					unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://atcoder.jp");
+				}
+			}
+		});
+		Ok(TaskDetails {
+			id: symbol,
+			title,
+			contest_id: task.contest.clone(),
+			site_short: "atc".to_owned(),
+			examples,
+			statement: Some(statement.export()),
+			url: url.to_string(),
+		})
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {

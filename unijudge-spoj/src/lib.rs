@@ -86,6 +86,7 @@ impl unijudge::Backend for SPOJ {
 			contest_id: "problems".to_owned(),
 			site_short: "spoj".to_owned(),
 			examples: None,
+			statement: None,
 			url: url.to_string(),
 		})
 	}

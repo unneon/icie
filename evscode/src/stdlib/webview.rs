@@ -4,77 +4,10 @@
 //! directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
 
 use crate::{
-	internal::executor::{send_object, HANDLE_FACTORY}, LazyFuture
+	internal::executor::{send_object, HANDLE_FACTORY}, Column, LazyFuture
 };
 use json::JsonValue;
 use std::sync::atomic::{AtomicBool, Ordering};
-
-/// View column where a tab can appear.
-#[derive(Clone)]
-pub enum Column {
-	/// View column of the currently active tab.
-	Active,
-	/// View column to the right of the currently active tab.
-	/// This can create new columns depending on what is currently selected.
-	/// Examples:
-	/// - One column exists: the column is split in half, the right half is taken by the new webview.
-	/// - Two columns exist, left active: the new webvieb is added to the right column as a new tab.
-	/// - Two columns exist, right active: the right column is split in half, the right half of the right half is taken by the new webview.
-	Beside,
-	/// First, leftmost column.
-	One,
-	/// Second column.
-	Two,
-	/// Third column.
-	Three,
-	/// Fourth column.
-	Four,
-	/// Fifth column.
-	Five,
-	/// Sixth column.
-	Six,
-	/// Seventh column.
-	Seven,
-	/// Eighth column.
-	Eight,
-	/// Ninth column.
-	Nine,
-}
-impl From<i32> for Column {
-	fn from(x: i32) -> Self {
-		use Column::*;
-		match x {
-			1 => One,
-			2 => Two,
-			3 => Three,
-			4 => Four,
-			5 => Five,
-			6 => Six,
-			7 => Seven,
-			8 => Eight,
-			9 => Nine,
-			_ => panic!("view column number should be in [1, 9]"),
-		}
-	}
-}
-impl Column {
-	fn to_js(&self) -> &'static str {
-		use Column::*;
-		match self {
-			Active => "active",
-			Beside => "beside",
-			Eight => "eight",
-			Five => "five",
-			Four => "four",
-			Nine => "nine",
-			One => "one",
-			Seven => "seven",
-			Six => "six",
-			Three => "three",
-			Two => "two",
-		}
-	}
-}
 
 /// Builder for configurating webviews. See [module documentation](index.html) for details.
 #[must_use]
@@ -140,7 +73,7 @@ impl Builder {
 			"tag" => "webview_create",
 			"view_type" => self.view_type,
 			"title" => self.title,
-			"view_column" => self.view_column.to_js(),
+			"view_column" => self.view_column,
 			"preserve_focus" => self.preserve_focus,
 			"enable_command_uris" => self.enable_command_uris,
 			"enable_scripts" => self.enable_scripts,
@@ -246,7 +179,7 @@ impl Webview {
 		send_object(json::object! {
 			"tag" => "webview_reveal",
 			"hid" => self.hid,
-			"view_column" => view_column.into().to_js(),
+			"view_column" => view_column.into(),
 		});
 	}
 

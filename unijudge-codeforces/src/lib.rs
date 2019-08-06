@@ -126,17 +126,38 @@ impl unijudge::Backend for Codeforces {
 			};
 			Ok((full[..i].trim().to_owned(), full[i + 1..].trim().to_owned()))
 		})?;
-		let examples = doc
-			.find_all(".sample-test .input")
-			.zip(doc.find_all(".sample-test .output"))
-			.map(|(input, output)| Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() }))
-			.collect::<Result<_>>()?;
+		let examples = Some(
+			doc.find_all(".sample-test .input")
+				.zip(doc.find_all(".sample-test .output"))
+				.map(|(input, output)| {
+					Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() })
+				})
+				.collect::<Result<_>>()?,
+		);
+		let mut statement = unijudge::statement::Rewrite::start(doc);
+		statement.fix_hide(|v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				v.has_class("problem-statement", unijudge::selectors::attr::CaseSensitivity::CaseSensitive)
+			} else {
+				false
+			}
+		});
+		statement.fix_override_csp();
+		statement.fix_traverse(|mut v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
+				unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://codeforces.com");
+				unijudge::statement::fix_url(v, unijudge::qn!("src"), "/", "https://codeforces.com");
+			}
+		});
 		Ok(unijudge::TaskDetails {
 			id: symbol,
 			title,
 			contest_id: self.pretty_contest(task),
 			site_short: "cf".to_owned(),
-			examples: Some(examples),
+			examples,
+			statement: Some(statement.export()),
 			url: url.to_string(),
 		})
 	}

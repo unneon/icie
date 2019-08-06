@@ -173,10 +173,11 @@ fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDet
 
 fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	let examples = meta.map(|meta| meta.examples.unwrap_or_default()).unwrap_or_default();
-	files::init_manifest(root, &url)?;
+	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
+	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
+	files::init_manifest(root, &url, statement)?;
 	files::init_template(root)?;
-	files::init_examples(root, &examples)?;
+	files::init_examples(root, examples)?;
 	Ok(())
 }
 fn init_contest(root: &Path, tasks: &[BoxedTask], sess: &net::Session) -> R<PathBuf> {

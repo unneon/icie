@@ -122,6 +122,7 @@ impl unijudge::Backend for Sio2 {
 			contest_id: task.contest.clone(),
 			site_short: "sio2".to_owned(),
 			examples: None,
+			statement: None,
 			url: url.to_string(),
 		})
 	}

@@ -1,11 +1,17 @@
+use crate::{dir, manifest::Manifest, util};
 use evscode::{quick_pick, QuickPick, E, R};
 
 pub fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
-	if evscode::workspace_root().is_ok() {
-		let solution = crate::dir::solution()?;
-		if solution.exists() {
-			crate::util::nice_open_editor(solution)?;
+	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
+		evscode::open_editor(&solution, util::find_cursor_place(&solution), None, None, None, Some(1.into()));
+		if let Some(statement) = manifest.statement {
+			let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
+				.enable_scripts()
+				.enable_find_widget()
+				.retain_context_when_hidden()
+				.create();
+			webview.set_html(statement.html);
 		}
 	}
 	Ok(())

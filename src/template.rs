@@ -31,7 +31,7 @@ pub fn instantiate() -> R<()> {
 		return Err(E::error("file already exists"));
 	}
 	util::fs_write(&path, tpl.code)?;
-	util::nice_open_editor(&path)?;
+	util::nice_open_editor(&path);
 	Ok(())
 }
 

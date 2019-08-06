@@ -1,4 +1,4 @@
-use evscode::{E, R};
+use evscode::{Position, E, R};
 use std::{
 	path::{Path, PathBuf}, time::Duration
 };
@@ -139,20 +139,22 @@ pub fn fs_create_dir_all(path: impl AsRef<Path>) -> R<()> {
 	std::fs::create_dir_all(path.as_ref()).map_err(|e| E::from_std(e).context(format!("failed to create directory {}", path.as_ref().display())))
 }
 
-pub fn nice_open_editor(path: impl AsRef<Path>) -> evscode::R<()> {
-	let doc = std::fs::read_to_string(path.as_ref()).unwrap_or_default();
+pub fn find_cursor_place(path: &Path) -> Option<Position> {
+	let doc = std::fs::read_to_string(path).unwrap_or_default();
 	let mut found_main = false;
-	for (i, line) in doc.lines().enumerate() {
-		if !found_main && line.contains("int main(") {
+	for (line, content) in doc.lines().enumerate() {
+		if !found_main && content.contains("int main(") {
 			found_main = true;
 		}
-		if line.trim().is_empty() && (!line.is_empty() || found_main) {
-			evscode::open_editor(path.as_ref(), Some(i), Some(80));
-			return Ok(());
+		if content.trim().is_empty() && (!content.is_empty() || found_main) {
+			return Some(Position { line, column: 80 });
 		}
 	}
-	evscode::open_editor(path.as_ref(), None, None);
-	Ok(())
+	None
+}
+
+pub fn nice_open_editor(path: impl AsRef<Path>) {
+	evscode::open_editor(path.as_ref(), find_cursor_place(path.as_ref()), None, None, None, None);
 }
 
 pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {

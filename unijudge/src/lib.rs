@@ -3,8 +3,14 @@
 pub extern crate chrono;
 pub extern crate debris;
 pub extern crate log;
+pub extern crate markup5ever;
 pub extern crate reqwest;
+pub extern crate scraper;
+pub extern crate selectors;
 pub extern crate serde;
+
+#[macro_use]
+pub mod statement;
 
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
@@ -75,6 +81,11 @@ pub struct Example {
 	pub output: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Statement {
+	pub html: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct TaskDetails {
 	pub id: String,
@@ -82,6 +93,7 @@ pub struct TaskDetails {
 	pub contest_id: String,
 	pub site_short: String,
 	pub examples: Option<Vec<Example>>,
+	pub statement: Option<Statement>,
 	pub url: String,
 }
 

@@ -63,12 +63,12 @@ Most lines are self-explanatory, except for the `/// Guarantee: struct FU {` one
 You can also specify the Dependencies header with a comma-separated list of things that need to be pasted before this piece(e.g. if your modular arithmetic implementation uses a quick exponentiation function from `qpow.cpp`, write `/// Dependencies: qpow` and it will be pasted automatically).
 
 ### Supported sites
-| Site | Submit | Examples | Contests |
-| - | - | - | - |
-| [Codeforces](https://codeforces.com) | Yes | Yes | Yes |
-| [Atcoder](https://atcoder.jp) | Yes | Yes | Yes |
-| [SPOJ](https://spoj.com) | Yes | | |
-| *sio2 sites* | Yes | | |
+| Site | Submit | Examples | Contests | Statement |
+| - | - | - | - | - |
+| [Codeforces](https://codeforces.com) | Yes | Yes | Yes | Yes |
+| [Atcoder](https://atcoder.jp) | Yes | Yes | Yes | Yes |
+| [SPOJ](https://spoj.com) | Yes | | | |
+| *sio2 sites* | Yes | | | |
 
 ## Development & Building from source
 

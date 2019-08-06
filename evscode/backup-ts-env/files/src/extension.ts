@@ -112,14 +112,19 @@ export function activate(ctx: vscode.ExtensionContext) {
         } else if (reaction.tag === "open_editor") {
             vscode.workspace.openTextDocument(reaction.path)
                 .then(source => {
-                    return vscode.window.showTextDocument(source);
+                    return vscode.window.showTextDocument(source, {
+                        preserveFocus: nullmap(reaction.preserve_focus),
+                        preview: nullmap(reaction.preview),
+                        selection: reaction.selection !== null ? convrange(reaction.selection) : undefined,
+                        viewColumn: reaction.view_column !== null ? webview.convert_view_column(reaction.view_column) : undefined,
+                    })
                 })
                 .then(editor => {
-                    let oldPosition = editor.selection.active;
-                    let newPosition = oldPosition.with(reaction.row !== null ? reaction.row : oldPosition.line, reaction.column !== null ? reaction.column : oldPosition.character);
-                    let newSelection = new vscode.Selection(newPosition, newPosition);
-                    editor.selection = newSelection;
-                    editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
+                    if (reaction.cursor !== null ) {
+                        let newPosition = convpos(reaction.cursor)
+                        editor.selection = new vscode.Selection(newPosition, newPosition);
+                        editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
+                    }
                 });
         } else if (reaction.tag === "progress_start") {
             progresses.start(reaction.hid, {
@@ -233,6 +238,12 @@ export function activate(ctx: vscode.ExtensionContext) {
 function nullmap<T>(x: T | null): T | undefined {
     return x === null ? undefined : x;
 }
+function convpos(x: native.Position2): vscode.Position {
+    return new vscode.Position(x.line, x.column);
+}
+function convrange(x: native.Range2): vscode.Range {
+    return new vscode.Range(convpos(x.start), convpos(x.end));
+}
 
 export function deactivate() {
 }
@@ -303,6 +314,14 @@ namespace native {
         line: number;
         character: number;
     }
+    export interface Position2 {
+        column: number;
+        line: number;
+    }
+    export interface Range2 {
+        start: Position2;
+        end: Position2;
+    }
 
     export interface ImpulseTrigger {
         tag: "trigger";
@@ -371,8 +390,11 @@ namespace native {
     export interface ReactionOpenEditor {
         tag: "open_editor";
         path: string;
-        row: number | null;
-        column: number | null;
+        cursor: Position2 | null,
+        preserve_focus: boolean | null;
+        preview: boolean | null;
+        selection: Range2 | null;
+        view_column: WebviewViewColumn | null;
     }
     export interface ReactionProgressStart {
         tag: "progress_start";
@@ -843,7 +865,7 @@ namespace webview {
         }
     }
 
-    function convert_view_column(col: native.WebviewViewColumn): vscode.ViewColumn {
+    export function convert_view_column(col: native.WebviewViewColumn): vscode.ViewColumn {
         if (col === 'active') {
             return vscode.ViewColumn.Active;
         } else if (col === 'beside') {

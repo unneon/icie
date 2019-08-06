@@ -1,5 +1,5 @@
 use crate::{ci, dir, util, STATUS};
-use evscode::{E, R};
+use evscode::{Position, E, R};
 use std::path::PathBuf;
 
 /// When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting,
@@ -129,7 +129,14 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
 				if *AUTO_MOVE_TO_ERROR.get() {
-					evscode::open_editor(&location.path, Some(location.line - 1), Some(location.column - 1));
+					evscode::open_editor(
+						&location.path,
+						Some(Position { line: location.line - 1, column: location.column - 1 }),
+						None,
+						None,
+						None,
+						None,
+					);
 				}
 			}
 			Err(evscode::E::error(error.message.clone()).context("compilation error").workflow_error())
@@ -163,7 +170,7 @@ fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
 	}
 	for (i, warning) in warnings.iter().enumerate() {
 		if let Some(location) = &warning.location {
-			evscode::open_editor(&location.path, Some(location.line - 1), Some(location.column - 1));
+			evscode::open_editor(&location.path, Some(Position { line: location.line - 1, column: location.column - 1 }), None, None, None, None);
 		}
 		let mut msg = evscode::Message::new(&warning.message).warning();
 		if i + 1 != warnings.len() {

@@ -1,10 +1,10 @@
 use crate::{dir, init::SOLUTION_TEMPLATE, util};
 use evscode::{E, R};
 use std::path::Path;
-use unijudge::Example;
+use unijudge::{Example, Statement};
 
-pub fn init_manifest(root: &Path, url: &Option<String>) -> R<()> {
-	let manifest = crate::manifest::Manifest::new_project(url.clone());
+pub fn init_manifest(root: &Path, url: &Option<String>, statement: Option<Statement>) -> R<()> {
+	let manifest = crate::manifest::Manifest { task_url: url.clone(), statement };
 	manifest.save(root)?;
 	Ok(())
 }
