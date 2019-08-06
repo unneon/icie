@@ -45,21 +45,6 @@ pub fn save_cache(site: &str, value: &str) {
 	Keyring::new("session", site).set(value); // ignore save fail
 }
 
-#[evscode::command(title = "ICIE Password reset")]
-fn reset() -> R<()> {
-	let url = evscode::InputBox::new()
-		.prompt("Enter any contest/task URL from the site for which you want to reset the password")
-		.placeholder("https://codeforces.com/contest/.../problem/...")
-		.ignore_focus_out()
-		.build()
-		.wait()
-		.ok_or_else(E::cancel)?;
-	let site = crate::net::interpret_url(&url)?.0.site;
-	Keyring::new("credentials", &site).delete();
-	Keyring::new("session", &site).delete();
-	Ok(())
-}
-
 fn help_fix_kwallet() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").wait()
 }
@@ -94,14 +79,6 @@ impl Keyring {
 			false
 		} else {
 			true
-		}
-	}
-
-	fn delete(&self) {
-		let entry = format!("@{} {}", self.kind, self.site);
-		let kr = keyring::Keyring::new("icie", &entry);
-		if let Err(e) = kr.delete_password() {
-			log::error!("keyring errored, details: {:#?}", e);
 		}
 	}
 }
