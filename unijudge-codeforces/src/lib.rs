@@ -149,6 +149,12 @@ impl unijudge::Backend for Codeforces {
 				unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
 				unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://codeforces.com");
 				unijudge::statement::fix_url(v, unijudge::qn!("src"), "/", "https://codeforces.com");
+				if v.id() == Some("body") {
+					unijudge::statement::add_style(v, "min-width: unset !important;");
+				}
+				if v.id() == Some("pageContent") {
+					unijudge::statement::add_style(v, "margin-right: 1em !important;");
+				}
 			}
 		});
 		Ok(unijudge::TaskDetails {
