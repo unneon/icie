@@ -14,6 +14,7 @@ pub fn activate() -> R<()> {
 			webview.set_html(statement.html);
 		}
 	}
+	evscode::internal::executor::spawn(crate::newsletter::check);
 	Ok(())
 }
 

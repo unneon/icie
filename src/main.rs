@@ -12,6 +12,7 @@ mod interpolation;
 mod launch;
 mod manifest;
 mod net;
+mod newsletter;
 mod paste;
 mod submit;
 mod template;
