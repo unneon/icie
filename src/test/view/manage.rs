@@ -45,7 +45,7 @@ impl Computation for TestViewLogic {
 		Ok(())
 	}
 
-	fn manage(&self, source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box<dyn FnOnce()+Send+'static>> {
+	fn manage(&self, source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box<dyn FnOnce() -> R<()>+Send+'static>> {
 		let webview = webview.lock().unwrap();
 		let stream = webview.listener().spawn().cancel_on(webview.disposer());
 		let source = source.clone();
@@ -91,9 +91,10 @@ impl Computation for TestViewLogic {
 						SKILL_ACTIONS.add_use();
 						Ok(())
 					}),
-					_ => log::error!("unrecognied testview webview food `{}`", note.dump()),
+					_ => return Err(E::error(format!("invalid webview message `{}`", note.dump()))),
 				}
 			}
+			Ok(())
 		}))
 	}
 }

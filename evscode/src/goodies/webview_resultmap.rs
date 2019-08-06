@@ -18,7 +18,7 @@ pub trait Computation: Sync {
 	/// Update a webview with given computation results.
 	fn update(&self, key: &Self::K, value: &Self::V, webview: &Webview) -> R<()>;
 	/// Return a worker function which will handle the messages received from the webview.
-	fn manage(&self, key: &Self::K, value: &Self::V, handle: WebviewHandle) -> R<Box<dyn FnOnce()+Send+'static>>;
+	fn manage(&self, key: &Self::K, value: &Self::V, handle: WebviewHandle) -> R<Box<dyn FnOnce() -> R<()>+Send+'static>>;
 }
 
 /// State of the webview collection.
@@ -101,14 +101,14 @@ impl<T: Computation> WebviewResultmap<T> {
 		let key = key.clone();
 		let handle = webview.clone();
 		crate::runtime::spawn(move || {
-			worker();
+			let delayed_error = worker();
 			let mut collection = self.collection.lock().unwrap();
 			if let std::collections::hash_map::Entry::Occupied(e) = collection.entry(key) {
 				if Arc::ptr_eq(e.get(), &handle) {
 					e.remove_entry();
 				}
 			}
-			Ok(())
+			delayed_error
 		});
 		Ok((webview, value))
 	}

@@ -121,9 +121,8 @@ impl<T: Send+'static> LazyFuture<T> {
 					match f(carrier) {
 						Ok(()) => (),
 						Err(e) => {
-							let e: R<T> = Err(e);
-							if tx2.send(Packet::new(aid, e)).is_err() {
-								log::warn!("dropped error in worker thread");
+							if tx2.send(Packet::new::<R<T>>(aid, Err(e.clone()))).is_err() {
+								e.context("dropped error in worker thread").emit();
 							}
 						},
 					}
