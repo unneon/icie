@@ -20,7 +20,7 @@ static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
 fn scan() -> R<()> {
 	#[evscode::status("Fetching")]
-	let mut contests = scan::fetch_contests()?;
+	let mut contests = scan::fetch_contests();
 	contests.sort_by_key(|contest| contest.1.start);
 	#[evscode::status("Picking contest")]
 	let pick = QuickPick::new()
@@ -115,17 +115,16 @@ fn wait_for_contest(contest: &BoxedContestDetails, site: &str, sess: &Arc<net::S
 	let site = site.to_owned();
 	let sess = sess.clone();
 	evscode::internal::executor::spawn(move || {
-		if !auth::has_any_saved(&site) {
-			if evscode::Message::new(format!("You are not logged in to {}, maybe do it now to save time when submitting?", site))
+		if !auth::has_any_saved(&site)
+			&& evscode::Message::new(format!("You are not logged in to {}, maybe do it now to save time when submitting?", site))
 				.item("log-in", "Log in", false)
 				.build()
 				.wait()
 				.is_some()
-			{
-				let _status = crate::STATUS.push("Logging in");
-				sess.force_login()?;
-				evscode::Message::new("Logged in successfully").build().spawn();
-			}
+		{
+			let _status = crate::STATUS.push("Logging in");
+			sess.force_login()?;
+			evscode::Message::new("Logged in successfully").build().spawn();
 		}
 		Ok(())
 	});

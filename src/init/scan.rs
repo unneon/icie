@@ -1,11 +1,11 @@
 use crate::net::{self, Backend, BACKENDS};
-use evscode::{E, R};
+use evscode::R;
 use std::{
 	sync::Arc, thread::{self, JoinHandle}
 };
 use unijudge::{boxed::BoxedContestDetails, URL};
 
-pub fn fetch_contests() -> R<Vec<(Arc<net::Session>, BoxedContestDetails)>> {
+pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
 	let domains: Vec<(&'static str, &'static Backend)> = BACKENDS
 		.iter()
 		.filter(|backend| backend.network.supports_contests())
@@ -15,29 +15,30 @@ pub fn fetch_contests() -> R<Vec<(Arc<net::Session>, BoxedContestDetails)>> {
 	let tasks: Vec<_> = domains
 		.into_iter()
 		.map(|(domain, backend)| {
-			thread::spawn(move || {
-				let url = URL::dummy_domain(domain);
-				#[evscode::status("Connecting {}", domain)]
-				let sess = net::Session::connect(&url, backend)?;
-				#[evscode::status("Fetching {}", domain)]
-				let contests = sess.run(|sess| sess.contests())?;
-				Ok((sess, contests))
-			})
+			(
+				domain,
+				thread::spawn(move || {
+					let url = URL::dummy_domain(domain);
+					#[evscode::status("Connecting {}", domain)]
+					let sess = Arc::new(net::Session::connect(&url, backend)?);
+					#[evscode::status("Fetching {}", domain)]
+					let contests = sess.run(|sess| sess.contests())?;
+					Ok((sess, contests))
+				}),
+			)
 		})
 		.collect();
 	tasks
 		.into_iter()
-		.flat_map(|handle: JoinHandle<R<_>>| {
-			match {
-				try {
-					let (sess, contests) = handle.join().map_err(|p| -> E { panic!(p) })??;
-					let sess = Arc::new(sess);
-					contests.into_iter().map(|contest| Ok((sess.clone(), contest))).collect::<Vec<_>>()
-				}
-			} {
-				Ok(contests) => contests,
-				Err(e) => vec![Err(e)],
-			}
+		.flat_map(|(domain, handle): (_, JoinHandle<R<_>>)| -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
+			handle
+				.join()
+				.unwrap()
+				.map(|(sess, contests)| contests.into_iter().map(|contest| (sess.clone(), contest)).collect::<Vec<_>>())
+				.unwrap_or_else(|e| {
+					e.context(format!("failed to fetch {} contests", domain)).warning().emit();
+					Vec::new()
+				})
 		})
 		.collect()
 }
