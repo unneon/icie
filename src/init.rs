@@ -21,7 +21,8 @@ static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
 fn scan() -> R<()> {
 	#[evscode::status("Fetching")]
-	let contests = scan::fetch_contests()?;
+	let mut contests = scan::fetch_contests()?;
+	contests.sort_by_key(|contest| contest.1.start);
 	#[evscode::status("Picking contest")]
 	let pick = QuickPick::new()
 		.items(contests.iter().enumerate().map(|(index, (_, contest))| {
