@@ -20,7 +20,7 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
 }
 
 pub struct Session {
-	site: String,
+	pub site: String,
 	raw: unijudge::boxed::Session,
 }
 impl Session {
@@ -40,7 +40,8 @@ impl Session {
 		loop {
 			match f(&self.raw) {
 				Ok(y) => break Ok(y),
-				Err(unijudge::Error::AccessDenied) => {
+				Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
+					self.maybe_error_show(e);
 					let (username, password) = auth::get_cached_or_ask(&self.site)?;
 					self.login(&username, &password)?
 				},
@@ -49,7 +50,7 @@ impl Session {
 		}
 	}
 
-	fn login(&self, username: &str, password: &str) -> Result<(), E> {
+	pub fn login(&self, username: &str, password: &str) -> R<()> {
 		match self.raw.login(&username, &password) {
 			Ok(()) => {
 				if let Some(cache) = self.raw.cache_auth().map_err(util::from_unijudge_error)? {
@@ -57,11 +58,22 @@ impl Session {
 				}
 				Ok(())
 			},
-			Err(unijudge::Error::WrongData) | Err(unijudge::Error::WrongCredentials) | Err(unijudge::Error::AccessDenied) => {
-				let (username, password) = auth::get_force_ask(&self.site)?;
-				self.login(&username, &password)
+			Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
+				self.maybe_error_show(e);
+				self.force_login()
 			},
 			Err(e) => Err(util::from_unijudge_error(e)),
+		}
+	}
+
+	pub fn force_login(&self) -> R<()> {
+		let (username, password) = auth::get_force_ask(&self.site)?;
+		self.login(&username, &password)
+	}
+
+	fn maybe_error_show(&self, e: unijudge::Error) {
+		if let unijudge::Error::WrongCredentials = e {
+			evscode::Message::new("Wrong username or password").error().build().spawn();
 		}
 	}
 }

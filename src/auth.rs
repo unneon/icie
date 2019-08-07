@@ -45,6 +45,10 @@ pub fn save_cache(site: &str, value: &str) {
 	Keyring::new("session", site).set(value); // ignore save fail
 }
 
+pub fn has_any_saved(site: &str) -> bool {
+	Keyring::new("session", site).get().is_some() || Keyring::new("credentials", site).get().is_some()
+}
+
 fn help_fix_kwallet() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").wait()
 }

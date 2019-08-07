@@ -1,9 +1,9 @@
 use crate::{
-	interpolation::Interpolation, net::{self, Backend}, util
+	auth, interpolation::Interpolation, net::{self, Backend}, util
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::{
-	path::{Path, PathBuf}, time::{Duration, SystemTime}
+	path::{Path, PathBuf}, sync::Arc, time::{Duration, SystemTime}
 };
 use unijudge::{
 	boxed::{BoxedContest, BoxedContestDetails, BoxedContestURL, BoxedTask, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
@@ -33,7 +33,7 @@ fn scan() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
-	wait_for_contest(contest)?;
+	wait_for_contest(contest, &sess.site, sess)?;
 	start_contest(&*sess, &contest.id)?;
 	Ok(())
 }
@@ -103,7 +103,7 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 	})
 }
 
-fn wait_for_contest(contest: &BoxedContestDetails) -> R<()> {
+fn wait_for_contest(contest: &BoxedContestDetails, site: &str, sess: &Arc<net::Session>) -> R<()> {
 	let deadline = SystemTime::from(contest.start);
 	let total = match deadline.duration_since(SystemTime::now()) {
 		Ok(total) => total,
@@ -112,6 +112,23 @@ fn wait_for_contest(contest: &BoxedContestDetails) -> R<()> {
 	let _status = crate::STATUS.push("Waiting for contest");
 	let progress = evscode::Progress::new().title(format!("Waiting for {}", contest.title)).cancellable().show();
 	let canceler = progress.canceler().spawn();
+	let site = site.to_owned();
+	let sess = sess.clone();
+	evscode::internal::executor::spawn(move || {
+		if !auth::has_any_saved(&site) {
+			if evscode::Message::new(format!("You are not logged in to {}, maybe do it now to save time when submitting?", site))
+				.item("log-in", "Log in", false)
+				.build()
+				.wait()
+				.is_some()
+			{
+				let _status = crate::STATUS.push("Logging in");
+				sess.force_login()?;
+				evscode::Message::new("Logged in successfully").build().spawn();
+			}
+		}
+		Ok(())
+	});
 	loop {
 		if canceler.try_wait().is_some() {
 			return Err(E::cancel());
