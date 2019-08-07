@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::{sync::Mutex, time::Duration};
+use std::sync::Mutex;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
-	}, Error, Language, Resource, Result, Submission, TaskDetails
+	}, ContestDetails, Error, Language, Resource, Result, Submission, TaskDetails
 };
 
 pub struct Codeforces;
@@ -255,38 +255,26 @@ impl unijudge::Backend for Codeforces {
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
-	fn contests(&self, session: &Self::Session) -> Result<Vec<unijudge::ContestDetails<Self::Contest>>> {
+	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		let moscow_standard_time = FixedOffset::east(3 * 3600);
 		let url: Url = "https://codeforces.com/contests".parse().unwrap();
 		let mut resp = session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
+		std::fs::write("/home/matcegla/yoyo.html", doc.html()).unwrap();
 		doc.find("#pageContent > .contestList")?
 			.find_first(".datatable")?
 			.find("table")?
 			.find_all("tr[data-contestid]")
 			.map(|row| {
-				let id = row.attr("data-contestid")?.string();
+				let id = Contest { source: Source::Contest, id: row.attr("data-contestid")?.string() };
 				let title = row.find_nth("td", 0)?.text().string();
 				let start = row.find_nth("td", 2)?.find("a")?.attr("href")?.map(|url| {
-					let moscow_standard_time = FixedOffset::east(3 * 3600);
 					moscow_standard_time.datetime_from_str(
 						url,
 						"https://www.timeanddate.com/worldclock/fixedtime.html?day=%e&month=%m&year=%Y&hour=%k&min=%M&sec=%S&p1=166",
 					)
 				})?;
-				let duration = row.find_nth("td", 3)?.text().map(|duration| {
-					let segs: Vec<u64> = duration
-						.split(':')
-						.map(|seg| seg.parse())
-						.collect::<std::result::Result<Vec<_>, _>>()
-						.map_err(|_| "one of duration segments was not a nubmer".to_owned())?;
-					match segs.as_slice() {
-						[hour, min] => Ok(Duration::from_secs(min * 60 + hour * 60 * 60)),
-						[day, hour, min] => Ok(Duration::from_secs(min * 60 + hour * 60 * 60 + day * 60 * 60 * 24)),
-						_ => Err(format!("unexpected contest duration layout {:?}", segs)),
-					}
-				})?;
-				let id = Contest { source: Source::Contest, id };
-				Ok(unijudge::ContestDetails { id, title, start, duration })
+				Ok(ContestDetails { id, title, start })
 			})
 			.collect()
 	}

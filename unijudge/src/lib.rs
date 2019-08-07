@@ -14,9 +14,7 @@ pub mod statement;
 
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
-use std::{
-	fmt::{self, Debug}, time::Duration
-};
+use std::fmt::{self, Debug};
 
 #[derive(Debug)]
 pub enum Error {
@@ -134,7 +132,6 @@ pub struct ContestDetails<I> {
 	pub id: I,
 	pub title: String,
 	pub start: DateTime<FixedOffset>,
-	pub duration: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -350,12 +347,7 @@ pub mod boxed {
 		fn contests(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>> {
 			Ok(<T as crate::Backend>::contests(self, session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?)?
 				.into_iter()
-				.map(|ContestDetails { id, title, start, duration }| ContestDetails {
-					id: BoxedContest { raw: Box::new(id) },
-					title,
-					start,
-					duration,
-				})
+				.map(|ContestDetails { id, title, start }| ContestDetails { id: BoxedContest { raw: Box::new(id) }, title, start })
 				.collect())
 		}
 

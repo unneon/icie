@@ -1,6 +1,3 @@
-#![feature(never_type)]
-
-use std::time::Duration;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
@@ -259,18 +256,7 @@ impl unijudge::Backend for Atcoder {
 					let japan_standard_time = FixedOffset::east(9 * 3600);
 					japan_standard_time.datetime_from_str(href, "http://www.timeanddate.com/worldclock/fixedtime.html?iso=%Y%m%dT%H%M&p1=248")
 				})?;
-				let duration = row.find_nth("td", 2)?.text().map(|duration| {
-					let parts: Vec<u64> = duration
-						.split(':')
-						.map(|s| s.parse())
-						.collect::<std::result::Result<Vec<u64>, _>>()
-						.map_err(|_| format!("invalid-I duration format {:?}", duration))?;
-					match parts.as_slice() {
-						[hour, min] => Ok(Duration::from_secs(60 * 60 * hour + 60 * min)),
-						_ => Err(format!("invalid-II duration format {:?}", duration)),
-					}
-				})?;
-				Ok(ContestDetails { id, title, start, duration })
+				Ok(ContestDetails { id, title, start })
 			})
 			.collect()
 	}
