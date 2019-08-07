@@ -7,13 +7,11 @@ use std::{
 };
 use unijudge::TaskDetails;
 
-/// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. See "Icie Init Project name
-/// template" for details.
+/// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. See "Icie Init Project name template" for details.
 #[evscode::config]
 static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{site.short case.camel}-{contest.id case.camel}".parse().unwrap();
 
-/// Default task directory name, when created as a part of a contest. This key uses special syntax to allow using dynamic content, like task titles.
-/// See "Icie Init Project name template" for details.
+/// Default task directory name, when created as a part of a contest. This key uses special syntax to allow using dynamic content, like task titles. See "Icie Init Project name template" for details.
 #[evscode::config]
 static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 

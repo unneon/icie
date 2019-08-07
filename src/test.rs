@@ -18,8 +18,7 @@ impl TestRun {
 	}
 }
 
-/// The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds. Leaving this empty(which denotes
-/// no limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting system resources.
+/// The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds. Leaving this empty(which denotes no limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting system resources.
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 

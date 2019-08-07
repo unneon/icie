@@ -15,9 +15,9 @@ pub struct Command {
 #[doc(hidden)]
 pub struct ConfigEntry {
 	pub id: &'static str,
-	pub description: &'static str,
+	pub markdown_description: &'static str,
 	pub reference: &'static dyn ErasedConfig,
-	pub schema: fn(&str) -> JsonValue,
+	pub schema: fn() -> JsonValue,
 }
 
 /// [Activation event](https://code.visualstudio.com/api/references/activation-events) checked by VS Code even when the extension is not active.

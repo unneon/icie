@@ -198,7 +198,7 @@ impl<V: VariableSet> evscode::marshal::Marshal for Interpolation<V> {
 }
 
 impl<V: VariableSet> evscode::Configurable for Interpolation<V> {
-	fn schema(description: Option<&str>, default: Option<&Self>) -> JsonValue {
-		<String as evscode::Configurable>::schema(description, default.map(std::string::ToString::to_string).as_ref())
+	fn schema(default: Option<&Self>) -> JsonValue {
+		<String as evscode::Configurable>::schema(default.map(std::string::ToString::to_string).as_ref())
 	}
 }

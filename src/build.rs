@@ -2,43 +2,35 @@ use crate::{ci, dir, util, STATUS};
 use evscode::{Position, E, R};
 use std::path::PathBuf;
 
-/// When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting,
-/// an error message containing error details will be shown.
+/// When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting, an error message containing error details will be shown.
 #[evscode::config]
 static AUTO_MOVE_TO_ERROR: vscode::Config<bool> = true;
 
-/// When a compilation warning appears, the cursor will automatically move to the file and location which caused the warning. If this is not set, a
-/// warning message will be shown with a "Show" button which will move the cursor to the location of the warning.
+/// When a compilation warning appears, the cursor will automatically move to the file and location which caused the warning. If this is not set, a warning message will be shown with a "Show" button which will move the cursor to the location of the warning.
 #[evscode::config]
 static AUTO_MOVE_TO_WARNING: evscode::Config<bool> = true;
 
-/// An extension used to denote executable files. For example, if this entry is set to "xyz", compiling a source file called main.cpp will create an
-/// executable called main.xyz.
+/// An extension used to denote executable files. For example, if this entry is set to "xyz", compiling a source file called main.cpp will create an executable called main.xyz.
 #[evscode::config]
 static EXECUTABLE_EXTENSION: evscode::Config<String> = "e";
 
-/// C++ ISO language standard version. This corresponds to e.g. -std=c++17 flag on GCC/Clang. Be aware some of these options may not be supported by
-/// your compiler, which will result in an error.
+/// C++ ISO language standard version. This corresponds to e.g. -std=c++17 flag on GCC/Clang. Be aware some of these options may not be supported by your compiler, which will result in an error.
 #[evscode::config]
 static CPP_STANDARD: evscode::Config<Standard> = Standard::Cpp17;
 
-/// Additional C++ compilation flags. The flags will be appended to the command line after the standard, warning, debug symbols and optimization
-/// flags. These flags will be used both in Debug and Release profiles.
+/// Additional C++ compilation flags. The flags will be appended to the command line after the standard, warning, debug symbols and optimization flags. These flags will be used both in Debug and Release profiles.
 #[evscode::config]
 static ADDITIONAL_CPP_FLAGS: evscode::Config<String> = "";
 
-/// Additional C++ compilation flags used in Debug profile. The flags will be appended to the command line after the standard, warning, debug symbols,
-/// optimization flags and profile-independent custom flags.
+/// Additional C++ compilation flags used in Debug profile. The flags will be appended to the command line after the standard, warning, debug symbols, optimization flags and profile-independent custom flags.
 #[evscode::config]
 static ADDITIONAL_CPP_FLAGS_DEBUG: evscode::Config<String> = "";
 
-/// Additional C++ compilation flags used in Release profile. The flags will be appended to the command line after the standard, warning, debug
-/// symbols, optimization flags and profile-independent custom flags.
+/// Additional C++ compilation flags used in Release profile. The flags will be appended to the command line after the standard, warning, debug symbols, optimization flags and profile-independent custom flags.
 #[evscode::config]
 static ADDITIONAL_CPP_FLAGS_RELEASE: evscode::Config<String> = "";
 
-/// Additional C++ compilation flags used in Profile profile. The flags will be appended to the command line after the standard, warning, debug
-/// symbols, optimization flags and profile-independent custom flags.
+/// Additional C++ compilation flags used in Profile profile. The flags will be appended to the command line after the standard, warning, debug symbols, optimization flags and profile-independent custom flags.
 #[evscode::config]
 static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 

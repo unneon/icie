@@ -75,16 +75,15 @@ impl<T: Configurable> Config<T> {
 /// There does not exist a simple way to implement it for any custom types, because the VS Code [documentation of config API](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) is lacking.
 pub trait Configurable: Marshal {
 	#[doc(hidden)]
-	fn schema(description: Option<&str>, default: Option<&Self>) -> JsonValue;
+	fn schema(default: Option<&Self>) -> JsonValue;
 }
 
 macro_rules! simple_configurable {
 	($rust:ty, $json:expr) => {
 		impl Configurable for $rust {
-			fn schema(description: Option<&str>, default: Option<&Self>) -> JsonValue {
+			fn schema(default: Option<&Self>) -> JsonValue {
 				optobject! {
 					"type" => $json,
-					optional "description" => description,
 					optional "default" => default.map(Self::to_json),
 				}
 			}
@@ -107,8 +106,8 @@ simple_configurable!(u64, "number");
 simple_configurable!(usize, "number");
 
 impl<T: Configurable> Configurable for Option<T> {
-	fn schema(description: Option<&str>, default: Option<&Option<T>>) -> JsonValue {
-		let mut obj = T::schema(description, default.and_then(|default| default.as_ref()));
+	fn schema(default: Option<&Option<T>>) -> JsonValue {
+		let mut obj = T::schema(default.and_then(|default| default.as_ref()));
 		if obj["type"].is_array() {
 			obj["type"].push("null").unwrap();
 		} else {
@@ -124,13 +123,12 @@ impl<T: Configurable> Configurable for Option<T> {
 /// I am not sure why, because VS Code has builtin configuration entries that have the same manifest entry, but are editable.
 /// Naturally, the [documentation](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) of this behaviour does not exist.
 impl<T: Configurable, S: std::hash::BuildHasher+Default> Configurable for HashMap<String, T, S> {
-	fn schema(description: Option<&str>, default: Option<&Self>) -> JsonValue {
+	fn schema(default: Option<&Self>) -> JsonValue {
 		optobject! {
 			"type" => "object",
-			optional "description" => description,
 			optional "default" => default.map(Self::to_json),
 			"additionalProperties" => json::object! {
-				"anyOf" => json::array! [T::schema(None, None)],
+				"anyOf" => json::array! [T::schema(None)],
 			},
 		}
 	}

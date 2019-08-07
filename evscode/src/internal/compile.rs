@@ -362,7 +362,9 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 				"type" => "object",
 				"title" => pkg.name,
 				"properties" => collect_json_obj(sorted_svk(&pkg.configuration, |ce| ce.id).map(|ce| {
-					(format!("{}.{}", pkg.identifier, ce.id), (ce.schema)(ce.description))
+					let mut entry = (ce.schema)();
+					entry["description"] = ce.markdown_description.into();
+					(format!("{}.{}", pkg.identifier, ce.id), entry)
 				})),
 			}
 		},

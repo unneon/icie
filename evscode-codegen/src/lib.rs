@@ -9,7 +9,6 @@ mod util;
 
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
-use std::iter::FromIterator;
 use syn::{
 	export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, Local, ReturnType, Stmt
 };
@@ -125,32 +124,38 @@ pub fn config(_params: TokenStream, item: TokenStream) -> TokenStream {
 	};
 	let default = item.expr.clone();
 	let id = util::js_path(&modpath, util::caps_to_camel(item.ident.to_string()));
-	let description = item
+	let raw_markdown = item
 		.attrs
 		.iter()
-		.find(|attr| attr.path.is_ident("doc"))
-		.and_then(|attr| attr.tts.clone().into_iter().nth(1))
-		.and_then(|lit| syn::parse2(proc_macro2::TokenStream::from_iter(std::iter::once(lit))).ok())
-		.map(|lit: LitStr| LitStr::new(lit.value().trim(), lit.span()))
-		.unwrap_or_else(|| {
-			item.ident
-				.span()
-				.unwrap()
-				.error("#[evscode::config] calls must have a rustdoc comment attached")
-				.help("write the config entry description before the call, e.g. /// Controls the number of bees")
-				.emit();
-			LitStr::new("", proc_macro2::Span::call_site())
+		.filter(|attr| attr.path.is_ident("doc"))
+		.map(|attr| {
+			let lit = attr.tts.clone().into_iter().nth(1).unwrap();
+			let lit: LitStr = syn::parse2(std::iter::once(lit).collect()).unwrap();
+			lit.value()
+		})
+		.fold(None, |acc, line| {
+			Some(match acc {
+				Some(acc) => format!("{}\n{}", acc, line),
+				None => line,
+			})
 		});
+	let markdown_description = match raw_markdown {
+		Some(raw_markdown) => raw_markdown,
+		None => {
+			Diagnostic::new(Level::Error, "#[evscode::config] calls must have an attached doc comment").emit();
+			String::new()
+		},
+	};
+	let markdown_description = LitStr::new(&markdown_description, proc_macro2::Span::call_site());
 	let reference = item.ident.clone();
 	let visibility = item.vis.clone();
 	let machinery = CONFIG_INVOKELIST.invoke(quote! {
 		evscode::meta::ConfigEntry {
 			id: #id,
-			schema: |description| <#rust_inner_type as evscode::Configurable>::schema(
-				Some(description),
+			schema: || <#rust_inner_type as evscode::Configurable>::schema(
 				Some(&<#rust_inner_type as From<_>>::from(#default)),
 			),
-			description: #description,
+			markdown_description: #markdown_description,
 			reference: std::ops::Deref::deref(&#reference),
 		}
 	});
@@ -228,14 +233,11 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 			}
 		}
 		impl evscode::Configurable for #enum_name {
-			fn schema(description: Option<&str>, default: Option<&Self>) -> evscode::json::JsonValue {
+			fn schema(default: Option<&Self>) -> evscode::json::JsonValue {
 				let mut obj = evscode::json::object! {
 					"type" => "string",
 					"enum" => vec! [ #variants ],
 				};
-				if let Some(description) = description {
-					obj["description"] = json::from(description);
-				}
 				if let Some(default) = default {
 					obj["default"] = evscode::marshal::Marshal::to_json(default);
 				}

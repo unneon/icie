@@ -13,8 +13,7 @@ mod files;
 pub mod names;
 mod scan;
 
-/// The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the
-/// icie.template.list configuration entry.
+/// The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the icie.template.list configuration entry.
 #[evscode::config]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
@@ -224,9 +223,7 @@ fn init_contest(root: &Path, tasks: &[BoxedTask], sess: &net::Session) -> R<Path
 static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>> =
 	"{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-/// By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory
-/// configuration entry, and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead
-/// specify the directory every time.
+/// By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory configuration entry, and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead specify the directory every time.
 #[evscode::config]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
