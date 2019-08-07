@@ -260,7 +260,6 @@ impl unijudge::Backend for Codeforces {
 		let url: Url = "https://codeforces.com/contests".parse().unwrap();
 		let mut resp = session.client.get(url).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
-		std::fs::write("/home/matcegla/yoyo.html", doc.html()).unwrap();
 		doc.find("#pageContent > .contestList")?
 			.find_first(".datatable")?
 			.find("table")?
