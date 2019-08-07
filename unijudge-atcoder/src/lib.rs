@@ -127,6 +127,17 @@ impl unijudge::Backend for Atcoder {
 					unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
 					unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://atcoder.jp");
 				}
+				if v.name() == "script" && v.attr("src").map_or(false, |src| src.contains("MathJax.js")) {
+					unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
+				}
+			}
+			let is_tex = if let unijudge::scraper::Node::Element(v) = v.value() { v.name() == "var" } else { false };
+			if is_tex {
+				if let Some(mut u) = v.first_child() {
+					if let unijudge::scraper::Node::Text(text) = u.value() {
+						text.text = format!("\\({}\\)", text.text).into();
+					}
+				}
 			}
 		});
 		Ok(TaskDetails {
