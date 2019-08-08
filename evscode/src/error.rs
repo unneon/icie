@@ -88,7 +88,10 @@ impl E {
 		e.reasons.push(format!("{}", native));
 		let mut v: Option<&(dyn std::error::Error)> = native.source();
 		while let Some(native) = v {
-			e.reasons.push(format!("{}", native));
+			let inner_message = format!("{}", native);
+			if !e.reasons.iter().any(|reason| reason.contains(inner_message.as_str())) {
+				e.reasons.push(inner_message);
+			}
 			v = native.source();
 		}
 		e.reasons.reverse();
