@@ -2,9 +2,12 @@ use crate::{
 	auth, util::{self, from_unijudge_error}
 };
 use evscode::{E, R};
+use std::{thread::sleep, time::Duration};
 use unijudge::{boxed::BoxedURL, URL};
 
 pub const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
+const NETWORK_ERROR_RETRY_LIMIT: usize = 2;
+const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(2);
 
 pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
 	Ok(BACKENDS
@@ -37,6 +40,7 @@ impl Session {
 	}
 
 	pub fn run<T>(&self, f: impl Fn(&unijudge::boxed::Session) -> unijudge::Result<T>) -> R<T> {
+		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		loop {
 			match f(&self.raw) {
 				Ok(y) => break Ok(y),
@@ -45,25 +49,28 @@ impl Session {
 					let (username, password) = auth::get_cached_or_ask(&self.site)?;
 					self.login(&username, &password)?
 				},
+				Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => self.wait_for_retry(&mut retries_left, e),
 				Err(e) => break Err(util::from_unijudge_error(e)),
 			}
 		}
 	}
 
 	pub fn login(&self, username: &str, password: &str) -> R<()> {
+		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		match self.raw.login(&username, &password) {
 			Ok(()) => {
 				if let Some(cache) = self.raw.cache_auth().map_err(util::from_unijudge_error)? {
 					auth::save_cache(&self.site, &cache);
 				}
-				Ok(())
 			},
 			Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
 				self.maybe_error_show(e);
-				self.force_login()
+				self.force_login()?;
 			},
-			Err(e) => Err(util::from_unijudge_error(e)),
+			Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => self.wait_for_retry(&mut retries_left, e),
+			Err(e) => return Err(util::from_unijudge_error(e)),
 		}
+		Ok(())
 	}
 
 	pub fn force_login(&self) -> R<()> {
@@ -75,6 +82,19 @@ impl Session {
 		if let unijudge::Error::WrongCredentials = e {
 			evscode::Message::new("Wrong username or password").error().build().spawn();
 		}
+	}
+
+	fn wait_for_retry(&self, retries_left: &mut usize, e: reqwest::Error) {
+		assert!(*retries_left > 0);
+		let _status = crate::STATUS.push("Waiting to retry");
+		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
+			util::from_unijudge_error(unijudge::Error::NetworkFailure(e))
+				.context(format!("retrying in {} seconds", NETWORK_ERROR_RETRY_DELAY.as_secs_f64()))
+				.warning()
+				.emit();
+		}
+		*retries_left -= 1;
+		sleep(NETWORK_ERROR_RETRY_DELAY);
 	}
 }
 
