@@ -9,9 +9,7 @@ pub trait Marshal: Sized {
 	/// This conversion must not fail - if it can, consider using Rust's type system to enforce that condition.
 	fn to_json(&self) -> JsonValue;
 	/// Convert a JavaScript value to a Rust value.
-	fn from_json(raw: JsonValue) -> Result<Self, String>
-	where
-		Self: std::marker::Sized;
+	fn from_json(raw: JsonValue) -> Result<Self, String>;
 }
 
 macro_rules! impl_number {

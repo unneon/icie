@@ -1,7 +1,7 @@
 use crate::meta::{Activation, Package};
 use json::{object, JsonValue};
 use std::{
-	fs, io::{self, Read, Write}, path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
+	fs, io::{self, Read}, path::{Path, PathBuf}, process::{Command, Stdio}, time::Duration
 };
 
 pub struct Toolchain<'a> {
@@ -9,86 +9,64 @@ pub struct Toolchain<'a> {
 	manifest: &'a Path,
 	package: PathBuf,
 	exec_linux: &'a Path,
-	_exec_windows: PathBuf,
-	_is_example: bool,
 }
 
 impl<'a> Toolchain<'a> {
-	pub fn new(pkg: &'a Package, manifest: &'a Path, exec_linux: &'a Path) -> Toolchain<'a> {
+	pub fn new(meta: &'a Package, manifest: &'a Path, exec_linux: &'a Path) -> Toolchain<'a> {
 		let target_linux = exec_linux.parent().expect("evscode::Toolchain::new exec_linux has no parent");
-		let package = target_linux.join(format!("{}-vscode", pkg.identifier));
-		let _is_example = target_linux.file_name() == Some(std::ffi::OsStr::new("examples"));
-		let mut target_root = target_linux.parent().expect("evscode::Toolchain::new target_linux has no parent");
-		if _is_example {
-			target_root = target_root.parent().expect("evscode::Toolchain::new target_linux w/ example has less than 2 parents")
-		}
-		let mut target_windows = target_root.join("x86_64-pc-windows-gnu/release");
-		if _is_example {
-			target_windows = target_windows.join("examples");
-		}
-		let _exec_windows = target_windows.join(format!("{}.exe", pkg.identifier));
-		Toolchain { meta: pkg, manifest, package, exec_linux, _exec_windows, _is_example }
+		let package = target_linux.join("evscode");
+		Toolchain { meta, manifest, package, exec_linux }
 	}
 
-	pub fn compile(&self, _cross_compile: bool) -> io::Result<()> {
+	pub fn compile(&self) -> io::Result<()> {
 		let ctx = BuildContext::new(&self.package);
-		// ctx.run_multiline(
-		// "[Windows]",
-		// || {
-		// if cross_compile {
-		// BuildResult::Built
-		// } else {
-		// BuildResult::Skipped
-		// }
-		// },
-		// || {
-		// let example_arg = if self.is_example { vec!["--examples"] } else { vec![] };
-		// let r1 = Command::new("cross")
-		// .arg("build")
-		// .arg("--release")
-		// .arg("--target=x86_64-pc-windows-gnu")
-		// .args(example_arg)
-		// .current_dir(&self.manifest)
-		// .status()?;
-		// if r1.success() {
-		// Ok(())
-		// } else {
-		// Err(io::Error::from(io::ErrorKind::Other))
-		// }
-		// },
-		// )?;
-		ctx.file("README.md", self.manifest.join("README.md"))?;
-		ctx.file("CHANGELOG.md", self.manifest.join("CHANGELOG.md"))?;
-		ctx.json("package.json", construct_package_json(self.meta))?;
-		ctx.string("out/extension.js", include_str!("../glue.js"))?;
-		ctx.string("data/meta.json", render_meta(self.meta))?;
-		ctx.file("data/bin/linux", self.exec_linux)?;
-		// ctx.maybe_file("data/bin/windows.exe", cross_compile, &self.exec_windows)?;
-		ctx.rsync("data/assets/", self.manifest.join("assets/"))?;
-		ctx.task(Command::new("npm").arg("install").current_dir(&self.package), "npm install", &["package.json"])?;
+		ctx.string("Generating", "metadata", "data/meta.json", render_meta(self.meta))?;
+		ctx.json("Generating", "manifest", "package.json", construct_package_json(self.meta))?;
+		ctx.file("Copying", "readme", "README.md", self.manifest.join("README.md"))?;
+		ctx.file("Copying", "changelog", "CHANGELOG.md", self.manifest.join("CHANGELOG.md"))?;
+		ctx.string("Copying", "glue", "out/extension.js", include_str!("../glue.js"))?;
+		ctx.file("Copying", "executable", "data/bin/linux", self.exec_linux)?;
+		ctx.rsync("Copying", "assets", "data/assets/", self.manifest.join("assets/"))?;
+		ctx.task("Running", "`npm install`", None, Command::new("npm").arg("install").current_dir(&self.package), "npm install", &["package.json"])?;
 		Ok(())
 	}
 
 	pub fn launch(&self) -> io::Result<()> {
-		let r1 = Command::new("code").arg("--extensionDevelopmentPath").arg(&self.package).status()?;
-		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
+		let ctx = BuildContext::new(&self.package);
+		ctx.task(
+			"Launching",
+			&format!("`code --extensionDevelopmentPath {}`", self.package.display()),
+			None,
+			Command::new("code").arg("--extensionDevelopmentPath").arg(&self.package),
+			"code --extensionDevelopmentPath",
+			&[],
+		)?;
+		Ok(())
 	}
 
 	pub fn package(&self) -> io::Result<()> {
-		let r1 = Command::new("vsce").arg("package").current_dir(&self.package).status().expect("evscode::package vsce spawn errored");
-		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
+		let ctx = BuildContext::new(&self.package);
+		ctx.task(
+			"Packaging",
+			"`vsce package`",
+			Some(&format!("{}-{}.vsix", self.meta.identifier, self.meta.version)),
+			Command::new("vsce").arg("package").current_dir(&self.package),
+			"vsce package",
+			&[],
+		)?;
+		Ok(())
 	}
 
 	pub fn publish(&self) -> io::Result<()> {
-		let r1 = Command::new("vsce").arg("publish").current_dir(&self.package).status()?;
-		if r1.success() { Ok(()) } else { Err(io::Error::from(io::ErrorKind::Other)) }
+		let ctx = BuildContext::new(&self.package);
+		ctx.task("Publishing", "`vsce publish`", None, Command::new("vsce").arg("publish").current_dir(&self.package), "vsce publish", &[])?;
+		Ok(())
 	}
 }
 
 enum BuildResult {
 	Built,
 	Ignored,
-	// Skipped,
 	Error(std::io::Error),
 }
 impl std::ops::Try for BuildResult {
@@ -99,7 +77,6 @@ impl std::ops::Try for BuildResult {
 		match self {
 			BuildResult::Built => Ok(()),
 			BuildResult::Ignored => Err(self),
-			// BuildResult::Skipped => Err(self),
 			BuildResult::Error(_) => Err(self),
 		}
 	}
@@ -123,12 +100,11 @@ pub struct BuildContext<'a> {
 }
 impl<'a> BuildContext<'a> {
 	pub fn new(base: &'a Path) -> BuildContext<'a> {
-		eprintln!();
 		BuildContext { base }
 	}
 
-	pub fn string(&self, dest: impl AsRef<str>, contents: impl AsRef<[u8]>) -> io::Result<()> {
-		self.run(dest.as_ref(), || {
+	pub fn string(&self, header: &str, description: &str, dest: impl AsRef<str>, contents: impl AsRef<[u8]>) -> io::Result<()> {
+		self.run(header, description, Some(dest.as_ref()), || {
 			let path = self.base.join(dest.as_ref());
 			self.prepare(&path, contents.as_ref())?;
 			fs::write(path, contents.as_ref())?;
@@ -136,8 +112,8 @@ impl<'a> BuildContext<'a> {
 		})
 	}
 
-	pub fn json(&self, dest: impl AsRef<str>, contents: json::JsonValue) -> io::Result<()> {
-		self.run(dest.as_ref(), || {
+	pub fn json(&self, header: &str, description: &str, dest: impl AsRef<str>, contents: json::JsonValue) -> io::Result<()> {
+		self.run(header, description, Some(dest.as_ref()), || {
 			let dest = self.base.join(dest.as_ref());
 			if dest.exists() {
 				let old_raw = std::fs::read_to_string(&dest)?;
@@ -152,8 +128,8 @@ impl<'a> BuildContext<'a> {
 		})
 	}
 
-	pub fn file(&self, dest: impl AsRef<str>, source: impl AsRef<Path>) -> io::Result<()> {
-		self.run(dest.as_ref(), || {
+	pub fn file(&self, header: &str, description: &str, dest: impl AsRef<str>, source: impl AsRef<Path>) -> io::Result<()> {
+		self.run(header, description, Some(dest.as_ref()), || {
 			let path = self.base.join(dest.as_ref());
 			self.prepare(&path, fs::read(source.as_ref())?)?;
 			match fs::copy(source.as_ref(), &path) {
@@ -169,8 +145,8 @@ impl<'a> BuildContext<'a> {
 		})
 	}
 
-	pub fn maybe_file(&self, dest: impl AsRef<str>, should: bool, source: impl AsRef<Path>) -> io::Result<()> {
-		self.run(dest.as_ref(), || {
+	pub fn maybe_file(&self, header: &str, description: &str, dest: impl AsRef<str>, should: bool, source: impl AsRef<Path>) -> io::Result<()> {
+		self.run(header, description, Some(dest.as_ref()), || {
 			let path = self.base.join(dest.as_ref());
 			if should {
 				self.prepare(&path, fs::read(source.as_ref())?)?;
@@ -192,31 +168,30 @@ impl<'a> BuildContext<'a> {
 		})
 	}
 
-	pub fn task(&self, cmd: &mut Command, desc: &str, dependencies: &[&str]) -> io::Result<()> {
+	pub fn task(&self, header: &str, description: &str, dest: Option<&str>, cmd: &mut Command, desc: &str, dependencies: &[&str]) -> io::Result<()> {
 		let updates = dependencies.iter().map(|dep| Ok(self.base.join(dep).metadata()?.modified()?)).collect::<io::Result<Vec<_>>>()?;
-		let last_update = updates.into_iter().max().expect("evscode::BuildContext::task no dependencies");
+		let last_update = updates.into_iter().max();
 		let trimmed = self.make_identifier(desc);
 		let marker = self.base.join(format!(".{}.buildmark", trimmed));
-		self.run_multiline(
-			"npm install",
-			|| {
-				if (!marker.exists()) || marker.metadata()?.modified()? < last_update { BuildResult::Built } else { BuildResult::Ignored }
-			},
-			|| {
-				let stat = cmd.status()?;
-				if stat.success() {
-					fs::write(&marker, [])?;
-					Ok(())
-				} else {
-					Err(io::Error::from(io::ErrorKind::Other))
+		self.run(header, description, dest, || {
+			if let Some(last_update) = last_update {
+				if marker.exists() && marker.metadata()?.modified()? >= last_update {
+					return BuildResult::Ignored;
 				}
-			},
-		)
+			}
+			let stat = cmd.status()?;
+			if stat.success() {
+				fs::write(&marker, [])?;
+				BuildResult::Built
+			} else {
+				BuildResult::Error(io::Error::from(io::ErrorKind::Other))
+			}
+		})
 	}
 
-	pub fn rsync(&self, dest: impl AsRef<str>, source: impl AsRef<Path>) -> io::Result<()> {
+	pub fn rsync(&self, header: &str, description: &str, dest: impl AsRef<str>, source: impl AsRef<Path>) -> io::Result<()> {
 		let source = source.as_ref();
-		self.run(dest.as_ref(), || {
+		self.run(header, description, Some(dest.as_ref()), || {
 			let dest = self.base.join(dest.as_ref());
 			if !source.exists() {
 				if dest.exists() {
@@ -258,63 +233,17 @@ impl<'a> BuildContext<'a> {
 		buf
 	}
 
-	fn run(&self, desc: impl AsRef<str>, f: impl FnOnce() -> BuildResult) -> io::Result<()> {
-		eprint!("{: >40} ...", desc.as_ref());
-		io::stderr().flush()?;
-		let r = f();
-		let ending = match &r {
-			BuildResult::Built => " \x1B[1;32mBuilt\x1B[0m",
-			BuildResult::Ignored => " Ignored",
-			// BuildResult::Skipped => " Skipped",
-			BuildResult::Error(_) => " \x1B[1;31mError\x1B[0m",
-		};
-		eprintln!("{}", ending);
-		match r {
+	fn run(&self, header: &str, description: &str, dest: Option<&str>, f: impl FnOnce() -> BuildResult) -> io::Result<()> {
+		assert!(header.len() <= 12);
+		eprintln!("\x1B[1;32m{: >12}\x1B[0m evscode {}{}", header, description, match dest {
+			Some(dest) => format!(" ({})", self.base.join(dest).display()),
+			None => String::new(),
+		});
+		match f() {
 			BuildResult::Built => Ok(()),
 			BuildResult::Ignored => Ok(()),
-			// BuildResult::Skipped => Ok(()),
 			BuildResult::Error(e) => Err(e),
 		}
-	}
-
-	fn run_multiline(&self, desc: impl AsRef<str>, f: impl FnOnce() -> BuildResult, g: impl FnOnce() -> io::Result<()>) -> io::Result<()> {
-		eprint!("{: >40} ...", desc.as_ref());
-		io::stderr().flush()?;
-		let r1 = f();
-		match r1 {
-			BuildResult::Built => {
-				eprintln!("\n");
-				let r2 = g();
-				eprint!("\n\n{: >40} ...", desc.as_ref());
-				match r2 {
-					Ok(()) => {
-						eprintln!(" \x1B[1;32mBuilt\x1B[0m");
-						Ok(())
-					},
-					Err(e) => {
-						eprintln!(" \x1B[1;31mError\x1B[0m");
-						Err(e)
-					},
-				}
-			},
-			BuildResult::Ignored => {
-				eprintln!(" Ignored");
-				Ok(())
-			},
-			// BuildResult::Skipped => {
-			// 	eprintln!(" Skipped");
-			// 	Ok(())
-			// },
-			BuildResult::Error(e) => {
-				eprintln!(" \x1B[1;31mError\x1B[0m");
-				Err(e)
-			},
-		}
-	}
-}
-impl<'a> Drop for BuildContext<'a> {
-	fn drop(&mut self) {
-		eprintln!();
 	}
 }
 

@@ -6,6 +6,7 @@ use std::{
 use unijudge::{boxed::BoxedContestDetails, URL};
 
 pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
+	let _status = crate::STATUS.push("Fetching contests");
 	let domains: Vec<(&'static str, &'static Backend)> = BACKENDS
 		.iter()
 		.filter(|backend| backend.network.supports_contests())
@@ -19,9 +20,11 @@ pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
 				domain,
 				thread::spawn(move || {
 					let url = URL::dummy_domain(domain);
-					#[evscode::status("Connecting {}", domain)]
-					let sess = Arc::new(net::Session::connect(&url, backend)?);
-					#[evscode::status("Fetching {}", domain)]
+					let sess = {
+						let _status = crate::STATUS.push(format!("Connecting {}", domain));
+						Arc::new(net::Session::connect(&url, backend)?)
+					};
+					let _status = crate::STATUS.push(format!("Fetching {}", domain));
 					let contests = sess.run(|sess| sess.contests())?;
 					Ok((sess, contests))
 				}),

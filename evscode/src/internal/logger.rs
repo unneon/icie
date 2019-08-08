@@ -6,8 +6,6 @@ pub struct VSCodeLoger {
 	pub blacklist: radix_trie::Trie<&'static str, log::LevelFilter>,
 }
 
-pub static mut LOGGER_SLOT: Option<VSCodeLoger> = None;
-
 impl Log for VSCodeLoger {
 	fn enabled(&self, metadata: &Metadata) -> bool {
 		let target = metadata.target();

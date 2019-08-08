@@ -11,10 +11,7 @@ use std::{
 pub fn execute(pkg: &crate::meta::Package) {
 	set_panic_hook();
 	let logger = crate::internal::logger::VSCodeLoger { blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect() };
-	unsafe {
-		crate::internal::logger::LOGGER_SLOT = Some(logger);
-	}
-	log::set_logger(unsafe { crate::internal::logger::LOGGER_SLOT.as_ref().unwrap() }).expect("evscode::execute failed to set logger");
+	log::set_boxed_logger(Box::new(logger)).expect("evscode::execute failed to set logger");
 	log::set_max_level(LevelFilter::Trace);
 	for line in std::io::stdin().lock().lines() {
 		let line = line.expect("evscode::execute line read errored");
@@ -74,7 +71,7 @@ pub fn send_object(obj: json::JsonValue) {
 	println!("{}", fmt);
 }
 
-pub fn spawn(f: impl FnOnce() -> R<()>+Send+'static) {
+pub(crate) fn spawn(f: impl FnOnce() -> R<()>+Send+'static) {
 	std::thread::spawn(move || match f() {
 		Ok(()) => (),
 		Err(e) => error_show(e),
@@ -123,7 +120,7 @@ pub fn error_show(e: crate::E) {
 			std::thread::spawn(move || {
 				let choice = msg.wait();
 				if let Some(choice) = choice {
-					let i: usize = choice.parse().expect("evscode::spawn_trigger invalid action selected");
+					let i: usize = choice.parse().unwrap();
 					let action = &e.actions[i];
 					spawn(action.trigger);
 				}

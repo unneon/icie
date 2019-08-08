@@ -6,7 +6,9 @@ use crate::{
 use evscode::{
 	goodies::{webview_resultmap::Computation, WebviewHandle}, Webview, WebviewResultmap, E, R
 };
-use std::{fs, path::PathBuf};
+use std::{
+	fs, path::{Path, PathBuf}
+};
 
 lazy_static::lazy_static! {
 	pub static ref COLLECTION: WebviewResultmap<TestViewLogic> = WebviewResultmap::new(TestViewLogic);
@@ -86,7 +88,7 @@ impl Computation for TestViewLogic {
 							Ok(())
 						}
 					}),
-					Some("edit") => evscode::open_editor(note["path"].as_str().unwrap(), None, None, None, None, None),
+					Some("edit") => evscode::open_editor(Path::new(note["path"].as_str().unwrap())).open(),
 					Some("action_notice") => evscode::runtime::spawn(|| {
 						SKILL_ACTIONS.add_use();
 						Ok(())

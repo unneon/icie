@@ -10,7 +10,7 @@ itertools = "0.8"
 json = "0.11"
 keyring = "0.7"
 lazy_static = "1.0"
-log = "0.4"
+log = { version = "0.4", features = ["std"] }
 rand = "0.7"
 regex = "1.1"
 reqwest = { version = "0.9.14", default-features = false, features = ["default-tls-vendored"] }
@@ -31,12 +31,12 @@ reqwest = { git = "https://github.com/pustaczek/reqwest" }
 
 [workspace]
 members = [
-    ".",
+	".",
 	"evscode",
 	"evscode-codegen",
-    "unijudge",
-    "unijudge-atcoder",
-    "unijudge-codeforces",
-    "unijudge-sio2",
-    "unijudge-spoj",
+	"unijudge",
+	"unijudge-atcoder",
+	"unijudge-codeforces",
+	"unijudge-sio2",
+	"unijudge-spoj",
 ]

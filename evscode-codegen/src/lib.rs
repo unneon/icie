@@ -10,7 +10,7 @@ mod util;
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
 use syn::{
-	export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, Local, ReturnType, Stmt
+	export::Span, parse::Parser, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token::Comma, FieldValue, ItemEnum, ItemFn, ItemStatic, LitStr, ReturnType
 };
 
 static COMMAND_INVOKELIST: invoke_list::InvocationList = invoke_list::InvocationList::new("Command");
@@ -161,9 +161,7 @@ pub fn config(_params: TokenStream, item: TokenStream) -> TokenStream {
 	});
 	TokenStream::from(quote! {
 		evscode::internal::macros::lazy_static! {
-			#visibility static ref #reference: evscode::Config<#rust_inner_type> = evscode::Config::new(<#rust_inner_type as From<_>>::from(
-				#default
-			));
+			#visibility static ref #reference: evscode::Config<#rust_inner_type> = evscode::Config::placeholder();
 		}
 		#machinery
 	})
@@ -245,31 +243,6 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 			}
 		}
 	})
-}
-
-/// Push status message for the duration of the statement.
-#[proc_macro_attribute]
-pub fn status(params: TokenStream, stmt: TokenStream) -> TokenStream {
-	let params = proc_macro2::TokenStream::from(params);
-	let stmt: Stmt = parse_macro_input!(stmt);
-	let rewritten = match stmt {
-		Stmt::Local(Local { let_token, pats, ty, init, semi_token, .. }) => {
-			let ty = if let Some((colon, ty)) = ty {
-				quote! { #colon #ty }
-			} else {
-				quote! {}
-			};
-			let (equals, expr) = init.unwrap();
-			quote! {
-				#let_token #pats #ty #equals {
-					let _status = crate::STATUS.push(format!(#params));
-					#expr
-				} #semi_token
-			}
-		},
-		_ => panic!(),
-	};
-	rewritten.into()
 }
 
 fn derive_unreachable_configurable(name: &proc_macro2::Ident) -> proc_macro2::TokenStream {

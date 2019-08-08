@@ -51,7 +51,6 @@ pub mod internal;
 pub mod marshal;
 pub mod meta;
 pub mod runtime;
-/// Extension API used for interacting with VS Code.
 pub mod stdlib;
 
 pub use config::{Config, Configurable};

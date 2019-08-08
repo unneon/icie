@@ -4,7 +4,7 @@ use evscode::{quick_pick, QuickPick, E, R};
 pub fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
-		evscode::open_editor(&solution, util::find_cursor_place(&solution), None, None, None, Some(1.into()));
+		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open();
 		if let Some(statement) = manifest.statement {
 			let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
 				.enable_scripts()
@@ -14,7 +14,7 @@ pub fn activate() -> R<()> {
 			webview.set_html(statement.html);
 		}
 	}
-	evscode::internal::executor::spawn(crate::newsletter::check);
+	evscode::runtime::spawn(crate::newsletter::check);
 	Ok(())
 }
 

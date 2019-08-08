@@ -46,12 +46,11 @@ macro_rules! optobject {
 #[derive(Debug)]
 pub struct Config<T: Configurable+Sized> {
 	arc: ArcSwapOption<T>,
-	default: Arc<T>,
 }
 impl<T: Configurable> Config<T> {
 	#[doc(hidden)]
-	pub fn new(default: T) -> Config<T> {
-		Config { arc: ArcSwapOption::new(None), default: Arc::new(default) }
+	pub fn placeholder() -> Config<T> {
+		Config { arc: ArcSwapOption::new(None) }
 	}
 
 	/// Return a reference-counted pointer to the current configuration values.

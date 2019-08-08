@@ -153,10 +153,6 @@ pub fn find_cursor_place(path: &Path) -> Option<Position> {
 	None
 }
 
-pub fn nice_open_editor(path: impl AsRef<Path>) {
-	evscode::open_editor(path.as_ref(), find_cursor_place(path.as_ref()), None, None, None, None);
-}
-
 pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
 	let path = path.as_ref();
 	path.parent().unwrap().join(path.file_stem().unwrap())

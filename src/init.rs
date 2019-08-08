@@ -19,10 +19,8 @@ static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
 fn scan() -> R<()> {
-	#[evscode::status("Fetching")]
 	let mut contests = scan::fetch_contests();
 	contests.sort_by_key(|contest| contest.1.start);
-	#[evscode::status("Picking contest")]
 	let pick = QuickPick::new()
 		.items(contests.iter().enumerate().map(|(index, (_, contest))| {
 			let start = contest.start.with_timezone(&Local).to_rfc2822();
@@ -114,7 +112,7 @@ fn wait_for_contest(contest: &BoxedContestDetails, site: &str, sess: &Arc<net::S
 	let canceler = progress.canceler().spawn();
 	let site = site.to_owned();
 	let sess = sess.clone();
-	evscode::internal::executor::spawn(move || {
+	evscode::runtime::spawn(move || {
 		if !auth::has_any_saved(&site)
 			&& evscode::Message::new(format!("You are not logged in to {}, maybe do it now to save time when submitting?", site))
 				.item("log-in", "Log in", false)
@@ -168,8 +166,10 @@ fn fmt_time_left(mut t: Duration) -> String {
 }
 
 fn start_contest(sess: &net::Session, contest: &BoxedContest) -> R<()> {
-	#[evscode::status("Fetching contest")]
-	let meta = sess.run(|sess| sess.contest_tasks(&contest))?;
+	let meta = {
+		let _status = crate::STATUS.push("Fetching contest");
+		sess.run(|sess| sess.contest_tasks(&contest))?
+	};
 	let (contest_id, site_short) = sess.run(|sess| Ok((sess.contest_id(&contest)?, sess.site_short())))?;
 	let root = names::design_contest_name(&contest_id, site_short)?;
 	let dir = util::TransactionDir::new(&root)?;
@@ -182,8 +182,10 @@ fn start_contest(sess: &net::Session, contest: &BoxedContest) -> R<()> {
 fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDetails> {
 	let Resource::Task(task) = &url.resource;
 	let sess = net::Session::connect(&url, backend)?;
-	#[evscode::status("Fetching task")]
-	let meta = sess.run(|sess| sess.task_details(&task))?;
+	let meta = {
+		let _status = crate::STATUS.push("Fetching task");
+		sess.run(|sess| sess.task_details(&task))?
+	};
 	Ok(meta)
 }
 
@@ -201,7 +203,7 @@ fn init_contest(root: &Path, tasks: &[BoxedTask], sess: &net::Session) -> R<Path
 		.iter()
 		.enumerate()
 		.map(|(index, task)| {
-			#[evscode::status("Fetching task {}/{}", index+1, tasks.len())]
+			let _status = crate::STATUS.push(format!("Fetching task {}/{}", index + 1, tasks.len()));
 			let details = sess.run(|sess| sess.task_details(task))?;
 			let root = names::design_task_name(root, Some(&details))?;
 			Ok((details, root))
