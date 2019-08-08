@@ -27,7 +27,7 @@ struct Update {
 	features: &'static str,
 }
 
-const LAST_IMPORTANT_UPDATE: Update = Update { version: "0.5.6", features: "customizable directory names, Alt+[ quickpasting" };
+const LAST_IMPORTANT_UPDATE: Update = Update { version: "0.5.8", features: "contest mode with Alt+F9, task switching under Alt+Backpace" };
 
 const LAST_ACKNOWLEDGED_VERSION: evscode::State<String> =
 	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);
