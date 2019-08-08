@@ -1,11 +1,11 @@
 use crate::Statement;
-use markup5ever::namespace_url;
+use html5ever::{namespace_url, QualName};
 
 #[macro_export]
 macro_rules! qn {
 	($thing:tt) => {{
-		use $crate::markup5ever::{self, namespace_url};
-		markup5ever::QualName::new(None, markup5ever::ns!(), markup5ever::local_name!($thing))
+		use $crate::html5ever::{self, namespace_url};
+		html5ever::QualName::new(None, html5ever::ns!(), html5ever::local_name!($thing))
 		}};
 }
 
@@ -31,18 +31,12 @@ impl Rewrite {
 			let is_head = if let scraper::Node::Element(v) = v.value() { v.name() == "head" } else { false };
 			if is_head {
 				v.prepend(scraper::Node::Element(scraper::node::Element {
-					name: markup5ever::QualName::new(None, markup5ever::ns!(), markup5ever::local_name!("meta")),
+					name: qn!("meta"),
 					id: None,
 					classes: std::collections::HashSet::new(),
 					attrs: vec![
-						(
-							markup5ever::QualName::new(None, markup5ever::ns!(), markup5ever::local_name!("http-equiv")),
-							"Content-Security-Policy".into(),
-						),
-						(
-							markup5ever::QualName::new(None, markup5ever::ns!(), markup5ever::local_name!("content")),
-							"default-src * 'unsafe-inline' 'unsafe-eval';".into(),
-						),
+						(qn!("http-equiv"), "Content-Security-Policy".into()),
+						(qn!("content"), "default-src * 'unsafe-inline' 'unsafe-eval';".into()),
 					]
 					.into_iter()
 					.collect(),
@@ -78,7 +72,7 @@ impl Rewrite {
 	}
 }
 
-pub fn fix_url(v: &mut scraper::node::Element, key: markup5ever::QualName, scan: &str, prepend: &str) {
+pub fn fix_url(v: &mut scraper::node::Element, key: QualName, scan: &str, prepend: &str) {
 	if let Some(val) = v.attrs.get_mut(&key) {
 		if val.starts_with(scan) {
 			*val = format!("{}{}", prepend, val).into();

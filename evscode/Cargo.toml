@@ -5,7 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
-arc-swap = "0.3"
+arc-swap = "0.4"
 backtrace = "0.3"
 json = "0.11"
 lazy_static = "1.0"

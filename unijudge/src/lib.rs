@@ -2,8 +2,8 @@
 
 pub extern crate chrono;
 pub extern crate debris;
+pub extern crate html5ever;
 pub extern crate log;
-pub extern crate markup5ever;
 pub extern crate reqwest;
 pub extern crate scraper;
 pub extern crate selectors;

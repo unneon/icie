@@ -55,7 +55,7 @@ impl<T: Configurable> Config<T> {
 
 	/// Return a reference-counted pointer to the current configuration values.
 	pub fn get(&self) -> Arc<T> {
-		self.arc.load().expect("evscode::Config::get config not set")
+		self.arc.load_full().expect("evscode::Config::get config not set")
 	}
 }
 
