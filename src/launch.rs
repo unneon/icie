@@ -10,6 +10,7 @@ pub fn activate() -> R<()> {
 				.enable_scripts()
 				.enable_find_widget()
 				.retain_context_when_hidden()
+				.preserve_focus()
 				.create();
 			webview.set_html(statement.html);
 		}
