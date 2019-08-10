@@ -49,7 +49,8 @@ pub fn open_folder(path: impl AsRef<Path>, in_new_window: bool) {
 }
 
 /// Open an external item(e.g. http/https/mailto URL), using the default system application.
-/// Use [`open_editor`] to open text files instead.
+///
+/// Use [`open_editor()`] to open text files instead.
 pub fn open_external(url: impl AsRef<str>) -> LazyFuture<R<()>> {
 	let url = url.as_ref().to_owned();
 	LazyFuture::new_vscode(
@@ -91,6 +92,7 @@ pub fn query_document_text(path: impl AsRef<Path>+'static) -> LazyFuture<String>
 }
 
 /// Make an edit action that consists of pasting a given text in a given position in a given file.
+///
 /// The indices in the (row, column) tuple are 0-based.
 pub fn edit_paste(path: impl AsRef<Path>+'static, text: impl AsRef<str>+'static, position: (usize, usize)) -> LazyFuture<()> {
 	LazyFuture::new_vscode(
@@ -154,8 +156,9 @@ pub fn asset(rel_path: impl AsRef<Path>) -> String {
 	format!("vscode-resource://{}", extension_root().join("data/assets").join(rel_path.as_ref()).to_str().unwrap())
 }
 
-/// Set the status message.
-/// This will interfere with other threads, use [`StackedStatus`](../goodies/stacked_status/index.html) instead.
+/// Set the status message on a global widget.
+///
+/// This will interfere with other threads, use [`crate::StackedStatus`] instead.
 pub fn status(msg: Option<&str>) {
 	send_object(json::object! {
 		"tag" => "status",

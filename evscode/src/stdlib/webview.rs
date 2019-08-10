@@ -56,7 +56,7 @@ impl Builder {
 		self
 	}
 
-	/// Add a path from which assets created with [`evscode::asset`](fn.asset.html) or `vscode-resource://` scheme can be used.
+	/// Add a path from which assets created with [`crate::asset`] or `vscode-resource://` scheme can be used.
 	/// If this function is not called at all, by default the extension install directory and the workspace directory are allowed.
 	pub fn local_resource_root(mut self, uri: impl AsRef<str>) -> Self {
 		match self.local_resource_roots.as_mut() {
@@ -208,7 +208,7 @@ impl Webview {
 		)
 	}
 
-	/// Returns a lazy future that will yield () when the webview is closed.
+	/// Returns a lazy future that will yield `()` when the webview is closed.
 	/// This function can only be called once.
 	pub fn disposer(&self) -> LazyFuture<()> {
 		assert!(!self.disposer_spawned.fetch_or(true, Ordering::SeqCst));
