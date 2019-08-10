@@ -238,25 +238,30 @@ impl unijudge::Backend for Atcoder {
 		let doc = debris::Document::new(&resp.text()?);
 		let container = doc.find("#main-container > .row > div.col-lg-9.col-md-8")?;
 		let headers = container.find_all("h3").map(|h3| h3.text().string()).collect::<Vec<_>>();
-		let table = match headers.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
-			["Permanent Contests", "Upcoming Contests", "Recent Contests"] => container.find_nth("table", 1)?,
-			["Permanent Contests", "Recent Contests"] => return Ok(Vec::new()),
+		let table_indices: &[usize] = match headers.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+			["Active Contests", "Permanent Contests", "Upcoming Contests", "Recent Contests"] => &[0, 2],
+			["Active Contests", "Permanent Contests", "Recent Contests"] => &[0],
+			["Permanent Contests", "Upcoming Contests", "Recent Contests"] => &[1],
+			["Permanent Contests", "Recent Contests"] => &[],
 			_ => return Err(Error::from(container.error(format!("unrecognized header layout {:?}", headers)))),
 		};
-		table
-			.find_all("tbody > tr")
-			.map(|row| {
-				let id = row
-					.find_nth("td", 1)?
-					.find("a")?
-					.attr("href")?
-					.map(|href| Ok::<_, &'static str>(href[href.rfind('/').ok_or("no '/' in /contests/{}")? + 1..].to_owned()))?;
-				let title = row.find_nth("td", 1)?.text().string();
-				let start = row.find_nth("td", 0)?.find("a")?.attr("href")?.map(|href| {
-					let japan_standard_time = FixedOffset::east(9 * 3600);
-					japan_standard_time.datetime_from_str(href, "http://www.timeanddate.com/worldclock/fixedtime.html?iso=%Y%m%dT%H%M&p1=248")
-				})?;
-				Ok(ContestDetails { id, title, start })
+		let tables = table_indices.iter().map(|index| container.find_nth("table", *index)).collect::<debris::Result<Vec<_>>>()?;
+		tables
+			.iter()
+			.flat_map(|table| {
+				table.find_all("tbody > tr").map(|row| {
+					let id = row
+						.find_nth("td", 1)?
+						.find("a")?
+						.attr("href")?
+						.map(|href| Ok::<_, &'static str>(href[href.rfind('/').ok_or("no '/' in /contests/{}")? + 1..].to_owned()))?;
+					let title = row.find_nth("td", 1)?.text().string();
+					let start = row.find_nth("td", 0)?.find("a")?.attr("href")?.map(|href| {
+						let japan_standard_time = FixedOffset::east(9 * 3600);
+						japan_standard_time.datetime_from_str(href, "http://www.timeanddate.com/worldclock/fixedtime.html?iso=%Y%m%dT%H%M&p1=248")
+					})?;
+					Ok(ContestDetails { id, title, start })
+				})
 			})
 			.collect()
 	}
