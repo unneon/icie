@@ -141,7 +141,7 @@ impl unijudge::Backend for Atcoder {
 			id: symbol,
 			title,
 			contest_id: task.contest.clone(),
-			site_short: "atc".to_owned(),
+			site_short: "atcoder".to_owned(),
 			examples,
 			statement: Some(statement.export()),
 			url: url.to_string(),
@@ -281,7 +281,7 @@ impl unijudge::Backend for Atcoder {
 	}
 
 	fn site_short(&self) -> &'static str {
-		"atc"
+		"atcoder"
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {

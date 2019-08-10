@@ -161,7 +161,7 @@ impl unijudge::Backend for Codeforces {
 			id: symbol,
 			title,
 			contest_id: self.pretty_contest(task),
-			site_short: "cf".to_owned(),
+			site_short: "codeforces".to_owned(),
 			examples,
 			statement: Some(statement.export()),
 			url: url.to_string(),
@@ -294,7 +294,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn site_short(&self) -> &'static str {
-		"cf"
+		"codeforces"
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {

@@ -187,7 +187,7 @@ impl unijudge::Backend for SPOJ {
 	}
 
 	fn site_short(&self) -> &'static str {
-		"SPOJ"
+		"spoj"
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
