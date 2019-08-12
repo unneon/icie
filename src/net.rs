@@ -39,7 +39,7 @@ impl Session {
 		Ok(Session { site: url.site.clone(), raw })
 	}
 
-	pub fn run<T>(&self, f: impl Fn(&unijudge::boxed::Session) -> unijudge::Result<T>) -> R<T> {
+	pub fn run<T>(&self, mut f: impl FnMut(&unijudge::boxed::Session) -> unijudge::Result<T>) -> R<T> {
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		loop {
 			match f(&self.raw) {

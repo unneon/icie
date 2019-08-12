@@ -281,7 +281,10 @@ impl unijudge::Backend for Codeforces {
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		assert_eq!(contest.source, Source::Contest);
 		let url: Url = format!("https://codeforces.com/contest/{}", contest.id).parse().unwrap();
-		let mut resp = session.client.get(url).send()?;
+		let mut resp = session.client.get(url.clone()).send()?;
+		if *resp.url() != url {
+			return Err(Error::NotYetStarted);
+		}
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		doc.find(".problems")?
 			.find_all("tr")

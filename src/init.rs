@@ -1,9 +1,9 @@
 use crate::{
-	auth, interpolation::Interpolation, net::{self, Backend}, util
+	auth, interpolation::Interpolation, net::{self, Backend}, util::{self, plural}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::{
-	path::{Path, PathBuf}, sync::Arc, time::{Duration, SystemTime}
+	path::{Path, PathBuf}, sync::Arc, thread::sleep, time::{Duration, SystemTime}
 };
 use unijudge::{
 	boxed::{BoxedContest, BoxedContestDetails, BoxedContestURL, BoxedTask, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
@@ -32,7 +32,7 @@ fn scan() -> R<()> {
 		.ok_or_else(E::cancel)?;
 	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
 	wait_for_contest(contest, &sess.site, sess)?;
-	start_contest(&*sess, &contest.id)?;
+	start_contest(&*sess, &contest.id, true)?;
 	Ok(())
 }
 
@@ -52,7 +52,7 @@ fn url() -> R<()> {
 		InitCommand::Contest { url, backend } => {
 			let sess = net::Session::connect(&url, backend)?;
 			let Resource::Contest(contest) = url.resource;
-			start_contest(&sess, &contest)?;
+			start_contest(&sess, &contest, false)?;
 		},
 	}
 	Ok(())
@@ -165,10 +165,26 @@ fn fmt_time_left(mut t: Duration) -> String {
 	s
 }
 
-fn start_contest(sess: &net::Session, contest: &BoxedContest) -> R<()> {
+const NOT_YET_STARTED_RETRY_LIMIT: usize = 15;
+const NOT_YET_STARTED_RETRY_DELAY: Duration = Duration::from_secs(1);
+
+fn start_contest(sess: &net::Session, contest: &BoxedContest, after_waiting: bool) -> R<()> {
 	let meta = {
 		let _status = crate::STATUS.push("Fetching contest");
-		sess.run(|sess| sess.contest_tasks(&contest))?
+		let mut wait_retries = NOT_YET_STARTED_RETRY_LIMIT;
+		sess.run(|sess| {
+			loop {
+				match sess.contest_tasks(&contest) {
+					Err(unijudge::Error::NotYetStarted) if after_waiting && wait_retries > 0 => {
+						let _status = crate::STATUS
+							.push(format!("Fetching contest (waiting for time sync, {} left)", plural(wait_retries, "retry", "retries")));
+						wait_retries -= 1;
+						sleep(NOT_YET_STARTED_RETRY_DELAY);
+					},
+					tasks => break tasks,
+				}
+			}
+		})?
 	};
 	let (contest_id, site_short) = sess.run(|sess| Ok((sess.contest_id(&contest)?, sess.site_short())))?;
 	let root = names::design_contest_name(&contest_id, site_short)?;

@@ -153,6 +153,10 @@ pub fn find_cursor_place(path: &Path) -> Option<Position> {
 	None
 }
 
+pub fn plural(x: usize, singular: &str, plural: &str) -> String {
+	format!("{} {}", x, if x == 1 { singular } else { plural })
+}
+
 pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
 	let path = path.as_ref();
 	path.parent().unwrap().join(path.file_stem().unwrap())
@@ -194,6 +198,7 @@ pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::WrongData => E::from_std(e).reform("wrong data passed to API"),
 		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
 		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
+		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
 		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
 		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
