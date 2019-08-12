@@ -4,6 +4,7 @@ mod piece_parse;
 
 use crate::dir;
 use evscode::{E, R};
+use itertools::Itertools;
 use logic::{Library, Piece};
 use std::{path::PathBuf, time::SystemTime};
 
@@ -13,7 +14,7 @@ fn quick() -> R<()> {
 	let library = library::CACHED_LIBRARY.update()?;
 	let piece_id = evscode::QuickPick::new()
 		.match_on_all()
-		.items(library.pieces.iter().map(|(id, piece)| {
+		.items(library.pieces.iter().sorted_by_key(|(_, piece)| &piece.name).map(|(id, piece)| {
 			let mut item = evscode::quick_pick::Item::new(id, &piece.name);
 			if let Some(description) = &piece.description {
 				item = item.description(description);
