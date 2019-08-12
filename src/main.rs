@@ -1,4 +1,4 @@
-#![feature(never_type, proc_macro_hygiene, exhaustive_patterns, specialization, try_blocks, duration_float, bind_by_move_pattern_guards)]
+#![feature(never_type, proc_macro_hygiene, exhaustive_patterns, specialization, try_blocks, bind_by_move_pattern_guards)]
 
 mod auth;
 mod build;
