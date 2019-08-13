@@ -44,7 +44,7 @@ impl Session {
 		loop {
 			match f(&self.raw) {
 				Ok(y) => break Ok(y),
-				Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
+				Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
 					self.maybe_error_show(e);
 					let (username, password) = auth::get_cached_or_ask(&self.site)?;
 					self.login(&username, &password)?

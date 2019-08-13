@@ -1,6 +1,6 @@
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Find}, reqwest::{
-		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
+		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, StatusCode, Url
 	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
@@ -269,6 +269,16 @@ impl unijudge::Backend for Atcoder {
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		let mut resp = session.get(&format!("https://atcoder.jp/contests/{}/tasks", contest)).send()?;
 		let doc = debris::Document::new(&resp.text()?);
+		if resp.status() == StatusCode::NOT_FOUND {
+			let alert = doc.find(".alert.alert-danger")?.text().string();
+			if alert.ends_with("Contest not found.") {
+				return Err(Error::WrongData);
+			} else if alert.ends_with("Permission denied.") {
+				return Err(Error::NotYetStarted);
+			} else {
+				return Err(Error::from(doc.error("unrecognized alert message")));
+			}
+		}
 		doc.find("table")?
 			.find_all("tbody > tr")
 			.map(|row| {
