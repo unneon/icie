@@ -99,9 +99,9 @@ fn worker_thread(carrier: evscode::future::Carrier<WorkerReport>, orders: std::s
 }
 
 fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sync::mpsc::Receiver<WorkerOrder>) -> R<()> {
-	let solution = crate::build::build(crate::dir::solution()?, &ci::cpp::Codegen::Debug)?;
-	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
-	let gen = crate::build::build(crate::dir::gen()?, &ci::cpp::Codegen::Release)?;
+	let solution = crate::build::build(crate::dir::solution()?, &ci::cpp::Codegen::Debug, false)?;
+	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release, false)?;
+	let gen = crate::build::build(crate::dir::gen()?, &ci::cpp::Codegen::Release, false)?;
 	let task =
 		ci::task::Task { checker: crate::checker::get_checker()?, environment: ci::exec::Environment { time_limit: crate::test::time_limit() } };
 	let mut _status = crate::STATUS.push("Discovering");
@@ -145,7 +145,7 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 
 fn add_test_input(input: String) -> R<()> {
 	let _status = crate::STATUS.push("Adding new test");
-	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release)?;
+	let brut = crate::build::build(crate::dir::brut()?, &ci::cpp::Codegen::Release, false)?;
 	let run = brut.run(&input, &[], &ci::exec::Environment { time_limit: None }).map_err(|e| e.context("failed to generate output for the test"))?;
 	if !run.success() {
 		return Err(E::error("brut failed when generating output for the added test"));

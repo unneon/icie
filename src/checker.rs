@@ -14,6 +14,6 @@ pub fn get_checker() -> R<Box<dyn Checker+Send>> {
 		Box::new(ci::task::FreeWhitespaceChecker)
 	} else {
 		let environment = ci::exec::Environment { time_limit: (*TIME_LIMIT.get()).map(Duration::from_millis) };
-		Box::new(ci::task::ExecChecker { executable: build::build(checker, &ci::cpp::Codegen::Release)?, environment })
+		Box::new(ci::task::ExecChecker { executable: build::build(checker, &ci::cpp::Codegen::Release, false)?, environment })
 	})
 }

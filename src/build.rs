@@ -1,6 +1,10 @@
-use crate::{ci, dir, util, STATUS};
+use crate::{
+	ci::{self, exec::Executable}, dir, util, STATUS
+};
 use evscode::{Position, E, R};
-use std::path::PathBuf;
+use std::{
+	path::{Path, PathBuf}, time::SystemTime
+};
 
 /// When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting, an error message containing error details will be shown.
 #[evscode::config]
@@ -76,11 +80,11 @@ fn manual() -> evscode::R<()> {
 		.ok_or_else(evscode::E::cancel)?
 		.parse::<usize>()
 		.unwrap()];
-	build(source, codegen)?;
+	build(source, codegen, true)?;
 	Ok(())
 }
 
-pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::exec::Executable> {
+pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_rebuild: bool) -> R<Executable> {
 	let source = source.as_option_path();
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
 	let workspace_source = dir::solution()?;
@@ -93,21 +97,8 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 	}
 	evscode::save_all().wait();
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());
-	if out.exists() {
-		let source_mods = &[&source]
-			.iter()
-			.map(|source| Ok(source.metadata()?.modified()?))
-			.collect::<std::io::Result<Vec<_>>>()
-			.map_err(|e| E::from_std(e).context("failed to query source file metadata"))?;
-		if out
-			.metadata()
-			.map_err(|e| E::from_std(e).context("failed to query executable metadata"))?
-			.modified()
-			.map_err(|e| E::from_std(e).context("failed to query app modification time"))?
-			> *source_mods.iter().max().unwrap()
-		{
-			return Ok(ci::exec::Executable::new(out));
-		}
+	if !force_rebuild && should_cache(&source, &out)? {
+		return Ok(Executable::new(out));
 	}
 	let standard = CPP_STANDARD.get();
 	let flags = format!("{} {}", ADDITIONAL_CPP_FLAGS.get(), match codegen {
@@ -135,6 +126,21 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen) -> R<ci::
 		}
 		Ok(status.executable)
 	}
+}
+
+fn should_cache(source: &Path, out: &Path) -> R<bool> {
+	Ok(out.exists() && {
+		let source_mod = query_modification_time(source)?;
+		let out_mod = query_modification_time(out)?;
+		source_mod >= out_mod
+	})
+}
+
+fn query_modification_time(path: &Path) -> R<SystemTime> {
+	path.metadata()
+		.map_err(|e| E::from_std(e).context("file metadata query failed"))?
+		.modified()
+		.map_err(|e| E::from_std(e).context("file modification time query failed"))
 }
 
 pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {

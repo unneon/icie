@@ -24,7 +24,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
-	let solution = build::build(main_source, &ci::cpp::Codegen::Debug)?;
+	let solution = build::build(main_source, &ci::cpp::Codegen::Debug, false)?;
 	let task = ci::task::Task { checker: crate::checker::get_checker()?, environment: ci::exec::Environment { time_limit: time_limit() } };
 	let test_dir = dir::tests()?;
 	let ins = ci::scan::scan_and_order(&test_dir);
