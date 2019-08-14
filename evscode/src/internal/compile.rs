@@ -273,16 +273,16 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 		"repository" => pkg.repository,
 		"main" => "./out/extension",
 		"contributes" => object! {
-			"commands" => sorted_svk(&pkg.commands, |cmd| cmd.inner_id).map(|command| {
+			"commands" => sorted_svk(&pkg.commands, |cmd| cmd.id).map(|command| {
 				object! {
-					"command" => format!("{}.{}", pkg.identifier, command.inner_id),
+					"command" => command.id.to_string(),
 					"title" => command.title,
 				}
 			}).collect::<Vec<_>>(),
-			"keybindings" => sorted_svk(&pkg.commands, |cmd| cmd.inner_id).filter_map(|command| {
+			"keybindings" => sorted_svk(&pkg.commands, |cmd| cmd.id).filter_map(|command| {
 				command.key.clone().map(|key| {
 					object! {
-						"command" => format!("{}.{}", pkg.identifier, command.inner_id),
+						"command" => command.id.to_string(),
 						"key" => key,
 					}
 				})
@@ -292,8 +292,8 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 				"title" => pkg.name,
 				"properties" => collect_json_obj(sorted_svk(&pkg.configuration, |ce| ce.id).map(|ce| {
 					let mut entry = (ce.schema)();
-					entry["description"] = ce.markdown_description.into();
-					(format!("{}.{}", pkg.identifier, ce.id), entry)
+					entry["description"] = ce.description.into();
+					(ce.id.to_string(), entry)
 				})),
 			}
 		},
@@ -313,7 +313,7 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 fn collect_activation_events(pkg: &Package) -> Vec<Activation<String>> {
 	let mut events = Vec::new();
 	for command in &pkg.commands {
-		events.push(Activation::OnCommand { command: format!("{}.{}", pkg.identifier, command.inner_id) });
+		events.push(Activation::OnCommand { command: command.id });
 	}
 	events.extend(pkg.extra_activations.iter().map(|ev| ev.own()));
 	events
@@ -324,9 +324,7 @@ fn render_meta(pkg: &Package) -> String {
 		"id" => pkg.identifier,
 		"name" => pkg.name,
 		"repository" => pkg.repository,
-		"commands" => pkg.commands.iter().map(|cmd| {
-			format!("{}.{}", pkg.identifier, cmd.inner_id)
-		}).collect::<Vec<_>>(),
+		"commands" => pkg.commands.iter().map(|cmd| cmd.id.to_string()).collect::<Vec<_>>(),
 	};
 	json::stringify_pretty(obj, 4)
 }

@@ -61,7 +61,7 @@ impl<T: Configurable> Config<T> {
 
 /// A trait that allows a type to be used as a configuration values.
 ///
-/// This trait can be automatically derived for enums that hold no data.
+/// This trait can be [automatically derived](../../evscode_codegen/derive.Configurable.html) for enums that hold no data.
 /// ```ignore
 /// #[derive(evscode::Configurable)]
 /// enum AnimalBackend {

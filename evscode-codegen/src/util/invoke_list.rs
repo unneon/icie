@@ -1,6 +1,7 @@
+use proc_macro::Span;
 use quote::quote;
 use std::sync::atomic::{AtomicU64, Ordering};
-use syn::{export::Span, IntSuffix, LitInt};
+use syn::{Ident, LitInt};
 
 pub struct InvocationList {
 	id: &'static str,
@@ -31,8 +32,8 @@ impl InvocationList {
 	pub fn invoke(&self, payload: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
 		let iid = self.counter.fetch_add(1, Ordering::Relaxed);
 		let marker = self.marker_struct();
-		let iid_lit = LitInt::new(iid, IntSuffix::None, Span::call_site());
-		let prev_iid_lit = LitInt::new(iid - 1, IntSuffix::None, Span::call_site());
+		let iid_lit = LitInt::new(&iid.to_string(), Span::call_site().into());
+		let prev_iid_lit = LitInt::new(&(iid - 1).to_string(), Span::call_site().into());
 		quote! {
 			impl<T> evscode::internal::macros::InvocChain<T> for crate::#marker<[(); #iid_lit]> {
 				type Payload = <crate::#marker<[(); #prev_iid_lit]> as evscode::internal::macros::InvocChain<()>>::Payload;
@@ -60,7 +61,7 @@ impl InvocationList {
 		}
 	}
 
-	fn marker_struct(&self) -> syn::Ident {
-		syn::Ident::new(&format!("__evscode_invokelist_{}", self.id), Span::call_site())
+	fn marker_struct(&self) -> Ident {
+		Ident::new(&format!("__evscode_invokelist_{}", self.id), Span::call_site().into())
 	}
 }

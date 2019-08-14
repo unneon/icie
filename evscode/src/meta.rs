@@ -2,11 +2,29 @@
 
 use crate::{config::ErasedConfig, R};
 use json::JsonValue;
+use std::fmt::{self, Write};
+
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct Identifier {
+	pub module_path: &'static str,
+	pub local_name: &'static str,
+}
+
+impl fmt::Display for Identifier {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for part in self.module_path.split("::") {
+			crate::marshal::camel_case(part, f)?;
+			f.write_char('.')?;
+		}
+		crate::marshal::camel_case(self.local_name, f)
+	}
+}
 
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct Command {
-	pub inner_id: &'static str,
+	pub id: Identifier,
 	pub title: &'static str,
 	pub key: Option<&'static str>,
 	pub trigger: fn() -> R<()>,
@@ -14,8 +32,9 @@ pub struct Command {
 
 #[doc(hidden)]
 pub struct ConfigEntry {
-	pub id: &'static str,
-	pub markdown_description: &'static str,
+	pub id: Identifier,
+	/// Uses Markdown.
+	pub description: &'static str,
 	pub reference: &'static dyn ErasedConfig,
 	pub schema: fn() -> JsonValue,
 }
@@ -25,7 +44,7 @@ pub struct ConfigEntry {
 /// Set the [`Package::extra_activations`] field in [`evscode::plugin!`](../../evscode_codegen/macro.plugin.html) call to register the check.
 pub enum Activation<S: AsRef<str>> {
 	#[doc(hidden)]
-	OnCommand { command: S },
+	OnCommand { command: Identifier },
 	/// Fires when a folder is opened and it contains at least one file that matched the given selector.
 	/// See [official documentation](https://code.visualstudio.com/api/references/activation-events#workspaceContains).
 	WorkspaceContains {
@@ -37,7 +56,7 @@ pub enum Activation<S: AsRef<str>> {
 impl Activation<&'static str> {
 	pub fn own(&self) -> Activation<String> {
 		match self {
-			Activation::OnCommand { command } => Activation::OnCommand { command: command.to_string() },
+			Activation::OnCommand { command } => Activation::OnCommand { command: *command },
 			Activation::WorkspaceContains { selector } => Activation::WorkspaceContains { selector: selector.to_string() },
 		}
 	}

@@ -26,12 +26,12 @@ pub fn execute(pkg: &crate::meta::Package) {
 			}
 		} else if impulse["tag"] == "trigger" {
 			let id = &impulse["command_id"].as_str().expect("evscode::execute .tag['trigger'] has no .command_id[str]");
-			let command = match pkg.commands.iter().find(|command| &format!("{}.{}", pkg.identifier, command.inner_id) == id) {
+			let command = match pkg.commands.iter().find(|command| &command.id.to_string() == id) {
 				Some(command) => command,
 				None => panic!(
 					"evscode::execute unknown command {:?}, known: {:?}",
 					id,
-					pkg.commands.iter().map(|cmd| format!("{}.{}", pkg.identifier, cmd.inner_id)).collect::<Vec<_>>()
+					pkg.commands.iter().map(|cmd| cmd.id.to_string()).collect::<Vec<_>>()
 				),
 			};
 			let trigger = command.trigger;
@@ -41,7 +41,7 @@ pub fn execute(pkg: &crate::meta::Package) {
 			let mut errors = Vec::new();
 			for config in &pkg.configuration {
 				let mut v = tree;
-				for part in config.id.split('.') {
+				for part in config.id.to_string().split('.').skip(1) {
 					v = &v[part];
 				}
 				if let Err(e) = config.reference.update(v.clone()) {

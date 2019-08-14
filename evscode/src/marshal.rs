@@ -1,7 +1,7 @@
 //! Conversion traits between Rust and JavaScript types.
 
 use json::{JsonValue, Null};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt, path::PathBuf};
 
 /// Trait responsible for converting values between Rust and JavaScript.
 pub trait Marshal: Sized {
@@ -118,4 +118,25 @@ fn json_type(raw: &JsonValue) -> &'static str {
 		JsonValue::Object(_) => "object",
 		JsonValue::Array(_) => "array",
 	}
+}
+
+pub(crate) fn camel_case(s: &str, f: &mut fmt::Formatter) -> fmt::Result {
+	let mut rest = s.split('_');
+	let lead = rest.next();
+	if let Some(lead) = lead {
+		for c in lead.chars() {
+			write!(f, "{}", c.to_lowercase())?;
+		}
+		for word in rest {
+			let mut rest = word.chars();
+			let lead = rest.next();
+			if let Some(lead) = lead {
+				write!(f, "{}", lead.to_uppercase())?;
+			}
+			for c in rest {
+				write!(f, "{}", c.to_lowercase())?;
+			}
+		}
+	}
+	Ok(())
 }
