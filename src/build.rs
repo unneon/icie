@@ -132,7 +132,7 @@ fn should_cache(source: &Path, out: &Path) -> R<bool> {
 	Ok(out.exists() && {
 		let source_mod = query_modification_time(source)?;
 		let out_mod = query_modification_time(out)?;
-		source_mod >= out_mod
+		source_mod < out_mod
 	})
 }
 
