@@ -1,8 +1,16 @@
-use crate::{dir, manifest::Manifest, util};
+use crate::{dir, init, manifest::Manifest, util};
 use evscode::{quick_pick, QuickPick, E, R};
 
 pub fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
+	evscode::runtime::spawn(crate::newsletter::check);
+	layout_setup();
+	init::contest::check_for_manifest()?;
+	Ok(())
+}
+
+pub fn layout_setup() {
+	let _status = crate::STATUS.push("Opening files");
 	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
 		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open();
 		if let Some(statement) = manifest.statement {
@@ -15,8 +23,6 @@ pub fn activate() -> R<()> {
 			webview.set_html(statement.html);
 		}
 	}
-	evscode::runtime::spawn(crate::newsletter::check);
-	Ok(())
 }
 
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]

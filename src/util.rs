@@ -9,6 +9,30 @@ pub fn fmt_time_short(t: &Duration) -> String {
 	format!("{}.{:03}s", s, ms)
 }
 
+pub fn fmt_time_left(mut t: Duration) -> String {
+	let mut s = {
+		let x = t.as_secs() % 60;
+		t -= Duration::from_secs(x);
+		format!("{} seconds left", x)
+	};
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 % 60;
+		t -= Duration::from_secs(x * 60);
+		s = format!("{} minutes, {}", x, s);
+	}
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 / 60 % 24;
+		t -= Duration::from_secs(x * 60 * 60);
+		s = format!("{} hours, {}", x, s);
+	}
+	if t.as_secs() > 0 {
+		let x = t.as_secs() / 60 / 60 / 24;
+		t -= Duration::from_secs(x * 60 * 60 * 24);
+		s = format!("{} days, {}", x, s)
+	}
+	s
+}
+
 #[test]
 fn test_fmt_time() {
 	assert_eq!(fmt_time_short(&Duration::from_millis(2137)), "2.137s");
@@ -170,24 +194,29 @@ fn test_pathmanip() {
 	assert_eq!(without_extension("./inner/dev0"), Path::new("./inner/dev0"));
 }
 
-pub struct TransactionDir {
-	path: PathBuf,
+pub struct TransactionDir<'a> {
+	path: &'a Path,
 	good: bool,
 }
-impl TransactionDir {
-	pub fn new(path: &Path) -> evscode::R<TransactionDir> {
+impl<'a> TransactionDir<'a> {
+	pub fn new(path: &'a Path) -> evscode::R<TransactionDir<'a>> {
 		fs_create_dir_all(path)?;
-		Ok(TransactionDir { path: path.to_owned(), good: false })
+		Ok(TransactionDir { path, good: false })
 	}
 
-	pub fn commit(mut self) {
+	pub fn path(&self) -> &'a Path {
+		self.path
+	}
+
+	pub fn commit(mut self) -> &'a Path {
 		self.good = true;
+		self.path
 	}
 }
-impl Drop for TransactionDir {
+impl Drop for TransactionDir<'_> {
 	fn drop(&mut self) {
 		if !self.good {
-			std::fs::remove_dir_all(&self.path).expect("failed to delete uncommited directory");
+			std::fs::remove_dir_all(self.path).expect("failed to delete uncommited directory");
 		}
 	}
 }

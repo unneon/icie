@@ -297,6 +297,14 @@ impl unijudge::Backend for Atcoder {
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		contest.clone()
 	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		format!("https://atcoder.jp/contests/{}", contest)
+	}
+
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task)
+	}
 }
 
 impl Atcoder {

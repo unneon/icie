@@ -241,6 +241,14 @@ impl unijudge::Backend for Sio2 {
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		*contest
 	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		*contest
+	}
+
+	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> String {
+		format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task)
+	}
 }
 
 enum Status {

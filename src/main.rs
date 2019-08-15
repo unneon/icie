@@ -1,4 +1,4 @@
-#![feature(never_type, proc_macro_hygiene, exhaustive_patterns, specialization, try_blocks, bind_by_move_pattern_guards)]
+#![feature(bind_by_move_pattern_guards, exhaustive_patterns, never_type, proc_macro_hygiene, specialization, todo_macro, try_blocks)]
 
 mod auth;
 mod build;
@@ -36,6 +36,7 @@ evscode::plugin! {
 	on_activate: Some(launch::activate),
 	extra_activations: &[
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
+		evscode::meta::Activation::WorkspaceContains { selector: ".icie-contest" },
 	],
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),

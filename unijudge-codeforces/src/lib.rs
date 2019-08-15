@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{Context, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
-	}, ContestDetails, Error, Language, Resource, Result, Submission, TaskDetails
+	}, Backend, ContestDetails, Error, Language, Resource, Result, Submission, TaskDetails
 };
 
 pub struct Codeforces;
@@ -116,7 +116,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
-		let url = self.task_url(task);
+		let url = self.xtask_url(task);
 		let mut resp = session.client.get(url.clone()).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find(".problem-statement > .header > .title")?.text().map(|full| {
@@ -169,7 +169,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
-		let url = self.contest_url(task).join("submit").unwrap();
+		let url = self.task_contest_url(task).join("submit").unwrap();
 		let mut resp = session.client.get(url).send()?;
 		if resp.url().as_str() == "https://codeforces.com/" {
 			return Err(Error::AccessDenied);
@@ -184,7 +184,7 @@ impl unijudge::Backend for Codeforces {
 
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
 		let url = match task.contest.source {
-			Source::Contest | Source::Gym => self.contest_url(task).join("my").unwrap(),
+			Source::Contest | Source::Gym => self.task_contest_url(task).join("my").unwrap(),
 			Source::Problemset => {
 				format!("https://codeforces.com/submissions/{}", session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?)
 					.parse()
@@ -226,7 +226,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
-		let url = self.contest_url(task).join("submit").unwrap();
+		let url = self.task_contest_url(task).join("submit").unwrap();
 		let mut resp1 = session.client.get(url.clone()).send()?;
 		let referer = resp1.url().clone();
 		let csrf = {
@@ -307,6 +307,18 @@ impl unijudge::Backend for Codeforces {
 			Source::Problemset => "problemset".to_owned(),
 		}
 	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		match contest.source {
+			Source::Contest => format!("https://codeforces.com/contest/{}/", contest.id),
+			Source::Gym => format!("https://codeforces.com/gym/{}/", contest.id),
+			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
+		}
+	}
+
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		self.xtask_url(task).into_string()
+	}
 }
 
 impl Codeforces {
@@ -317,7 +329,7 @@ impl Codeforces {
 		}
 	}
 
-	fn task_url(&self, task: &Task) -> Url {
+	fn xtask_url(&self, task: &Task) -> Url {
 		let task_id = self.resolve_task_id(task);
 		match task.contest.source {
 			Source::Contest => format!("https://codeforces.com/contest/{}/problem/{}", task.contest.id, task_id),
@@ -328,14 +340,8 @@ impl Codeforces {
 		.unwrap()
 	}
 
-	fn contest_url(&self, task: &Task) -> Url {
-		match task.contest.source {
-			Source::Contest => format!("https://codeforces.com/contest/{}/", task.contest.id),
-			Source::Gym => format!("https://codeforces.com/gym/{}/", task.contest.id),
-			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
-		}
-		.parse()
-		.unwrap()
+	fn task_contest_url(&self, task: &Task) -> Url {
+		self.contest_url(&task.contest).parse().unwrap()
 	}
 
 	fn pretty_contest(&self, task: &Task) -> String {

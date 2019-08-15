@@ -193,4 +193,12 @@ impl unijudge::Backend for SPOJ {
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		*contest
 	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		*contest
+	}
+
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		format!("https://www.spoj.com/problems/{}/", task)
+	}
 }

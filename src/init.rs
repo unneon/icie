@@ -1,14 +1,13 @@
 use crate::{
-	auth, interpolation::Interpolation, net::{self, Backend}, util::{self, plural}
+	interpolation::Interpolation, net::{self, Backend}, util::{self, fs_create_dir_all}
 };
 use evscode::{quick_pick, QuickPick, E, R};
-use std::{
-	path::{Path, PathBuf}, sync::Arc, thread::sleep, time::{Duration, SystemTime}
-};
+use std::path::{Path, PathBuf};
 use unijudge::{
-	boxed::{BoxedContest, BoxedContestDetails, BoxedContestURL, BoxedTask, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
+	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
 };
 
+pub mod contest;
 mod files;
 pub mod names;
 mod scan;
@@ -31,8 +30,7 @@ fn scan() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
-	wait_for_contest(contest, &sess.site, sess)?;
-	start_contest(&*sess, &contest.id, true)?;
+	contest::setup_sprint(&*sess, &contest.id)?;
 	Ok(())
 }
 
@@ -52,7 +50,7 @@ fn url() -> R<()> {
 		InitCommand::Contest { url, backend } => {
 			let sess = net::Session::connect(&url, backend)?;
 			let Resource::Contest(contest) = url.resource;
-			start_contest(&sess, &contest, false)?;
+			contest::setup_sprint(&sess, &contest)?;
 		},
 	}
 	Ok(())
@@ -101,100 +99,6 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 	})
 }
 
-fn wait_for_contest(contest: &BoxedContestDetails, site: &str, sess: &Arc<net::Session>) -> R<()> {
-	let deadline = SystemTime::from(contest.start);
-	let total = match deadline.duration_since(SystemTime::now()) {
-		Ok(total) => total,
-		Err(_) => return Ok(()),
-	};
-	let _status = crate::STATUS.push("Waiting for contest");
-	let progress = evscode::Progress::new().title(format!("Waiting for {}", contest.title)).cancellable().show();
-	let canceler = progress.canceler().spawn();
-	let site = site.to_owned();
-	let sess = sess.clone();
-	evscode::runtime::spawn(move || {
-		if !auth::has_any_saved(&site)
-			&& evscode::Message::new(format!("You are not logged in to {}, maybe do it now to save time when submitting?", site))
-				.item("log-in", "Log in", false)
-				.build()
-				.wait()
-				.is_some()
-		{
-			let _status = crate::STATUS.push("Logging in");
-			sess.force_login()?;
-			evscode::Message::new("Logged in successfully").build().spawn();
-		}
-		Ok(())
-	});
-	loop {
-		if canceler.try_wait().is_some() {
-			return Err(E::cancel());
-		}
-		let now = SystemTime::now();
-		let left = match deadline.duration_since(now) {
-			Ok(left) => left,
-			Err(_) => break,
-		};
-		progress.update_set(100.0 - 100.0 * left.as_millis() as f64 / total.as_millis() as f64, fmt_time_left(left));
-		std::thread::sleep(Duration::from_millis(1000));
-	}
-	progress.end();
-	Ok(())
-}
-fn fmt_time_left(mut t: Duration) -> String {
-	let mut s = {
-		let x = t.as_secs() % 60;
-		t -= Duration::from_secs(x);
-		format!("{} seconds left", x)
-	};
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 % 60;
-		t -= Duration::from_secs(x * 60);
-		s = format!("{} minutes, {}", x, s);
-	}
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 / 60 % 24;
-		t -= Duration::from_secs(x * 60 * 60);
-		s = format!("{} hours, {}", x, s);
-	}
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 / 60 / 24;
-		t -= Duration::from_secs(x * 60 * 60 * 24);
-		s = format!("{} days, {}", x, s)
-	}
-	s
-}
-
-const NOT_YET_STARTED_RETRY_LIMIT: usize = 15;
-const NOT_YET_STARTED_RETRY_DELAY: Duration = Duration::from_secs(1);
-
-fn start_contest(sess: &net::Session, contest: &BoxedContest, after_waiting: bool) -> R<()> {
-	let meta = {
-		let _status = crate::STATUS.push("Fetching contest");
-		let mut wait_retries = NOT_YET_STARTED_RETRY_LIMIT;
-		sess.run(|sess| {
-			loop {
-				match sess.contest_tasks(&contest) {
-					Err(unijudge::Error::NotYetStarted) if after_waiting && wait_retries > 0 => {
-						let _status = crate::STATUS
-							.push(format!("Fetching contest (waiting for time sync, {} left)", plural(wait_retries, "retry", "retries")));
-						wait_retries -= 1;
-						sleep(NOT_YET_STARTED_RETRY_DELAY);
-					},
-					tasks => break tasks,
-				}
-			}
-		})?
-	};
-	let (contest_id, site_short) = sess.run(|sess| Ok((sess.contest_id(&contest)?, sess.site_short())))?;
-	let root = names::design_contest_name(&contest_id, site_short)?;
-	let dir = util::TransactionDir::new(&root)?;
-	let root_task = init_contest(&root, &meta, &sess)?;
-	dir.commit();
-	evscode::open_folder(root_task, false);
-	Ok(())
-}
-
 fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDetails> {
 	let Resource::Task(task) = &url.resource;
 	let sess = net::Session::connect(&url, backend)?;
@@ -207,30 +111,13 @@ fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDet
 
 fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
+	fs_create_dir_all(root)?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
 	files::init_manifest(root, &url, statement)?;
 	files::init_template(root)?;
 	files::init_examples(root, examples)?;
 	Ok(())
-}
-fn init_contest(root: &Path, tasks: &[BoxedTask], sess: &net::Session) -> R<PathBuf> {
-	let tasks: Vec<(TaskDetails, PathBuf)> = tasks
-		.iter()
-		.enumerate()
-		.map(|(index, task)| {
-			let _status = crate::STATUS.push(format!("Fetching task {}/{}", index + 1, tasks.len()));
-			let details = sess.run(|sess| sess.task_details(task))?;
-			let root = names::design_task_name(root, Some(&details))?;
-			Ok((details, root))
-		})
-		.collect::<R<Vec<_>>>()?;
-	let first_root = tasks[0].1.clone();
-	for task in tasks {
-		util::fs_create_dir_all(&task.1)?;
-		init_task(&task.1, Some(task.0.url.clone()), Some(task.0))?;
-	}
-	Ok(first_root)
 }
 
 /// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. See example list:

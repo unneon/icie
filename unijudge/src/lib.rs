@@ -171,9 +171,11 @@ pub trait Backend: Send+Sync {
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String>;
+	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> String;
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
+	fn contest_url(&self, contest: &Self::Contest) -> String;
 	fn site_short(&self) -> &'static str;
 	const SUPPORTS_CONTESTS: bool;
 }
@@ -196,9 +198,11 @@ pub mod boxed {
 		fn task_languages(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Language>>;
 		fn task_submissions(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Submission>>;
 		fn task_submit(&self, session: &dyn Any, task: &dyn AnyDebug, language: &Language, code: &str) -> Result<String>;
+		fn task_url(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<String>;
 		fn contests(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>>;
 		fn contest_tasks(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>>;
 		fn contest_id(&self, contest: &dyn Any) -> Result<String>;
+		fn contest_url(&self, contest: &dyn Any) -> Result<String>;
 		fn site_short(&self) -> &'static str;
 		fn supports_contests(&self) -> bool;
 	}
@@ -245,6 +249,10 @@ pub mod boxed {
 			self.backend.task_submit(self.raw.deref(), task.raw.deref(), language, code)
 		}
 
+		pub fn task_url(&self, task: &BoxedTask) -> Result<String> {
+			self.backend.task_url(self.raw.deref(), task.raw.deref())
+		}
+
 		pub fn contests(&self) -> Result<Vec<BoxedContestDetails>> {
 			self.backend.contests(self.raw.deref())
 		}
@@ -255,6 +263,10 @@ pub mod boxed {
 
 		pub fn contest_id(&self, contest: &BoxedContest) -> Result<String> {
 			self.backend.contest_id(contest.raw.deref().as_any())
+		}
+
+		pub fn contest_url(&self, contest: &BoxedContest) -> Result<String> {
+			self.backend.contest_url(contest.raw.deref().as_any())
 		}
 
 		pub fn site_short(&self) -> &'static str {
@@ -347,6 +359,14 @@ pub mod boxed {
 			)
 		}
 
+		fn task_url(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<String> {
+			Ok(<T as crate::Backend>::task_url(
+				self,
+				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
+				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
+			))
+		}
+
 		fn contests(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>> {
 			Ok(<T as crate::Backend>::contests(self, session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?)?
 				.into_iter()
@@ -367,6 +387,10 @@ pub mod boxed {
 
 		fn contest_id(&self, contest: &dyn Any) -> Result<String> {
 			Ok(<T as crate::Backend>::contest_id(self, contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?))
+		}
+
+		fn contest_url(&self, contest: &dyn Any) -> Result<String> {
+			Ok(<T as crate::Backend>::contest_url(self, contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?))
 		}
 
 		fn site_short(&self) -> &'static str {
