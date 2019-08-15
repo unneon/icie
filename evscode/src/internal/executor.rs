@@ -107,7 +107,7 @@ pub fn error_show(e: crate::E) {
 			Severity::Workflow => false,
 		};
 		let message =
-			format!("{}{}", e.human(), if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues/new)" } else { "" });
+			format!("{}{}", e.human(), if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues)" } else { "" });
 		let mut msg = crate::Message::new(message).error();
 		for (i, action) in e.actions.iter().enumerate() {
 			msg = msg.item(i.to_string(), action.title.as_str(), false);
