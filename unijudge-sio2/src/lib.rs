@@ -246,6 +246,10 @@ impl unijudge::Backend for Sio2 {
 		*contest
 	}
 
+	fn contest_site_prefix(&self) -> &'static str {
+		unimplemented!()
+	}
+
 	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> String {
 		format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task)
 	}

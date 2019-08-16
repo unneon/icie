@@ -24,7 +24,7 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
 
 pub struct Session {
 	pub site: String,
-	raw: unijudge::boxed::Session,
+	pub raw: unijudge::boxed::Session,
 }
 impl Session {
 	pub fn connect<C, T>(url: &URL<C, T>, backend: &'static Backend) -> R<Session> {

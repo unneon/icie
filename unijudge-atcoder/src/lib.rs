@@ -302,6 +302,10 @@ impl unijudge::Backend for Atcoder {
 		format!("https://atcoder.jp/contests/{}", contest)
 	}
 
+	fn contest_site_prefix(&self) -> &'static str {
+		"AtCoder"
+	}
+
 	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
 		format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task)
 	}

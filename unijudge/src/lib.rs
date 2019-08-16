@@ -176,6 +176,7 @@ pub trait Backend: Send+Sync {
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
 	fn contest_url(&self, contest: &Self::Contest) -> String;
+	fn contest_site_prefix(&self) -> &'static str;
 	fn site_short(&self) -> &'static str;
 	const SUPPORTS_CONTESTS: bool;
 }
@@ -203,6 +204,7 @@ pub mod boxed {
 		fn contest_tasks(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>>;
 		fn contest_id(&self, contest: &dyn Any) -> Result<String>;
 		fn contest_url(&self, contest: &dyn Any) -> Result<String>;
+		fn contest_site_prefix(&self) -> &'static str;
 		fn site_short(&self) -> &'static str;
 		fn supports_contests(&self) -> bool;
 	}
@@ -267,6 +269,10 @@ pub mod boxed {
 
 		pub fn contest_url(&self, contest: &BoxedContest) -> Result<String> {
 			self.backend.contest_url(contest.raw.deref().as_any())
+		}
+
+		pub fn contest_site_prefix(&self) -> &'static str {
+			self.backend.contest_site_prefix()
 		}
 
 		pub fn site_short(&self) -> &'static str {
@@ -391,6 +397,10 @@ pub mod boxed {
 
 		fn contest_url(&self, contest: &dyn Any) -> Result<String> {
 			Ok(<T as crate::Backend>::contest_url(self, contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?))
+		}
+
+		fn contest_site_prefix(&self) -> &'static str {
+			<T as crate::Backend>::contest_site_prefix(self)
 		}
 
 		fn site_short(&self) -> &'static str {

@@ -316,6 +316,10 @@ impl unijudge::Backend for Codeforces {
 		}
 	}
 
+	fn contest_site_prefix(&self) -> &'static str {
+		"Codeforces"
+	}
+
 	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
 		self.xtask_url(task).into_string()
 	}

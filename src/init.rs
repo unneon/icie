@@ -21,9 +21,11 @@ fn scan() -> R<()> {
 	let mut contests = scan::fetch_contests();
 	contests.sort_by_key(|contest| contest.1.start);
 	let pick = QuickPick::new()
-		.items(contests.iter().enumerate().map(|(index, (_, contest))| {
+		.items(contests.iter().enumerate().map(|(index, (sess, contest))| {
+			let site_prefix = sess.raw.contest_site_prefix();
+			let label = if contest.title.starts_with(site_prefix) { contest.title.clone() } else { format!("{} {}", site_prefix, contest.title) };
 			let start = contest.start.with_timezone(&Local).to_rfc2822();
-			quick_pick::Item::new(index.to_string(), &contest.title).description(start)
+			quick_pick::Item::new(index.to_string(), label).description(start)
 		}))
 		.match_on_description()
 		.ignore_focus_out()

@@ -198,6 +198,10 @@ impl unijudge::Backend for SPOJ {
 		*contest
 	}
 
+	fn contest_site_prefix(&self) -> &'static str {
+		unimplemented!()
+	}
+
 	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
 		format!("https://www.spoj.com/problems/{}/", task)
 	}
