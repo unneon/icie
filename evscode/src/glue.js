@@ -75,7 +75,12 @@ function activate(ctx) {
                     alwaysShow: item.alwaysShow,
                     id: item.id
                 };
-            }), { matchOnDescription: reaction.matchOnDescription, matchOnDetail: reaction.matchOnDetail }).then(selected => {
+            }), {
+                matchOnDescription: reaction.matchOnDescription,
+                matchOnDetail: reaction.matchOnDetail,
+                ignoreFocusOut: reaction.ignoreFocusOut,
+                placeHolder: nullmap(reaction.placeholder)
+            }).then(selected => {
                 logic.send({ tag: 'async', aid: reaction.aid, value: selected === undefined ? null : selected.id });
             });
         }

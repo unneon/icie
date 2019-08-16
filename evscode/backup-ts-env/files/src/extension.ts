@@ -73,7 +73,12 @@ export function activate(ctx: vscode.ExtensionContext) {
                     alwaysShow: item.alwaysShow,
                     id: item.id
                 };
-            }), { matchOnDescription: reaction.matchOnDescription, matchOnDetail: reaction.matchOnDetail }).then(selected => {
+            }), {
+                matchOnDescription: reaction.matchOnDescription,
+                matchOnDetail: reaction.matchOnDetail,
+                ignoreFocusOut: reaction.ignoreFocusOut,
+                placeHolder: nullmap(reaction.placeholder)
+            }).then(selected => {
                 logic.send({ tag: 'async', aid: reaction.aid, value: selected === undefined ? null : selected.id });
             });
         } else if (reaction.tag === "input_box") {

@@ -26,6 +26,7 @@ fn scan() -> R<()> {
 			quick_pick::Item::new(index.to_string(), &contest.title).description(start)
 		}))
 		.match_on_description()
+		.ignore_focus_out()
 		.build()
 		.wait()
 		.ok_or_else(E::cancel)?;
