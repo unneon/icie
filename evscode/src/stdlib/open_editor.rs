@@ -1,11 +1,12 @@
 //! Builder pattern implementation for opening an editor.
 
-use crate::{internal::executor::send_object, Column, Position, Range};
-use std::path::Path;
+use crate::{internal::executor::send_object, Column, LazyFuture, Position, Range};
+use std::path::{Path, PathBuf};
 
 /// Builder for opening text files in a VS Code editor.
-pub struct Builder<'a> {
-	path: &'a Path,
+#[must_use]
+pub struct Builder {
+	path: PathBuf,
 	cursor: Option<Position>,
 	selection: Option<Range>,
 	view_column: Option<Column>,
@@ -15,11 +16,10 @@ pub struct Builder<'a> {
 
 /// Open a text file in an editor. Uses the builder pattern.
 pub fn open_editor(path: &Path) -> Builder {
-	Builder { path, cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None }
+	Builder { path: path.to_owned(), cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None }
 }
 
-#[must_use]
-impl Builder<'_> {
+impl Builder {
 	/// Set cursor position in the text editor. The indices are 0-based.
 	pub fn cursor(mut self, pos: impl Into<Option<Position>>) -> Self {
 		self.cursor = pos.into();
@@ -52,15 +52,21 @@ impl Builder<'_> {
 	}
 
 	/// Open the text file in the specified way.
-	pub fn open(self) {
-		send_object(json::object! {
-			"tag" => "open_editor",
-			"path" => self.path.to_str().expect("evscode::open_editor non-utf8 path"),
-			"cursor" => self.cursor,
-			"preserve_focus" => self.preserve_focus,
-			"preview" => self.preview,
-			"selection" => self.selection,
-			"view_column" => self.view_column,
-		});
+	pub fn open(self) -> LazyFuture<()> {
+		LazyFuture::new_vscode(
+			move |aid| {
+				send_object(json::object! {
+					"tag" => "open_editor",
+					"path" => self.path.to_str().expect("evscode::open_editor non-utf8 path"),
+					"cursor" => self.cursor,
+					"preserve_focus" => self.preserve_focus,
+					"preview" => self.preview,
+					"selection" => self.selection,
+					"view_column" => self.view_column,
+					"aid" => aid,
+				})
+			},
+			|_| (),
+		)
 	}
 }

@@ -130,6 +130,9 @@ export function activate(ctx: vscode.ExtensionContext) {
                         editor.selection = new vscode.Selection(newPosition, newPosition);
                         editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
                     }
+                })
+                .then(() => {
+                    logic.send({ tag: 'async', aid: reaction.aid, value: null });
                 });
         } else if (reaction.tag === "progress_start") {
             progresses.start(reaction.hid, {
@@ -400,6 +403,7 @@ namespace native {
         preview: boolean | null;
         selection: Range2 | null;
         view_column: WebviewViewColumn | null;
+        aid: number;
     }
     export interface ReactionProgressStart {
         tag: "progress_start";

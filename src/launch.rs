@@ -14,7 +14,7 @@ pub fn activate() -> R<()> {
 pub fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening files");
 	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
-		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open();
+		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open().wait();
 		if let Some(statement) = manifest.statement {
 			let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
 				.enable_scripts()

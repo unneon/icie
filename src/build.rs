@@ -112,7 +112,7 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_reb
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
 				if *AUTO_MOVE_TO_ERROR.get() {
-					evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open();
+					evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().spawn();
 				}
 			}
 			Err(evscode::E::error(error.message.clone()).context("compilation error").workflow_error())
@@ -161,7 +161,7 @@ fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
 	}
 	for (i, warning) in warnings.iter().enumerate() {
 		if let Some(location) = &warning.location {
-			evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open();
+			evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().spawn();
 		}
 		let mut msg = evscode::Message::new(&warning.message).warning();
 		if i + 1 != warnings.len() {

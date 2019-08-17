@@ -88,7 +88,9 @@ impl Computation for TestViewLogic {
 							Ok(())
 						}
 					}),
-					Some("edit") => evscode::open_editor(Path::new(note["path"].as_str().unwrap())).open(),
+					Some("edit") => {
+						evscode::open_editor(Path::new(note["path"].as_str().unwrap())).open().spawn();
+					},
 					Some("action_notice") => evscode::runtime::spawn(|| {
 						SKILL_ACTIONS.add_use();
 						Ok(())

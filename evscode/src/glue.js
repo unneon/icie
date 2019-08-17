@@ -143,6 +143,9 @@ function activate(ctx) {
                     editor.selection = new vscode.Selection(newPosition, newPosition);
                     editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
                 }
+            })
+                .then(() => {
+                logic.send({ tag: 'async', aid: reaction.aid, value: null });
             });
         }
         else if (reaction.tag === "progress_start") {

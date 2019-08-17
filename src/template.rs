@@ -29,7 +29,7 @@ pub fn instantiate() -> R<()> {
 		return Err(E::error("file already exists"));
 	}
 	util::fs_write(&path, tpl.code)?;
-	evscode::open_editor(&path).cursor(util::find_cursor_place(&path)).open();
+	evscode::open_editor(&path).cursor(util::find_cursor_place(&path)).open().spawn();
 	Ok(())
 }
 
