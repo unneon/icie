@@ -1,5 +1,6 @@
 use crate::{dir, init, manifest::Manifest, util};
-use evscode::{quick_pick, QuickPick, E, R};
+use evscode::{quick_pick, QuickPick, Webview, E, R};
+use std::{thread::sleep, time::Duration};
 use unijudge::Statement;
 
 pub fn activate() -> R<()> {
@@ -14,20 +15,34 @@ pub fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening files");
 	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
 		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open();
-		match manifest.statement {
-			Some(Statement::HTML { html }) => {
-				let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
-					.enable_scripts()
-					.enable_find_widget()
-					.retain_context_when_hidden()
-					.preserve_focus()
-					.create();
-				webview.set_html(html);
-			},
-			None => (),
+		if let Some(statement) = manifest.statement {
+			let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
+				.enable_scripts()
+				.enable_find_widget()
+				.retain_context_when_hidden()
+				.preserve_focus()
+				.create();
+			match statement {
+				Statement::HTML { html } => webview.set_html(html),
+				Statement::PDF { pdf } => display_pdf(webview, pdf),
+			}
 		}
 	}
 	Ok(())
+}
+
+fn display_pdf(webview: Webview, pdf: Vec<u8>) {
+	evscode::runtime::spawn(move || {
+		webview.set_html(format!(
+			"<html><head><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
+			include_str!("pdf.js")
+		));
+		sleep(Duration::from_millis(1000)); // ugh
+		webview.post_message(evscode::json::object! {
+			"pdf_data_base64" => pdf,
+		});
+		Ok(())
+	});
 }
 
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]

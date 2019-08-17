@@ -3,7 +3,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	debris::{self, Context, Find}, reqwest::{self, cookie_store::Cookie, header::REFERER, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
+	debris::{self, Context, Document, Find}, reqwest::{
+		self, cookie_store::Cookie, header::{HeaderValue, CONTENT_TYPE, REFERER}, Url
+	}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 pub struct Sio2;
@@ -116,13 +118,40 @@ impl unijudge::Backend for Sio2 {
 			Some((_, title)) => title,
 			None => return Err(Error::WrongData),
 		};
+		let url2: Url = format!("{}/c/{}/p/{}/", session.site, task.contest, task.task).parse().unwrap();
+		let mut resp2 = session.client.get(url2).send()?;
+		let statement = if resp2.headers().get(CONTENT_TYPE) == Some(&HeaderValue::from_str("application/pdf").unwrap()) {
+			let mut buf = Vec::new();
+			while resp2.copy_to(&mut buf)? > 0 {}
+			Some(Statement::PDF { pdf: buf })
+		} else {
+			let doc2 = Document::new(&resp2.text()?);
+			let mut statement = unijudge::statement::Rewrite::start(doc2);
+			statement.fix_hide(|v| {
+				if let unijudge::scraper::Node::Element(v) = v.value() {
+					v.has_class("main-content", unijudge::selectors::attr::CaseSensitivity::CaseSensitive)
+				} else {
+					false
+				}
+			});
+			statement.fix_override_csp();
+			statement.fix_traverse(|mut v| {
+				if let unijudge::scraper::Node::Element(v) = v.value() {
+					unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
+					unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
+					unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", &session.site);
+					unijudge::statement::fix_url(v, unijudge::qn!("src"), "/", &session.site);
+				}
+			});
+			Some(statement.export())
+		};
 		Ok(TaskDetails {
 			id: task.task.clone(),
 			title,
 			contest_id: task.contest.clone(),
 			site_short: "sio2".to_owned(),
 			examples: None,
-			statement: None,
+			statement,
 			url: url.to_string(),
 		})
 	}

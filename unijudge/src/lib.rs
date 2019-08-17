@@ -13,7 +13,7 @@ pub extern crate serde;
 pub mod statement;
 
 use chrono::{DateTime, FixedOffset};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug};
 
 #[derive(Debug)]
@@ -84,7 +84,13 @@ pub struct Example {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Statement {
-	HTML { html: String },
+	HTML {
+		html: String,
+	},
+	PDF {
+		#[serde(serialize_with = "as_base64", deserialize_with = "from_base64")]
+		pdf: Vec<u8>,
+	},
 }
 
 #[derive(Clone, Debug)]
@@ -179,6 +185,13 @@ pub trait Backend: Send+Sync {
 	fn contest_site_prefix(&self) -> &'static str;
 	fn site_short(&self) -> &'static str;
 	const SUPPORTS_CONTESTS: bool;
+}
+
+fn as_base64<T: AsRef<[u8]>, S: Serializer>(buffer: &T, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+	serializer.serialize_str(&hex::encode(buffer.as_ref()))
+}
+fn from_base64<'d, D: Deserializer<'d>>(deserializer: D) -> std::result::Result<Vec<u8>, D::Error> {
+	<&str as Deserialize<'d>>::deserialize(deserializer).and_then(|buffer| hex::decode(buffer).map_err(|e| serde::de::Error::custom(e.to_string())))
 }
 
 pub mod boxed {

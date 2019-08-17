@@ -68,7 +68,7 @@ You can also specify the Dependencies header with a comma-separated list of thin
 | [Codeforces](https://codeforces.com) | Yes | Yes | Yes | Yes |
 | [Atcoder](https://atcoder.jp) | Yes | Yes | Yes | Yes |
 | [SPOJ](https://spoj.com) | Yes | | | Yes |
-| *sio2 sites* | Yes | | | |
+| *sio2 sites* | Yes | | | Yes |
 
 ## Development & Building from source
 
