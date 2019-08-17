@@ -58,7 +58,7 @@ fn sprint(manifest: &Path) -> R<()> {
 		let root = sprint_task_path(i == 0, &details)?;
 		init_task(&root, Some(sess.run(|sess| sess.task_url(&task))?), Some(details))?;
 		if i == 0 {
-			launch::layout_setup();
+			launch::layout_setup()?;
 		}
 	}
 	Ok(())

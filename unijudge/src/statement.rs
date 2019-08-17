@@ -19,7 +19,7 @@ impl Rewrite {
 	}
 
 	pub fn export(self) -> Statement {
-		Statement { html: self.doc.html() }
+		Statement::HTML { html: self.doc.html() }
 	}
 
 	pub fn fix_hide(&mut self, mut f: impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool) {

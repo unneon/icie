@@ -83,8 +83,8 @@ pub struct Example {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Statement {
-	pub html: String,
+pub enum Statement {
+	HTML { html: String },
 }
 
 #[derive(Clone, Debug)]
