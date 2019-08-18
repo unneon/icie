@@ -17,6 +17,7 @@ fn send() -> R<()> {
 }
 
 fn send_passed() -> R<()> {
+	let _status = crate::STATUS.push("Submitting");
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
@@ -31,10 +32,7 @@ fn send_passed() -> R<()> {
 		sess.run(|sess| sess.task_languages(&task))?
 	};
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
-	let submit_id = {
-		let _status = crate::STATUS.push("Querying submit id");
-		sess.run(|sess| sess.task_submit(&task, lang, &code))?
-	};
+	let submit_id = sess.run(|sess| sess.task_submit(&task, lang, &code))?;
 	track(sess, task, submit_id)?;
 	Ok(())
 }

@@ -1,6 +1,6 @@
 # ICIE [![](https://travis-ci.org/pustaczek/icie.svg?branch=master)](https://travis-ci.org/pustaczek/icie) [![](https://img.shields.io/visual-studio-marketplace/d/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/license/pustaczek/icie.svg)](https://github.com/pustaczek/icie/blob/master/LICENSE)
 
-ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from setting up template code, through building solutions and running the example tests to submitting the solution. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Linux, with support for [Codeforces](https://codeforces.com), [Atcoder](https://atcoder.jp) and [SPOJ](https://www.spoj.com).
+ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Linux, with support for [Codeforces](https://codeforces.com), [Atcoder](https://atcoder.jp) and [SPOJ](https://www.spoj.com).
 
 ## Quick start
 
@@ -27,7 +27,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>=</kbd> to create a new file from a template
 - <kbd>Alt</kbd><kbd>;</kbd> to manually compile a file
 - <kbd>Alt</kbd><kbd>\\</kbd> and <kbd>Alt</kbd><kbd>0</kbd> to run tests on currently open file instead of the solution
-- Create a checker.cpp file to use a custom answer-checking program; see details in checker configuration
+- Use custom checker.cpp; see details in checker configuration entry
 
 ### Configuration
 
@@ -41,7 +41,7 @@ First, open the normal configuration screen and find the "Paste Library Path" en
 ```cpp
 /// Name: FU
 /// Description: Find & Union
-/// Detail: Disjoint sets in O(α n) proven by Tarjan(1975)
+/// Detail: Disjoint sets data structure in O(α n) proven by Tarjan(1975)
 /// Guarantee: struct FU {
 struct FU {
 	FU(int n):link(n,-1),rank(n,0){}
@@ -63,12 +63,12 @@ Most lines are self-explanatory, except for the `/// Guarantee: struct FU {` one
 You can also specify the Dependencies header with a comma-separated list of things that need to be pasted before this piece(e.g. if your modular arithmetic implementation uses a quick exponentiation function from `qpow.cpp`, write `/// Dependencies: qpow` and it will be pasted automatically).
 
 ### Supported sites
-| Site | Submit | Examples | Contests | Statement |
-| - | - | - | - | - |
-| [Codeforces](https://codeforces.com) | Yes | Yes | Yes | Yes |
-| [Atcoder](https://atcoder.jp) | Yes | Yes | Yes | Yes |
-| [SPOJ](https://spoj.com) | Yes | | | Yes |
-| *sio2 sites* | Yes | | | Yes |
+| | Contests | Statement | Examples | Submit | Track |
+| - | - | - | - | - | - |
+| [Codeforces](https://codeforces.com) | Yes | Yes | Yes | Yes | Yes |
+| [Atcoder](https://atcoder.jp) | Yes | Yes | Yes | Yes | Yes |
+| [SPOJ](https://spoj.com) | | Yes | | Yes | Yes |
+| *sio2 sites* | | Yes | | Yes | Yes |
 
 ## Development & Building from source
 
