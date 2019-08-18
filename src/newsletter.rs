@@ -5,8 +5,7 @@ pub fn check() -> R<()> {
 	if last.as_ref().map(String::as_ref) != Some(LAST_IMPORTANT_UPDATE.version) {
 		let choice = evscode::Message::new(format!(
 			"Hey, ICIE {} has some cool new features, like: {}; check them out!",
-			env!("CARGO_PKG_VERSION"),
-			LAST_IMPORTANT_UPDATE.features
+			LAST_IMPORTANT_UPDATE.version, LAST_IMPORTANT_UPDATE.features
 		))
 		.item("changelog", "See full changelog", false)
 		.item("ok", "Ok", false)
@@ -15,8 +14,9 @@ pub fn check() -> R<()> {
 		if let Some(choice) = choice {
 			if choice == "changelog" {
 				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").wait()?;
+			} else {
+				LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned());
 			}
-			LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned());
 		}
 	}
 	Ok(())
@@ -27,7 +27,8 @@ struct Update {
 	features: &'static str,
 }
 
-const LAST_IMPORTANT_UPDATE: Update = Update { version: "0.5.8", features: "contest mode with Alt+F9, task switching under Alt+Backpace" };
+const LAST_IMPORTANT_UPDATE: Update =
+	Update { version: "0.6", features: "contest mode with Alt+F9, task switching under Alt+Backpace, fetching statements, checkers" };
 
 const LAST_ACKNOWLEDGED_VERSION: evscode::State<String> =
 	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);

@@ -1,3 +1,23 @@
+## 0.6
+
+- **Added contest mode** with <kbd>Alt</kbd><kbd>F9</kbd> - just press it and select the one you want to participate in. Or copy-paste its URL into <kbd>Alt</kbd><kbd>F11</kbd>, that works too!
+- **Added downloading task statements** and displaying them from VS Code
+- **Added switching tasks** with <kbd>Alt</kbd><kbd>Backspace</kbd>, which works with tasks created during contests and ones in the same directory
+- **Added checker support**, which uses a custom checker.cpp program to check if answers are correct
+- Added a newsletter message informing you of interesting updates
+- Added forcing rebuilds during manual builds
+- Added error messages on panics
+- Added help on keyring errors when the user uses KWallet
+- Added trying to retry operations in presence of network issues
+- Added sorting library code pieces by title
+- Changed submission tracking delay from 500ms to 2000ms
+- Changed site names in path templates to nicer ones
+- Fixed not replacing more special characters in task titles
+- Fixed ignoring time limits support to ICIE Discover
+- Fixed Codeforces problemset submit support
+- Fixed not reporting some rare errors
+- Fixed relying on which(1) to check whether programs are installed
+
 ## 0.5.7
 
 - Added a "report issue?" link to error messages, which opens ICIE's GitHub issue tracker
