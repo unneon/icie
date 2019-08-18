@@ -29,6 +29,10 @@ walkdir = "2.2"
 [patch.crates-io]
 reqwest = { git = "https://github.com/pustaczek/reqwest" }
 
+[profile.release]
+lto = true
+codegen-units = 1
+
 [workspace]
 members = [
 	".",
