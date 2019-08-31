@@ -1,5 +1,5 @@
 use crate::ci::util;
-use evscode::{E, R};
+use evscode::{error::ResultExt, R};
 use std::{
 	io::Write, path::PathBuf, process::{Command, ExitStatus, Stdio}, time::{Duration, Instant}
 };
@@ -42,33 +42,25 @@ impl Executable {
 		let mut cmd = Command::new(&self.path);
 		cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).args(args);
 		let t1 = Instant::now();
-		let mut kid = cmd.spawn().map_err(|e| E::from_std(e).context(format!("failed to execute {:?}", self.path)))?;
+		let mut kid = cmd.spawn().wrap(format!("failed to execute {:?}", self.path))?;
 		let _ = kid.stdin.as_mut().unwrap().write_all(input.as_bytes());
 		let _ = kid.stdin.as_mut().unwrap().flush();
 		let (status, exit_kind) = if let Some(time_limit) = environment.time_limit {
-			if let Some(status) =
-				kid.wait_timeout(time_limit).map_err(|e| E::from_std(e).context(format!("lost child process of {:?}", self.path)))?
-			{
+			if let Some(status) = kid.wait_timeout(time_limit).wrap(format!("lost child process of {:?}", self.path))? {
 				(status, ExitKind::Normal)
 			} else {
-				kid.kill().map_err(|e| E::from_std(e).context(format!("could not kill process of {:?} after time limit", self.path)))?;
-				(kid.wait().map_err(|e| E::from_std(e).context(format!("lost child process of {:?}", self.path)))?, ExitKind::TimeLimitExceeded)
+				kid.kill().wrap(format!("could not kill process of {:?} after time limit", self.path))?;
+				(kid.wait().wrap(format!("lost child process of {:?}", self.path))?, ExitKind::TimeLimitExceeded)
 			}
 		} else {
-			(kid.wait().map_err(|e| E::from_std(e).context(format!("lost child process of {:?}", self.path)))?, ExitKind::Normal)
+			(kid.wait().wrap(format!("lost child process of {:?}", self.path))?, ExitKind::Normal)
 		};
 		let t2 = Instant::now();
 		Ok(Run {
-			stdout: String::from_utf8(
-				util::io_read(kid.stdout.unwrap())
-					.map_err(|e| E::from_std(e).context(format!("could not extract stdout of process of {:?}", self.path)))?,
-			)
-			.unwrap(),
-			stderr: String::from_utf8(
-				util::io_read(kid.stderr.unwrap())
-					.map_err(|e| E::from_std(e).context(format!("could not extract stderr of process of {:?}", self.path)))?,
-			)
-			.unwrap(),
+			stdout: String::from_utf8(util::io_read(kid.stdout.unwrap()).wrap(format!("could not extract stdout of process of {:?}", self.path))?)
+				.unwrap(),
+			stderr: String::from_utf8(util::io_read(kid.stderr.unwrap()).wrap(format!("could not extract stderr of process of {:?}", self.path))?)
+				.unwrap(),
 			status,
 			exit_kind,
 			time: t2 - t1,

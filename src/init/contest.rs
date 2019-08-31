@@ -3,7 +3,7 @@ use crate::{
 		init_task, names::{design_contest_name, design_task_name}
 	}, launch, net::{interpret_url, Session}, util::{fmt_time_left, fs_read_to_string, fs_write, plural, TransactionDir}
 };
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use serde::{Deserialize, Serialize};
 use std::{
 	fs, path::{Path, PathBuf}, sync::Arc, thread::sleep, time::{Duration, SystemTime}
@@ -21,10 +21,7 @@ pub fn setup_sprint(sess: &Session, contest: &BoxedContest) -> R<()> {
 	let task0_dir = root_dir.path().join("icie-task0");
 	let task0_dir = TransactionDir::new(&task0_dir)?;
 	let manifest = Manifest { contest_url: sess.backend.contest_url(contest) };
-	fs_write(
-		task0_dir.path().join(".icie-contest"),
-		serde_json::to_string(&manifest).map_err(|e| E::from_std(e).context("serialization of contest manifest failed"))?,
-	)?;
+	fs_write(task0_dir.path().join(".icie-contest"), serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?)?;
 	let task0_dir = task0_dir.commit();
 	root_dir.commit();
 	evscode::open_folder(task0_dir, false);
@@ -112,8 +109,8 @@ fn wait_for_contest(manifest: &Manifest, site: &str, sess: &Arc<Session>) -> R<(
 
 /// Parse the manifest and removes it.
 fn pop_manifest(path: &Path) -> R<Manifest> {
-	let manifest = serde_json::from_str(&fs_read_to_string(path)?).map_err(|e| E::from_std(e).context("malformed contest manifest"))?;
-	fs::remove_file(path).map_err(|e| E::from_std(e).context("could not delete contest manifest after use"))?;
+	let manifest = serde_json::from_str(&fs_read_to_string(path)?).wrap("malformed contest manifest")?;
+	fs::remove_file(path).wrap("could not delete contest manifest after use")?;
 	Ok(manifest)
 }
 

@@ -1,4 +1,4 @@
-use evscode::{Position, E, R};
+use evscode::{error::ResultExt, Position, E, R};
 use std::{
 	path::{Path, PathBuf}, time::Duration
 };
@@ -78,7 +78,7 @@ fn test_bash_escape() {
 }
 
 pub fn is_installed(app: &'static str) -> evscode::R<bool> {
-	let exec_lookups = std::env::var("PATH").map_err(|e| E::from_std(e).context("env var PATH does not exist"))?;
+	let exec_lookups = std::env::var("PATH").wrap("env var PATH does not exist")?;
 	for exec_lookup in std::env::split_paths(&exec_lookups) {
 		if exec_lookup.join(app).exists() {
 			return Ok(true);
@@ -156,11 +156,11 @@ pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
 }
 
 pub fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> R<()> {
-	std::fs::write(path.as_ref(), content.as_ref()).map_err(|e| E::from_std(e).context(format!("failed to write to {}", path.as_ref().display())))
+	std::fs::write(path.as_ref(), content.as_ref()).wrap(format!("failed to write to {}", path.as_ref().display()))
 }
 
 pub fn fs_create_dir_all(path: impl AsRef<Path>) -> R<()> {
-	std::fs::create_dir_all(path.as_ref()).map_err(|e| E::from_std(e).context(format!("failed to create directory {}", path.as_ref().display())))
+	std::fs::create_dir_all(path.as_ref()).wrap(format!("failed to create directory {}", path.as_ref().display()))
 }
 
 pub fn find_cursor_place(path: &Path) -> Option<Position> {

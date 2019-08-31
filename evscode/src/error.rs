@@ -175,6 +175,21 @@ impl E {
 	}
 }
 
+/// An extension trait for terser error handling.
+pub trait ResultExt {
+	/// The value type of the result.
+	type Ok;
+	/// Convert the error to [`E`] and add a single context layer.
+	fn wrap(self, s: impl AsRef<str>) -> R<Self::Ok>;
+}
+impl<T, E2: std::error::Error> ResultExt for Result<T, E2> {
+	type Ok = T;
+
+	fn wrap(self, s: impl AsRef<str>) -> R<T> {
+		self.map_err(|e| E::from_std(e).context(s))
+	}
+}
+
 /// Error type representing a operation intentionally cancelled by the user.
 pub struct Cancellation;
 

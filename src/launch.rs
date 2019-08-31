@@ -1,5 +1,5 @@
 use crate::{dir, init, manifest::Manifest, util};
-use evscode::{quick_pick, QuickPick, Webview, E, R};
+use evscode::{error::ResultExt, quick_pick, QuickPick, Webview, E, R};
 use std::{thread::sleep, time::Duration};
 use unijudge::Statement;
 
@@ -51,7 +51,7 @@ fn nearby() -> R<()> {
 	let parent = root.parent().ok_or_else(|| E::error("current directory has no parent"))?;
 	let mut nearby = parent
 		.read_dir()
-		.map_err(|e| E::from_std(e).context("could not read parent directory"))?
+		.wrap("could not read parent directory")?
 		.filter_map(|entry| {
 			let entry = entry.ok()?;
 			if entry.file_type().ok()?.is_dir() { Some(entry) } else { None }

@@ -1,5 +1,5 @@
 use crate::{build, term, util};
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use std::{
 	fs::File, path::PathBuf, process::{Command, Stdio}
 };
@@ -30,14 +30,12 @@ pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 	let record_out = Command::new("rr")
 		.arg("record")
 		.arg(build::exec_path(source)?)
-		.stdin(File::open(&in_path).map_err(|e| E::from_std(e).context("failed to redirect test input"))?)
+		.stdin(File::open(&in_path).wrap("failed to redirect test input")?)
 		.stdout(Stdio::null())
 		.stderr(Stdio::piped())
 		.output()
-		.map_err(|e| E::from_std(e).context("failed to spawn rr record session"))?;
-	if std::str::from_utf8(&record_out.stderr)
-		.map_err(|e| E::from_std(e).context("rr record has written non-utf8 text to stderr"))?
-		.contains("/proc/sys/kernel/perf_event_paranoid")
+		.wrap("failed to spawn rr record session")?;
+	if std::str::from_utf8(&record_out.stderr).wrap("rr record has written non-utf8 text to stderr")?.contains("/proc/sys/kernel/perf_event_paranoid")
 	{
 		return Err(E::error("RR is not configured properly (this is to be expected), kernel.perf_event_paranoid must be <= 1")
 			.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid));

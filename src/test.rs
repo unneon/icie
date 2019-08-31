@@ -1,7 +1,7 @@
 pub mod view;
 
 use crate::{build, ci, dir, util, STATUS};
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use std::{
 	path::{Path, PathBuf}, time::Duration
 };
@@ -34,7 +34,7 @@ pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let worker = run_thread(ins, task, solution).cancel_on(progress.canceler());
 	for _ in 0..test_count {
 		let run = worker.wait()??;
-		let name = run.in_path.strip_prefix(&test_dir).map_err(|e| E::from_std(e).context("found test outside of test directory"))?;
+		let name = run.in_path.strip_prefix(&test_dir).wrap("found test outside of test directory")?;
 		progress.update_inc(
 			100.0 / test_count as f64,
 			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
@@ -57,13 +57,8 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 			let input = util::fs_read_to_string(&in_path)?;
 			let output = match std::fs::read_to_string(&out_path) {
 				Ok(output) => Some(output),
-				Err(e) => {
-					if e.kind() == std::io::ErrorKind::NotFound {
-						None
-					} else {
-						return Err(E::from_std(e).context(format!("failed to read test out {}", out_path.display())));
-					}
-				},
+				Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => None,
+				Err(e) => return Err(E::from_std(e).context(format!("failed to read test out {}", out_path.display()))),
 			};
 			let alt = if alt_path.exists() { Some(util::fs_read_to_string(&alt_path)?) } else { None };
 			let outcome = ci::test::simple_test(&solution, &input, output.as_ref().map(String::as_str), alt.as_ref().map(|p| p.as_str()), &task)
@@ -109,8 +104,8 @@ fn input() -> evscode::R<()> {
 
 fn unused_test_id(dir: &Path) -> evscode::R<i64> {
 	let mut taken = std::collections::HashSet::new();
-	for test in dir.read_dir().map_err(|e| E::from_std(e).context("failed to read tests directory"))? {
-		let test = test.map_err(|e| E::from_std(e).context("failed to read a test file entry in tests directory"))?;
+	for test in dir.read_dir().wrap("failed to read tests directory")? {
+		let test = test.wrap("failed to read a test file entry in tests directory")?;
 		if let Ok(id) = test.path().file_stem().unwrap().to_str().unwrap().parse::<i64>() {
 			taken.insert(id);
 		}

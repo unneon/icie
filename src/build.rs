@@ -1,7 +1,7 @@
 use crate::{
 	ci::{self, exec::Executable}, dir, util, STATUS
 };
-use evscode::{Position, E, R};
+use evscode::{error::ResultExt, Position, R};
 use std::{
 	path::{Path, PathBuf}, time::SystemTime
 };
@@ -52,7 +52,7 @@ fn manual() -> evscode::R<()> {
 				.unwrap_or(true)
 		})
 		.collect::<walkdir::Result<Vec<_>>>()
-		.map_err(|e| E::from_std(e).context("failed to scan tests directory"))?;
+		.wrap("failed to scan tests directory")?;
 	let source = PathBuf::from(
 		evscode::QuickPick::new()
 			.items(sources.into_iter().map(|entry| {
@@ -90,9 +90,7 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_reb
 	let workspace_source = dir::solution()?;
 	let source = source.unwrap_or_else(|| workspace_source.as_path());
 	if !source.exists() {
-		let pretty_source = source
-			.strip_prefix(evscode::workspace_root()?)
-			.map_err(|e| E::from_std(e).context("tried to build source outside of project directory"))?;
+		let pretty_source = source.strip_prefix(evscode::workspace_root()?).wrap("tried to build source outside of project directory")?;
 		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source.display())));
 	}
 	evscode::save_all().wait();
@@ -137,10 +135,7 @@ fn should_cache(source: &Path, out: &Path) -> R<bool> {
 }
 
 fn query_modification_time(path: &Path) -> R<SystemTime> {
-	path.metadata()
-		.map_err(|e| E::from_std(e).context("file metadata query failed"))?
-		.modified()
-		.map_err(|e| E::from_std(e).context("file modification time query failed"))
+	path.metadata().wrap("file metadata query failed")?.modified().wrap("file modification time query failed")
 }
 
 pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {

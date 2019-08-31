@@ -1,7 +1,7 @@
 use crate::paste::{
 	logic::{Library, Piece}, qpaste_doc_error
 };
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use std::{
 	collections::HashMap, ffi::OsStr, path::PathBuf, sync::{Mutex, MutexGuard}
 };
@@ -30,10 +30,15 @@ impl LibraryCache {
 			lib.pieces = HashMap::new();
 		}
 		let mut new_pieces = HashMap::new();
-		for entry in directory.read_dir().map_err(|e| E::from_std(e).context(format!("error when reading {} directory", directory.display())))? {
-			let entry = entry.map_err(E::from_std)?;
+		for entry in directory.read_dir().wrap(format!("error when reading {} directory", directory.display()))? {
+			let entry = entry.wrap(format!("error when reading file entries in {} directory", directory.display()))?;
 			let path = entry.path();
-			let id = crate::util::without_extension(&path).strip_prefix(&directory).map_err(E::from_std)?.to_str().unwrap().to_owned();
+			let id = crate::util::without_extension(&path)
+				.strip_prefix(&directory)
+				.wrap("piece outside the piece collection directory")?
+				.to_str()
+				.unwrap()
+				.to_owned();
 			if path.extension() == Some(OsStr::new("cpp")) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces)?;
 				new_pieces.insert(id, dbg!(piece));
@@ -49,7 +54,7 @@ impl LibraryCache {
 	}
 
 	fn maybe_load_piece(&self, path: PathBuf, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
-		let modified = path.metadata().map_err(E::from_std)?.modified().map_err(E::from_std)?;
+		let modified = path.metadata().wrap("could not query piece metadata")?.modified().wrap("could not query piece modification time")?;
 		let cached = if let Some(cached) = cached_pieces.remove(id) {
 			if cached.modified == modified { Some(cached) } else { None }
 		} else {

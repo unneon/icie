@@ -3,7 +3,7 @@ use crate::{
 		comms::{Food, Note}, render::render
 	}, util
 };
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 
 fn webview_create() -> R<evscode::Webview> {
 	Ok(evscode::Webview::new("icie.discover", "ICIE Discover", 1).enable_scripts().retain_context_when_hidden().create())
@@ -154,7 +154,7 @@ fn add_test_input(input: String) -> R<()> {
 	let dir = crate::dir::custom_tests()?;
 	util::fs_create_dir_all(&dir)?;
 	let used = std::fs::read_dir(&dir)
-		.map_err(|e| E::from_std(e).context("failed to read tests directory"))?
+		.wrap("failed to read tests directory")?
 		.map(|der| {
 			der.ok()
 				.and_then(|de| de.path().file_stem().map(std::ffi::OsStr::to_owned))

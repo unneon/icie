@@ -4,7 +4,7 @@ use crate::{
 	}, util
 };
 use evscode::{
-	goodies::{webview_resultmap::Computation, WebviewHandle}, Webview, WebviewResultmap, E, R
+	error::ResultExt, goodies::{webview_resultmap::Computation, WebviewHandle}, Webview, WebviewResultmap, E, R
 };
 use std::{
 	fs, path::{Path, PathBuf}
@@ -73,7 +73,7 @@ impl Computation for TestViewLogic {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 							let out = note["out"].as_str().unwrap();
 							fs::write(in_path.with_extension("alt.out"), format!("{}\n", out.trim()))
-								.map_err(|e| E::from_std(e).context("failed to save alternative out as a file"))?;
+								.wrap("failed to save alternative out as a file")?;
 							COLLECTION.get_force(source)?;
 							Ok(())
 						}
@@ -82,8 +82,7 @@ impl Computation for TestViewLogic {
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
-							fs::remove_file(in_path.with_extension("alt.out"))
-								.map_err(|e| E::from_std(e).context("failed to remove alternative out file"))?;
+							fs::remove_file(in_path.with_extension("alt.out")).wrap("failed to remove alternative out file")?;
 							COLLECTION.get_force(source)?;
 							Ok(())
 						}

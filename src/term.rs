@@ -1,5 +1,5 @@
 use crate::util;
-use evscode::{E, R};
+use evscode::{error::ResultExt, R};
 use std::{
 	path::Path, process::{Command, Stdio}
 };
@@ -13,9 +13,7 @@ pub struct Internal;
 pub struct External;
 
 pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: impl AsRef<Path>, command: impl IntoIterator<Item=A>) -> R<()> {
-	let test = util::without_extension(
-		test.as_ref().strip_prefix(evscode::workspace_root()?).map_err(|e| E::from_std(e).context("found test outside of test directory"))?,
-	);
+	let test = util::without_extension(test.as_ref().strip_prefix(evscode::workspace_root()?).wrap("found test outside of test directory")?);
 	External::command(Some(format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
 }
 
@@ -45,11 +43,7 @@ impl External {
 		if let Some(command) = command {
 			cmd.arg("-e").arg(bash_escape_command(command));
 		}
-		cmd.stdin(Stdio::null())
-			.stdout(Stdio::null())
-			.stderr(Stdio::null())
-			.spawn()
-			.map_err(|e| E::from_std(e).context("failed to launch x-terminal-emulator"))?;
+		cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().wrap("failed to launch x-terminal-emulator")?;
 		Ok(())
 	}
 }
