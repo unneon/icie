@@ -10,6 +10,7 @@ use unijudge::{
 
 pub struct Sio2;
 
+#[derive(Debug)]
 pub struct Session {
 	client: reqwest::Client,
 	site: String,
@@ -22,7 +23,7 @@ pub struct Task {
 	task: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CachedAuth {
 	username: String,
 	sessionid: Cookie<'static>,
@@ -33,8 +34,6 @@ impl unijudge::Backend for Sio2 {
 	type Contest = !;
 	type Session = Session;
 	type Task = Task;
-
-	const SUPPORTS_CONTESTS: bool = false;
 
 	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"]
@@ -53,7 +52,23 @@ impl unijudge::Backend for Sio2 {
 		Session { client, site: format!("https://{}", domain), username: Mutex::new(None) }
 	}
 
-	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let username = match session.username.lock().unwrap().as_ref() {
+			Some(username) => username.to_owned(),
+			None => return Ok(None),
+		};
+		let sessionid = match session.client.cookies().read().unwrap().0.get(Url::parse(&session.site).unwrap().domain().unwrap(), "/", "sessionid") {
+			Some(c) => c.clone().into_owned(),
+			None => return Ok(None),
+		};
+		Ok(Some(CachedAuth { username, sessionid }))
+	}
+
+	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
+		unijudge::deserialize_auth(data)
+	}
+
+	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let url1: Url = format!("{}/login/", session.site).parse().unwrap();
 		let mut resp1 = session.client.get(url1).send()?;
 		let url2 = resp1.url().clone();
@@ -83,22 +98,14 @@ impl unijudge::Backend for Sio2 {
 		}
 	}
 
-	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
-		*session.username.lock().unwrap() = Some(auth.username);
-		session.client.cookies().write().unwrap().0.insert(auth.sessionid, &session.site.parse().unwrap()).unwrap();
+	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
+		*session.username.lock().unwrap() = Some(auth.username.clone());
+		session.client.cookies().write().unwrap().0.insert(auth.sessionid.clone(), &session.site.parse().unwrap()).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = match session.username.lock().unwrap().as_ref() {
-			Some(username) => username.to_owned(),
-			None => return Ok(None),
-		};
-		let sessionid = match session.client.cookies().read().unwrap().0.get(Url::parse(&session.site).unwrap().domain().unwrap(), "/", "sessionid") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		Ok(Some(CachedAuth { username, sessionid }))
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
@@ -255,23 +262,11 @@ impl unijudge::Backend for Sio2 {
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
-	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
-		Ok(Vec::new())
-	}
-
-	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		*contest
-	}
-
-	fn site_short(&self) -> &'static str {
-		"sio2"
+	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> String {
+		format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task)
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
-		*contest
-	}
-
-	fn contest_url(&self, contest: &Self::Contest) -> String {
 		*contest
 	}
 
@@ -279,8 +274,24 @@ impl unijudge::Backend for Sio2 {
 		unimplemented!()
 	}
 
-	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> String {
-		format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task)
+	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		*contest
+	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		*contest
+	}
+
+	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		Ok(Vec::new())
+	}
+
+	fn name_short(&self) -> &'static str {
+		"sio2"
+	}
+
+	fn supports_contests(&self) -> bool {
+		false
 	}
 }
 

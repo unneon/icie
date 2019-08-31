@@ -221,33 +221,6 @@ impl Drop for TransactionDir<'_> {
 	}
 }
 
-pub fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
-	match e {
-		unijudge::Error::WrongCredentials => E::from_std(e).reform("wrong username or password"),
-		unijudge::Error::WrongData => E::from_std(e).reform("wrong data passed to API"),
-		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
-		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
-		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
-		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
-		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
-		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
-		unijudge::Error::UnexpectedHTML(e) => {
-			let mut extended = Vec::new();
-			if !e.snapshots.is_empty() {
-				extended.push(e.snapshots.last().unwrap().clone());
-			}
-			evscode::E {
-				severity: evscode::error::Severity::Error,
-				reasons: vec![format!("unexpected HTML structure ({:?} at {:?})", e.reason, e.operations)],
-				details: Vec::new(),
-				actions: Vec::new(),
-				backtrace: e.backtrace,
-				extended,
-			}
-		},
-	}
-}
-
 pub trait MaybePath {
 	fn as_option_path(&self) -> Option<&Path>;
 }

@@ -18,8 +18,6 @@ impl unijudge::Backend for Atcoder {
 	type Session = reqwest::Client;
 	type Task = Task;
 
-	const SUPPORTS_CONTESTS: bool = true;
-
 	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["atcoder.jp"]
 	}
@@ -37,7 +35,16 @@ impl unijudge::Backend for Atcoder {
 		client
 	}
 
-	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let cookies = session.cookies().read().unwrap();
+		Ok(cookies.0.get("atcoder.jp", "/", "REVEL_SESSION").map(|c| c.clone().into_owned()))
+	}
+
+	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
+		unijudge::deserialize_auth(data)
+	}
+
+	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let csrf = self.fetch_login_csrf(session)?;
 		let url: Url = "https://atcoder.jp/login".parse().unwrap();
 		let mut resp = match session
@@ -62,15 +69,14 @@ impl unijudge::Backend for Atcoder {
 		}
 	}
 
-	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
+	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
 		let mut cookies = session.cookies().write().unwrap();
-		cookies.0.insert(auth, &"https://atcoder.jp".parse().unwrap()).map_err(|_| Error::WrongData)?;
+		cookies.0.insert(auth.clone(), &"https://atcoder.jp".parse().unwrap()).map_err(|_| Error::WrongData)?;
 		Ok(())
 	}
 
-	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let cookies = session.cookies().read().unwrap();
-		Ok(cookies.0.get("atcoder.jp", "/", "REVEL_SESSION").map(|c| c.clone().into_owned()))
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
@@ -233,6 +239,46 @@ impl unijudge::Backend for Atcoder {
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task)
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		contest.clone()
+	}
+
+	fn contest_site_prefix(&self) -> &'static str {
+		"AtCoder"
+	}
+
+	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		let mut resp = session.get(&format!("https://atcoder.jp/contests/{}/tasks", contest)).send()?;
+		let doc = debris::Document::new(&resp.text()?);
+		if resp.status() == StatusCode::NOT_FOUND {
+			let alert = doc.find(".alert.alert-danger")?.text().string();
+			if alert.ends_with("Contest not found.") {
+				return Err(Error::WrongData);
+			} else if alert.ends_with("Permission denied.") {
+				return Err(Error::NotYetStarted);
+			} else {
+				return Err(Error::from(doc.error("unrecognized alert message")));
+			}
+		}
+		doc.find("table")?
+			.find_all("tbody > tr")
+			.map(|row| {
+				Ok(row.find_nth("td", 1)?.find("a")?.attr("href")?.map(|href| match href.split('/').collect::<Vec<_>>().as_slice() {
+					["", "contests", contest, "tasks", task] => Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }),
+					_ => Err(format!("invalid task url {:?}", href)),
+				})?)
+			})
+			.collect()
+	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		format!("https://atcoder.jp/contests/{}", contest)
+	}
+
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let mut resp = session.get("https://atcoder.jp/contests/").send()?;
 		let doc = debris::Document::new(&resp.text()?);
@@ -266,48 +312,12 @@ impl unijudge::Backend for Atcoder {
 			.collect()
 	}
 
-	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		let mut resp = session.get(&format!("https://atcoder.jp/contests/{}/tasks", contest)).send()?;
-		let doc = debris::Document::new(&resp.text()?);
-		if resp.status() == StatusCode::NOT_FOUND {
-			let alert = doc.find(".alert.alert-danger")?.text().string();
-			if alert.ends_with("Contest not found.") {
-				return Err(Error::WrongData);
-			} else if alert.ends_with("Permission denied.") {
-				return Err(Error::NotYetStarted);
-			} else {
-				return Err(Error::from(doc.error("unrecognized alert message")));
-			}
-		}
-		doc.find("table")?
-			.find_all("tbody > tr")
-			.map(|row| {
-				Ok(row.find_nth("td", 1)?.find("a")?.attr("href")?.map(|href| match href.split('/').collect::<Vec<_>>().as_slice() {
-					["", "contests", contest, "tasks", task] => Ok(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }),
-					_ => Err(format!("invalid task url {:?}", href)),
-				})?)
-			})
-			.collect()
-	}
-
-	fn site_short(&self) -> &'static str {
+	fn name_short(&self) -> &'static str {
 		"atcoder"
 	}
 
-	fn contest_id(&self, contest: &Self::Contest) -> String {
-		contest.clone()
-	}
-
-	fn contest_url(&self, contest: &Self::Contest) -> String {
-		format!("https://atcoder.jp/contests/{}", contest)
-	}
-
-	fn contest_site_prefix(&self) -> &'static str {
-		"AtCoder"
-	}
-
-	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
-		format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task)
+	fn supports_contests(&self) -> bool {
+		true
 	}
 }
 

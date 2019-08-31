@@ -1,18 +1,37 @@
-use crate::{
-	auth, util::{self, from_unijudge_error}
-};
+use crate::auth;
 use evscode::{E, R};
+use reqwest::header::HeaderValue;
 use std::{thread::sleep, time::Duration};
-use unijudge::{boxed::BoxedURL, URL};
+use unijudge::{
+	boxed::{BoxedURL, DynamicBackend}, Backend
+};
 
-pub const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
+const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
 const NETWORK_ERROR_RETRY_LIMIT: usize = 2;
 const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(2);
+pub const BACKENDS: &[BackendMeta] = &[
+	BackendMeta { backend: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
+	BackendMeta { backend: &unijudge_atcoder::Atcoder, cpp: "C++14 (GCC 5.4.1)" },
+	BackendMeta { backend: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 8.0)" },
+	BackendMeta { backend: &unijudge_sio2::Sio2, cpp: "C++" },
+];
 
-pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
+pub type Session = GenericSession<dyn DynamicBackend>;
+pub struct GenericSession<T: Backend+?Sized> {
+	pub backend: &'static T,
+	pub session: T::Session,
+	site: String,
+}
+
+pub struct BackendMeta {
+	pub backend: &'static dyn DynamicBackend,
+	pub cpp: &'static str,
+}
+
+pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 	Ok(BACKENDS
 		.iter()
-		.filter_map(|backend| match backend.network.deconstruct_url(url) {
+		.filter_map(|backend| match backend.backend.deconstruct_url(url) {
 			Ok(Some(url)) => Some(Ok((url, backend))),
 			Ok(None) => None,
 			Err(e) => Some(Err(e)),
@@ -22,27 +41,31 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static Backend)> {
 		.map_err(from_unijudge_error)?)
 }
 
-pub struct Session {
-	pub site: String,
-	pub raw: unijudge::boxed::Session,
-}
-impl Session {
-	pub fn connect<C, T>(url: &URL<C, T>, backend: &'static Backend) -> R<Session> {
-		let raw = backend.network.connect(&url.domain, USER_AGENT).map_err(from_unijudge_error)?;
-		if let Some(cached_session) = auth::get_if_cached(&url.site) {
-			match raw.restore_auth(&cached_session) {
-				Err(unijudge::Error::WrongData) | Err(unijudge::Error::WrongCredentials) | Err(unijudge::Error::AccessDenied) => Ok(()),
-				Err(e) => Err(util::from_unijudge_error(e)),
-				Ok(()) => Ok(()),
-			}?;
+impl<T: Backend+?Sized> GenericSession<T> {
+	pub fn connect(domain: &str, backend: &'static T) -> R<GenericSession<T>> {
+		let client = reqwest::ClientBuilder::new()
+			.cookie_store(true)
+			.default_headers(vec![(reqwest::header::USER_AGENT, HeaderValue::from_str(USER_AGENT).unwrap())].into_iter().collect())
+			.build()
+			.map_err(|e| from_unijudge_error(unijudge::Error::TLSFailure(e)))?;
+		let session = backend.connect(client, domain);
+		let site = format!("https://{}", domain);
+		if let Some(auth) = auth::get_if_cached(&site) {
+			if let Ok(auth) = backend.auth_deserialize(&auth) {
+				match backend.auth_restore(&session, &auth) {
+					Err(unijudge::Error::WrongData) | Err(unijudge::Error::WrongCredentials) | Err(unijudge::Error::AccessDenied) => Ok(()),
+					Err(e) => Err(from_unijudge_error(e)),
+					Ok(()) => Ok(()),
+				}?;
+			}
 		}
-		Ok(Session { site: url.site.clone(), raw })
+		Ok(GenericSession { backend, session, site })
 	}
 
-	pub fn run<T>(&self, mut f: impl FnMut(&unijudge::boxed::Session) -> unijudge::Result<T>) -> R<T> {
+	pub fn run<Y>(&self, mut f: impl FnMut(&'static T, &T::Session) -> unijudge::Result<Y>) -> R<Y> {
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		loop {
-			match f(&self.raw) {
+			match f(self.backend, &self.session) {
 				Ok(y) => break Ok(y),
 				Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
 					self.maybe_error_show(e);
@@ -50,17 +73,17 @@ impl Session {
 					self.login(&username, &password)?
 				},
 				Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => self.wait_for_retry(&mut retries_left, e),
-				Err(e) => break Err(util::from_unijudge_error(e)),
+				Err(e) => break Err(from_unijudge_error(e)),
 			}
 		}
 	}
 
 	pub fn login(&self, username: &str, password: &str) -> R<()> {
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
-		match self.raw.login(&username, &password) {
+		match self.backend.auth_login(&self.session, &username, &password) {
 			Ok(()) => {
-				if let Some(cache) = self.raw.cache_auth().map_err(util::from_unijudge_error)? {
-					auth::save_cache(&self.site, &cache);
+				if let Some(cache) = self.backend.auth_cache(&self.session).map_err(from_unijudge_error)? {
+					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache));
 				}
 			},
 			Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
@@ -68,7 +91,7 @@ impl Session {
 				self.force_login()?;
 			},
 			Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => self.wait_for_retry(&mut retries_left, e),
-			Err(e) => return Err(util::from_unijudge_error(e)),
+			Err(e) => return Err(from_unijudge_error(e)),
 		}
 		Ok(())
 	}
@@ -88,7 +111,7 @@ impl Session {
 		assert!(*retries_left > 0);
 		let _status = crate::STATUS.push("Waiting to retry");
 		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
-			util::from_unijudge_error(unijudge::Error::NetworkFailure(e))
+			from_unijudge_error(unijudge::Error::NetworkFailure(e))
 				.context(format!("retrying in {} seconds", NETWORK_ERROR_RETRY_DELAY.as_secs_f64()))
 				.warning()
 				.emit();
@@ -98,14 +121,29 @@ impl Session {
 	}
 }
 
-pub struct Backend {
-	pub network: &'static dyn unijudge::boxed::Backend,
-	pub cpp: &'static str,
+fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
+	match e {
+		unijudge::Error::WrongCredentials => E::from_std(e).reform("wrong username or password"),
+		unijudge::Error::WrongData => E::from_std(e).reform("wrong data passed to API"),
+		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
+		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
+		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
+		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
+		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
+		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
+		unijudge::Error::UnexpectedHTML(e) => {
+			let mut extended = Vec::new();
+			if !e.snapshots.is_empty() {
+				extended.push(e.snapshots.last().unwrap().clone());
+			}
+			evscode::E {
+				severity: evscode::error::Severity::Error,
+				reasons: vec![format!("unexpected HTML structure ({:?} at {:?})", e.reason, e.operations)],
+				details: Vec::new(),
+				actions: Vec::new(),
+				backtrace: e.backtrace,
+				extended,
+			}
+		},
+	}
 }
-
-pub const BACKENDS: &[Backend] = &[
-	Backend { network: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
-	Backend { network: &unijudge_atcoder::Atcoder, cpp: "C++14 (GCC 5.4.1)" },
-	Backend { network: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 8.0)" },
-	Backend { network: &unijudge_sio2::Sio2, cpp: "C++" },
-];

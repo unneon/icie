@@ -1,16 +1,16 @@
-use crate::net::{self, Backend, BACKENDS};
+use crate::net::{self, BackendMeta, BACKENDS};
 use evscode::R;
 use std::{
 	sync::Arc, thread::{self, JoinHandle}
 };
-use unijudge::{boxed::BoxedContestDetails, URL};
+use unijudge::{boxed::BoxedContestDetails, Backend, URL};
 
 pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
 	let _status = crate::STATUS.push("Fetching contests");
-	let domains: Vec<(&'static str, &'static Backend)> = BACKENDS
+	let domains: Vec<(&'static str, &'static BackendMeta)> = BACKENDS
 		.iter()
-		.filter(|backend| backend.network.supports_contests())
-		.flat_map(|backend| backend.network.accepted_domains().iter().map(move |domain| (*domain, backend)))
+		.filter(|backend| backend.backend.supports_contests())
+		.flat_map(|backend| backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend)))
 		.collect();
 	let _status = crate::STATUS.push_silence();
 	let tasks: Vec<_> = domains
@@ -22,10 +22,10 @@ pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
 					let url = URL::dummy_domain(domain);
 					let sess = {
 						let _status = crate::STATUS.push(format!("Connecting {}", domain));
-						Arc::new(net::Session::connect(&url, backend)?)
+						Arc::new(net::Session::connect(&url.domain, backend.backend)?)
 					};
 					let _status = crate::STATUS.push(format!("Fetching {}", domain));
-					let contests = sess.run(|sess| sess.contests())?;
+					let contests = sess.run(|backend, sess| backend.contests(sess))?;
 					Ok((sess, contests))
 				}),
 			)

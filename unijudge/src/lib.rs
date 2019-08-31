@@ -9,10 +9,12 @@ pub extern crate scraper;
 pub extern crate selectors;
 pub extern crate serde;
 
+pub mod boxed;
 #[macro_use]
 pub mod statement;
 
 use chrono::{DateTime, FixedOffset};
+use reqwest::Url;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug};
 
@@ -162,29 +164,42 @@ impl URL<(), ()> {
 	}
 }
 
-pub trait Backend: Send+Sync {
-	type Session: Send+Sync+'static;
+pub trait Backend: Send+Sync+'static {
+	type CachedAuth: Debug+Send+Sync+'static;
 	type Contest: Debug+Send+Sync+'static;
+	type Session: Debug+Send+Sync+'static;
 	type Task: Debug+Send+Sync+'static;
-	type CachedAuth: Serialize+for<'a> Deserialize<'a>;
 	fn accepted_domains(&self) -> &'static [&'static str];
 	fn deconstruct_resource(&self, domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>>;
+	fn deconstruct_url(&self, url: &str) -> Result<Option<URL<Self::Contest, Self::Task>>> {
+		let url: Url = url.parse()?;
+		let domain = url.domain().ok_or(Error::WrongTaskUrl)?;
+		if self.accepted_domains().contains(&domain) {
+			let segments = url.path_segments().ok_or(Error::WrongTaskUrl)?.filter(|s| !s.is_empty()).collect::<Vec<_>>();
+			let resource = self.deconstruct_resource(domain, &segments)?;
+			Ok(Some(URL { domain: domain.to_owned(), site: format!("https://{}", domain), resource }))
+		} else {
+			Ok(None)
+		}
+	}
 	fn connect(&self, client: reqwest::Client, domain: &str) -> Self::Session;
-	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
-	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()>;
-	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>>;
+	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>>;
+	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth>;
+	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
+	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()>;
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String;
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String>;
 	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> String;
-	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
-	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
-	fn contest_url(&self, contest: &Self::Contest) -> String;
 	fn contest_site_prefix(&self) -> &'static str;
-	fn site_short(&self) -> &'static str;
-	const SUPPORTS_CONTESTS: bool;
+	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
+	fn contest_url(&self, contest: &Self::Contest) -> String;
+	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
+	fn name_short(&self) -> &'static str;
+	fn supports_contests(&self) -> bool;
 }
 
 fn as_base64<T: AsRef<[u8]>, S: Serializer>(buffer: &T, serializer: S) -> std::result::Result<S::Ok, S::Error> {
@@ -194,259 +209,9 @@ fn from_base64<'d, D: Deserializer<'d>>(deserializer: D) -> std::result::Result<
 	<&str as Deserialize<'d>>::deserialize(deserializer).and_then(|buffer| hex::decode(buffer).map_err(|e| serde::de::Error::custom(e.to_string())))
 }
 
-pub mod boxed {
-	use crate::{ContestDetails, Error, Language, Resource, Result, Submission, TaskDetails, URL};
-	use reqwest::{header::USER_AGENT, Url};
-	use std::{
-		any::Any, fmt::{self, Debug}, ops::Deref
-	};
-
-	pub trait Backend: Send+Sync {
-		fn accepted_domains(&self) -> &'static [&'static str];
-		fn deconstruct_url(&self, url: &str) -> Result<Option<BoxedURL>>;
-		fn connect(&'static self, domain: &str, user_agent: &str) -> Result<Session>;
-		fn login(&self, session: &dyn Any, username: &str, password: &str) -> Result<()>;
-		fn restore_auth(&self, session: &dyn Any, auth: &str) -> Result<()>;
-		fn cache_auth(&self, session: &dyn Any) -> Result<Option<String>>;
-		fn task_details(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<TaskDetails>;
-		fn task_languages(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Language>>;
-		fn task_submissions(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Submission>>;
-		fn task_submit(&self, session: &dyn Any, task: &dyn AnyDebug, language: &Language, code: &str) -> Result<String>;
-		fn task_url(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<String>;
-		fn contests(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>>;
-		fn contest_tasks(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>>;
-		fn contest_id(&self, contest: &dyn Any) -> Result<String>;
-		fn contest_url(&self, contest: &dyn Any) -> Result<String>;
-		fn contest_site_prefix(&self) -> &'static str;
-		fn site_short(&self) -> &'static str;
-		fn supports_contests(&self) -> bool;
-	}
-	pub struct Session {
-		backend: &'static dyn Backend,
-		raw: Box<dyn Any+Send+Sync+'static>,
-	}
-	pub type BoxedContestDetails = ContestDetails<BoxedContest>;
-	pub struct BoxedContest {
-		raw: Box<dyn AnyDebug+Send+Sync+'static>,
-	}
-	pub struct BoxedTask {
-		raw: Box<dyn AnyDebug+Send+Sync+'static>,
-	}
-	pub type BoxedURL = URL<BoxedContest, BoxedTask>;
-	pub type BoxedTaskURL = URL<!, BoxedTask>;
-	pub type BoxedContestURL = URL<BoxedContest, !>;
-	impl Session {
-		pub fn login(&self, username: &str, password: &str) -> Result<()> {
-			self.backend.login(self.raw.deref(), username, password)
-		}
-
-		pub fn restore_auth(&self, auth: &str) -> Result<()> {
-			self.backend.restore_auth(self.raw.deref(), auth)
-		}
-
-		pub fn cache_auth(&self) -> Result<Option<String>> {
-			self.backend.cache_auth(self.raw.deref())
-		}
-
-		pub fn task_details(&self, task: &BoxedTask) -> Result<TaskDetails> {
-			self.backend.task_details(self.raw.deref(), task.raw.deref())
-		}
-
-		pub fn task_languages(&self, task: &BoxedTask) -> Result<Vec<Language>> {
-			self.backend.task_languages(self.raw.deref(), task.raw.deref())
-		}
-
-		pub fn task_submissions(&self, task: &BoxedTask) -> Result<Vec<Submission>> {
-			self.backend.task_submissions(self.raw.deref(), task.raw.deref())
-		}
-
-		pub fn task_submit(&self, task: &BoxedTask, language: &Language, code: &str) -> Result<String> {
-			self.backend.task_submit(self.raw.deref(), task.raw.deref(), language, code)
-		}
-
-		pub fn task_url(&self, task: &BoxedTask) -> Result<String> {
-			self.backend.task_url(self.raw.deref(), task.raw.deref())
-		}
-
-		pub fn contests(&self) -> Result<Vec<BoxedContestDetails>> {
-			self.backend.contests(self.raw.deref())
-		}
-
-		pub fn contest_tasks(&self, contest: &BoxedContest) -> Result<Vec<BoxedTask>> {
-			self.backend.contest_tasks(self.raw.deref(), contest.raw.deref().as_any())
-		}
-
-		pub fn contest_id(&self, contest: &BoxedContest) -> Result<String> {
-			self.backend.contest_id(contest.raw.deref().as_any())
-		}
-
-		pub fn contest_url(&self, contest: &BoxedContest) -> Result<String> {
-			self.backend.contest_url(contest.raw.deref().as_any())
-		}
-
-		pub fn contest_site_prefix(&self) -> &'static str {
-			self.backend.contest_site_prefix()
-		}
-
-		pub fn site_short(&self) -> &'static str {
-			self.backend.site_short()
-		}
-	}
-
-	impl<T: crate::Backend> Backend for T {
-		fn accepted_domains(&self) -> &'static [&'static str] {
-			T::accepted_domains(self)
-		}
-
-		fn deconstruct_url(&self, url: &str) -> Result<Option<BoxedURL>> {
-			let url: Url = url.parse()?;
-			let domain = url.domain().ok_or(Error::WrongTaskUrl)?;
-			if self.accepted_domains().contains(&domain) {
-				let segments = url.path_segments().ok_or(Error::WrongTaskUrl)?.filter(|s| !s.is_empty()).collect::<Vec<_>>();
-				let resource = <T as crate::Backend>::deconstruct_resource(self, domain, &segments)?;
-				Ok(Some(URL {
-					domain: domain.to_owned(),
-					site: format!("https://{}", domain),
-					resource: match resource {
-						Resource::Contest(c) => Resource::Contest(BoxedContest { raw: Box::new(c) }),
-						Resource::Task(c) => Resource::Task(BoxedTask { raw: Box::new(c) }),
-					},
-				}))
-			} else {
-				Ok(None)
-			}
-		}
-
-		fn connect(&'static self, domain: &str, user_agent: &str) -> Result<Session> {
-			let client = reqwest::ClientBuilder::new()
-				.cookie_store(true)
-				.default_headers(vec![(USER_AGENT, reqwest::header::HeaderValue::from_str(user_agent).unwrap())].into_iter().collect())
-				.build()
-				.map_err(Error::TLSFailure)?;
-			let session = <T as crate::Backend>::connect(self, client, domain);
-			Ok(Session { backend: self, raw: Box::new(session) })
-		}
-
-		fn login(&self, session: &dyn Any, username: &str, password: &str) -> Result<()> {
-			<T as crate::Backend>::login(self, session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?, username, password)
-		}
-
-		fn restore_auth(&self, session: &dyn Any, auth: &str) -> Result<()> {
-			<T as crate::Backend>::restore_auth(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				serde_json::from_str(auth).map_err(|_| Error::WrongData)?,
-			)
-		}
-
-		fn cache_auth(&self, session: &dyn Any) -> Result<Option<String>> {
-			Ok(<T as crate::Backend>::cache_auth(self, session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?)?
-				.map(|c| serde_json::to_string(&c).unwrap()))
-		}
-
-		fn task_details(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<TaskDetails> {
-			<T as crate::Backend>::task_details(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
-			)
-		}
-
-		fn task_languages(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Language>> {
-			<T as crate::Backend>::task_languages(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
-			)
-		}
-
-		fn task_submissions(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<Vec<Submission>> {
-			<T as crate::Backend>::task_submissions(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
-			)
-		}
-
-		fn task_submit(&self, session: &dyn Any, task: &dyn AnyDebug, language: &Language, code: &str) -> Result<String> {
-			<T as crate::Backend>::task_submit(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
-				language,
-				code,
-			)
-		}
-
-		fn task_url(&self, session: &dyn Any, task: &dyn AnyDebug) -> Result<String> {
-			Ok(<T as crate::Backend>::task_url(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				task.as_any().downcast_ref::<T::Task>().ok_or(Error::WrongData)?,
-			))
-		}
-
-		fn contests(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>> {
-			Ok(<T as crate::Backend>::contests(self, session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?)?
-				.into_iter()
-				.map(|ContestDetails { id, title, start }| ContestDetails { id: BoxedContest { raw: Box::new(id) }, title, start })
-				.collect())
-		}
-
-		fn contest_tasks(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>> {
-			Ok(<T as crate::Backend>::contest_tasks(
-				self,
-				session.downcast_ref::<T::Session>().ok_or(Error::WrongData)?,
-				contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?,
-			)?
-			.into_iter()
-			.map(|task| BoxedTask { raw: Box::new(task) })
-			.collect())
-		}
-
-		fn contest_id(&self, contest: &dyn Any) -> Result<String> {
-			Ok(<T as crate::Backend>::contest_id(self, contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?))
-		}
-
-		fn contest_url(&self, contest: &dyn Any) -> Result<String> {
-			Ok(<T as crate::Backend>::contest_url(self, contest.downcast_ref::<T::Contest>().ok_or(Error::WrongData)?))
-		}
-
-		fn contest_site_prefix(&self) -> &'static str {
-			<T as crate::Backend>::contest_site_prefix(self)
-		}
-
-		fn site_short(&self) -> &'static str {
-			<T as crate::Backend>::site_short(self)
-		}
-
-		fn supports_contests(&self) -> bool {
-			T::SUPPORTS_CONTESTS
-		}
-	}
-
-	pub trait AnyDebug: Any+Debug {
-		fn as_any(&self) -> &dyn Any;
-		fn as_debug(&self) -> &dyn Debug;
-	}
-	impl<T: Any+Debug> AnyDebug for T {
-		fn as_any(&self) -> &dyn Any {
-			self
-		}
-
-		fn as_debug(&self) -> &dyn Debug {
-			self
-		}
-	}
-
-	impl Debug for BoxedContest {
-		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-			Debug::fmt(self.raw.deref(), f)
-		}
-	}
-	impl Debug for BoxedTask {
-		fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-			Debug::fmt(self.raw.deref(), f)
-		}
-	}
+pub fn deserialize_auth<'d, T: Deserialize<'d>>(data: &'d str) -> Result<T> {
+	serde_json::from_str(data).map_err(|_| Error::WrongData)
+}
+pub fn serialize_auth<T: Serialize>(auth: &T) -> String {
+	serde_json::to_string(auth).unwrap()
 }

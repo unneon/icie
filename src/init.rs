@@ -1,10 +1,10 @@
 use crate::{
-	interpolation::Interpolation, net::{self, Backend}, util::{self, fs_create_dir_all}
+	interpolation::Interpolation, net::{self, BackendMeta}, util::{self, fs_create_dir_all}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::path::{Path, PathBuf};
 use unijudge::{
-	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Resource, TaskDetails, URL
+	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Backend, Resource, TaskDetails, URL
 };
 
 pub mod contest;
@@ -22,7 +22,7 @@ fn scan() -> R<()> {
 	contests.sort_by_key(|contest| contest.1.start);
 	let pick = QuickPick::new()
 		.items(contests.iter().enumerate().map(|(index, (sess, contest))| {
-			let site_prefix = sess.raw.contest_site_prefix();
+			let site_prefix = sess.backend.contest_site_prefix();
 			let label = if contest.title.starts_with(site_prefix) { contest.title.clone() } else { format!("{} {}", site_prefix, contest.title) };
 			let start = contest.start.with_timezone(&Local).to_rfc2822();
 			quick_pick::Item::new(index.to_string(), label).description(start)
@@ -51,7 +51,7 @@ fn url() -> R<()> {
 			evscode::open_folder(root, false);
 		},
 		InitCommand::Contest { url, backend } => {
-			let sess = net::Session::connect(&url, backend)?;
+			let sess = net::Session::connect(&url.domain, backend.backend)?;
 			let Resource::Contest(contest) = url.resource;
 			contest::setup_sprint(&sess, &contest)?;
 		},
@@ -86,8 +86,8 @@ fn ask_url() -> R<Option<String>> {
 
 #[allow(unused)]
 enum InitCommand {
-	Task(Option<(BoxedTaskURL, &'static Backend)>),
-	Contest { url: BoxedContestURL, backend: &'static Backend },
+	Task(Option<(BoxedTaskURL, &'static BackendMeta)>),
+	Contest { url: BoxedContestURL, backend: &'static BackendMeta },
 }
 fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 	Ok(match url {
@@ -102,12 +102,12 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 	})
 }
 
-fn fetch_task_details(url: BoxedTaskURL, backend: &'static Backend) -> R<TaskDetails> {
+fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) -> R<TaskDetails> {
 	let Resource::Task(task) = &url.resource;
-	let sess = net::Session::connect(&url, backend)?;
+	let sess = net::Session::connect(&url.domain, backend.backend)?;
 	let meta = {
 		let _status = crate::STATUS.push("Fetching task");
-		sess.run(|sess| sess.task_details(&task))?
+		sess.run(|backend, sess| backend.task_details(sess, &task))?
 	};
 	Ok(meta)
 }

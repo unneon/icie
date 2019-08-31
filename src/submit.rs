@@ -1,7 +1,7 @@
 use crate::{dir, net, util};
 use evscode::{E, R};
 use std::time::Duration;
-use unijudge::{RejectionCause, Resource};
+use unijudge::{Backend, RejectionCause, Resource};
 
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> R<()> {
@@ -26,13 +26,13 @@ fn send_passed() -> R<()> {
 		Resource::Task(task) => task,
 		_ => return Err(E::error(format!("unexpected {:?} in .task_url manifest field", url.resource))),
 	};
-	let sess = net::Session::connect(&url, backend)?;
+	let sess = net::Session::connect(&url.domain, backend.backend)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
-		sess.run(|sess| sess.task_languages(&task))?
+		sess.run(|backend, sess| backend.task_languages(sess, &task))?
 	};
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
-	let submit_id = sess.run(|sess| sess.task_submit(&task, lang, &code))?;
+	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, lang, &code))?;
 	track(sess, task, submit_id)?;
 	Ok(())
 }
@@ -45,7 +45,7 @@ fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String
 	let verdict = loop {
 		let submissions = {
 			let _status = crate::STATUS.push("Tracking...");
-			sess.run(|sess| sess.task_submissions(&url))?
+			sess.run(|backend, sess| backend.task_submissions(sess, &url))?
 		};
 		let submission = submissions.into_iter().find(|subm| subm.id == id).unwrap();
 		let should_send = match &submission.verdict {

@@ -30,12 +30,13 @@ pub struct Task {
 	task: TaskID,
 }
 
+#[derive(Debug)]
 pub struct Session {
 	client: reqwest::Client,
 	username: Mutex<Option<String>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CachedAuth {
 	jsessionid: Cookie<'static>,
 	username: String,
@@ -46,8 +47,6 @@ impl unijudge::Backend for Codeforces {
 	type Contest = Contest;
 	type Session = Session;
 	type Task = Task;
-
-	const SUPPORTS_CONTESTS: bool = true;
 
 	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["codeforces.com"]
@@ -71,7 +70,24 @@ impl unijudge::Backend for Codeforces {
 		Session { client, username: Mutex::new(None) }
 	}
 
-	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let username = match session.username.lock().unwrap().clone() {
+			Some(username) => username,
+			None => return Ok(None),
+		};
+		let cookies = session.client.cookies().read().unwrap();
+		let jsessionid = match cookies.0.get("codeforces.com", "/", "JSESSIONID") {
+			Some(cookie) => cookie.clone().into_owned(),
+			None => return Ok(None),
+		};
+		Ok(Some(CachedAuth { jsessionid, username }))
+	}
+
+	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
+		unijudge::deserialize_auth(data)
+	}
+
+	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let csrf = self.fetch_csrf(session)?;
 		let mut resp = session
 			.client
@@ -95,24 +111,15 @@ impl unijudge::Backend for Codeforces {
 		}
 	}
 
-	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
-		*session.username.lock().unwrap() = Some(auth.username);
+	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
+		*session.username.lock().unwrap() = Some(auth.username.clone());
 		let mut cookies = session.client.cookies().write().unwrap();
-		cookies.0.insert(auth.jsessionid, &"https://codeforces.com".parse().unwrap()).unwrap();
+		cookies.0.insert(auth.jsessionid.clone(), &"https://codeforces.com".parse().unwrap()).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = match session.username.lock().unwrap().clone() {
-			Some(username) => username,
-			None => return Ok(None),
-		};
-		let cookies = session.client.cookies().read().unwrap();
-		let jsessionid = match cookies.0.get("codeforces.com", "/", "JSESSIONID") {
-			Some(cookie) => cookie.clone().into_owned(),
-			None => return Ok(None),
-		};
-		Ok(Some(CachedAuth { jsessionid, username }))
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
@@ -255,6 +262,48 @@ impl unijudge::Backend for Codeforces {
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		self.xtask_url(task).into_string()
+	}
+
+	fn contest_id(&self, contest: &Self::Contest) -> String {
+		match contest.source {
+			Source::Contest => contest.id.clone(),
+			Source::Gym => format!("gym{}", contest.id),
+			Source::Problemset => "problemset".to_owned(),
+		}
+	}
+
+	fn contest_site_prefix(&self) -> &'static str {
+		"Codeforces"
+	}
+
+	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		assert_eq!(contest.source, Source::Contest);
+		let url: Url = format!("https://codeforces.com/contest/{}", contest.id).parse().unwrap();
+		let mut resp = session.client.get(url.clone()).send()?;
+		if *resp.url() != url {
+			return Err(Error::NotYetStarted);
+		}
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		doc.find(".problems")?
+			.find_all("tr")
+			.skip(1)
+			.map(|row| {
+				let task = row.find_first("td")?.text().string();
+				Ok(Task { contest: contest.clone(), task: TaskID::Normal(task) })
+			})
+			.collect()
+	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		match contest.source {
+			Source::Contest => format!("https://codeforces.com/contest/{}/", contest.id),
+			Source::Gym => format!("https://codeforces.com/gym/{}/", contest.id),
+			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
+		}
+	}
+
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let moscow_standard_time = FixedOffset::east(3 * 3600);
 		let url: Url = "https://codeforces.com/contests".parse().unwrap();
@@ -278,50 +327,12 @@ impl unijudge::Backend for Codeforces {
 			.collect()
 	}
 
-	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		assert_eq!(contest.source, Source::Contest);
-		let url: Url = format!("https://codeforces.com/contest/{}", contest.id).parse().unwrap();
-		let mut resp = session.client.get(url.clone()).send()?;
-		if *resp.url() != url {
-			return Err(Error::NotYetStarted);
-		}
-		let doc = unijudge::debris::Document::new(&resp.text()?);
-		doc.find(".problems")?
-			.find_all("tr")
-			.skip(1)
-			.map(|row| {
-				let task = row.find_first("td")?.text().string();
-				Ok(Task { contest: contest.clone(), task: TaskID::Normal(task) })
-			})
-			.collect()
-	}
-
-	fn site_short(&self) -> &'static str {
+	fn name_short(&self) -> &'static str {
 		"codeforces"
 	}
 
-	fn contest_id(&self, contest: &Self::Contest) -> String {
-		match contest.source {
-			Source::Contest => contest.id.clone(),
-			Source::Gym => format!("gym{}", contest.id),
-			Source::Problemset => "problemset".to_owned(),
-		}
-	}
-
-	fn contest_url(&self, contest: &Self::Contest) -> String {
-		match contest.source {
-			Source::Contest => format!("https://codeforces.com/contest/{}/", contest.id),
-			Source::Gym => format!("https://codeforces.com/gym/{}/", contest.id),
-			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
-		}
-	}
-
-	fn contest_site_prefix(&self) -> &'static str {
-		"Codeforces"
-	}
-
-	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
-		self.xtask_url(task).into_string()
+	fn supports_contests(&self) -> bool {
+		true
 	}
 }
 

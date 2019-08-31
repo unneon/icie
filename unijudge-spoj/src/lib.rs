@@ -14,8 +14,6 @@ impl unijudge::Backend for SPOJ {
 	type Session = reqwest::Client;
 	type Task = String;
 
-	const SUPPORTS_CONTESTS: bool = false;
-
 	fn accepted_domains(&self) -> &'static [&'static str] {
 		&["www.spoj.com"]
 	}
@@ -31,7 +29,28 @@ impl unijudge::Backend for SPOJ {
 		client
 	}
 
-	fn login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let cookies = session.cookies().read().unwrap();
+		let spoj = match cookies.0.get("spoj.com", "/", "SPOJ") {
+			Some(c) => c.clone().into_owned(),
+			None => return Ok(None),
+		};
+		let login = match cookies.0.get("spoj.com", "/", "autologin_login") {
+			Some(c) => c.clone().into_owned(),
+			None => return Ok(None),
+		};
+		let hash = match cookies.0.get("spoj.com", "/", "autologin_hash") {
+			Some(c) => c.clone().into_owned(),
+			None => return Ok(None),
+		};
+		Ok(Some([spoj, login, hash]))
+	}
+
+	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
+		unijudge::deserialize_auth(data)
+	}
+
+	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let mut resp = session
 			.post("https://www.spoj.com/login/")
 			.header(ORIGIN, "https://www.spoj.com")
@@ -48,31 +67,18 @@ impl unijudge::Backend for SPOJ {
 		}
 	}
 
-	fn restore_auth(&self, session: &Self::Session, auth: Self::CachedAuth) -> Result<()> {
+	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
 		let url = "https://www.spoj.com/".parse().unwrap();
 		let [c1, c2, c3] = auth;
 		let mut cookies = session.cookies().write().unwrap();
-		cookies.0.insert(c1, &url).unwrap();
-		cookies.0.insert(c2, &url).unwrap();
-		cookies.0.insert(c3, &url).unwrap();
+		cookies.0.insert(c1.clone(), &url).unwrap();
+		cookies.0.insert(c2.clone(), &url).unwrap();
+		cookies.0.insert(c3.clone(), &url).unwrap();
 		Ok(())
 	}
 
-	fn cache_auth(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let cookies = session.cookies().read().unwrap();
-		let spoj = match cookies.0.get("spoj.com", "/", "SPOJ") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		let login = match cookies.0.get("spoj.com", "/", "autologin_login") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		let hash = match cookies.0.get("spoj.com", "/", "autologin_hash") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		Ok(Some([spoj, login, hash]))
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
@@ -178,23 +184,11 @@ impl unijudge::Backend for SPOJ {
 		Ok(doc.find("#content > input")?.attr("value")?.string())
 	}
 
-	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
-		Ok(Vec::new())
-	}
-
-	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		*contest
-	}
-
-	fn site_short(&self) -> &'static str {
-		"spoj"
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
+		format!("https://www.spoj.com/problems/{}/", task)
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
-		*contest
-	}
-
-	fn contest_url(&self, contest: &Self::Contest) -> String {
 		*contest
 	}
 
@@ -202,7 +196,23 @@ impl unijudge::Backend for SPOJ {
 		unimplemented!()
 	}
 
-	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
-		format!("https://www.spoj.com/problems/{}/", task)
+	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+		*contest
+	}
+
+	fn contest_url(&self, contest: &Self::Contest) -> String {
+		*contest
+	}
+
+	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		Ok(Vec::new())
+	}
+
+	fn name_short(&self) -> &'static str {
+		"spoj"
+	}
+
+	fn supports_contests(&self) -> bool {
+		false
 	}
 }

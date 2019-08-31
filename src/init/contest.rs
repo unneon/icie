@@ -9,19 +9,18 @@ use std::{
 	fs, path::{Path, PathBuf}, sync::Arc, thread::sleep, time::{Duration, SystemTime}
 };
 use unijudge::{
-	boxed::{BoxedContest, BoxedContestURL, BoxedTask, BoxedURL}, Resource, TaskDetails, URL
+	boxed::{BoxedContest, BoxedContestURL, BoxedTask, BoxedURL}, Backend, Resource, TaskDetails, URL
 };
 
 /// Set up an external directory with a contest manifest, and switch VS Code context to it.
 /// This will likely kill the extension process, so do not do anything important after calling this function.
 /// Post-setup steps will be called from plugin activation function.  
 pub fn setup_sprint(sess: &Session, contest: &BoxedContest) -> R<()> {
-	let (contest_url, contest_id, site_short) = sess.run(|sess| Ok((sess.contest_url(contest)?, sess.contest_id(contest)?, sess.site_short())))?;
-	let root_dir = design_contest_name(&contest_id, site_short)?;
+	let root_dir = design_contest_name(&sess.backend.contest_id(contest), sess.backend.name_short())?;
 	let root_dir = TransactionDir::new(&root_dir)?;
 	let task0_dir = root_dir.path().join("icie-task0");
 	let task0_dir = TransactionDir::new(&task0_dir)?;
-	let manifest = Manifest { contest_url };
+	let manifest = Manifest { contest_url: sess.backend.contest_url(contest) };
 	fs_write(
 		task0_dir.path().join(".icie-contest"),
 		serde_json::to_string(&manifest).map_err(|e| E::from_std(e).context("serialization of contest manifest failed"))?,
@@ -49,14 +48,14 @@ fn sprint(manifest: &Path) -> R<()> {
 	let manifest = pop_manifest(manifest)?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
 	let url = extract_contest_url(url)?;
-	let sess = Arc::new(Session::connect(&url, backend)?);
+	let sess = Arc::new(Session::connect(&url.domain, backend.backend)?);
 	wait_for_contest(&manifest, &url.site, &sess)?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest)?;
 	for (i, task) in tasks.iter().enumerate() {
 		let details = fetch_task(task, &format!("{}/{}", i + 1, tasks.len()), &sess)?;
 		let root = sprint_task_path(i == 0, &details)?;
-		init_task(&root, Some(sess.run(|sess| sess.task_url(&task))?), Some(details))?;
+		init_task(&root, Some(sess.backend.task_url(&sess.session, &task)), Some(details))?;
 		if i == 0 {
 			launch::layout_setup()?;
 		}
@@ -66,7 +65,7 @@ fn sprint(manifest: &Path) -> R<()> {
 
 fn fetch_task(task: &BoxedTask, name: &str, sess: &Session) -> R<TaskDetails> {
 	let _status = crate::STATUS.push(format!("Fetching task {}", name));
-	sess.run(|sess| sess.task_details(task))
+	sess.run(|backend, sess| backend.task_details(sess, task))
 }
 
 fn sprint_task_path(is_zero: bool, details: &TaskDetails) -> R<PathBuf> {
@@ -81,7 +80,7 @@ fn sprint_task_path(is_zero: bool, details: &TaskDetails) -> R<PathBuf> {
 
 fn wait_for_contest(manifest: &Manifest, site: &str, sess: &Arc<Session>) -> R<()> {
 	let details = match sess
-		.run(|sess| Ok(sess.contests()?.into_iter().find(|details| sess.contest_url(&details.id).unwrap_or_default() == manifest.contest_url)))?
+		.run(|backend, sess| Ok(backend.contests(sess)?.into_iter().find(|details| backend.contest_url(&details.id) == manifest.contest_url)))?
 	{
 		Some(details) => details,
 		None => return Ok(()),
@@ -136,9 +135,9 @@ const NOT_YET_STARTED_RETRY_DELAY: Duration = Duration::from_secs(1);
 fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>> {
 	let _status = crate::STATUS.push("Fetching contest");
 	let mut wait_retries = NOT_YET_STARTED_RETRY_LIMIT;
-	sess.run(|sess| {
+	sess.run(|backend, sess| {
 		loop {
-			match sess.contest_tasks(&contest) {
+			match backend.contest_tasks(sess, &contest) {
 				Err(unijudge::Error::NotYetStarted) if wait_retries > 0 => {
 					let _status =
 						crate::STATUS.push(format!("Fetching contest (waiting for time sync, {} left)", plural(wait_retries, "retry", "retries")));
