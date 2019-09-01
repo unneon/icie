@@ -73,7 +73,7 @@ impl unijudge::Backend for Sio2 {
 		let mut resp1 = session.client.get(url1).send()?;
 		let url2 = resp1.url().clone();
 		let doc1 = debris::Document::new(&resp1.text()?);
-		let csrf = doc1.find("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
+		let csrf = doc1.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
 		let mut resp2 = session
 			.client
 			.post(url2.clone())
