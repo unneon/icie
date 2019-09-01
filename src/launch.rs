@@ -17,6 +17,8 @@ pub fn layout_setup() -> R<()> {
 		if manifest.statement.is_some() {
 			statement()?;
 		}
+		// refocus the cursor, because apparently preserve_focus is useless
+		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open().wait();
 	}
 	Ok(())
 }
