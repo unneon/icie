@@ -22,6 +22,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>t</kbd> to launch a terminal
 - <kbd>Alt</kbd><kbd>0</kbd> to run tests without submitting
 - <kbd>Alt</kbd><kbd>9</kbd> to run stress tests
+- <kbd>Alt</kbd><kbd>8</kbd> to reopen task statement
 - <kbd>Alt</kbd><kbd>i</kbd> to generate a simple struct and an input operator>>
 - <kbd>Alt</kbd><kbd>[</kbd> to automatically copy-paste parts of your competitive programming library
 - <kbd>Alt</kbd><kbd>=</kbd> to create a new file from a template

@@ -15,17 +15,8 @@ pub fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening files");
 	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load(), dir::solution()) {
 		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution)).view_column(1).open().wait();
-		if let Some(statement) = manifest.statement {
-			let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
-				.enable_scripts()
-				.enable_find_widget()
-				.retain_context_when_hidden()
-				.preserve_focus()
-				.create();
-			match statement {
-				Statement::HTML { html } => webview.set_html(html),
-				Statement::PDF { pdf } => display_pdf(webview, pdf),
-			}
+		if manifest.statement.is_some() {
+			statement()?;
 		}
 	}
 	Ok(())
@@ -43,6 +34,23 @@ fn display_pdf(webview: Webview, pdf: Vec<u8>) {
 		});
 		Ok(())
 	});
+}
+
+#[evscode::command(title = "ICIE Statement", key = "alt+8")]
+fn statement() -> R<()> {
+	let manifest = Manifest::load()?;
+	let statement = manifest.statement.ok_or_else(|| E::error("no statement found, try creating the task folder Alt+F11 next time"))?;
+	let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
+		.enable_scripts()
+		.enable_find_widget()
+		.retain_context_when_hidden()
+		.preserve_focus()
+		.create();
+	match statement {
+		Statement::HTML { html } => webview.set_html(html),
+		Statement::PDF { pdf } => display_pdf(webview, pdf),
+	}
+	Ok(())
 }
 
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]
