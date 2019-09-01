@@ -1,6 +1,5 @@
 use crate::{dir, init, manifest::Manifest, util};
 use evscode::{error::ResultExt, quick_pick, QuickPick, Webview, E, R};
-use std::{thread::sleep, time::Duration};
 use unijudge::Statement;
 
 pub fn activate() -> R<()> {
@@ -25,10 +24,10 @@ pub fn layout_setup() -> R<()> {
 fn display_pdf(webview: Webview, pdf: Vec<u8>) {
 	evscode::runtime::spawn(move || {
 		webview.set_html(format!(
-			"<html><head><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
+			"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
+			evscode::asset("pdf-2.2.228.min.js"),
 			include_str!("pdf.js")
 		));
-		sleep(Duration::from_millis(1000)); // ugh
 		webview.post_message(evscode::json::object! {
 			"pdf_data_base64" => pdf,
 		});

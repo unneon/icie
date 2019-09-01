@@ -21,8 +21,7 @@ class PageViewer {
 }
 
 let page_viewers = [];
-Promise.all([import_pdfjs(), receive_message()]).then(preps => {
-	console.log(JSON.stringify(preps));
+receive_message().then(preps => {
 	let pdf_data = Uint8Array.from(event.data.pdf_data_base64);
 	pdfjsLib.getDocument(pdf_data).promise.then(doc => {
 		let body = document.getElementById('body');
@@ -41,17 +40,6 @@ window.onresize = () => {
 	}
 };
 
-function import_pdfjs() {
-	let elem = document.createElement('script');
-	elem.type = 'text/javascript';
-	elem.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js';
-	document.getElementsByTagName('head')[0].appendChild(elem);
-	return new Promise(resolve => {
-		elem.onload = () => {
-			resolve();
-		};
-	})
-}
 function receive_message() {
 	return new Promise(resolve => {
 		window.addEventListener('message', event => {
