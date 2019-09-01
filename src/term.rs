@@ -1,5 +1,5 @@
 use crate::util;
-use evscode::{error::ResultExt, R};
+use evscode::{error::ResultExt, E, R};
 use std::{
 	path::Path, process::{Command, Stdio}
 };
@@ -34,16 +34,46 @@ impl Internal {
 	}
 }
 
+/// The external terminal emulator that should be used on your system. Is set to `x-terminal-emulator`, a common alias for the default terminal emulator on many Linux systems. The command will be called like `x-terminal-emulator --title 'ICIE Thingy' -e 'bash'`.
+#[evscode::config]
+static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
+
+/// Whether the external terminal should set a custom title.
+#[evscode::config]
+static EXTERNAL_CUSTOM_TITLE: evscode::Config<bool> = true;
+
 impl External {
 	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<T>, command: Option<I>) -> R<()> {
-		let mut cmd = Command::new("x-terminal-emulator");
-		if let Some(title) = title {
-			cmd.arg("-T").arg(title.as_ref());
+		let program = EXTERNAL_COMMAND.get();
+		let mut cmd = Command::new(&*program);
+		if *EXTERNAL_CUSTOM_TITLE.get() {
+			if let Some(title) = title {
+				cmd.arg("--title").arg(title.as_ref());
+			}
 		}
 		if let Some(command) = command {
 			cmd.arg("-e").arg(bash_escape_command(command));
 		}
-		cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().wrap("failed to launch x-terminal-emulator")?;
+		let kid = cmd
+			.stdin(Stdio::null())
+			.stdout(Stdio::piped())
+			.stderr(Stdio::piped())
+			.spawn()
+			.wrap(format!("failed to launch external terminal {:?}", program))?;
+		evscode::runtime::spawn(move || {
+			let out = kid.wait_with_output().wrap(format!("waiting for external terminal {:?} failed", program))?;
+			if !out.status.success() {
+				E::error(format!(
+					"{:?} {:?} {:?}",
+					out.status,
+					String::from_utf8(out.stdout).wrap(format!("external terminal {:?} stdout is not utf8", program))?,
+					String::from_utf8(out.stderr).wrap(format!("external terminal {:?} stderr is not utf8", program))?
+				))
+				.context(format!("failed to run external terminal {:?}", program))
+				.emit();
+			}
+			Ok(())
+		});
 		Ok(())
 	}
 }
