@@ -115,25 +115,30 @@ export function activate(ctx: vscode.ExtensionContext) {
         } else if (reaction.tag === "open_folder") {
             vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(reaction.path), reaction.in_new_window);
         } else if (reaction.tag === "open_editor") {
-            vscode.workspace.openTextDocument(reaction.path)
-                .then(source => {
-                    return vscode.window.showTextDocument(source, {
+            (async () => {
+                let editor = null;
+                if (!reaction.force_new) {
+                    let old_editor = vscode.window.visibleTextEditors.find(ed => ed.document.fileName === reaction.path);
+                    if (old_editor !== undefined) {
+                        editor = old_editor;
+                    }
+                }
+                if (editor === null) {
+                    let source = await vscode.workspace.openTextDocument(reaction.path);
+                    editor = await vscode.window.showTextDocument(source, {
                         preserveFocus: nullmap(reaction.preserve_focus),
                         preview: nullmap(reaction.preview),
                         selection: reaction.selection !== null ? convrange(reaction.selection) : undefined,
                         viewColumn: reaction.view_column !== null ? webview.convert_view_column(reaction.view_column) : undefined,
-                    })
-                })
-                .then(editor => {
-                    if (reaction.cursor !== null ) {
-                        let newPosition = convpos(reaction.cursor)
-                        editor.selection = new vscode.Selection(newPosition, newPosition);
-                        editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
-                    }
-                })
-                .then(() => {
-                    logic.send({ tag: 'async', aid: reaction.aid, value: null });
-                });
+                    });
+                }
+                if (reaction.cursor !== null) {
+                    let newPosition = convpos(reaction.cursor)
+                    editor.selection = new vscode.Selection(newPosition, newPosition);
+                    editor.revealRange(new vscode.Range(newPosition, newPosition), vscode.TextEditorRevealType.InCenter);
+                }
+                logic.send({ tag: 'async', aid: reaction.aid, value: null });
+            })();
         } else if (reaction.tag === "progress_start") {
             progresses.start(reaction.hid, {
                 title: reaction.title,
@@ -403,6 +408,7 @@ namespace native {
         preview: boolean | null;
         selection: Range2 | null;
         view_column: WebviewViewColumn | null;
+        force_new: boolean;
         aid: number;
     }
     export interface ReactionProgressStart {

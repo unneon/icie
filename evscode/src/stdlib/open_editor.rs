@@ -12,11 +12,12 @@ pub struct Builder {
 	view_column: Option<Column>,
 	preserve_focus: bool,
 	preview: Option<bool>,
+	force_new: bool,
 }
 
-/// Open a text file in an editor. Uses the builder pattern.
+/// Open a text file in an editor, or focuses an existing one if it exists. Uses the builder pattern.
 pub fn open_editor(path: &Path) -> Builder {
-	Builder { path: path.to_owned(), cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None }
+	Builder { path: path.to_owned(), cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None, force_new: false }
 }
 
 impl Builder {
@@ -51,6 +52,12 @@ impl Builder {
 		self
 	}
 
+	/// Even if an existing editor could be used, open a new one regardless.
+	pub fn force_new(mut self) -> Self {
+		self.force_new = true;
+		self
+	}
+
 	/// Open the text file in the specified way.
 	pub fn open(self) -> LazyFuture<()> {
 		LazyFuture::new_vscode(
@@ -63,6 +70,7 @@ impl Builder {
 					"preview" => self.preview,
 					"selection" => self.selection,
 					"view_column" => self.view_column,
+					"force_new" => self.force_new,
 					"aid" => aid,
 				})
 			},
