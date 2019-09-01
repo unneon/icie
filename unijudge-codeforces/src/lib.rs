@@ -315,7 +315,7 @@ impl unijudge::Backend for Codeforces {
 			.find_all("tr[data-contestid]")
 			.map(|row| {
 				let id = Contest { source: Source::Contest, id: row.attr("data-contestid")?.string() };
-				let title = row.find_nth("td", 0)?.text().string();
+				let title = row.find_nth("td", 0)?.text_child(0)?.string();
 				let start = row.find_nth("td", 2)?.find("a")?.attr("href")?.map(|url| {
 					moscow_standard_time.datetime_from_str(
 						url,
