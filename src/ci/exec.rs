@@ -1,7 +1,6 @@
-use crate::ci::util;
 use evscode::{error::ResultExt, R};
 use std::{
-	io::Write, path::PathBuf, process::{Command, ExitStatus, Stdio}, time::{Duration, Instant}
+	io::{self, Read, Write}, path::PathBuf, process::{Command, ExitStatus, Stdio}, thread::{self, JoinHandle}, time::{Duration, Instant}
 };
 use wait_timeout::ChildExt;
 
@@ -45,6 +44,8 @@ impl Executable {
 		let mut kid = cmd.spawn().wrap(format!("failed to execute {:?}", self.path))?;
 		let _ = kid.stdin.as_mut().unwrap().write_all(input.as_bytes());
 		let _ = kid.stdin.as_mut().unwrap().flush();
+		let kid_stdout = capture(kid.stdout.take().unwrap());
+		let kid_stderr = capture(kid.stderr.take().unwrap());
 		let (status, exit_kind) = if let Some(time_limit) = environment.time_limit {
 			if let Some(status) = kid.wait_timeout(time_limit).wrap(format!("lost child process of {:?}", self.path))? {
 				(status, ExitKind::Normal)
@@ -57,13 +58,19 @@ impl Executable {
 		};
 		let t2 = Instant::now();
 		Ok(Run {
-			stdout: String::from_utf8(util::io_read(kid.stdout.unwrap()).wrap(format!("could not extract stdout of process of {:?}", self.path))?)
-				.unwrap(),
-			stderr: String::from_utf8(util::io_read(kid.stderr.unwrap()).wrap(format!("could not extract stderr of process of {:?}", self.path))?)
-				.unwrap(),
+			stdout: kid_stdout.join().unwrap().wrap(format!("could not extract stdout of process of {:?}", self.path))?,
+			stderr: kid_stderr.join().unwrap().wrap(format!("could not extract stderr of process of {:?}", self.path))?,
 			status,
 			exit_kind,
 			time: t2 - t1,
 		})
 	}
+}
+
+fn capture(mut r: impl Read+Send+'static) -> JoinHandle<io::Result<String>> {
+	thread::spawn(move || {
+		let mut buf = String::new();
+		r.read_to_string(&mut buf)?;
+		Ok(buf)
+	})
 }

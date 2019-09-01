@@ -5,4 +5,3 @@ pub mod fit;
 pub mod scan;
 pub mod task;
 pub mod test;
-pub mod util;
