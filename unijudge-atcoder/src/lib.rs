@@ -4,7 +4,7 @@ use unijudge::{
 	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
-pub struct Atcoder;
+pub struct AtCoder;
 
 #[derive(Debug)]
 pub struct Task {
@@ -12,7 +12,7 @@ pub struct Task {
 	task: String,
 }
 
-impl unijudge::Backend for Atcoder {
+impl unijudge::Backend for AtCoder {
 	type CachedAuth = Cookie<'static>;
 	type Contest = String;
 	type Session = reqwest::Client;
@@ -206,7 +206,7 @@ impl unijudge::Backend for Atcoder {
 							"CE" => Some(RejectionCause::CompilationError),
 							_ => {
 								return Err(status.error(format!(
-									"unrecognized Atcoder verdict {:?} [{:?} {:?}]",
+									"unrecognized AtCoder verdict {:?} [{:?} {:?}]",
 									status.as_str(),
 									verdict,
 									test_index
@@ -216,7 +216,7 @@ impl unijudge::Backend for Atcoder {
 						test: None,
 					},
 					(None, None) => {
-						return Err(status.error(format!("unrecognized Atcoder verdict {:?} [{:?} {:?}]", status.as_str(), verdict, test_index)));
+						return Err(status.error(format!("unrecognized AtCoder verdict {:?} [{:?} {:?}]", status.as_str(), verdict, test_index)));
 					},
 				};
 				Ok(Submission { id, verdict })
@@ -321,7 +321,7 @@ impl unijudge::Backend for Atcoder {
 	}
 }
 
-impl Atcoder {
+impl AtCoder {
 	fn fetch_login_csrf(&self, session: &reqwest::Client) -> Result<String> {
 		let url: Url = "https://atcoder.jp/login".parse().unwrap();
 		let mut resp = session.get(url).send()?;

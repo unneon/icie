@@ -11,7 +11,7 @@ const NETWORK_ERROR_RETRY_LIMIT: usize = 2;
 const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(2);
 pub const BACKENDS: &[BackendMeta] = &[
 	BackendMeta { backend: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
-	BackendMeta { backend: &unijudge_atcoder::Atcoder, cpp: "C++14 (GCC 5.4.1)" },
+	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: "C++14 (GCC 5.4.1)" },
 	BackendMeta { backend: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 8.0)" },
 	BackendMeta { backend: &unijudge_sio2::Sio2, cpp: "C++" },
 ];

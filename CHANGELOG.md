@@ -26,7 +26,7 @@
 - Fixed HTML scrapping on main2.edu.pl
 - Fixed non-alphabetical commands and configuration ordering in extension page
 - Fixed not removing : characters from task titles
-- Fixed HTML scrapping on Atcoder tasks with multiple pre elements
+- Fixed HTML scrapping on AtCoder tasks with multiple pre elements
 
 ## 0.5.6
 
@@ -39,7 +39,7 @@ This release concludes the month-long rapid development following the 0.5 rewrit
 
 ## 0.5.5
 
-- **Added [Atcoder](https://atcoder.jp/) support**
+- **Added [AtCoder](https://atcoder.jp/) support**
 - **Added [Sphere Online Judge(SPOJ)](https://www.spoj.com/) support**
 - Added session caching, which should speed up all network-related operations
 - Added displaying execution times if they exceed 100ms or a configured value.
