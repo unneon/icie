@@ -31,7 +31,11 @@ fn send_passed() -> R<()> {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|backend, sess| backend.task_languages(sess, &task))?
 	};
-	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| E::error("this task does not seem to allow C++ solutions"))?;
+	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| {
+		E::error(format!("not found language {:?}", backend.cpp))
+			.reform("this task does not seem to allow C++ solutions")
+			.extended(format!("{:#?}", langs))
+	})?;
 	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, lang, &code))?;
 	track(sess, task, submit_id)?;
 	Ok(())
