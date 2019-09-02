@@ -52,7 +52,7 @@ fn sprint(manifest: &Path) -> R<()> {
 	for (i, task) in tasks.iter().enumerate() {
 		let details = fetch_task(task, &format!("{}/{}", i + 1, tasks.len()), &sess)?;
 		let root = sprint_task_path(i == 0, &details)?;
-		init_task(&root, Some(sess.backend.task_url(&sess.session, &task)), Some(details))?;
+		init_task(&root, Some(sess.run(|_, _| sess.backend.task_url(&sess.session, &task))?), Some(details))?;
 		if i == 0 {
 			launch::layout_setup()?;
 		}

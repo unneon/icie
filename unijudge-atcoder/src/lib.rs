@@ -36,7 +36,7 @@ impl unijudge::Backend for AtCoder {
 	}
 
 	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let cookies = session.cookies().read().unwrap();
+		let cookies = session.cookies().read().map_err(|_| Error::StateCorruption)?;
 		Ok(cookies.0.get("atcoder.jp", "/", "REVEL_SESSION").map(|c| c.clone().into_owned()))
 	}
 
@@ -46,7 +46,7 @@ impl unijudge::Backend for AtCoder {
 
 	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let csrf = self.fetch_login_csrf(session)?;
-		let url: Url = "https://atcoder.jp/login".parse().unwrap();
+		let url: Url = "https://atcoder.jp/login".parse()?;
 		let mut resp = match session
 			.post(url)
 			.header(ORIGIN, "https://atcoder.jp")
@@ -70,17 +70,17 @@ impl unijudge::Backend for AtCoder {
 	}
 
 	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		let mut cookies = session.cookies().write().unwrap();
-		cookies.0.insert(auth.clone(), &"https://atcoder.jp".parse().unwrap()).map_err(|_| Error::WrongData)?;
+		let mut cookies = session.cookies().write().map_err(|_| Error::StateCorruption)?;
+		cookies.0.insert(auth.clone(), &"https://atcoder.jp".parse()?).map_err(|_| Error::WrongData)?;
 		Ok(())
 	}
 
-	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String> {
 		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse().unwrap();
+		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse()?;
 		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let (symbol, title) = doc.find("#main-container > .row > div > span.h2")?.text().map(|text| {
@@ -155,7 +155,7 @@ impl unijudge::Backend for AtCoder {
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse().unwrap();
+		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse()?;
 		let mut resp = session.get(url).send()?;
 		if resp.url().path() == "/login" {
 			return Err(Error::AccessDenied);
@@ -178,7 +178,7 @@ impl unijudge::Backend for AtCoder {
 	}
 
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
-		let url: Url = format!("https://atcoder.jp/contests/{}/submissions/me", task.contest).parse().unwrap();
+		let url: Url = format!("https://atcoder.jp/contests/{}/submissions/me", task.contest).parse()?;
 		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
@@ -226,7 +226,7 @@ impl unijudge::Backend for AtCoder {
 
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
 		let csrf = self.fetch_login_csrf(session)?;
-		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse().unwrap();
+		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse()?;
 		session
 			.post(url)
 			.form(&[
@@ -239,8 +239,8 @@ impl unijudge::Backend for AtCoder {
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
-	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
-		format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task)
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> Result<String> {
+		Ok(format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task))
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
@@ -323,7 +323,7 @@ impl unijudge::Backend for AtCoder {
 
 impl AtCoder {
 	fn fetch_login_csrf(&self, session: &reqwest::Client) -> Result<String> {
-		let url: Url = "https://atcoder.jp/login".parse().unwrap();
+		let url: Url = "https://atcoder.jp/login".parse()?;
 		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string())

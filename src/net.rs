@@ -92,7 +92,7 @@ impl<T: Backend+?Sized> GenericSession<T> {
 				log::debug!("login successful for {}, trying to cache session", self.domain);
 				if let Some(cache) = self.backend.auth_cache(&self.session).map_err(from_unijudge_error)? {
 					log::debug!("caching session for {}, {:?}", self.domain, cache);
-					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache));
+					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?);
 				} else {
 					log::warn!("could not cache session for {} even though login succeded", self.domain);
 				}
@@ -144,6 +144,7 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
 		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
+		unijudge::Error::StateCorruption => E::from_std(e).context("broken state"),
 		unijudge::Error::UnexpectedHTML(e) => {
 			let mut extended = Vec::new();
 			if !e.snapshots.is_empty() {

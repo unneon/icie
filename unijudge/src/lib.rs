@@ -30,6 +30,7 @@ pub enum Error {
 	NetworkFailure(reqwest::Error),
 	TLSFailure(reqwest::Error),
 	URLParseFailure(reqwest::UrlError),
+	StateCorruption,
 	UnexpectedHTML(debris::Error),
 	UnexpectedJSON { endpoint: &'static str, backtrace: backtrace::Backtrace, resp_raw: String, inner: Option<Box<dyn std::error::Error+'static>> },
 }
@@ -60,6 +61,7 @@ impl fmt::Display for Error {
 			Error::NetworkFailure(_) => f.write_str("network failure"),
 			Error::TLSFailure(_) => f.write_str("TLS encryption failure"),
 			Error::URLParseFailure(_) => f.write_str("URL parse failure"),
+			Error::StateCorruption => f.write_str("network agent corrupted due to earlier panic"),
 			Error::UnexpectedHTML(_) => f.write_str("error when scrapping site API response"),
 			Error::UnexpectedJSON { .. } => f.write_str("error when parsing site JSON response"),
 		}
@@ -77,6 +79,7 @@ impl std::error::Error for Error {
 			Error::NetworkFailure(e) => Some(e),
 			Error::TLSFailure(e) => Some(e),
 			Error::URLParseFailure(e) => Some(e),
+			Error::StateCorruption => None,
 			Error::UnexpectedHTML(e) => Some(e),
 			Error::UnexpectedJSON { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
 		}
@@ -194,12 +197,12 @@ pub trait Backend: Send+Sync+'static {
 	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth>;
 	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
 	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()>;
-	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String;
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String>;
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String>;
-	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> String;
+	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> Result<String>;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
 	fn contest_site_prefix(&self) -> &'static str;
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
@@ -219,6 +222,6 @@ fn from_base64<'d, D: Deserializer<'d>>(deserializer: D) -> std::result::Result<
 pub fn deserialize_auth<'d, T: Deserialize<'d>>(data: &'d str) -> Result<T> {
 	serde_json::from_str(data).map_err(|_| Error::WrongData)
 }
-pub fn serialize_auth<T: Serialize>(auth: &T) -> String {
-	serde_json::to_string(auth).unwrap()
+pub fn serialize_auth<T: Serialize>(auth: &T) -> Result<String> {
+	serde_json::to_string(auth).map_err(|_| Error::WrongData)
 }

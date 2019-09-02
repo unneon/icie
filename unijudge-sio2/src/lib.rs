@@ -53,11 +53,15 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = match session.username.lock().unwrap().as_ref() {
-			Some(username) => username.to_owned(),
+		let username = match session.username.lock().map_err(|_| Error::StateCorruption)?.clone() {
+			Some(username) => username,
 			None => return Ok(None),
 		};
-		let sessionid = match session.client.cookies().read().unwrap().0.get(Url::parse(&session.site).unwrap().domain().unwrap(), "/", "sessionid") {
+		let sessionid = match session.client.cookies().read().map_err(|_| Error::StateCorruption)?.0.get(
+			session.site.parse::<Url>()?.domain().ok_or(Error::WrongData)?,
+			"/",
+			"sessionid",
+		) {
 			Some(c) => c.clone().into_owned(),
 			None => return Ok(None),
 		};
@@ -69,7 +73,7 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
-		let url1: Url = format!("{}/login/", session.site).parse().unwrap();
+		let url1: Url = format!("{}/login/", session.site).parse()?;
 		let mut resp1 = session.client.get(url1).send()?;
 		let url2 = resp1.url().clone();
 		let doc1 = debris::Document::new(&resp1.text()?);
@@ -89,7 +93,7 @@ impl unijudge::Backend for Sio2 {
 			.send()?;
 		let doc2 = debris::Document::new(&resp2.text()?);
 		if doc2.find("#username").is_ok() {
-			*session.username.lock().unwrap() = Some(username.to_owned());
+			*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(username.to_owned());
 			Ok(())
 		} else if doc2.find("form")?.find("div.form-group > div > div.alert.alert-danger").is_ok() {
 			Err(Error::WrongCredentials)
@@ -99,17 +103,24 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		*session.username.lock().unwrap() = Some(auth.username.clone());
-		session.client.cookies().write().unwrap().0.insert(auth.sessionid.clone(), &session.site.parse().unwrap()).unwrap();
+		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(auth.username.clone());
+		session
+			.client
+			.cookies()
+			.write()
+			.map_err(|_| Error::StateCorruption)?
+			.0
+			.insert(auth.sessionid.clone(), &session.site.parse()?)
+			.map_err(|_| Error::WrongData)?;
 		Ok(())
 	}
 
-	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String> {
 		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
-		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse().unwrap();
+		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse()?;
 		let mut resp = session.client.get(url.clone()).send()?;
 		if resp.url() != &url {
 			return Err(Error::AccessDenied);
@@ -125,9 +136,9 @@ impl unijudge::Backend for Sio2 {
 			Some((_, title)) => title,
 			None => return Err(Error::WrongData),
 		};
-		let url2: Url = format!("{}/c/{}/p/{}/", session.site, task.contest, task.task).parse().unwrap();
+		let url2: Url = format!("{}/c/{}/p/{}/", session.site, task.contest, task.task).parse()?;
 		let mut resp2 = session.client.get(url2).send()?;
-		let statement = if resp2.headers().get(CONTENT_TYPE) == Some(&HeaderValue::from_str("application/pdf").unwrap()) {
+		let statement = if resp2.headers().get(CONTENT_TYPE) == Some(&HeaderValue::from_static("application/pdf")) {
 			let mut buf = Vec::new();
 			while resp2.copy_to(&mut buf)? > 0 {}
 			Some(Statement::PDF { pdf: buf })
@@ -164,7 +175,7 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
-		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse().unwrap();
+		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let mut resp = session.client.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		if doc.find("#id_password").is_ok() {
@@ -178,7 +189,7 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
-		let url: Url = format!("{}/c/{}/submissions/", session.site, task.contest).parse().unwrap();
+		let url: Url = format!("{}/c/{}/submissions/", session.site, task.contest).parse()?;
 		let mut resp = session.client.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
@@ -226,7 +237,7 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
-		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse().unwrap();
+		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let mut resp = session.client.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let problem_instance_id = doc
@@ -256,14 +267,14 @@ impl unijudge::Backend for Sio2 {
 			.text("code", code.to_owned())
 			.text("prog_lang", language.id.to_owned());
 		if is_admin {
-			form = form.text("user", session.username.lock().unwrap().as_ref().ok_or(Error::AccessDenied)?.to_owned()).text("kind", "IGNORED");
+			form = form.text("user", session.req_user()?).text("kind", "IGNORED");
 		}
 		session.client.post(url.clone()).header(REFERER, url.to_string()).multipart(form).send()?;
 		Ok(self.task_submissions(session, task)?[0].id.to_string())
 	}
 
-	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> String {
-		format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task)
+	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> Result<String> {
+		Ok(format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task))
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
@@ -292,6 +303,12 @@ impl unijudge::Backend for Sio2 {
 
 	fn supports_contests(&self) -> bool {
 		false
+	}
+}
+
+impl Session {
+	fn req_user(&self) -> Result<String> {
+		self.username.lock().map_err(|_| Error::StateCorruption)?.clone().ok_or(Error::AccessDenied)
 	}
 }
 

@@ -30,7 +30,7 @@ impl unijudge::Backend for SPOJ {
 	}
 
 	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let cookies = session.cookies().read().unwrap();
+		let cookies = session.cookies().read().map_err(|_| Error::StateCorruption)?;
 		let spoj = match cookies.0.get("spoj.com", "/", "SPOJ") {
 			Some(c) => c.clone().into_owned(),
 			None => return Ok(None),
@@ -68,21 +68,21 @@ impl unijudge::Backend for SPOJ {
 	}
 
 	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		let url = "https://www.spoj.com/".parse().unwrap();
+		let url = "https://www.spoj.com/".parse()?;
 		let [c1, c2, c3] = auth;
-		let mut cookies = session.cookies().write().unwrap();
-		cookies.0.insert(c1.clone(), &url).unwrap();
-		cookies.0.insert(c2.clone(), &url).unwrap();
-		cookies.0.insert(c3.clone(), &url).unwrap();
+		let mut cookies = session.cookies().write().map_err(|_| Error::StateCorruption)?;
+		cookies.0.insert(c2.clone(), &url).map_err(|_| Error::WrongData)?;
+		cookies.0.insert(c3.clone(), &url).map_err(|_| Error::WrongData)?;
+		cookies.0.insert(c1.clone(), &url).map_err(|_| Error::WrongData)?;
 		Ok(())
 	}
 
-	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String> {
 		unijudge::serialize_auth(auth)
 	}
 
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
-		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse().unwrap();
+		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse()?;
 		let mut resp = session.get(url.clone()).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
@@ -119,7 +119,7 @@ impl unijudge::Backend for SPOJ {
 	}
 
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
-		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse().unwrap();
+		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse()?;
 		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		doc.find_all("#lang > option")
@@ -128,8 +128,8 @@ impl unijudge::Backend for SPOJ {
 	}
 
 	fn task_submissions(&self, session: &Self::Session, _task: &Self::Task) -> Result<Vec<Submission>> {
-		let user = session.cookies().read().unwrap().0.get("spoj.com", "/", "autologin_login").ok_or(Error::AccessDenied)?.value().to_owned();
-		let url: Url = format!("https://www.spoj.com/status/{}/", user).parse().unwrap();
+		let user = req_user(session)?;
+		let url: Url = format!("https://www.spoj.com/status/{}/", user).parse()?;
 		let mut resp = session.get(url).send()?;
 		let doc = debris::Document::new(&resp.text()?);
 		Ok(doc
@@ -168,7 +168,10 @@ impl unijudge::Backend for SPOJ {
 			.post("https://www.spoj.com/submit/complete/")
 			.multipart(
 				multipart::Form::new()
-					.part("subm_file", multipart::Part::bytes(Vec::new()).file_name("").mime_str("application/octet-stream").unwrap())
+					.part(
+						"subm_file",
+						multipart::Part::bytes(Vec::new()).file_name("").mime_str("application/octet-stream").map_err(|_| Error::WrongData)?,
+					)
 					.text("file", code.to_owned())
 					.text("lang", language.id.to_owned())
 					.text("problemcode", task.to_owned())
@@ -184,8 +187,8 @@ impl unijudge::Backend for SPOJ {
 		Ok(doc.find("#content > input")?.attr("value")?.string())
 	}
 
-	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> String {
-		format!("https://www.spoj.com/problems/{}/", task)
+	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> Result<String> {
+		Ok(format!("https://www.spoj.com/problems/{}/", task))
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
@@ -215,4 +218,16 @@ impl unijudge::Backend for SPOJ {
 	fn supports_contests(&self) -> bool {
 		false
 	}
+}
+
+fn req_user(session: &reqwest::Client) -> Result<String> {
+	Ok(session
+		.cookies()
+		.read()
+		.map_err(|_| Error::StateCorruption)?
+		.0
+		.get("spoj.com", "/", "autologin_login")
+		.ok_or(Error::AccessDenied)?
+		.value()
+		.to_owned())
 }

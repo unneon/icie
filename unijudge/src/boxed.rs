@@ -52,7 +52,7 @@ impl crate::Backend for dyn DynamicBackend {
 		self.auth_restorex(session.0.deref().as_any(), auth.0.deref().as_any())
 	}
 
-	fn auth_serialize(&self, auth: &Self::CachedAuth) -> String {
+	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String> {
 		self.auth_serializex(auth.0.deref().as_any())
 	}
 
@@ -72,7 +72,7 @@ impl crate::Backend for dyn DynamicBackend {
 		self.task_submitx(session.0.deref().as_any(), task.0.deref().as_any(), language, code)
 	}
 
-	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> String {
+	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> Result<String> {
 		self.task_urlx(session.0.deref().as_any(), task.0.deref().as_any())
 	}
 
@@ -113,12 +113,12 @@ pub trait DynamicBackend: Send+Sync {
 	fn auth_deserializex(&self, data: &str) -> Result<BoxedCachedAuth>;
 	fn auth_loginx(&self, session: &dyn Any, username: &str, password: &str) -> Result<()>;
 	fn auth_restorex(&self, session: &dyn Any, auth: &dyn Any) -> Result<()>;
-	fn auth_serializex(&self, auth: &dyn Any) -> String;
+	fn auth_serializex(&self, auth: &dyn Any) -> Result<String>;
 	fn task_detailsx(&self, session: &dyn Any, task: &dyn Any) -> Result<TaskDetails>;
 	fn task_languagesx(&self, session: &dyn Any, task: &dyn Any) -> Result<Vec<Language>>;
 	fn task_submissionsx(&self, session: &dyn Any, task: &dyn Any) -> Result<Vec<Submission>>;
 	fn task_submitx(&self, session: &dyn Any, task: &dyn Any, language: &Language, code: &str) -> Result<String>;
-	fn task_urlx(&self, session: &dyn Any, task: &dyn Any) -> String;
+	fn task_urlx(&self, session: &dyn Any, task: &dyn Any) -> Result<String>;
 	fn contest_idx(&self, contest: &dyn Any) -> String;
 	fn contest_site_prefixx(&self) -> &'static str;
 	fn contest_tasksx(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>>;
@@ -164,7 +164,7 @@ where
 		<T as crate::Backend>::auth_restore(self, ujcast::<T::Session>(session), ujcast::<T::CachedAuth>(auth))
 	}
 
-	fn auth_serializex(&self, auth: &dyn Any) -> String {
+	fn auth_serializex(&self, auth: &dyn Any) -> Result<String> {
 		<T as crate::Backend>::auth_serialize(self, ujcast::<T::CachedAuth>(auth))
 	}
 
@@ -184,7 +184,7 @@ where
 		<T as crate::Backend>::task_submit(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task), language, code)
 	}
 
-	fn task_urlx(&self, session: &dyn Any, task: &dyn Any) -> String {
+	fn task_urlx(&self, session: &dyn Any, task: &dyn Any) -> Result<String> {
 		<T as crate::Backend>::task_url(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task))
 	}
 
