@@ -77,6 +77,11 @@ impl E {
 	/// Convert an error implementing [`std::error::Error`] to an Evscode error. Error messages will be collected from [`std::fmt::Display`]
 	/// implementations on each error in the [`std::error::Error::source`] chain.
 	pub fn from_std(native: impl std::error::Error) -> E {
+		E::from_std_ref(&native)
+	}
+
+	/// Convert an error reference implementing [`std::error::Error`] to an Evscode error. See [`E::from_std`] method for details.
+	pub fn from_std_ref<E2: std::error::Error+?Sized>(native: &E2) -> E {
 		let mut e = E {
 			severity: Severity::Error,
 			reasons: Vec::new(),

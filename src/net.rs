@@ -140,6 +140,7 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
 		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
 		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
+		unijudge::Error::RateLimit => E::from_std(e).reform("too frequent requests to site"),
 		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
 		unijudge::Error::TLSFailure(e) => E::from_std(e).context("TLS encryption error"),
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
@@ -156,6 +157,16 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 				backtrace: e.backtrace,
 				extended,
 			}
+		},
+		unijudge::Error::UnexpectedJSON { endpoint, backtrace, resp_raw, inner } => {
+			let message = format!("unexpected JSON response at {}", endpoint);
+			let mut e = match inner {
+				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
+				None => E::error(message),
+			};
+			e.backtrace = backtrace;
+			e.extended.push(resp_raw);
+			e
 		},
 	}
 }

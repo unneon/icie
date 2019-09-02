@@ -1,5 +1,6 @@
 #![feature(never_type)]
 
+pub extern crate backtrace;
 pub extern crate chrono;
 pub extern crate debris;
 pub extern crate html5ever;
@@ -25,10 +26,12 @@ pub enum Error {
 	WrongTaskUrl,
 	AccessDenied,
 	NotYetStarted,
+	RateLimit,
 	NetworkFailure(reqwest::Error),
 	TLSFailure(reqwest::Error),
 	URLParseFailure(reqwest::UrlError),
 	UnexpectedHTML(debris::Error),
+	UnexpectedJSON { endpoint: &'static str, backtrace: backtrace::Backtrace, resp_raw: String, inner: Option<Box<dyn std::error::Error+'static>> },
 }
 impl From<reqwest::Error> for Error {
 	fn from(e: reqwest::Error) -> Self {
@@ -53,10 +56,12 @@ impl fmt::Display for Error {
 			Error::WrongTaskUrl => f.write_str("wrong task URL format"),
 			Error::AccessDenied => f.write_str("access denied"),
 			Error::NotYetStarted => f.write_str("contest not yet started"),
+			Error::RateLimit => f.write_str("rate limited due to too frequent network operations"),
 			Error::NetworkFailure(_) => f.write_str("network failure"),
 			Error::TLSFailure(_) => f.write_str("TLS encryption failure"),
 			Error::URLParseFailure(_) => f.write_str("URL parse failure"),
 			Error::UnexpectedHTML(_) => f.write_str("error when scrapping site API response"),
+			Error::UnexpectedJSON { .. } => f.write_str("error when parsing site JSON response"),
 		}
 	}
 }
@@ -68,10 +73,12 @@ impl std::error::Error for Error {
 			Error::WrongTaskUrl => None,
 			Error::AccessDenied => None,
 			Error::NotYetStarted => None,
+			Error::RateLimit => None,
 			Error::NetworkFailure(e) => Some(e),
 			Error::TLSFailure(e) => Some(e),
 			Error::URLParseFailure(e) => Some(e),
 			Error::UnexpectedHTML(e) => Some(e),
+			Error::UnexpectedJSON { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
 		}
 	}
 }
