@@ -1,4 +1,6 @@
-use crate::{dir, net, util};
+use crate::{
+	dir, net, util::{self, plural}
+};
 use evscode::{E, R};
 use std::time::Duration;
 use unijudge::{Backend, RejectionCause, Resource};
@@ -41,17 +43,31 @@ fn send_passed() -> R<()> {
 	Ok(())
 }
 
+const TRACK_NOT_SEEN_RETRY_LIMIT: usize = 8;
+const TRACK_NOT_SEEN_RETRY_DELAY: Duration = Duration::from_secs(1);
+
 fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
 	let sleep_duration = Duration::from_millis(2000);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
 	let mut last_verdict = None;
+	let mut not_seen_retry_limit = TRACK_NOT_SEEN_RETRY_LIMIT;
 	let verdict = loop {
 		let submissions = {
 			let _status = crate::STATUS.push("Tracking...");
 			sess.run(|backend, sess| backend.task_submissions(sess, &url))?
 		};
-		let submission = submissions.into_iter().find(|subm| subm.id == id).unwrap();
+		let submission = match submissions.into_iter().find(|subm| subm.id == id) {
+			Some(submission) => submission,
+			None if not_seen_retry_limit > 0 => {
+				log::debug!("submission {} not found on status page, {} left", id, plural(not_seen_retry_limit, "retry", "retries"));
+				let _status = crate::STATUS.push("Tracking (retrying...)");
+				not_seen_retry_limit -= 1;
+				std::thread::sleep(TRACK_NOT_SEEN_RETRY_DELAY);
+				continue;
+			},
+			None => return Err(E::error(format!("submission {} not found on status page", id))),
+		};
 		let should_send = match &submission.verdict {
 			unijudge::Verdict::Pending { .. } => false,
 			_ => true,
