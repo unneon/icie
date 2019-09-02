@@ -21,6 +21,7 @@ pub struct GenericSession<T: Backend+?Sized> {
 	pub backend: &'static T,
 	pub session: T::Session,
 	site: String,
+	domain: String,
 }
 
 pub struct BackendMeta {
@@ -52,14 +53,19 @@ impl<T: Backend+?Sized> GenericSession<T> {
 		let site = format!("https://{}", domain);
 		if let Some(auth) = auth::get_if_cached(&site) {
 			if let Ok(auth) = backend.auth_deserialize(&auth) {
+				log::debug!("cached auth found for {}, {:?}", domain, auth);
 				match backend.auth_restore(&session, &auth) {
 					Err(unijudge::Error::WrongData) | Err(unijudge::Error::WrongCredentials) | Err(unijudge::Error::AccessDenied) => Ok(()),
 					Err(e) => Err(from_unijudge_error(e)),
 					Ok(()) => Ok(()),
 				}?;
+			} else {
+				log::warn!("cached auth is malformed for {}, {:?}", domain, auth);
 			}
+		} else {
+			log::debug!("cached auth not available for {}", domain);
 		}
-		Ok(GenericSession { backend, session, site })
+		Ok(GenericSession { backend, session, site, domain: domain.to_owned() })
 	}
 
 	pub fn run<Y>(&self, mut f: impl FnMut(&'static T, &T::Session) -> unijudge::Result<Y>) -> R<Y> {
@@ -68,6 +74,7 @@ impl<T: Backend+?Sized> GenericSession<T> {
 			match f(self.backend, &self.session) {
 				Ok(y) => break Ok(y),
 				Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
+					log::debug!("access denied for {}, trying to log in {:?}", self.domain, e);
 					self.maybe_error_show(e);
 					let (username, password) = auth::get_cached_or_ask(&self.site)?;
 					self.login(&username, &password)?
@@ -82,11 +89,16 @@ impl<T: Backend+?Sized> GenericSession<T> {
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		match self.backend.auth_login(&self.session, &username, &password) {
 			Ok(()) => {
+				log::debug!("login successful for {}, trying to cache session", self.domain);
 				if let Some(cache) = self.backend.auth_cache(&self.session).map_err(from_unijudge_error)? {
+					log::debug!("caching session for {}, {:?}", self.domain, cache);
 					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache));
+				} else {
+					log::warn!("could not cache session for {} even though login succeded", self.domain);
 				}
 			},
 			Err(e @ unijudge::Error::WrongData) | Err(e @ unijudge::Error::WrongCredentials) | Err(e @ unijudge::Error::AccessDenied) => {
+				log::warn!("login failure for {}, {:?}", self.domain, e);
 				self.maybe_error_show(e);
 				self.force_login()?;
 			},
