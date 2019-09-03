@@ -1,3 +1,18 @@
+## 0.6.1
+
+- Added reopening task statements with <kbd>Alt</kbd><kbd>8</kbd>.
+- Added automatically generating new test output when brut exists
+- Added support for configuring external terminals
+- Optimized PDF statement loading
+- Diagnostic improvement of missing language error
+- Diagnostic improvement for many rare judge errors
+- Fixed not focusing cursor on launch
+- Fixed scraping ongoing Codeforces contests' titles
+- Fixed opening duplicate editors
+- Fixed TLE when output size exceeded pipe buffer size
+- Fixed login on some sio2 sites
+- Fixed capitalization of AtCoder name
+
 ## 0.6
 
 - **Added contest mode** with <kbd>Alt</kbd><kbd>F9</kbd> - just press it and select the one you want to participate in. Or copy-paste its URL into <kbd>Alt</kbd><kbd>F11</kbd>, that works too!
