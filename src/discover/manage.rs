@@ -151,6 +151,11 @@ fn add_test_input(input: String) -> R<()> {
 		return Err(E::error("brut failed when generating output for the added test"));
 	}
 	let desired = run.stdout;
+	add_test(&input, &desired)?;
+	Ok(())
+}
+
+pub fn add_test(input: &str, output: &str) -> R<()> {
 	let dir = crate::dir::custom_tests()?;
 	util::fs_create_dir_all(&dir)?;
 	let used = std::fs::read_dir(&dir)
@@ -165,7 +170,7 @@ fn add_test_input(input: String) -> R<()> {
 		.collect::<Vec<_>>();
 	let id = crate::util::mex(1, used);
 	util::fs_write(dir.join(format!("{}.in", id)), input)?;
-	util::fs_write(dir.join(format!("{}.out", id)), desired)?;
+	util::fs_write(dir.join(format!("{}.out", id)), output)?;
 	crate::test::view()?;
 	Ok(())
 }

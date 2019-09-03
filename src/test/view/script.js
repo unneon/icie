@@ -51,19 +51,24 @@ function new_start() {
 
 function new_confirm() {
 	console.log(`new_confirm()`);
-	if (!newing) {
-		throw new Error('confirmed the test even though creation has not been started');
-	}
-	document.getElementById('new-container').classList.remove('is-active');
 	let input = document.getElementById('new-input').value;
 	let desired = document.getElementById('new-desired').value;
-	document.getElementById('new-input').value = '';
-	document.getElementById('new-desired').value = '';
 	vscode.postMessage({
 		tag: "new_test",
 		input: input,
 		desired: desired
 	});
+	new_shutdown();
+}
+
+function new_shutdown() {
+	console.log(`new_shutdown()`);
+	if (!newing) {
+		throw new Error('shut down the test even though creation has not been started');
+    }
+	document.getElementById('new-container').classList.remove('is-active');
+	document.getElementById('new-input').value = '';
+	document.getElementById('new-desired').value = '';
 	newing = false;
 }
 
@@ -89,6 +94,8 @@ window.addEventListener('message', event => {
 		}
 	} else if (message.tag === 'scroll_to_wa') {
 		scroll_to_wa();
+	} else if (message.tag === 'eval_resp') {
+		eval_finish(message);
 	}
 });
 
@@ -125,6 +132,24 @@ window.addEventListener('copy', e => {
 	e.clipboardData.setData('text/plain', text);
 	e.preventDefault();
 });
+let last_eval_id = 0;
+window.onload = () => {
+	let new_input = document.getElementById('new-input');
+	new_input.addEventListener('blur', event => {
+		let input = new_input.value.trim();
+		let eval_id = ++last_eval_id;
+		if (input !== '') {
+			vscode.postMessage({ tag: 'eval_req', input: input, id: eval_id });
+		}
+	});
+};
+
+function eval_finish(msg) {
+	let new_input = document.getElementById('new-input');
+	if (msg.id === last_eval_id && newing && new_input.value.trim() === msg.input) {
+		new_shutdown();
+	}
+}
 
 function autoexpand_textarea(tx) {
 	tx.setAttribute('style', `height: ${Math.max(86, tx.scrollHeight)}px; overflow-y: hidden;`);

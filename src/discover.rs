@@ -1,5 +1,5 @@
 mod comms;
-mod manage;
+pub mod manage;
 mod render;
 
 use evscode::R;

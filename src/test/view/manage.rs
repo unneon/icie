@@ -1,6 +1,6 @@
 use crate::{
-	test::{
-		self, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
+	build::build, ci::{cpp::Codegen, exec::Environment}, dir, discover::manage::add_test, test::{
+		self, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
 	}, util
 };
 use evscode::{
@@ -48,8 +48,10 @@ impl Computation for TestViewLogic {
 	}
 
 	fn manage(&self, source: &Option<PathBuf>, _: &Report, webview: WebviewHandle) -> R<Box<dyn FnOnce() -> R<()>+Send+'static>> {
-		let webview = webview.lock().unwrap();
-		let stream = webview.listener().spawn().cancel_on(webview.disposer());
+		let stream = {
+			let webview = webview.lock().unwrap();
+			webview.listener().spawn().cancel_on(webview.disposer())
+		};
 		let source = source.clone();
 		Ok(Box::new(move || {
 			for note in stream {
@@ -94,6 +96,32 @@ impl Computation for TestViewLogic {
 						SKILL_ACTIONS.add_use();
 						Ok(())
 					}),
+					Some("eval_req") => {
+						let webview = webview.clone();
+						evscode::runtime::spawn(move || {
+							let _status = crate::STATUS.push("Evaluating");
+							let id = note["id"].as_i64().unwrap();
+							let input = note["input"].as_str().unwrap();
+							if let Ok(brut) = dir::brut() {
+								if brut.exists() {
+									let brut = build(brut, &Codegen::Release, false)?;
+									let run = brut.run(input, &[], &Environment { time_limit: time_limit() })?;
+									if run.success() {
+										add_test(input, &run.stdout)?;
+										let webview = webview.lock().unwrap();
+										webview.post_message(json::object! {
+											"tag" => "eval_resp",
+											"id" => id,
+											"input" => input,
+										});
+									} else {
+										return Err(E::error("brut did not evaluate test successfully"));
+									}
+								}
+							}
+							Ok(())
+						});
+					},
 					_ => return Err(E::error(format!("invalid webview message `{}`", note.dump()))),
 				}
 			}
