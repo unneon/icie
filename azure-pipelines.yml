@@ -1,0 +1,62 @@
+# caching is not supported yet, even though azure supports it as a beta
+# the only problem, it does not preserve executable bits which breaks build script and toolchain caching
+# the fix is implemented behind an env var which I do not know how to trigger
+# https://github.com/microsoft/azure-pipelines-tasks/issues/10841
+
+trigger:
+  branches:
+    include: ['*']
+  tags:
+    include: ['*']
+
+stages:
+  - stage: Build
+    jobs:
+    - job: Test
+      steps:
+      - script: sudo apt install libdbus-1-dev
+        displayName: Install dependencies
+      - script: cargo test
+        displayName: Cargo Test
+    - job: Format
+      steps:
+      - script: rustup component add rustfmt
+        displayName: Install Rustfmt
+      - script: cargo fmt --all -- --check
+        displayName: Cargo Fmt
+    - job: Lint
+      steps:
+      - script: rustup component add clippy
+        displayName: Install Clippy
+      - script: cargo clippy --all -- -D warnings
+        displayName: Cargo Clippy
+  - stage: Release
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+    jobs:
+    - job: Verify
+      steps:
+        - script: '[[ `cat CHANGELOG.md` == "## $(Build.SourceBranchName)"* ]]'
+          displayName: Verify changelog was updated
+        - script: '[[ `sed "3q;d" Cargo.toml` = "version = \"$(Build.SourceBranchName)\""* ]]'
+          displayName: Verify Cargo.toml was updated
+    - job: GitHub
+      dependsOn: Verify
+      steps:
+      - script: sudo apt install libdbus-1-dev
+        displayName: Install dependencies
+      - script: sudo npm install -g vsce
+        displayName: Install dependencies (npm)
+      - script: cargo build --release
+        displayName: Build extension
+      - script: cargo run --release -- --package
+        displayName: Package extension
+      - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n +2 > github-release-changelog-diff.md
+        displayName: Prepare changelog
+      - task: GitHubRelease@0
+        displayName: Release
+        inputs:
+          gitHubConnection: github/pustaczek
+          repositoryName: pustaczek/icie
+          releaseNotesFile: github-release-changelog-diff.md
+          assets: target/release/evscode/icie-$(Build.SourceBranchName).vsix
+          addChangeLog: false
