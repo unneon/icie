@@ -7,7 +7,7 @@ pub struct Library {
 	pub pieces: HashMap<String, Piece>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Piece {
 	pub name: String,
 	pub description: Option<String>,
@@ -64,6 +64,7 @@ impl Library {
 		Ok(())
 	}
 
+	/// Builds a graph where every piece has outgoings edges to all of its' dependencies.
 	fn build_dependency_graph(&self) -> (Graph, HashMap<&str, usize>, Vec<&str>) {
 		let t1: HashMap<&str, usize> = self.pieces.iter().enumerate().map(|(v, (id, _))| (id.as_str(), v)).collect();
 		let mut t2 = t1.iter().collect::<Vec<_>>();
@@ -80,6 +81,7 @@ impl Library {
 		(g, t1, t2)
 	}
 
+	/// Builds a graph where every piece has outgoing edges to all of its' (in)direct dependants.
 	fn build_ordering_graph(&self, dg: &Graph, t1: &HashMap<&str, usize>) -> Graph {
 		let mut og = dg.transpose();
 		for data in self.pieces.values() {
@@ -121,10 +123,12 @@ impl Library {
 	fn place_index(&self, piece_id: &str, source: &str) -> usize {
 		let piece = &self.pieces[piece_id];
 		if let Some(parent) = &piece.parent {
+			// the piece will be placed at the end of the struct definition
+			// while c++ allows declarations in structs to be out of order, it doesn't do so always
+			// specifically, templates and nested structs seem to break it for some reason
 			let parent = &self.pieces[parent];
 			let mut pos = source.find(&parent.guarantee).unwrap();
-			pos += source[pos..].find('{').unwrap();
-			pos += source[pos..].find('\n').unwrap();
+			pos += source[pos..].find("\n}").unwrap();
 			pos += 1;
 			pos
 		} else {
@@ -138,6 +142,9 @@ impl Library {
 				pos += source[pos..].find(&dep.guarantee).map(|i| i + 1).unwrap_or(0);
 			}
 			pos = skip_to_toplevel(pos, source);
+			if pos > source.len() && !source.ends_with('\n') {
+				pos -= 1;
+			}
 			pos
 		}
 	}
@@ -356,6 +363,36 @@ int main() {
 }
 "#
 		);
+	}
+
+	#[test]
+	fn in_group_ordering() {
+		let mut lib1 = Library::new_empty();
+		lib1.pieces.insert("graph".to_owned(), Piece {
+			name: "Graph".to_owned(),
+			description: None,
+			detail: None,
+			code: "struct Graph {\n};".to_owned(),
+			guarantee: "struct Graph {".to_owned(),
+			dependencies: Vec::new(),
+			parent: None,
+			modified: SystemTime::now(),
+		});
+		lib1.pieces.insert("lca".to_owned(), mock_piece("lca", &["graph"], Some("graph")));
+		lib1.pieces.insert("dominator".to_owned(), mock_piece("dominator", &["graph", "lca"], Some("graph")));
+		let mut lib2 = Library::new_empty();
+		lib2.pieces.insert("graph".to_owned(), lib1.pieces.get("graph").unwrap().clone());
+		lib2.pieces.insert("dominator".to_owned(), lib1.pieces.get("dominator").unwrap().clone());
+		lib2.pieces.insert("lca".to_owned(), lib1.pieces.get("lca").unwrap().clone());
+		let desired = r#"
+struct Graph {
+	{{lca}}
+	{{dominator}}
+};
+
+"#;
+		assert_eq!(replace(&lib1, "dominator", ""), desired);
+		assert_eq!(replace(&lib2, "dominator", ""), desired);
 	}
 
 	fn replace(lib: &Library, piece: &str, code: &str) -> String {

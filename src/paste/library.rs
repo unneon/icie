@@ -41,7 +41,7 @@ impl LibraryCache {
 				.to_owned();
 			if path.extension() == Some(OsStr::new("cpp")) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces)?;
-				new_pieces.insert(id, dbg!(piece));
+				new_pieces.insert(id, piece);
 			}
 		}
 		lib.directory = directory;
