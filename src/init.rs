@@ -33,7 +33,7 @@ fn scan() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
-	contest::setup_sprint(&*sess, &contest.id)?;
+	contest::setup_sprint(&*sess, &contest.id, Some(&contest.title))?;
 	Ok(())
 }
 
@@ -53,7 +53,7 @@ fn url() -> R<()> {
 		InitCommand::Contest { url, backend } => {
 			let sess = net::Session::connect(&url.domain, backend.backend)?;
 			let Resource::Contest(contest) = url.resource;
-			contest::setup_sprint(&sess, &contest)?;
+			contest::setup_sprint(&sess, &contest, None)?;
 		},
 	}
 	Ok(())
@@ -123,7 +123,7 @@ fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<(
 	Ok(())
 }
 
-/// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. See example list:
+/// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. Variable contest.title is not available in this context. See example list:
 ///
 /// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)
 /// {random.cute}-{random.animal} -> kawaii-hedgehog
@@ -135,6 +135,7 @@ fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<(
 /// {task.symbol} -> A
 /// {task.name} -> Diverse Strings
 /// {contest.id} -> 1144
+/// {contest.title} -> Codeforces Round #550 (Div. 3)
 /// {site.short} -> cf
 ///
 /// {task.name} -> Diverse Strings

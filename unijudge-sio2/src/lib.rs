@@ -293,6 +293,10 @@ impl unijudge::Backend for Sio2 {
 		*contest
 	}
 
+	fn contest_title(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+		*contest
+	}
+
 	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		Ok(Vec::new())
 	}

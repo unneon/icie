@@ -272,6 +272,12 @@ impl unijudge::Backend for Codeforces {
 		}
 	}
 
+	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+		let url: Url = self.contest_url(contest).parse()?;
+		let doc = Document::new(&session.client.get(url).send()?.text()?);
+		Ok(doc.find_nth("#sidebar > div.roundbox.sidebox", 0)?.find("table.rtable > tbody > tr > th > a")?.text().string())
+	}
+
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let moscow_standard_time = FixedOffset::east(3 * 3600);
 		let url: Url = "https://codeforces.com/contests".parse()?;

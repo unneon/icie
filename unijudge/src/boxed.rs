@@ -92,6 +92,10 @@ impl crate::Backend for dyn DynamicBackend {
 		self.contest_urlx(contest.0.deref().as_any())
 	}
 
+	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+		self.contest_titlex(session.0.deref().as_any(), contest.0.deref().as_any())
+	}
+
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		self.contestsx(session.0.deref().as_any())
 	}
@@ -123,6 +127,7 @@ pub trait DynamicBackend: Send+Sync {
 	fn contest_site_prefixx(&self) -> &'static str;
 	fn contest_tasksx(&self, session: &dyn Any, contest: &dyn Any) -> Result<Vec<BoxedTask>>;
 	fn contest_urlx(&self, contest: &dyn Any) -> String;
+	fn contest_titlex(&self, session: &dyn Any, contest: &dyn Any) -> Result<String>;
 	fn contestsx(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>>;
 	fn name_shortx(&self) -> &'static str;
 	fn supports_contestsx(&self) -> bool;
@@ -205,6 +210,10 @@ where
 
 	fn contest_urlx(&self, contest: &dyn Any) -> String {
 		<T as crate::Backend>::contest_url(self, ujcast::<T::Contest>(contest))
+	}
+
+	fn contest_titlex(&self, session: &dyn Any, contest: &dyn Any) -> Result<String> {
+		<T as crate::Backend>::contest_title(self, ujcast::<T::Session>(session), ujcast::<T::Contest>(contest))
 	}
 
 	fn contestsx(&self, session: &dyn Any) -> Result<Vec<BoxedContestDetails>> {

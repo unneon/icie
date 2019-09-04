@@ -3,8 +3,8 @@ use std::{
 	cmp::min, fmt::{self, Write}, str::FromStr
 };
 
-const SPACE_CHARACTERS: &[char] = &['/', '-', '_'];
-const BLANK_CHARACTERS: &[char] = &[':', '(', ')', ',', '!', '\'', '"'];
+const SPACE_CHARACTERS: &[char] = &['/', '-', '_', '+'];
+const BLANK_CHARACTERS: &[char] = &[':', '(', ')', '[', ']', ',', '!', '\'', '"', '.', '#'];
 
 pub trait VariableSet: FromStr<Err=String>+fmt::Display {
 	type Map;

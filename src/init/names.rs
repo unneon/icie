@@ -7,11 +7,11 @@ use std::{
 };
 use unijudge::TaskDetails;
 
-/// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. See "Icie Init Project name template" for details.
+/// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. Variables task.id and task.title are not available in this context. See "Icie Init Project name template" for details.
 #[evscode::config]
-static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{site.short case.camel}-{contest.id case.camel}".parse().unwrap();
+static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{contest.title case.kebab}".parse().unwrap();
 
-/// Default task directory name, when created as a part of a contest. This key uses special syntax to allow using dynamic content, like task titles. See "Icie Init Project name template" for details.
+/// Default task directory name, when created as a part of a contest. This key uses special syntax to allow using dynamic content, like task titles. Variable contest.title is not available in this context. See "Icie Init Project name template" for details.
 #[evscode::config]
 static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
@@ -20,6 +20,7 @@ pub fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<PathBuf> {
 		task_id: meta.as_ref().map(|meta| meta.id.clone()),
 		task_title: meta.as_ref().map(|meta| meta.title.clone()),
 		contest_id: meta.as_ref().map(|meta| meta.contest_id.clone()),
+		contest_title: None,
 		site_short: meta.as_ref().map(|meta| meta.site_short.clone()),
 	};
 	let (codename, all_good) = PROJECT_NAME_TEMPLATE.get().interpolate(&variables);
@@ -32,8 +33,14 @@ pub fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<PathBuf> {
 	strategy.query(root, &codename)
 }
 
-pub fn design_contest_name(contest_id: &str, site_short: &'static str) -> R<PathBuf> {
-	let variables = Mapping { task_id: None, task_title: None, contest_id: Some(contest_id.to_owned()), site_short: Some(site_short.to_owned()) };
+pub fn design_contest_name(contest_id: &str, contest_title: &str, site_short: &'static str) -> R<PathBuf> {
+	let variables = Mapping {
+		task_id: None,
+		task_title: None,
+		contest_id: Some(contest_id.to_owned()),
+		contest_title: Some(contest_title.to_owned()),
+		site_short: Some(site_short.to_owned()),
+	};
 	let (codename, all_good) = CONTEST.get().interpolate(&variables);
 	let config_strategy = ASK_FOR_PATH.get();
 	let strategy = match (&*config_strategy, all_good) {
@@ -49,6 +56,7 @@ pub enum Variable {
 	TaskId,
 	TaskTitle,
 	ContestId,
+	ContestTitle,
 	SiteShort,
 }
 
@@ -56,6 +64,7 @@ pub struct Mapping {
 	pub task_id: Option<String>,
 	pub task_title: Option<String>,
 	pub contest_id: Option<String>,
+	pub contest_title: Option<String>,
 	pub site_short: Option<String>,
 }
 
@@ -90,7 +99,7 @@ macro_rules! constrain_variable {
 }
 
 constrain_variable!(TaskVariable, RandomCute | RandomAnimal | TaskId | TaskTitle | ContestId | SiteShort);
-constrain_variable!(ContestVariable, RandomCute | RandomAnimal | ContestId | SiteShort);
+constrain_variable!(ContestVariable, RandomCute | RandomAnimal | ContestId | ContestTitle | SiteShort);
 constrain_variable!(ContestTaskVariable, RandomCute | RandomAnimal | TaskId | TaskTitle | ContestId | SiteShort);
 
 impl crate::interpolation::VariableSet for Variable {
@@ -103,6 +112,7 @@ impl crate::interpolation::VariableSet for Variable {
 			Variable::TaskId => map.task_id.clone(),
 			Variable::TaskTitle => map.task_title.clone(),
 			Variable::ContestId => map.contest_id.clone(),
+			Variable::ContestTitle => map.contest_title.clone(),
 			Variable::SiteShort => map.site_short.clone(),
 		}
 	}
@@ -118,6 +128,7 @@ impl FromStr for Variable {
 			"task.symbol" => Ok(Variable::TaskId),
 			"task.name" => Ok(Variable::TaskTitle),
 			"contest.id" => Ok(Variable::ContestId),
+			"contest.title" => Ok(Variable::ContestTitle),
 			"site.short" => Ok(Variable::SiteShort),
 			_ => Err(format!("unrecognized variable name {:?}", s)),
 		}
@@ -132,6 +143,7 @@ impl fmt::Display for Variable {
 			Variable::TaskId => "task.symbol",
 			Variable::TaskTitle => "task.name",
 			Variable::ContestId => "contest.id",
+			Variable::ContestTitle => "contest.title",
 			Variable::SiteShort => "site.short",
 		})
 	}

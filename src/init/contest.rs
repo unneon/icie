@@ -15,8 +15,15 @@ use unijudge::{
 /// Set up an external directory with a contest manifest, and switch VS Code context to it.
 /// This will likely kill the extension process, so do not do anything important after calling this function.
 /// Post-setup steps will be called from plugin activation function.  
-pub fn setup_sprint(sess: &Session, contest: &BoxedContest) -> R<()> {
-	let root_dir = design_contest_name(&sess.backend.contest_id(contest), sess.backend.name_short())?;
+pub fn setup_sprint(sess: &Session, contest: &BoxedContest, contest_title: Option<&str>) -> R<()> {
+	let root_dir = design_contest_name(
+		&sess.backend.contest_id(contest),
+		&match contest_title {
+			Some(title) => title.to_owned(),
+			None => sess.run(|backend, sess| backend.contest_title(sess, contest))?,
+		},
+		sess.backend.name_short(),
+	)?;
 	let root_dir = TransactionDir::new(&root_dir)?;
 	let task0_dir = root_dir.path().join("icie-task0");
 	let task0_dir = TransactionDir::new(&task0_dir)?;

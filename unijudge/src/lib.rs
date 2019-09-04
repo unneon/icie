@@ -207,6 +207,7 @@ pub trait Backend: Send+Sync+'static {
 	fn contest_site_prefix(&self) -> &'static str;
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
 	fn contest_url(&self, contest: &Self::Contest) -> String;
+	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String>;
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
 	fn name_short(&self) -> &'static str;
 	fn supports_contests(&self) -> bool;

@@ -1,5 +1,5 @@
 use unijudge::{
-	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Find}, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Document, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, StatusCode, Url
 	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
@@ -277,6 +277,12 @@ impl unijudge::Backend for AtCoder {
 
 	fn contest_url(&self, contest: &Self::Contest) -> String {
 		format!("https://atcoder.jp/contests/{}", contest)
+	}
+
+	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+		let url: Url = self.contest_url(contest).parse()?;
+		let doc = Document::new(&session.get(url).send()?.text()?);
+		Ok(doc.find("#main-container > .row > div > div > h1")?.text().string())
 	}
 
 	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
