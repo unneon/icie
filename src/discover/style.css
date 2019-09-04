@@ -116,6 +116,7 @@ a.control-button:hover {
 	vertical-align: top;
 	text-align: left;
 	font-size: 22px;
+	font-family: var(--vscode-editor-font-family);
 	color: rgba(255, 255, 255, 0.9);
 
 	background-color: rgba(96, 96, 96, 0.15);
