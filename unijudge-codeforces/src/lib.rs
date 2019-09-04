@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	chrono::{FixedOffset, TimeZone}, debris::{Context, Find}, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
-	}, Backend, ContestDetails, Error, Language, Resource, Result, Submission, TaskDetails
+	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
 
 pub struct Codeforces;
@@ -127,51 +127,32 @@ impl unijudge::Backend for Codeforces {
 		let url = self.xtask_url(task)?;
 		let mut resp = session.client.get(url.clone()).send()?;
 		let doc = unijudge::debris::Document::new(&resp.text()?);
-		let (symbol, title) = doc.find(".problem-statement > .header > .title")?.text().map(|full| {
-			let i = match full.find('.') {
-				Some(i) => i,
-				None => return Err("full problem title does not have a symbol prefix"),
+		let statement = if *resp.url() == url {
+			ExtractedStatement::from_html(doc)?
+		} else {
+			let pdf = {
+				let url: Url =
+					format!("https://codeforces.com{}", doc.find(".datatable > div > table > tbody > tr > td > a")?.attr("href")?.string())
+						.parse()?;
+				let mut resp = session.client.get(url).send()?;
+				let mut pdf = Vec::new();
+				while resp.copy_to(&mut pdf)? > 0 {}
+				pdf
 			};
-			Ok((full[..i].trim().to_owned(), full[i + 1..].trim().to_owned()))
-		})?;
-		let examples = Some(
-			doc.find_all(".sample-test .input")
-				.zip(doc.find_all(".sample-test .output"))
-				.map(|(input, output)| {
-					Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() })
-				})
-				.collect::<Result<_>>()?,
-		);
-		let mut statement = unijudge::statement::Rewrite::start(doc);
-		statement.fix_hide(|v| {
-			if let unijudge::scraper::Node::Element(v) = v.value() {
-				v.has_class("problem-statement", unijudge::selectors::attr::CaseSensitivity::CaseSensitive)
-			} else {
-				false
-			}
-		});
-		statement.fix_override_csp();
-		statement.fix_traverse(|mut v| {
-			if let unijudge::scraper::Node::Element(v) = v.value() {
-				unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
-				unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
-				unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://codeforces.com");
-				unijudge::statement::fix_url(v, unijudge::qn!("src"), "/", "https://codeforces.com");
-				if v.id() == Some("body") {
-					unijudge::statement::add_style(v, "min-width: unset !important;");
-				}
-				if v.id() == Some("pageContent") {
-					unijudge::statement::add_style(v, "margin-right: 1em !important;");
-				}
-			}
-		});
+			let task = self
+				.contest_tasks_ex(session, &task.contest)?
+				.into_iter()
+				.find(|t| t.symbol == self.resolve_task_id(&task))
+				.ok_or_else(|| doc.error("title not found in contest task list"))?;
+			ExtractedStatement { symbol: task.symbol, title: task.title, examples: None, statement: Statement::PDF { pdf } }
+		};
 		Ok(unijudge::TaskDetails {
-			id: symbol,
-			title,
+			id: statement.symbol,
+			title: statement.title,
 			contest_id: self.pretty_contest(task),
 			site_short: "codeforces".to_owned(),
-			examples,
-			statement: Some(statement.export()),
+			examples: statement.examples,
+			statement: Some(statement.statement),
 			url: url.to_string(),
 		})
 	}
@@ -276,20 +257,11 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		let url: Url = self.contest_url(contest).parse()?;
-		let mut resp = session.client.get(url.clone()).send()?;
-		if *resp.url() != url {
-			return Err(Error::NotYetStarted);
-		}
-		let doc = unijudge::debris::Document::new(&resp.text()?);
-		doc.find(".problems")?
-			.find_all("tr")
-			.skip(1)
-			.map(|row| {
-				let task = row.find_first("td")?.text().string();
-				Ok(Task { contest: contest.clone(), task: TaskID::Normal(task) })
-			})
-			.collect()
+		Ok(self
+			.contest_tasks_ex(session, contest)?
+			.into_iter()
+			.map(|task| Task { contest: contest.clone(), task: TaskID::Normal(task.symbol) })
+			.collect())
 	}
 
 	fn contest_url(&self, contest: &Self::Contest) -> String {
@@ -332,7 +304,30 @@ impl unijudge::Backend for Codeforces {
 	}
 }
 
+pub struct ContestTaskEx {
+	pub symbol: String,
+	pub title: String,
+}
+
 impl Codeforces {
+	pub fn contest_tasks_ex(&self, session: &Session, contest: &Contest) -> Result<Vec<ContestTaskEx>> {
+		let url: Url = self.contest_url(contest).parse()?;
+		let mut resp = session.client.get(url.clone()).send()?;
+		if *resp.url() != url {
+			return Err(Error::NotYetStarted);
+		}
+		let doc = unijudge::debris::Document::new(&resp.text()?);
+		doc.find(".problems")?
+			.find_all("tr")
+			.skip(1)
+			.map(|row| {
+				let symbol = row.find_nth("a", 0)?.text().string();
+				let title = row.find_nth("a", 1)?.text().string();
+				Ok(ContestTaskEx { symbol, title })
+			})
+			.collect()
+	}
+
 	fn resolve_task_id<'a>(&self, task: &'a Task) -> &'a str {
 		match &task.task {
 			TaskID::Normal(task_id) => task_id.as_str(),
@@ -367,6 +362,56 @@ impl Codeforces {
 		let doc = unijudge::debris::Document::new(&resp.text()?);
 		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
 		Ok(csrf)
+	}
+}
+
+struct ExtractedStatement {
+	symbol: String,
+	title: String,
+	examples: Option<Vec<Example>>,
+	statement: Statement,
+}
+impl ExtractedStatement {
+	fn from_html(doc: Document) -> Result<ExtractedStatement> {
+		let (symbol, title) = doc.find(".problem-statement > .header > .title")?.text().map(|full| {
+			let i = match full.find('.') {
+				Some(i) => i,
+				None => return Err("full problem title does not have a symbol prefix"),
+			};
+			Ok((full[..i].trim().to_owned(), full[i + 1..].trim().to_owned()))
+		})?;
+		let examples = Some(
+			doc.find_all(".sample-test .input")
+				.zip(doc.find_all(".sample-test .output"))
+				.map(|(input, output)| {
+					Ok(unijudge::Example { input: input.child(1)?.text_br().string(), output: output.child(1)?.text_br().string() })
+				})
+				.collect::<Result<_>>()?,
+		);
+		let mut statement = unijudge::statement::Rewrite::start(doc);
+		statement.fix_hide(|v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				v.has_class("problem-statement", unijudge::selectors::attr::CaseSensitivity::CaseSensitive)
+			} else {
+				false
+			}
+		});
+		statement.fix_override_csp();
+		statement.fix_traverse(|mut v| {
+			if let unijudge::scraper::Node::Element(v) = v.value() {
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
+				unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
+				unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://codeforces.com");
+				unijudge::statement::fix_url(v, unijudge::qn!("src"), "/", "https://codeforces.com");
+				if v.id() == Some("body") {
+					unijudge::statement::add_style(v, "min-width: unset !important;");
+				}
+				if v.id() == Some("pageContent") {
+					unijudge::statement::add_style(v, "margin-right: 1em !important;");
+				}
+			}
+		});
+		Ok(ExtractedStatement { symbol, title, examples, statement: statement.export() })
 	}
 }
 
