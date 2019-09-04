@@ -56,6 +56,7 @@ impl unijudge::Backend for Codeforces {
 		let (source, contest, task) = match segments {
 			["contest", contest] => return Ok(Resource::Contest(Contest { source: Source::Contest, id: (*contest).to_owned() })),
 			["contest", contest, "problem", task] => (Source::Contest, contest, task),
+			["gym", contest] => return Ok(Resource::Contest(Contest { source: Source::Gym, id: (*contest).to_owned() })),
 			["gym", contest, "problem", task] => (Source::Gym, contest, task),
 			["problemset", "problem", contest, task] => (Source::Problemset, contest, task),
 			_ => return Err(Error::WrongTaskUrl),
@@ -275,8 +276,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
-		assert_eq!(contest.source, Source::Contest);
-		let url: Url = format!("https://codeforces.com/contest/{}", contest.id).parse()?;
+		let url: Url = self.contest_url(contest).parse()?;
 		let mut resp = session.client.get(url.clone()).send()?;
 		if *resp.url() != url {
 			return Err(Error::NotYetStarted);
