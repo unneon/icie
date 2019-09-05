@@ -27,7 +27,7 @@ wait-timeout = "0.2"
 walkdir = "2.2"
 
 [patch.crates-io]
-reqwest = { git = "https://github.com/pustaczek/reqwest" }
+reqwest = { git = "https://github.com/pustaczek/reqwest", branch = "dirty-cookies" }
 
 [profile.release]
 lto = true
