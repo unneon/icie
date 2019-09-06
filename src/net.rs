@@ -7,8 +7,8 @@ use unijudge::{
 };
 
 const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
-const NETWORK_ERROR_RETRY_LIMIT: usize = 2;
-const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(2);
+const NETWORK_ERROR_RETRY_LIMIT: usize = 4;
+const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(5);
 pub const BACKENDS: &[BackendMeta] = &[
 	BackendMeta { backend: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
 	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: "C++14 (GCC 5.4.1)" },

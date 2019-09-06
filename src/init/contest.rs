@@ -108,7 +108,7 @@ fn wait_for_contest(manifest: &Manifest, site: &str, sess: &Arc<Session>) -> R<(
 			Err(_) => break,
 		};
 		progress.update_set(100.0 - 100.0 * left.as_millis() as f64 / total.as_millis() as f64, fmt_time_left(left));
-		std::thread::sleep(Duration::from_millis(1000));
+		std::thread::sleep(Duration::from_secs(1));
 	}
 	progress.end();
 	Ok(())

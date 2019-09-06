@@ -95,6 +95,8 @@ impl From<io::Error> for BuildResult {
 	}
 }
 
+const FUSER_EXEC_DELAY: Duration = Duration::from_millis(500);
+
 pub struct BuildContext<'a> {
 	base: &'a Path,
 }
@@ -136,7 +138,7 @@ impl<'a> BuildContext<'a> {
 				Ok(_) => BuildResult::Built,
 				Err(ref e) if e.kind() == io::ErrorKind::Other => {
 					std::process::Command::new("fuser").arg("-ks").arg(&path).status()?;
-					std::thread::sleep(Duration::from_millis(500));
+					std::thread::sleep(FUSER_EXEC_DELAY);
 					fs::copy(source.as_ref(), &path)?;
 					BuildResult::Built
 				},

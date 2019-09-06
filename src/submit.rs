@@ -43,12 +43,12 @@ fn send_passed() -> R<()> {
 	Ok(())
 }
 
+const TRACK_DELAY: Duration = Duration::from_secs(5);
 const TRACK_NOT_SEEN_RETRY_LIMIT: usize = 4;
 const TRACK_NOT_SEEN_RETRY_DELAY: Duration = Duration::from_secs(5);
 
 fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
-	let sleep_duration = Duration::from_millis(5000);
 	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
 	let mut last_verdict = None;
 	let mut not_seen_retry_limit = TRACK_NOT_SEEN_RETRY_LIMIT;
@@ -78,7 +78,7 @@ fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String
 			progress.message(fmt_verdict(&submission.verdict));
 			last_verdict = Some(submission.verdict);
 		}
-		std::thread::sleep(sleep_duration);
+		std::thread::sleep(TRACK_DELAY);
 	};
 	progress.end();
 	evscode::Message::new(fmt_verdict(&verdict)).build().spawn();
