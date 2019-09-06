@@ -11,6 +11,7 @@ pub extern crate selectors;
 pub extern crate serde;
 
 pub mod boxed;
+pub mod json;
 #[macro_use]
 pub mod statement;
 
