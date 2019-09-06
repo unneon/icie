@@ -194,6 +194,13 @@ impl<T, E2: std::error::Error> ResultExt for Result<T, E2> {
 		self.map_err(|e| E::from_std(e).context(s))
 	}
 }
+impl<T> ResultExt for Option<T> {
+	type Ok = T;
+
+	fn wrap(self, s: impl AsRef<str>) -> R<T> {
+		self.ok_or_else(|| E::error(s))
+	}
+}
 
 /// Error type representing a operation intentionally cancelled by the user.
 pub struct Cancellation;

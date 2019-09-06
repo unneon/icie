@@ -79,6 +79,10 @@ impl unijudge::Backend for AtCoder {
 		unijudge::serialize_auth(auth)
 	}
 
+	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest> {
+		Some(task.contest.clone())
+	}
+
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse()?;
 		let mut resp = session.get(url.clone()).send()?;

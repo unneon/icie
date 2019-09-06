@@ -1,9 +1,11 @@
 use crate::{
-	dir, net, util::{self, plural}
+	dir, net::{self, require_task}, util::{self, plural}
 };
 use evscode::{E, R};
 use std::time::Duration;
-use unijudge::{Backend, RejectionCause, Resource};
+use unijudge::{
+	boxed::{BoxedContest, BoxedTask}, Backend, RejectionCause, Resource
+};
 
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> R<()> {
@@ -22,12 +24,10 @@ fn send_passed() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
-	let url = manifest.task_url.ok_or_else(|| E::error("this folder was not initialized with Alt+F11, submit aborted"))?;
-	let (url, backend) = net::interpret_url(&url)?;
-	let task = match &url.resource {
-		Resource::Task(task) => task,
-		_ => return Err(E::error(format!("unexpected {:?} in .task_url manifest field", url.resource))),
-	};
+	let url = manifest.req_task_url().map_err(|e| e.context("submit aborted"))?;
+	let (url, backend) = net::interpret_url(url)?;
+	let url = require_task::<BoxedContest, BoxedTask>(url)?;
+	let Resource::Task(task) = url.resource;
 	let sess = net::Session::connect(&url.domain, backend.backend)?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
@@ -39,7 +39,7 @@ fn send_passed() -> R<()> {
 			.extended(format!("{:#?}", langs))
 	})?;
 	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, lang, &code))?;
-	track(sess, task, submit_id)?;
+	track(sess, &task, submit_id)?;
 	Ok(())
 }
 

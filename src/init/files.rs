@@ -1,5 +1,5 @@
 use crate::{dir, init::SOLUTION_TEMPLATE, util};
-use evscode::{E, R};
+use evscode::{error::ResultExt, R};
 use std::path::Path;
 use unijudge::{Example, Statement};
 
@@ -17,13 +17,11 @@ pub fn init_template(root: &Path) -> R<()> {
 		let path = list
 			.iter()
 			.find(|(id, _)| **id == *req_id)
-			.ok_or_else(|| {
-				E::error(format!(
-					"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
-					 name(icie.template.list)",
-					req_id
-				))
-			})?
+			.wrap(format!(
+				"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
+				 name(icie.template.list)",
+				req_id
+			))?
 			.1;
 		let tpl = crate::template::load(&path)?;
 		util::fs_write(solution, tpl.code)?;

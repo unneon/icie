@@ -56,6 +56,10 @@ impl crate::Backend for dyn DynamicBackend {
 		self.auth_serializex(auth.0.deref().as_any())
 	}
 
+	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest> {
+		self.task_contestx(task.0.deref().as_any())
+	}
+
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		self.task_detailsx(session.0.deref().as_any(), task.0.deref().as_any())
 	}
@@ -118,6 +122,7 @@ pub trait DynamicBackend: Send+Sync {
 	fn auth_loginx(&self, session: &dyn Any, username: &str, password: &str) -> Result<()>;
 	fn auth_restorex(&self, session: &dyn Any, auth: &dyn Any) -> Result<()>;
 	fn auth_serializex(&self, auth: &dyn Any) -> Result<String>;
+	fn task_contestx(&self, task: &dyn Any) -> Option<BoxedContest>;
 	fn task_detailsx(&self, session: &dyn Any, task: &dyn Any) -> Result<TaskDetails>;
 	fn task_languagesx(&self, session: &dyn Any, task: &dyn Any) -> Result<Vec<Language>>;
 	fn task_submissionsx(&self, session: &dyn Any, task: &dyn Any) -> Result<Vec<Submission>>;
@@ -171,6 +176,10 @@ where
 
 	fn auth_serializex(&self, auth: &dyn Any) -> Result<String> {
 		<T as crate::Backend>::auth_serialize(self, ujcast::<T::CachedAuth>(auth))
+	}
+
+	fn task_contestx(&self, task: &dyn Any) -> Option<BoxedContest> {
+		<T as crate::Backend>::task_contest(self, ujcast::<T::Task>(task)).map(|contest| BoxedContest(Box::new(contest)))
 	}
 
 	fn task_detailsx(&self, session: &dyn Any, task: &dyn Any) -> Result<TaskDetails> {

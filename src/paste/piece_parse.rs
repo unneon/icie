@@ -1,5 +1,5 @@
 use crate::paste::{logic::Piece, qpaste_doc_error};
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use regex::Regex;
 use std::{collections::HashMap, time::SystemTime};
 
@@ -9,7 +9,7 @@ impl Piece {
 			.lines()
 			.filter(|line| line.starts_with("///"))
 			.map(|line| {
-				let m: regex::Captures = HEADER_REGEX.captures(line).ok_or_else(|| E::error(qpaste_doc_error("invalid header in qpaste piece")))?;
+				let m: regex::Captures = HEADER_REGEX.captures(line).wrap(qpaste_doc_error("invalid header in qpaste piece"))?;
 				Ok((m[1].to_string(), m[2].to_string()))
 			})
 			.collect::<R<HashMap<_, _>>>()?;

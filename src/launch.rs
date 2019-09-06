@@ -1,6 +1,8 @@
-use crate::{dir, init, manifest::Manifest, util};
+use crate::{
+	dir, init, manifest::Manifest, net::{interpret_url, require_task}, util
+};
 use evscode::{error::ResultExt, quick_pick, QuickPick, Webview, E, R};
-use unijudge::Statement;
+use unijudge::{Backend, Resource, Statement};
 
 pub fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
@@ -23,7 +25,8 @@ pub fn layout_setup() -> R<()> {
 	Ok(())
 }
 
-fn display_pdf(webview: Webview, pdf: Vec<u8>) {
+fn display_pdf(webview: Webview, pdf: &[u8]) {
+	let pdf = pdf.to_owned();
 	evscode::runtime::spawn(move || {
 		webview.set_html(format!(
 			"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
@@ -40,7 +43,7 @@ fn display_pdf(webview: Webview, pdf: Vec<u8>) {
 #[evscode::command(title = "ICIE Statement", key = "alt+8")]
 fn statement() -> R<()> {
 	let manifest = Manifest::load()?;
-	let statement = manifest.statement.ok_or_else(|| E::error("no statement found, try creating the task folder Alt+F11 next time"))?;
+	let statement = manifest.req_statement()?;
 	let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
 		.enable_scripts()
 		.enable_find_widget()
@@ -57,7 +60,7 @@ fn statement() -> R<()> {
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]
 fn nearby() -> R<()> {
 	let root = evscode::workspace_root()?;
-	let parent = root.parent().ok_or_else(|| E::error("current directory has no parent"))?;
+	let parent = root.parent().wrap("current directory has no parent")?;
 	let mut nearby = parent
 		.read_dir()
 		.wrap("could not read parent directory")?
@@ -82,5 +85,22 @@ fn nearby() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	evscode::open_folder(select, false);
+	Ok(())
+}
+
+#[evscode::command(title = "ICIE Web Task")]
+fn web_task() -> R<()> {
+	let manifest = Manifest::load()?;
+	evscode::open_external(manifest.req_task_url()?).wait()?;
+	Ok(())
+}
+
+#[evscode::command(title = "ICIE Web Contest")]
+fn web_contest() -> R<()> {
+	let manifest = Manifest::load()?;
+	let (url, backend) = interpret_url(manifest.req_task_url()?)?;
+	let Resource::Task(task) = require_task(url)?.resource;
+	let url = backend.backend.contest_url(&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?);
+	evscode::open_external(url).wait()?;
 	Ok(())
 }

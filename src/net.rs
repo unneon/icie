@@ -1,9 +1,9 @@
 use crate::auth;
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use reqwest::header::HeaderValue;
-use std::{thread::sleep, time::Duration};
+use std::{fmt, thread::sleep, time::Duration};
 use unijudge::{
-	boxed::{BoxedURL, DynamicBackend}, Backend
+	boxed::{BoxedURL, DynamicBackend}, Backend, Resource, URL
 };
 
 const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
@@ -38,7 +38,7 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 			Err(e) => Some(Err(e)),
 		})
 		.next()
-		.ok_or_else(|| E::error(format!("not yet supporting contests/tasks on site {}", url)))?
+		.wrap(format!("not yet supporting contests/tasks on site {}", url))?
 		.map_err(from_unijudge_error)?)
 }
 
@@ -130,6 +130,13 @@ impl<T: Backend+?Sized> GenericSession<T> {
 		}
 		*retries_left -= 1;
 		sleep(NETWORK_ERROR_RETRY_DELAY);
+	}
+}
+
+pub fn require_task<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<!, T>> {
+	match url.resource {
+		Resource::Task(t) => Ok(URL { domain: url.domain, site: url.site, resource: Resource::Task(t) }),
+		_ => Err(E::error(format!("expected task url, found {:?}", url.resource))),
 	}
 }
 

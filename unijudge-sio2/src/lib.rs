@@ -119,6 +119,10 @@ impl unijudge::Backend for Sio2 {
 		unijudge::serialize_auth(auth)
 	}
 
+	fn task_contest(&self, _: &Self::Task) -> Option<Self::Contest> {
+		None
+	}
+
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse()?;
 		let mut resp = session.client.get(url.clone()).send()?;

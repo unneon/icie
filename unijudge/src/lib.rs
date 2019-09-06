@@ -198,6 +198,7 @@ pub trait Backend: Send+Sync+'static {
 	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
 	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()>;
 	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String>;
+	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest>;
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
 	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;

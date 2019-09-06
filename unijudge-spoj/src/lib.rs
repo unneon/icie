@@ -81,6 +81,10 @@ impl unijudge::Backend for SPOJ {
 		unijudge::serialize_auth(auth)
 	}
 
+	fn task_contest(&self, _: &Self::Task) -> Option<Self::Contest> {
+		None
+	}
+
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse()?;
 		let mut resp = session.get(url.clone()).send()?;

@@ -123,6 +123,10 @@ impl unijudge::Backend for Codeforces {
 		unijudge::serialize_auth(auth)
 	}
 
+	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest> {
+		Some(task.contest.clone())
+	}
+
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.xtask_url(task)?;
 		let mut resp = session.client.get(url.clone()).send()?;

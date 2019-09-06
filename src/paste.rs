@@ -3,7 +3,7 @@ mod logic;
 mod piece_parse;
 
 use crate::dir;
-use evscode::{E, R};
+use evscode::{error::ResultExt, E, R};
 use itertools::Itertools;
 use logic::{Library, Piece};
 use std::{path::PathBuf, time::SystemTime};
@@ -41,7 +41,7 @@ fn qistruct() -> R<()> {
 		if member.trim().is_empty() {
 			break;
 		}
-		let i = member.rfind(' ').ok_or_else(|| E::error("incorrect member syntax, should be e.g., int age"))?;
+		let i = member.rfind(' ').wrap("incorrect member syntax, should be e.g., int age")?;
 		let typ = &member[..i];
 		let ide = &member[i + 1..];
 		members.push((typ.to_string(), ide.to_string()));
