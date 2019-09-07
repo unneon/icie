@@ -13,22 +13,22 @@ pub fn fmt_time_left(mut t: Duration) -> String {
 	let mut s = {
 		let x = t.as_secs() % 60;
 		t -= Duration::from_secs(x);
-		format!("{} seconds left", x)
+		format!("{} left", plural(x as usize, "second", "seconds"))
 	};
 	if t.as_secs() > 0 {
 		let x = t.as_secs() / 60 % 60;
 		t -= Duration::from_secs(x * 60);
-		s = format!("{} minutes, {}", x, s);
+		s = format!("{}, {}", plural(x as usize, "minute", "minutes"), s);
 	}
 	if t.as_secs() > 0 {
 		let x = t.as_secs() / 60 / 60 % 24;
 		t -= Duration::from_secs(x * 60 * 60);
-		s = format!("{} hours, {}", x, s);
+		s = format!("{}, {}", plural(x as usize, "hour", "hours"), s);
 	}
 	if t.as_secs() > 0 {
 		let x = t.as_secs() / 60 / 60 / 24;
 		t -= Duration::from_secs(x * 60 * 60 * 24);
-		s = format!("{} days, {}", x, s)
+		s = format!("{}, {}", plural(x as usize, "day", "days"), s)
 	}
 	s
 }
