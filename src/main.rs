@@ -29,7 +29,7 @@ evscode::plugin! {
 	name: "ICIE",
 	publisher: "pustaczek",
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
-	keywords: &["competitive", "contest", "codeforces", "atcoder", "spoj"],
+	keywords: &["competitive", "contest", "codeforces", "atcoder", "codechef"],
 	categories: &["Other"],
 	license: "GPL-3.0-only",
 	repository: "https://github.com/pustaczek/icie",

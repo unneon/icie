@@ -14,6 +14,7 @@ pub const BACKENDS: &[BackendMeta] = &[
 	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: "C++14 (GCC 5.4.1)" },
 	BackendMeta { backend: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 8.0)" },
 	BackendMeta { backend: &unijudge_sio2::Sio2, cpp: "C++" },
+	BackendMeta { backend: &unijudge_codechef::CodeChef, cpp: "C++14(gcc 6.3)" },
 ];
 
 pub type Session = GenericSession<dyn DynamicBackend>;

@@ -1,6 +1,6 @@
 # ICIE [![](https://img.shields.io/azure-devops/build/pustaczek/7b7eb991-b079-479b-8716-8248c968eaf8/1/dev-azure)](https://dev.azure.com/pustaczek/ICIE/_build?definitionId=1) [![](https://img.shields.io/visual-studio-marketplace/d/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/license/pustaczek/icie.svg)](https://github.com/pustaczek/icie/blob/master/LICENSE)
 
-ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Linux, with support for [Codeforces](https://codeforces.com), [AtCoder](https://atcoder.jp) and [SPOJ](https://www.spoj.com).
+ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Linux, with support for [Codeforces](https://codeforces.com), [AtCoder](https://atcoder.jp), [CodeChef](https://www.codechef.com/) and [SPOJ](https://www.spoj.com).
 
 ## Quick start
 
@@ -68,6 +68,7 @@ You can also specify the Dependencies header with a comma-separated list of thin
 | - | - | - | - | - | - |
 | [Codeforces](https://codeforces.com) | Yes | Yes | Yes | Yes | Yes |
 | [AtCoder](https://atcoder.jp) | Yes | Yes | Yes | Yes | Yes |
+| [CodeChef](https://www.codechef.com/) | Yes | Yes | | Yes | Yes |
 | [SPOJ](https://spoj.com) | | Yes | | Yes | Yes |
 | *sio2 sites* | | Yes | | Yes | Yes |
 
