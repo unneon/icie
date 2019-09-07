@@ -1,3 +1,17 @@
+## 0.6.2
+
+- **Added CodeChef support** with contests support under <kbd>Alt</kbd><kbd>F9</kbd>, but without example test support
+- Added support for displaying PDF Codeforces statements
+- Added support for opening Codeforces Gym contest with an URL
+- Added commands "ICIE Web Contest" and "ICIE Web Task" for quickly opening a contest/task in a web browser
+- Added nicer default and customizable contest directory names with a new contest.title variable
+- Added nicer name for the first task in a contest, now it's task symbol and title like the other tasks
+- Added handling compilation errors caused by invalid #include statements
+- Changed submission tracking delays to 5 seconds
+- Fixed race condition causing not displaying some PDF statements
+- Fixed pluralization in contest countdown text
+- Fixed non-monospace font for tests in Discover view
+
 ## 0.6.1
 
 - Added reopening task statements with <kbd>Alt</kbd><kbd>8</kbd>.

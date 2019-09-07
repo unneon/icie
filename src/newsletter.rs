@@ -28,7 +28,7 @@ struct Update {
 }
 
 const LAST_IMPORTANT_UPDATE: Update =
-	Update { version: "0.6", features: "contest mode with Alt+F9, task switching under Alt+Backpace, fetching statements, checkers" };
+	Update { version: "0.6.2", features: "CodeChef support, reopening statements with Alt+8, shortcuts to contest/task websites" };
 
 const LAST_ACKNOWLEDGED_VERSION: evscode::State<String> =
 	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);
