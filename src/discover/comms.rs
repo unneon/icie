@@ -1,5 +1,5 @@
 use crate::ci;
-use json::{object, JsonValue};
+use json::JsonValue;
 
 pub enum Note {
 	Start,
