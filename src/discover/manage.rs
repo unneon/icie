@@ -1,5 +1,5 @@
 use crate::{
-	ci::{self, fit::Fitness}, discover::{
+	ci::{self, test::Outcome}, discover::{
 		comms::{Food, Note}, render::render
 	}, util
 };
@@ -136,8 +136,8 @@ fn worker_run(carrier: &evscode::future::Carrier<WorkerReport>, orders: &std::sy
 		let desired = run_brut.stdout;
 		let outcome =
 			ci::test::simple_test(&solution, &input, Some(&desired), None, &task).map_err(|e| e.context("failed to run test in discover"))?;
-		let fitness = ci::fit::ByteLength.evaluate(&input);
-		let row = ci::discover::Row { number, solution: outcome, fitness, input };
+		let fitness = -(input.len() as i64);
+		let row = Row { number, solution: outcome, fitness, input };
 		carrier.send(Ok(row));
 	}
 	Ok(())
@@ -175,6 +175,14 @@ pub fn add_test(input: &str, output: &str) -> R<()> {
 	Ok(())
 }
 
+#[derive(Debug)]
+pub struct Row {
+	pub number: usize,
+	pub solution: Outcome,
+	pub fitness: i64,
+	pub input: String,
+}
+
 enum ManagerMessage {
 	Note(Note),
 	Report(WorkerReport),
@@ -184,7 +192,7 @@ enum WorkerOrder {
 	Pause,
 	Reset,
 }
-type WorkerReport = R<ci::discover::Row>;
+type WorkerReport = R<Row>;
 
 lazy_static::lazy_static! {
 	pub static ref WEBVIEW: evscode::WebviewSingleton = evscode::WebviewSingleton::new(webview_create, webview_manage);
