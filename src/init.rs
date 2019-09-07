@@ -2,7 +2,9 @@ use crate::{
 	interpolation::Interpolation, net::{self, BackendMeta}, util::{self, fs_create_dir_all}
 };
 use evscode::{quick_pick, QuickPick, E, R};
-use std::path::{Path, PathBuf};
+use std::{
+	path::{Path, PathBuf}, sync::Arc
+};
 use unijudge::{
 	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Backend, Resource, TaskDetails, URL
 };
@@ -33,7 +35,7 @@ fn scan() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
-	contest::setup_sprint(&*sess, &contest.id, Some(&contest.title))?;
+	contest::sprint(sess.clone(), &contest.id, Some(&contest.title))?;
 	Ok(())
 }
 
@@ -53,7 +55,7 @@ fn url() -> R<()> {
 		InitCommand::Contest { url, backend } => {
 			let sess = net::Session::connect(&url.domain, backend.backend)?;
 			let Resource::Contest(contest) = url.resource;
-			contest::setup_sprint(&sess, &contest, None)?;
+			contest::sprint(Arc::new(sess), &contest, None)?;
 		},
 	}
 	Ok(())

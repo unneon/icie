@@ -139,6 +139,12 @@ pub fn require_task<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<!, T>
 		_ => Err(E::error(format!("expected task url, found {:?}", url.resource))),
 	}
 }
+pub fn require_contest<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<C, !>> {
+	match url.resource {
+		Resource::Contest(c) => Ok(URL { domain: url.domain, site: url.site, resource: Resource::Contest(c) }),
+		_ => Err(E::error(format!("expected contest url, found {:?}", url.resource))),
+	}
+}
 
 fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 	match e {
