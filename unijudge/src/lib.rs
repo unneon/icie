@@ -33,7 +33,19 @@ pub enum Error {
 	URLParseFailure(reqwest::UrlError),
 	StateCorruption,
 	UnexpectedHTML(debris::Error),
-	UnexpectedJSON { endpoint: &'static str, backtrace: backtrace::Backtrace, resp_raw: String, inner: Option<Box<dyn std::error::Error+'static>> },
+	UnexpectedJSON {
+		endpoint: &'static str,
+		backtrace: backtrace::Backtrace,
+		resp_raw: String,
+		inner: Option<Box<dyn std::error::Error+'static>>,
+	},
+	UnexpectedResponse {
+		endpoint: &'static str,
+		message: &'static str,
+		backtrace: backtrace::Backtrace,
+		resp_raw: String,
+		inner: Option<Box<dyn std::error::Error+'static>>,
+	},
 }
 impl From<reqwest::Error> for Error {
 	fn from(e: reqwest::Error) -> Self {
@@ -65,6 +77,7 @@ impl fmt::Display for Error {
 			Error::StateCorruption => f.write_str("network agent corrupted due to earlier panic"),
 			Error::UnexpectedHTML(_) => f.write_str("error when scrapping site API response"),
 			Error::UnexpectedJSON { .. } => f.write_str("error when parsing site JSON response"),
+			Error::UnexpectedResponse { .. } => f.write_str("error when parsing site response"),
 		}
 	}
 }
@@ -83,6 +96,7 @@ impl std::error::Error for Error {
 			Error::StateCorruption => None,
 			Error::UnexpectedHTML(e) => Some(e),
 			Error::UnexpectedJSON { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
+			Error::UnexpectedResponse { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
 		}
 	}
 }

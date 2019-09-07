@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, reqwest::{
+	backtrace::Backtrace, chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, reqwest::{
 		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
 	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
@@ -130,25 +130,22 @@ impl unijudge::Backend for Codeforces {
 	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.xtask_url(task)?;
 		let mut resp = session.client.get(url.clone()).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
-		let statement = if *resp.url() == url {
-			ExtractedStatement::from_html(doc)?
+		let statement = if *resp.url() != url {
+			let doc = unijudge::debris::Document::new(&resp.text()?);
+			let mut resp = session
+				.client
+				.get(&format!("https://codeforces.com{}", doc.find(".datatable > div > table > tbody > tr > td > a")?.attr("href")?.as_str()))
+				.send()?;
+			let mut pdf = Vec::new();
+			while resp.copy_to(&mut pdf)? > 0 {}
+			ExtractedStatement::from_pdf(self, session, task, pdf)?
+		} else if resp.headers()["Content-Type"] == "application/pdf;charset=UTF-8" {
+			let mut pdf = Vec::new();
+			while resp.copy_to(&mut pdf)? > 0 {}
+			ExtractedStatement::from_pdf(self, session, task, pdf)?
 		} else {
-			let pdf = {
-				let url: Url =
-					format!("https://codeforces.com{}", doc.find(".datatable > div > table > tbody > tr > td > a")?.attr("href")?.string())
-						.parse()?;
-				let mut resp = session.client.get(url).send()?;
-				let mut pdf = Vec::new();
-				while resp.copy_to(&mut pdf)? > 0 {}
-				pdf
-			};
-			let task = self
-				.contest_tasks_ex(session, &task.contest)?
-				.into_iter()
-				.find(|t| t.symbol == self.resolve_task_id(&task))
-				.ok_or_else(|| doc.error("title not found in contest task list"))?;
-			ExtractedStatement { symbol: task.symbol, title: task.title, examples: None, statement: Statement::PDF { pdf } }
+			let doc = unijudge::debris::Document::new(&resp.text()?);
+			ExtractedStatement::from_html(doc)?
 		};
 		Ok(unijudge::TaskDetails {
 			id: statement.symbol,
@@ -422,6 +419,20 @@ impl ExtractedStatement {
 			}
 		});
 		Ok(ExtractedStatement { symbol, title, examples, statement: statement.export() })
+	}
+
+	fn from_pdf(backend: &Codeforces, session: &Session, task: &Task, pdf: Vec<u8>) -> Result<ExtractedStatement> {
+		let task =
+			backend.contest_tasks_ex(session, &task.contest)?.into_iter().find(|t| t.symbol == backend.resolve_task_id(&task)).ok_or_else(|| {
+				Error::UnexpectedResponse {
+					endpoint: "/{contests|gym|problemset}/{}",
+					message: "title not found in contest task list",
+					backtrace: Backtrace::new(),
+					resp_raw: String::new(),
+					inner: None,
+				}
+			})?;
+		Ok(ExtractedStatement { symbol: task.symbol, title: task.title, examples: None, statement: Statement::PDF { pdf } })
 	}
 }
 

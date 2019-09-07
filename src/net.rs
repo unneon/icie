@@ -176,5 +176,15 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			e.extended.push(resp_raw);
 			e
 		},
+		unijudge::Error::UnexpectedResponse { endpoint, message, backtrace, resp_raw, inner } => {
+			let mut e = match inner {
+				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
+				None => E::error(message),
+			}
+			.context(format!("unexpected site response at {}", endpoint));
+			e.backtrace = backtrace;
+			e.extended.push(resp_raw);
+			e
+		},
 	}
 }
