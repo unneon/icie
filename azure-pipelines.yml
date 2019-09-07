@@ -50,7 +50,7 @@ stages:
         displayName: Build extension
       - script: cargo run --release -- --package
         displayName: Package extension
-      - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n +2 > github-release-changelog-diff.md
+      - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n -2 > github-release-changelog-diff.md
         displayName: Prepare changelog
       - task: GitHubRelease@0
         displayName: Release
