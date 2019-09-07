@@ -121,6 +121,9 @@ impl Webview {
 	}
 
 	/// Send a message which can be [received by the JS inside the webview](https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-an-extension-to-a-webview).
+	///
+	/// The messages are not guaranteed to arrive if the webview is not ["live"](https://code.visualstudio.com/api/references/vscode-api#1637) yet.
+	/// To circumvent this horrible behaviour, whenever you call this method on a fresh webview, you must add script that sends a "I'm ready!" message and wait for it before calling.
 	pub fn post_message(&self, msg: impl Into<JsonValue>) {
 		send_object(json::object! {
 			"tag" => "webview_post_message",

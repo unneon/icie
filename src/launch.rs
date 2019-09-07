@@ -28,11 +28,14 @@ pub fn layout_setup() -> R<()> {
 fn display_pdf(webview: Webview, pdf: &[u8]) {
 	let pdf = pdf.to_owned();
 	evscode::runtime::spawn(move || {
+		let _status = crate::STATUS.push("Rendering PDF");
 		webview.set_html(format!(
 			"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
 			evscode::asset("pdf-2.2.228.min.js"),
 			include_str!("pdf.js")
 		));
+		// This webview script sends a message indicating that it is ready to receive messages. See [`evscode::Webview::post_message`] docs.
+		webview.listener().wait();
 		webview.post_message(evscode::json::object! {
 			"pdf_data_base64" => pdf,
 		});

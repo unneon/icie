@@ -45,5 +45,7 @@ function receive_message() {
 		window.addEventListener('message', event => {
 			resolve(event);
 		});
+		let vscode = acquireVsCodeApi();
+		vscode.postMessage({ tag: "notify-live" });
 	});
 }
