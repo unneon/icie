@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 arc-swap = "0.4"
 backtrace = "0.3"
-json = "0.11"
+json = "0.12"
 lazy_static = "1.0"
 log = "0.4"
 evscode-codegen = { path = "../evscode-codegen" }

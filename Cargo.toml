@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 evscode = { path = "./evscode" }
 itertools = "0.8"
-json = "0.11"
+json = "0.12"
 keyring = "0.7"
 lazy_static = "1.0"
 log = { version = "0.4", features = ["std"] }

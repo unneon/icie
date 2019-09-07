@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 unijudge = { path = "../unijudge" }
-pulldown-cmark = { version = "0.5", default-features = false }
+pulldown-cmark = { version = "0.6", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
