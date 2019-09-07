@@ -81,7 +81,8 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 		let severity = &cap[4];
 		let message = cap[5].to_owned();
 		let path = PathBuf::from(&cap[1]);
-		(if severity == "error" { &mut errors } else { &mut warnings }).push(Message { message, location: Some(Location { path, line, column }) });
+		(if severity == "error" || severity == "fatal error" { &mut errors } else { &mut warnings })
+			.push(Message { message, location: Some(Location { path, line, column }) });
 	}
 	for cap in (&LINK_RE as &Regex).captures_iter(&stderr) {
 		let message = cap[1].to_owned();
@@ -95,6 +96,6 @@ fn install_clang() -> R<()> {
 }
 
 lazy_static! {
-	static ref ERROR_RE: Regex = Regex::new("(.*):(\\d+):(\\d+): (error|warning): (.*)\\n").unwrap();
+	static ref ERROR_RE: Regex = Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap();
 	static ref LINK_RE: Regex = Regex::new(".*(undefined reference to .*)").unwrap();
 }
