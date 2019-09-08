@@ -1,3 +1,7 @@
+## 0.6.3
+
+- Added telemetry
+
 ## 0.6.2
 
 - **Added CodeChef support** with contests support under <kbd>Alt</kbd><kbd>F9</kbd>, but without example test support
