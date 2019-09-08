@@ -1,18 +1,20 @@
-use crate::{error::Severity, E, R};
+use crate::{error::Severity, meta::ConfigEntry, E, R};
+use arc_swap::ArcSwapOption;
 use json::object;
 use lazy_static::lazy_static;
 use log::LevelFilter;
 use std::{
 	collections::HashMap, io::BufRead, path::PathBuf, sync::{
-		atomic::{AtomicU64, Ordering}, mpsc::Sender, Mutex
+		atomic::{AtomicU64, Ordering}, mpsc::Sender, Arc, Mutex
 	}
 };
 
-pub fn execute(pkg: &crate::meta::Package) {
+pub fn execute(pkg: &'static crate::meta::Package) {
 	set_panic_hook();
 	let logger = crate::internal::logger::VSCodeLoger { blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect() };
 	log::set_boxed_logger(Box::new(logger)).expect("evscode::execute failed to set logger");
 	log::set_max_level(LevelFilter::Trace);
+	CONFIG_ENTRIES.store(Some(Arc::new(&pkg.configuration)));
 	for line in std::io::stdin().lock().lines() {
 		let line = line.expect("evscode::execute line read errored");
 		let impulse = json::parse(&line).expect("evscode::execute malformed json");
@@ -56,6 +58,18 @@ pub fn execute(pkg: &crate::meta::Package) {
 			*EXTENSION_ROOT.lock().unwrap() = Some(PathBuf::from(impulse["extension"].as_str().unwrap()));
 			if let Some(on_activate) = &pkg.on_activate {
 				spawn(*on_activate);
+			}
+		} else if impulse["tag"] == "dispose" {
+			if let Some(on_deactivate) = pkg.on_deactivate {
+				spawn(move || {
+					if let Err(e) = on_deactivate() {
+						error_show(e);
+					}
+					kill();
+					Ok(())
+				});
+			} else {
+				kill();
 			}
 		} else {
 			send_object(object! {
@@ -129,8 +143,18 @@ pub fn error_show(e: crate::E) {
 	}
 }
 
+fn kill() {
+	send_object(object! {
+		"tag" => "kill",
+	});
+}
+
 pub(crate) static ASYNC_ID_FACTORY: IDFactory = IDFactory::new();
 pub(crate) static HANDLE_FACTORY: IDFactory = IDFactory::new();
+
+lazy_static! {
+	pub(crate) static ref CONFIG_ENTRIES: ArcSwapOption<&'static [ConfigEntry]> = ArcSwapOption::new(None);
+}
 
 lazy_static! {
 	pub(crate) static ref ASYNC_OPS: Mutex<HashMap<u64, Sender<crate::future::Packet>>> = Mutex::new(HashMap::new());

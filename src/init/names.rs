@@ -50,6 +50,7 @@ pub fn design_contest_name(contest_id: &str, contest_title: &str, site_short: &'
 	strategy.query(&*dir::PROJECT_DIRECTORY.get(), &codename)
 }
 
+#[derive(PartialEq, Eq)]
 pub enum Variable {
 	RandomCute,
 	RandomAnimal,
@@ -70,6 +71,7 @@ pub struct Mapping {
 
 macro_rules! constrain_variable {
 	($name:ident, $($matching:ident)|*) => {
+		#[derive(PartialEq, Eq)]
 		pub struct $name(Variable);
 		impl crate::interpolation::VariableSet for $name {
 			type Map = Mapping;

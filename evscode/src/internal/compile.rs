@@ -303,6 +303,9 @@ fn construct_package_json(pkg: &Package) -> json::JsonValue {
 		"badges" => json::array! [],
 		"markdown" => "github",
 		"qna" => "marketplace",
+		"dependencies" => object! {
+			"vscode-extension-telemetry" => "0.1.2",
+		},
 		"devDependencies" => object! {
 			"vscode" => "^1.1.33",
 		},
@@ -327,6 +330,11 @@ fn render_meta(pkg: &Package) -> String {
 		"name" => pkg.name,
 		"repository" => pkg.repository,
 		"commands" => pkg.commands.iter().map(|cmd| cmd.id.to_string()).collect::<Vec<_>>(),
+		"telemetry" => object! {
+			"extension_id" => format!("{}.{}", pkg.publisher, pkg.identifier),
+			"extension_version" => pkg.version,
+			"instrumentation_key" => pkg.telemetry_key,
+		},
 	};
 	json::stringify_pretty(obj, 4)
 }

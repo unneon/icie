@@ -1,5 +1,5 @@
 use crate::{
-	dir, net::{self, require_task}, util::{self, plural}
+	dir, net::{self, require_task}, telemetry::TELEMETRY, util::{self, plural}
 };
 use evscode::{E, R};
 use std::time::Duration;
@@ -10,6 +10,7 @@ use unijudge::{
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 fn send() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
+	TELEMETRY.submit_f12.spark();
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None)?;
 	if report.runs.iter().any(|test| !test.success()) {
 		return Err(E::error("some tests failed, submit aborted").workflow_error());
@@ -22,6 +23,7 @@ fn send() -> R<()> {
 
 fn send_passed() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
+	TELEMETRY.submit_send.spark();
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.req_task_url().map_err(|e| e.context("submit aborted"))?;
@@ -34,6 +36,7 @@ fn send_passed() -> R<()> {
 		sess.run(|backend, sess| backend.task_languages(sess, &task))?
 	};
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| {
+		TELEMETRY.submit_nolang.spark();
 		E::error(format!("not found language {:?}", backend.cpp))
 			.reform("this task does not seem to allow C++ solutions")
 			.extended(format!("{:#?}", langs))

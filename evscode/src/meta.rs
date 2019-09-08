@@ -21,6 +21,13 @@ impl fmt::Display for Identifier {
 	}
 }
 
+impl Identifier {
+	#[doc(hidden)]
+	pub fn to_telemetry_fmt(&self) -> String {
+		format!("config_delta_{}", self).replace(".", "").to_lowercase()
+	}
+}
+
 #[doc(hidden)]
 #[derive(Debug)]
 pub struct Command {
@@ -30,13 +37,27 @@ pub struct Command {
 	pub trigger: fn() -> R<()>,
 }
 
-#[doc(hidden)]
+/// Metadata of a configuration entry.
 pub struct ConfigEntry {
+	#[doc(hidden)]
 	pub id: Identifier,
+	/// An nicely formatted identifier for use with telemetry or other purposes.
+	/// Will look like "config_delta_pdfautopen".
+	pub telemetry_id: String,
 	/// Uses Markdown.
+	#[doc(hidden)]
 	pub description: &'static str,
+	#[doc(hidden)]
 	pub reference: &'static dyn ErasedConfig,
+	#[doc(hidden)]
 	pub schema: fn() -> JsonValue,
+}
+
+impl ConfigEntry {
+	/// Returns a 0 or 1 depending on whether user has changed the value of this entry.
+	pub fn telemetry_config_delta(&self) -> f64 {
+		if self.reference.is_default() { 0.0 } else { 1.0 }
+	}
 }
 
 /// [Activation event](https://code.visualstudio.com/api/references/activation-events) checked by VS Code even when the extension is not active.
@@ -101,9 +122,13 @@ pub struct Package {
 	/// Function intended to run when the extension is activated.
 	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
 	pub on_activate: Option<fn() -> R<()>>,
+	/// Function intended to run when the extension is deactivated.
+	pub on_deactivate: Option<fn() -> R<()>>,
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],
+	/// Telemetry instrumentation key, set up in [Azure Apllication Insights](https://github.com/microsoft/vscode-extension-telemetry).
+	pub telemetry_key: &'static str,
 	/// List of filters that specify what can be logged.
 	/// An entry like `("html5ever", LevelFilter::Error)` means that only errors of level Error or higher will be visible in developer tools.
 	pub log_filters: &'static [(&'static str, log::LevelFilter)],

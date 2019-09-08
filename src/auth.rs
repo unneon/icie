@@ -1,7 +1,8 @@
-use crate::util::is_installed;
+use crate::{telemetry::TELEMETRY, util::is_installed};
 use evscode::{E, R};
 
 pub fn get_force_ask(site: &str) -> R<(String, String)> {
+	TELEMETRY.auth_ask.spark();
 	let username = evscode::InputBox::new().prompt(format!("Username at {}", site)).ignore_focus_out().build().wait().ok_or_else(E::cancel)?;
 	let password = evscode::InputBox::new()
 		.prompt(format!("Password for {} at {}", username, site))
@@ -51,6 +52,7 @@ pub fn has_any_saved(site: &str) -> bool {
 
 #[evscode::command(title = "ICIE Password reset")]
 fn reset() -> R<()> {
+	TELEMETRY.auth_reset.spark();
 	let url = evscode::InputBox::new()
 		.prompt("Enter any contest/task URL from the site for which you want to reset the password")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
@@ -84,6 +86,7 @@ impl Keyring {
 			Ok(value) => Some(value),
 			Err(keyring::KeyringError::NoPasswordFound) => None,
 			Err(e) => {
+				TELEMETRY.auth_keyring_error.spark();
 				log::error!("keyring errored, details: {:#?}", e);
 				None
 			},
@@ -94,6 +97,7 @@ impl Keyring {
 		let entry = format!("@{} {}", self.kind, self.site);
 		let kr = keyring::Keyring::new("icie", &entry);
 		if let Err(e) = kr.set_password(value) {
+			TELEMETRY.auth_keyring_error.spark();
 			log::error!("keyring errored, details: {:#?}", e);
 			false
 		} else {
@@ -105,6 +109,7 @@ impl Keyring {
 		let entry = format!("@{} {}", self.kind, self.site);
 		let kr = keyring::Keyring::new("icie", &entry);
 		if let Err(e) = kr.delete_password() {
+			TELEMETRY.auth_keyring_error.spark();
 			log::error!("keyring errored, details: {:#?}", e);
 		}
 	}

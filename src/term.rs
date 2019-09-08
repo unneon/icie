@@ -1,4 +1,4 @@
-use crate::util;
+use crate::{telemetry::TELEMETRY, util};
 use evscode::{error::ResultExt, E, R};
 use std::{
 	path::Path, process::{Command, Stdio}
@@ -18,6 +18,7 @@ pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: impl AsRef<Path>, com
 }
 
 pub fn install<A: AsRef<str>>(name: impl AsRef<str>, command: impl IntoIterator<Item=A>) -> R<()> {
+	TELEMETRY.term_install.spark();
 	Internal::command(format!("ICIE Install {}", name.as_ref()), Some(command))
 }
 

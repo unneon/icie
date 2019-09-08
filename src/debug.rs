@@ -1,10 +1,11 @@
-use crate::{build, term, util};
+use crate::{build, telemetry::TELEMETRY, term, util};
 use evscode::{error::ResultExt, E, R};
 use std::{
 	fs::File, path::PathBuf, process::{Command, Stdio}
 };
 
 pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
+	TELEMETRY.debug_gdb.spark();
 	if cfg!(not(unix)) {
 		return Err(E::error("GDB debugging is only supported on Linux"));
 	}
@@ -21,6 +22,7 @@ pub fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 }
 
 pub fn rr(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
+	TELEMETRY.debug_rr.spark();
 	if cfg!(not(unix)) {
 		return Err(E::error("RR debugging is only supported on Linux"));
 	}

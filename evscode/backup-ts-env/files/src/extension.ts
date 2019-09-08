@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as child_process from "child_process";
 import * as fs from 'fs';
 import * as os from 'os';
+import TelemetryReporter from 'vscode-extension-telemetry';
 
 export function activate(ctx: vscode.ExtensionContext) {
     let meta: {
@@ -10,10 +11,16 @@ export function activate(ctx: vscode.ExtensionContext) {
         name: string;
         repository: string;
         commands: string[];
+        telemetry: {
+            extension_id: string;
+            extension_version: string;
+            instrumentation_key: string;
+        };
     } = JSON.parse(fs.readFileSync(`${ctx.extensionPath}/data/meta.json`).toString());
-    let crit = new critical.Critical(meta.name, meta.repository);
+    let telemetry = new TelemetryReporter(meta.telemetry.extension_id, meta.telemetry.extension_version, meta.telemetry.instrumentation_key);
+    let crit = new critical.Critical(meta.name, meta.repository, telemetry);
     let logic = new native.Logic(ctx.extensionPath, vscode.workspace.rootPath === undefined ? null : vscode.workspace.rootPath, crit);
-    ctx.subscriptions.push(new vscode.Disposable(() => logic.kill()));
+    ctx.subscriptions.push({ dispose: () => logic.send({ tag: 'dispose' }) });
     let status = vscode.window.createStatusBarItem();
     let progresses = new progress.Register(logic);
     let webviews = new register.Register<webview.Panel>();
@@ -243,6 +250,11 @@ export function activate(ctx: vscode.ExtensionContext) {
             vscode.env.openExternal(vscode.Uri.parse(reaction.url)).then(success => {
                 logic.send({ tag: 'async', aid: reaction.aid, value: success });
             })
+        } else if (reaction.tag === 'telemetry_event') {
+            telemetry.sendTelemetryEvent(reaction.event_name, reaction.properties, reaction.measurements);
+        } else if (reaction.tag === 'kill') {
+            telemetry.dispose();
+            logic.kill();
         }
     };
     logic.recv(callback);
@@ -353,6 +365,9 @@ namespace native {
         tag: "meta";
         workspace: string | null;
         extension: string;
+    }
+    export interface ImpulseDispose {
+        tag: "dispose";
     }
 
     export interface ReactionStatus {
@@ -568,9 +583,18 @@ namespace native {
         url: string;
         aid: number;
     }
+    export interface ReactionTelemetryEvent {
+        tag: 'telemetry_event';
+        event_name: string;
+        properties: { [key: string]: string };
+        measurements: { [key: string]: number };
+    }
+    export interface ReactionKill {
+        tag: 'kill';
+    }
 
-    export type Impulse = ImpulseTrigger | ImpulseAsync | ImpulseConfig | ImpulseMeta;
-    export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsole | ReactionSaveAll | ReactionOpenFolder | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressRegisterCancel | ReactionProgressEnd | ReactionQueryDocumentText | ReactionPasteEdit | ReactionWebviewCreate | ReactionWebviewSetHTML | ReactionWebviewPostMessage | ReactionWebviewRegisterListener | ReactionWebviewRegisterDisposer | ReactionWebviewWasDisposed | ReactionWebviewReveal | ReactionWebviewDispose | ReactionWebviewIsVisible | ReactionMementoSet | ReactionMementoGet | ReactionActiveEditorFile | ReactionWebviewIsActive | ReactionClipboardWrite | ReactionTerminalCreate | ReactionTerminalWrite | ReactionTerminalShow | ReactionOpenDialog | ReactionConsoleGroup | ReactionConsoleGroupEnd | ReactionOpenExternal;
+    export type Impulse = ImpulseTrigger | ImpulseAsync | ImpulseConfig | ImpulseMeta | ImpulseDispose;
+    export type Reaction = ReactionStatus | ReactionMessage | ReactionQuickPick | ReactionInputBox | ReactionConsole | ReactionSaveAll | ReactionOpenFolder | ReactionOpenEditor | ReactionProgressStart | ReactionProgressUpdate | ReactionProgressRegisterCancel | ReactionProgressEnd | ReactionQueryDocumentText | ReactionPasteEdit | ReactionWebviewCreate | ReactionWebviewSetHTML | ReactionWebviewPostMessage | ReactionWebviewRegisterListener | ReactionWebviewRegisterDisposer | ReactionWebviewWasDisposed | ReactionWebviewReveal | ReactionWebviewDispose | ReactionWebviewIsVisible | ReactionMementoSet | ReactionMementoGet | ReactionActiveEditorFile | ReactionWebviewIsActive | ReactionClipboardWrite | ReactionTerminalCreate | ReactionTerminalWrite | ReactionTerminalShow | ReactionOpenDialog | ReactionConsoleGroup | ReactionConsoleGroupEnd | ReactionOpenExternal | ReactionTelemetryEvent | ReactionKill;
 
     export class Logic {
         path: string;
@@ -638,11 +662,15 @@ namespace critical {
     export class Critical {
         name: string;
         repository: string;
-        public constructor(name: string, repository: string) {
+        telemetry: TelemetryReporter;
+        public constructor(name: string, repository: string, telemetry: TelemetryReporter) {
             this.name = name;
             this.repository = repository;
+            this.telemetry = telemetry;
         }
         public error(message: string, extended_log: string): Error {
+            this.telemetry.sendTelemetryException(new Error(`${this.name} critical error, ${message}, ${extended_log}`), {}, {});
+            this.telemetry.dispose();
             let repo_uri = vscode.Uri.parse(this.repository);
             let issues_uri = vscode.Uri.parse(`${this.repository}/issues`);
             let fmt = `${this.name} has encountered a critical error: ${message}. Please report this issue at [${repo_uri.authority}${repo_uri.path}](${issues_uri}), the logs are at Help > Toggle Developer Tools (Ctrl+Shift+I) > Console.`;

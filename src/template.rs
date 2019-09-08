@@ -1,4 +1,4 @@
-use crate::{dir, util};
+use crate::{dir, telemetry::TELEMETRY, util};
 use evscode::{E, R};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -9,6 +9,7 @@ pub static LIST: evscode::Config<HashMap<String, String>> = vec![("C++".to_owned
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]
 pub fn instantiate() -> R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
+	TELEMETRY.template_instantiate.spark();
 	let templates = LIST.get();
 	let qpick =
 		evscode::QuickPick::new().items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone()))).build();
@@ -38,12 +39,15 @@ pub struct LoadedTemplate {
 	pub code: String,
 }
 pub fn load(path: &str) -> R<LoadedTemplate> {
+	TELEMETRY.template_load.spark();
 	if path != BUILTIN_TEMPLATE_PSEUDOPATH {
+		TELEMETRY.template_load_custom.spark();
 		let path = PathBuf::from(shellexpand::tilde(path).into_owned());
 		let suggested_filename = path.file_name().unwrap().to_str().unwrap().to_owned();
 		let code = util::fs_read_to_string(path)?;
 		Ok(LoadedTemplate { suggested_filename, code })
 	} else {
+		TELEMETRY.template_load_builtin.spark();
 		Ok(LoadedTemplate {
 			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
 			code: format!("{}\n", BUILTIN_TEMPLATE_CODE.trim()),

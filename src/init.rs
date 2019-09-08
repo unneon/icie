@@ -1,5 +1,5 @@
 use crate::{
-	interpolation::Interpolation, net::{self, BackendMeta}, util::{self, fs_create_dir_all}
+	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{self, fs_create_dir_all}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::{
@@ -20,10 +20,11 @@ static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
 fn scan() -> R<()> {
+	TELEMETRY.init_scan.spark();
 	let mut contests = scan::fetch_contests();
 	contests.sort_by_key(|contest| contest.1.start);
 	let pick = QuickPick::new()
-		.items(contests.iter().enumerate().map(|(index, (sess, contest))| {
+		.items(contests.iter().enumerate().map(|(index, (sess, contest, _))| {
 			let site_prefix = sess.backend.contest_site_prefix();
 			let label = if contest.title.starts_with(site_prefix) { contest.title.clone() } else { format!("{} {}", site_prefix, contest.title) };
 			let start = contest.start.with_timezone(&Local).to_rfc2822();
@@ -34,7 +35,9 @@ fn scan() -> R<()> {
 		.build()
 		.wait()
 		.ok_or_else(E::cancel)?;
-	let (sess, contest) = &contests[pick.parse::<usize>().unwrap()];
+	let (sess, contest, backend) = &contests[pick.parse::<usize>().unwrap()];
+	backend.counter.spark();
+	TELEMETRY.init_scan_ok.spark();
 	contest::sprint(sess.clone(), &contest.id, Some(&contest.title))?;
 	Ok(())
 }
@@ -42,9 +45,11 @@ fn scan() -> R<()> {
 #[evscode::command(title = "ICIE Init URL", key = "alt+f11")]
 fn url() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
+	TELEMETRY.init_url.spark();
 	let raw_url = ask_url()?;
 	match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(url) => {
+			TELEMETRY.init_url_task.spark();
 			let meta = url.map(|(url, backend)| fetch_task_details(url, backend)).transpose()?;
 			let root = names::design_task_name(&*crate::dir::PROJECT_DIRECTORY.get(), meta.as_ref())?;
 			let dir = util::TransactionDir::new(&root)?;
@@ -53,6 +58,7 @@ fn url() -> R<()> {
 			evscode::open_folder(root, false);
 		},
 		InitCommand::Contest { url, backend } => {
+			TELEMETRY.init_url_contest.spark();
 			let sess = net::Session::connect(&url.domain, backend.backend)?;
 			let Resource::Contest(contest) = url.resource;
 			contest::sprint(Arc::new(sess), &contest, None)?;
@@ -64,6 +70,7 @@ fn url() -> R<()> {
 #[evscode::command(title = "ICIE Init URL (current directory)")]
 fn url_existing() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
+	TELEMETRY.init_url_existing.spark();
 	let raw_url = ask_url()?;
 	let url = match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(task) => task,
@@ -154,7 +161,7 @@ static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>
 #[evscode::config]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
-#[derive(Debug, evscode::Configurable)]
+#[derive(Debug, PartialEq, Eq, evscode::Configurable)]
 enum PathDialog {
 	#[evscode(name = "No")]
 	None,

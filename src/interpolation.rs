@@ -11,6 +11,7 @@ pub trait VariableSet: FromStr<Err=String>+fmt::Display {
 	fn expand(&self, map: &Self::Map) -> Option<String>;
 }
 
+#[derive(PartialEq, Eq)]
 enum Case {
 	None,
 	Camel,  // camelCase
@@ -86,11 +87,13 @@ impl FromStr for Case {
 	}
 }
 
+#[derive(PartialEq, Eq)]
 enum Segment<V: VariableSet> {
 	Literal(String),
 	Substitution { variable: V, case: Case },
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Interpolation<V: VariableSet> {
 	segments: Vec<Segment<V>>,
 }

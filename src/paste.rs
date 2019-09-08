@@ -2,7 +2,7 @@ mod library;
 mod logic;
 mod piece_parse;
 
-use crate::dir;
+use crate::{dir, telemetry::TELEMETRY};
 use evscode::{error::ResultExt, E, R};
 use itertools::Itertools;
 use logic::{Library, Piece};
@@ -11,6 +11,7 @@ use std::{path::PathBuf, time::SystemTime};
 #[evscode::command(title = "ICIE Quick Paste", key = "alt+[")]
 fn quick() -> R<()> {
 	let _status = crate::STATUS.push("Copy-pasting");
+	TELEMETRY.paste_quick.spark();
 	let library = library::CACHED_LIBRARY.update()?;
 	let piece_id = evscode::QuickPick::new()
 		.match_on_all()
@@ -28,6 +29,7 @@ fn quick() -> R<()> {
 		.wait()
 		.ok_or_else(E::cancel)?;
 	let context = query_context(&library)?;
+	TELEMETRY.paste_quick_ok.spark();
 	library.walk_graph(&piece_id, context)?;
 	Ok(())
 }
@@ -35,6 +37,7 @@ fn quick() -> R<()> {
 #[evscode::command(title = "ICIE Quick input struct", key = "alt+i")]
 fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
+	TELEMETRY.paste_qistruct.spark();
 	let name = evscode::InputBox::new().prompt("Qistruct name").placeholder("Person").build().wait().ok_or_else(E::cancel)?;
 	let mut members = Vec::new();
 	while let Some(member) = evscode::InputBox::new().prompt(format!("Qistruct member {}", members.len() + 1)).placeholder("int age").build().wait() {

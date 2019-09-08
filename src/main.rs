@@ -1,4 +1,4 @@
-#![feature(bind_by_move_pattern_guards, exhaustive_patterns, never_type, proc_macro_hygiene, specialization, todo_macro, try_blocks)]
+#![feature(bind_by_move_pattern_guards, const_fn, exhaustive_patterns, never_type, proc_macro_hygiene, specialization, todo_macro, try_blocks)]
 
 mod auth;
 mod build;
@@ -15,6 +15,7 @@ mod net;
 mod newsletter;
 mod paste;
 mod submit;
+mod telemetry;
 mod template;
 mod term;
 mod test;
@@ -34,10 +35,12 @@ evscode::plugin! {
 	license: "GPL-3.0-only",
 	repository: "https://github.com/pustaczek/icie",
 	on_activate: Some(launch::activate),
+	on_deactivate: Some(launch::deactivate),
 	extra_activations: &[
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie-contest" },
 	],
+	telemetry_key: "b05c4c82-d1e6-44f5-aa16-321230ad2475",
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Error),

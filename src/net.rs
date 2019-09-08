@@ -1,4 +1,6 @@
-use crate::auth;
+use crate::{
+	auth, telemetry::{self, TELEMETRY}
+};
 use evscode::{error::ResultExt, E, R};
 use reqwest::header::HeaderValue;
 use std::{fmt, thread::sleep, time::Duration};
@@ -9,12 +11,13 @@ use unijudge::{
 const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
 const NETWORK_ERROR_RETRY_LIMIT: usize = 4;
 const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(5);
-pub const BACKENDS: &[BackendMeta] = &[
-	BackendMeta { backend: &unijudge_codeforces::Codeforces, cpp: "GNU G++17 7.3.0" },
-	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: "C++14 (GCC 5.4.1)" },
-	BackendMeta { backend: &unijudge_spoj::SPOJ, cpp: "C++14 (clang 8.0)" },
-	BackendMeta { backend: &unijudge_sio2::Sio2, cpp: "C++" },
-	BackendMeta { backend: &unijudge_codechef::CodeChef, cpp: "C++14(gcc 6.3)" },
+
+pub static BACKENDS: [BackendMeta; 5] = [
+	BackendMeta::new(&unijudge_atcoder::AtCoder, "C++14 (GCC 5.4.1)", "unijudge_atcoder"),
+	BackendMeta::new(&unijudge_codechef::CodeChef, "C++14(gcc 6.3)", "unijudge_codechef"),
+	BackendMeta::new(&unijudge_codeforces::Codeforces, "GNU G++17 7.3.0", "unijudge_codeforces"),
+	BackendMeta::new(&unijudge_sio2::Sio2, "C++", "unijudge_sio2"),
+	BackendMeta::new(&unijudge_spoj::SPOJ, "C++14 (clang 8.0)", "unijudge_spoj"),
 ];
 
 pub type Session = GenericSession<dyn DynamicBackend>;
@@ -28,13 +31,24 @@ pub struct GenericSession<T: Backend+?Sized> {
 pub struct BackendMeta {
 	pub backend: &'static dyn DynamicBackend,
 	pub cpp: &'static str,
+	pub telemetry_id: &'static str,
+	pub counter: telemetry::Counter,
+}
+
+impl BackendMeta {
+	const fn new(backend: &'static dyn DynamicBackend, cpp: &'static str, telemetry_id: &'static str) -> BackendMeta {
+		BackendMeta { backend, cpp, telemetry_id, counter: telemetry::Counter::new() }
+	}
 }
 
 pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 	Ok(BACKENDS
 		.iter()
 		.filter_map(|backend| match backend.backend.deconstruct_url(url) {
-			Ok(Some(url)) => Some(Ok((url, backend))),
+			Ok(Some(url)) => {
+				backend.counter.spark();
+				Some(Ok((url, backend)))
+			},
 			Ok(None) => None,
 			Err(e) => Some(Err(e)),
 		})
@@ -45,6 +59,7 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 
 impl<T: Backend+?Sized> GenericSession<T> {
 	pub fn connect(domain: &str, backend: &'static T) -> R<GenericSession<T>> {
+		TELEMETRY.net_connect.spark();
 		let client = reqwest::ClientBuilder::new()
 			.cookie_store(true)
 			.default_headers(vec![(reqwest::header::USER_AGENT, HeaderValue::from_str(USER_AGENT).unwrap())].into_iter().collect())
@@ -160,6 +175,7 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
 		unijudge::Error::StateCorruption => E::from_std(e).context("broken state"),
 		unijudge::Error::UnexpectedHTML(e) => {
+			TELEMETRY.error_unijudge.spark();
 			let mut extended = Vec::new();
 			if !e.snapshots.is_empty() {
 				extended.push(e.snapshots.last().unwrap().clone());
@@ -174,6 +190,7 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			}
 		},
 		unijudge::Error::UnexpectedJSON { endpoint, backtrace, resp_raw, inner } => {
+			TELEMETRY.error_unijudge.spark();
 			let message = format!("unexpected JSON response at {}", endpoint);
 			let mut e = match inner {
 				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
@@ -184,6 +201,7 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			e
 		},
 		unijudge::Error::UnexpectedResponse { endpoint, message, backtrace, resp_raw, inner } => {
+			TELEMETRY.error_unijudge.spark();
 			let mut e = match inner {
 				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
 				None => E::error(message),

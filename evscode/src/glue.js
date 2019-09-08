@@ -12,11 +12,13 @@ const vscode = require("vscode");
 const child_process = require("child_process");
 const fs = require("fs");
 const os = require("os");
+const vscode_extension_telemetry_1 = require("vscode-extension-telemetry");
 function activate(ctx) {
     let meta = JSON.parse(fs.readFileSync(`${ctx.extensionPath}/data/meta.json`).toString());
-    let crit = new critical.Critical(meta.name, meta.repository);
+    let telemetry = new vscode_extension_telemetry_1.default(meta.telemetry.extension_id, meta.telemetry.extension_version, meta.telemetry.instrumentation_key);
+    let crit = new critical.Critical(meta.name, meta.repository, telemetry);
     let logic = new native.Logic(ctx.extensionPath, vscode.workspace.rootPath === undefined ? null : vscode.workspace.rootPath, crit);
-    ctx.subscriptions.push(new vscode.Disposable(() => logic.kill()));
+    ctx.subscriptions.push({ dispose: () => logic.send({ tag: 'dispose' }) });
     let status = vscode.window.createStatusBarItem();
     let progresses = new progress.Register(logic);
     let webviews = new register.Register();
@@ -284,6 +286,13 @@ function activate(ctx) {
                 logic.send({ tag: 'async', aid: reaction.aid, value: success });
             });
         }
+        else if (reaction.tag === 'telemetry_event') {
+            telemetry.sendTelemetryEvent(reaction.event_name, reaction.properties, reaction.measurements);
+        }
+        else if (reaction.tag === 'kill') {
+            telemetry.dispose();
+            logic.kill();
+        }
     };
     logic.recv(callback);
 }
@@ -408,11 +417,14 @@ var native;
 var critical;
 (function (critical) {
     class Critical {
-        constructor(name, repository) {
+        constructor(name, repository, telemetry) {
             this.name = name;
             this.repository = repository;
+            this.telemetry = telemetry;
         }
         error(message, extended_log) {
+            this.telemetry.sendTelemetryException(new Error(`${this.name} critical error, ${message}, ${extended_log}`), {}, {});
+            this.telemetry.dispose();
             let repo_uri = vscode.Uri.parse(this.repository);
             let issues_uri = vscode.Uri.parse(`${this.repository}/issues`);
             let fmt = `${this.name} has encountered a critical error: ${message}. Please report this issue at [${repo_uri.authority}${repo_uri.path}](${issues_uri}), the logs are at Help > Toggle Developer Tools (Ctrl+Shift+I) > Console.`;

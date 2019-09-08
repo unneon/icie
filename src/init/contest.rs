@@ -1,7 +1,7 @@
 use crate::{
 	auth, init::{
 		init_task, names::{design_contest_name, design_task_name}
-	}, net::{interpret_url, require_contest, Session}, util::{fmt_time_left, fs_read_to_string, fs_write, plural, TransactionDir}
+	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs_read_to_string, fs_write, plural, TransactionDir}
 };
 use evscode::{error::ResultExt, E, R};
 use serde::{Deserialize, Serialize};
@@ -91,6 +91,7 @@ fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		Ok(total) => total,
 		Err(_) => return Ok(()),
 	};
+	TELEMETRY.init_countdown.spark();
 	let _status = crate::STATUS.push("Waiting");
 	let progress = evscode::Progress::new().title(format!("Waiting for {}", details.title)).cancellable().show();
 	let canceler = progress.canceler().spawn();
@@ -108,6 +109,7 @@ fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		std::thread::sleep(Duration::from_secs(1));
 	}
 	progress.end();
+	TELEMETRY.init_countdown_ok.spark();
 	Ok(())
 }
 

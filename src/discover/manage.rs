@@ -1,7 +1,7 @@
 use crate::{
 	ci::{self, test::Outcome}, discover::{
 		comms::{Food, Note}, render::render
-	}, util
+	}, telemetry::TELEMETRY, util
 };
 use evscode::{error::ResultExt, E, R};
 
@@ -31,6 +31,7 @@ fn webview_manage(handle: evscode::goodies::WebviewHandle) -> R<()> {
 		match msg? {
 			ManagerMessage::Note(note) => match note {
 				Note::Start => {
+					TELEMETRY.discover_start.spark();
 					paused = false;
 					worker_tx.send(WorkerOrder::Start).unwrap();
 					view.post_message(Food::State { running: true, reset: false });

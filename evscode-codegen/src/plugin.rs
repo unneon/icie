@@ -16,14 +16,16 @@ pub fn generate(input: TokenStream) -> TokenStream {
 		#base_defs2
 		fn main() {
 			const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
-			let package: evscode::meta::Package = evscode::meta::Package {
-				identifier: env!("CARGO_PKG_NAME"),
-				version: env!("CARGO_PKG_VERSION"),
-				commands: #commands,
-				configuration: #config,
-				#fields
-			};
-			evscode::internal::cli::run_main(&package, MANIFEST_DIR).expect("running failed");
+			evscode::internal::macros::lazy_static! {
+				static ref PACKAGE: evscode::meta::Package = evscode::meta::Package {
+					identifier: env!("CARGO_PKG_NAME"),
+					version: env!("CARGO_PKG_VERSION"),
+					commands: #commands,
+					configuration: #config,
+					#fields
+				};
+			}
+			evscode::internal::cli::run_main(&PACKAGE, MANIFEST_DIR).expect("running failed");
 		}
 	})
 }

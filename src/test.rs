@@ -1,6 +1,6 @@
 pub mod view;
 
-use crate::{build, ci, dir, util, STATUS};
+use crate::{build, ci, dir, telemetry::TELEMETRY, util, STATUS};
 use evscode::{error::ResultExt, E, R};
 use std::{
 	path::{Path, PathBuf}, time::Duration
@@ -24,6 +24,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = STATUS.push("Testing");
+	TELEMETRY.test_run.spark();
 	let solution = build::build(main_source, &ci::cpp::Codegen::Debug, false)?;
 	let task = ci::task::Task { checker: crate::checker::get_checker()?, environment: ci::exec::Environment { time_limit: time_limit() } };
 	let test_dir = dir::tests()?;
@@ -75,17 +76,20 @@ fn run_thread(ins: Vec<PathBuf>, task: ci::task::Task, solution: ci::exec::Execu
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 pub fn view() -> R<()> {
+	TELEMETRY.test_alt0.spark();
 	view::manage::COLLECTION.get_force(None)?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
 fn view_current() -> R<()> {
+	TELEMETRY.test_current.spark();
 	view::manage::COLLECTION.get_force(util::active_tab()?)?;
 	Ok(())
 }
 
 fn add(input: &str, desired: &str) -> evscode::R<()> {
+	TELEMETRY.test_add.spark();
 	let tests = dir::custom_tests()?;
 	util::fs_create_dir_all(&tests)?;
 	let id = unused_test_id(&tests)?;
@@ -97,6 +101,7 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
 fn input() -> evscode::R<()> {
+	TELEMETRY.test_input.spark();
 	let view = if let Some(view) = view::manage::COLLECTION.find_active() { view } else { view::manage::COLLECTION.get_lazy(None)? };
 	view::manage::touch_input(&*view.lock().unwrap());
 	Ok(())

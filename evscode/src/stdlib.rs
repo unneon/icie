@@ -24,7 +24,9 @@ pub use types::*;
 pub use webview::Webview;
 
 use crate::{internal::executor::send_object, LazyFuture, E, R};
-use std::path::{Path, PathBuf};
+use std::{
+	borrow::Borrow, path::{Path, PathBuf}
+};
 
 /// Save all modified files in the workspace.
 pub fn save_all() -> LazyFuture<()> {
@@ -164,4 +166,18 @@ pub fn status(msg: Option<&str>) {
 		"tag" => "status",
 		"message" => msg,
 	})
+}
+
+/// Sends a telemetry event through [vscode-extension-telemetry](https://github.com/microsoft/vscode-extension-telemetry).
+pub fn telemetry<'a>(
+	event_name: &'a str,
+	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
+	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+) {
+	send_object(json::object! {
+		"tag" => "telemetry_event",
+		"event_name" => event_name,
+		"properties" => properties.into_iter().map(|prop| (prop.borrow().0, prop.borrow().1)).collect::<json::object::Object>(),
+		"measurements" => measurements.into_iter().map(|meas| (meas.borrow().0, meas.borrow().1)).collect::<json::object::Object>(),
+	});
 }

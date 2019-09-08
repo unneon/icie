@@ -46,11 +46,12 @@ macro_rules! optobject {
 #[derive(Debug)]
 pub struct Config<T: Configurable+Sized> {
 	arc: ArcSwapOption<T>,
+	default: Arc<T>,
 }
 impl<T: Configurable> Config<T> {
 	#[doc(hidden)]
-	pub fn placeholder() -> Config<T> {
-		Config { arc: ArcSwapOption::new(None) }
+	pub fn placeholder(default: T) -> Config<T> {
+		Config { arc: ArcSwapOption::new(None), default: Arc::new(default) }
 	}
 
 	/// Return a reference-counted pointer to the current configuration values.
@@ -134,10 +135,11 @@ impl<T: Configurable, S: std::hash::BuildHasher+Default> Configurable for HashMa
 }
 
 #[doc(hidden)]
-pub trait ErasedConfig {
+pub trait ErasedConfig: Send+Sync {
 	fn update(&self, raw: JsonValue) -> Result<(), String>;
+	fn is_default(&self) -> bool;
 }
-impl<T: Configurable> ErasedConfig for Config<T> {
+impl<T: PartialEq+Eq+Configurable+Send+Sync> ErasedConfig for Config<T> {
 	fn update(&self, raw: JsonValue) -> Result<(), String> {
 		match T::from_json(raw) {
 			Ok(obj) => {
@@ -150,5 +152,9 @@ impl<T: Configurable> ErasedConfig for Config<T> {
 				Err(e)
 			},
 		}
+	}
+
+	fn is_default(&self) -> bool {
+		*self.get() == *self.default
 	}
 }

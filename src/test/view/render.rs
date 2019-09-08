@@ -4,7 +4,7 @@ use crate::{
 use evscode::R;
 use std::cmp::max;
 
-#[derive(Debug, evscode::Configurable)]
+#[derive(Debug, PartialEq, Eq, evscode::Configurable)]
 enum HideBehaviour {
 	#[evscode(name = "Always")]
 	Always,

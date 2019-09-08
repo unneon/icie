@@ -1,5 +1,5 @@
 use crate::{
-	ci::{self, exec::Executable}, dir, util, STATUS
+	ci::{self, exec::Executable}, dir, telemetry::TELEMETRY, util, STATUS
 };
 use evscode::{error::ResultExt, Position, R};
 use std::{
@@ -41,6 +41,7 @@ static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
 fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
+	TELEMETRY.build_manual.spark();
 	let root = evscode::workspace_root()?;
 	let sources = walkdir::WalkDir::new(&root)
 		.follow_links(true)
@@ -85,6 +86,7 @@ fn manual() -> evscode::R<()> {
 }
 
 pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_rebuild: bool) -> R<Executable> {
+	TELEMETRY.build_all.spark();
 	let source = source.as_option_path();
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
 	let workspace_source = dir::solution()?;
@@ -169,7 +171,7 @@ fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
 	Ok(())
 }
 
-#[derive(Debug, evscode::Configurable)]
+#[derive(Debug, PartialEq, Eq, evscode::Configurable)]
 enum Standard {
 	#[evscode(name = "C++03")]
 	Cpp03,

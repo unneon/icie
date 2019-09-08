@@ -5,7 +5,7 @@ use std::{
 };
 use unijudge::{boxed::BoxedContestDetails, Backend, URL};
 
-pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
+pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)> {
 	let _status = crate::STATUS.push("Fetching contests");
 	let domains: Vec<(&'static str, &'static BackendMeta)> = BACKENDS
 		.iter()
@@ -28,16 +28,17 @@ pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
 					let contests = sess.run(|backend, sess| backend.contests(sess))?;
 					Ok((sess, contests))
 				}),
+				backend,
 			)
 		})
 		.collect();
 	tasks
 		.into_iter()
-		.flat_map(|(domain, handle): (_, JoinHandle<R<_>>)| -> Vec<(Arc<net::Session>, BoxedContestDetails)> {
+		.flat_map(|(domain, handle, backend): (_, JoinHandle<R<_>>, _)| -> Vec<(Arc<net::Session>, BoxedContestDetails, _)> {
 			handle
 				.join()
 				.unwrap()
-				.map(|(sess, contests)| contests.into_iter().map(|contest| (sess.clone(), contest)).collect::<Vec<_>>())
+				.map(|(sess, contests)| contests.into_iter().map(|contest| (sess.clone(), contest, backend)).collect::<Vec<_>>())
 				.unwrap_or_else(|e| {
 					e.context(format!("failed to fetch {} contests", domain)).warning().emit();
 					Vec::new()
