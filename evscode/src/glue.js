@@ -210,7 +210,7 @@ function activate(ctx) {
             answer(reaction.aid, webviews.query(reaction.hid, w => w.was_disposed(), true));
         }
         else if (reaction.tag === 'webview_reveal') {
-            webviews.run(reaction.hid, w => w.reveal(reaction.view_column));
+            webviews.run(reaction.hid, w => w.reveal(reaction.view_column, reaction.preserve_focus));
         }
         else if (reaction.tag === 'webview_dispose') {
             webviews.run(reaction.hid, w => w.dispose());
@@ -627,9 +627,9 @@ var webview;
         is_visible() {
             return this.panel !== null && this.panel.visible;
         }
-        reveal(view_column) {
+        reveal(view_column, preserve_focus) {
             if (this.panel !== null) {
-                this.panel.reveal(convert_view_column(view_column));
+                this.panel.reveal(convert_view_column(view_column), preserve_focus);
             }
         }
         dispose() {

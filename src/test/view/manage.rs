@@ -38,7 +38,7 @@ impl Computation for TestViewLogic {
 
 	fn update(&self, _: &Option<PathBuf>, report: &Report, webview: &Webview) -> R<()> {
 		webview.set_html(render(&report.runs)?);
-		webview.reveal(2);
+		webview.reveal(2, true);
 		if *SCROLL_TO_FIRST_FAILED.get() {
 			webview.post_message(json::object! {
 				"tag" => "scroll_to_wa",

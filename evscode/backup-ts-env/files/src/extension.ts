@@ -189,7 +189,7 @@ export function activate(ctx: vscode.ExtensionContext) {
         } else if (reaction.tag === 'webview_was_disposed') {
             answer(reaction.aid, webviews.query(reaction.hid, w => w.was_disposed(), true));
         } else if (reaction.tag === 'webview_reveal') {
-            webviews.run(reaction.hid, w => w.reveal(reaction.view_column));
+            webviews.run(reaction.hid, w => w.reveal(reaction.view_column, reaction.preserve_focus));
         } else if (reaction.tag === 'webview_dispose') {
             webviews.run(reaction.hid, w => w.dispose());
         } else if (reaction.tag === 'webview_is_visible') {
@@ -503,6 +503,7 @@ namespace native {
         tag: 'webview_reveal';
         hid: number;
         view_column: WebviewViewColumn;
+        preserve_focus: boolean;
     }
     export interface ReactionWebviewDispose {
         tag: 'webview_dispose';
@@ -893,9 +894,9 @@ namespace webview {
         public is_visible(): boolean {
             return this.panel !== null && this.panel.visible;
         }
-        public reveal(view_column: native.WebviewViewColumn): void {
+        public reveal(view_column: native.WebviewViewColumn, preserve_focus: boolean): void {
             if (this.panel !== null) {
-                this.panel.reveal(convert_view_column(view_column));
+                this.panel.reveal(convert_view_column(view_column), preserve_focus);
             }
         }
         public dispose(): void {

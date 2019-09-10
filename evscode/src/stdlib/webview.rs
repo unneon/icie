@@ -178,11 +178,12 @@ impl Webview {
 	}
 
 	/// Show the webview in the given view column.
-	pub fn reveal(&self, view_column: impl Into<Column>) {
+	pub fn reveal(&self, view_column: impl Into<Column>, preserve_focus: bool) {
 		send_object(json::object! {
 			"tag" => "webview_reveal",
 			"hid" => self.hid,
 			"view_column" => view_column.into(),
+			"preserve_focus" => preserve_focus,
 		});
 	}
 

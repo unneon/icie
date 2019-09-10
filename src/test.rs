@@ -103,7 +103,10 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 pub fn input() -> evscode::R<()> {
 	TELEMETRY.test_input.spark();
 	let view = if let Some(view) = view::manage::COLLECTION.find_active() { view } else { view::manage::COLLECTION.get_lazy(None)? };
-	view::manage::touch_input(&*view.lock().unwrap());
+	let view = view.lock().unwrap();
+	// FIXME: Despite this reveal, VS Code does not focus the webview hard enough for a .focus() in the JS code to work.
+	view.reveal(2, false);
+	view::manage::touch_input(&*view);
 	Ok(())
 }
 

@@ -8,6 +8,6 @@ use evscode::R;
 fn open() -> R<()> {
 	let handle = manage::WEBVIEW.handle()?;
 	let lck = handle.lock().unwrap();
-	lck.reveal(1);
+	lck.reveal(1, false);
 	Ok(())
 }
