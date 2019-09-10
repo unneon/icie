@@ -19,7 +19,15 @@ export function activate(ctx: vscode.ExtensionContext) {
     } = JSON.parse(fs.readFileSync(`${ctx.extensionPath}/data/meta.json`).toString());
     let telemetry = new TelemetryReporter(meta.telemetry.extension_id, meta.telemetry.extension_version, meta.telemetry.instrumentation_key);
     let crit = new critical.Critical(meta.name, meta.repository, telemetry);
-    let logic = new native.Logic(ctx.extensionPath, vscode.workspace.rootPath === undefined ? null : vscode.workspace.rootPath, crit);
+    let logic: native.Logic;
+    try {
+        logic = new native.Logic(ctx.extensionPath, vscode.workspace.rootPath === undefined ? null : vscode.workspace.rootPath, crit);
+    } catch {
+        for (let command_id of meta.commands) {
+            ctx.subscriptions.push(vscode.commands.registerCommand(command_id, () => {}));
+        }
+        return;
+    }
     ctx.subscriptions.push({ dispose: () => logic.send({ tag: 'dispose' }) });
     let status = vscode.window.createStatusBarItem();
     let progresses = new progress.Register(logic);
@@ -610,10 +618,8 @@ namespace native {
             process.env.RUST_BACKTRACE = '1';
             if (os.platform() === 'linux') {
                 this.path = `${extensionPath}/data/bin/linux`;
-            } else if (os.platform() === 'win32') {
-                throw this.crit.error('Windows support is temporarily turned off; right now, Linux is supported', '');
             } else {
-                throw this.crit.error('your OS was not recognized; right now, only Linux is supported', `os.platform() = ${os.platform()}`);
+                throw this.crit.os_support();
             }
             this.kid = child_process.spawn(this.path, ['--extension'], {
                 cwd: workspacePath !== null ? workspacePath : extensionPath
@@ -689,6 +695,16 @@ namespace critical {
                 }
             });
             return new Error(fmt_long);
+        }
+        public os_support(): Error {
+            let platform = os.platform();
+            let short_msg = `OS ${JSON.stringify(platform)} is not supported on <0.7`;
+            let user_os = platform === 'win32' ? 'Windows' : platform === 'darwin' ? 'MacOS' : 'Windows/MacOS/...';
+            let user_msg = `Sorry :(, ${user_os} support will come in the 0.7 release, likely in October 2019. Please check out ICIE 0.7 once it comes out, or try it out on Linux now!`;
+            this.telemetry.sendTelemetryException(new Error(short_msg), {}, {});
+            this.telemetry.dispose();
+            vscode.window.showErrorMessage(user_msg);
+            return new Error(short_msg);
         }
     }
 
