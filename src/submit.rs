@@ -1,5 +1,5 @@
 use crate::{
-	dir, net::{self, require_task}, telemetry::TELEMETRY, util::{self, plural}
+	dir, net::{self, require_task}, telemetry::TELEMETRY, test, util::{self, plural}
 };
 use evscode::{E, R};
 use std::time::Duration;
@@ -16,7 +16,10 @@ fn send() -> R<()> {
 		return Err(E::error("some tests failed, submit aborted").workflow_error());
 	}
 	if report.runs.is_empty() {
-		return Err(E::error("no tests available; add some using Alt+- keyboard shortcut!").action("Submit anyway", send_passed).workflow_error());
+		return Err(E::error("no tests available, add some to check if your solution is correct")
+			.action("Add test (Alt+-)", test::input)
+			.action("Submit anyway", send_passed)
+			.workflow_error());
 	}
 	send_passed()
 }

@@ -100,7 +100,7 @@ fn add(input: &str, desired: &str) -> evscode::R<()> {
 }
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
-fn input() -> evscode::R<()> {
+pub fn input() -> evscode::R<()> {
 	TELEMETRY.test_input.spark();
 	let view = if let Some(view) = view::manage::COLLECTION.find_active() { view } else { view::manage::COLLECTION.get_lazy(None)? };
 	view::manage::touch_input(&*view.lock().unwrap());
