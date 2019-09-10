@@ -132,6 +132,11 @@ fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<(
 	Ok(())
 }
 
+pub fn help_init() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start").wait()?;
+	Ok(())
+}
+
 /// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. Variable contest.title is not available in this context. See example list:
 ///
 /// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)

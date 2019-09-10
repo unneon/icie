@@ -1,5 +1,5 @@
 use crate::{
-	dir, net::{self, require_task}, telemetry::TELEMETRY, test, util::{self, plural}
+	dir, init::help_init, net::{self, require_task}, telemetry::TELEMETRY, test, util::{self, plural}
 };
 use evscode::{E, R};
 use std::time::Duration;
@@ -29,7 +29,10 @@ fn send_passed() -> R<()> {
 	TELEMETRY.submit_send.spark();
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
-	let url = manifest.req_task_url().map_err(|e| e.context("submit aborted"))?;
+	let url = manifest.req_task_url().map_err(|e| {
+		e.context("submit aborted, either open a task/contest to be able to submit, or use Alt+0 to only run tests")
+			.action("How to open tasks?", help_init)
+	})?;
 	let (url, backend) = net::interpret_url(url)?;
 	let url = require_task::<BoxedContest, BoxedTask>(url)?;
 	let Resource::Task(task) = url.resource;
