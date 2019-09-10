@@ -1,3 +1,11 @@
+## 0.6.4
+
+- Added focusing test view when adding new tests with <kbd>Alt</kbd><kbd>-</kbd>
+- Added button to add tests when trying to submit without any
+- Added help when submitting without an open task
+- Added apologies and 0.7 promise on Windows/MacOS
+- Fixed treating every exit as crash internally
+
 ## 0.6.3
 
 - Added telemetry
