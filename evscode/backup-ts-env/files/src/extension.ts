@@ -602,8 +602,10 @@ namespace native {
         kid: child_process.ChildProcess;
         parser: multijson.Parser<Reaction>;
         crit: critical.Critical;
+        killed: boolean;
         constructor(extensionPath: string, workspacePath: string | null, crit: critical.Critical) {
             this.crit = crit;
+            this.killed = false;
             this.parser = new multijson.Parser<Reaction>();
             process.env.RUST_BACKTRACE = '1';
             if (os.platform() === 'linux') {
@@ -626,7 +628,9 @@ namespace native {
                 });
             }
             this.kid.on('exit', (code, signal) => {
-                throw this.crit.error(`the extension process crashed with exit code ${code}`, stderr_buf);
+                if (!this.killed) {
+                    throw this.crit.error(`the extension process crashed with exit code ${code}`, stderr_buf);
+                }
             });
         }
         send(impulse: Impulse) {
@@ -652,6 +656,7 @@ namespace native {
             });
         }
         kill() {
+            this.killed = true;
             this.kid.kill('SIGKILL');
         }
     }

@@ -359,6 +359,7 @@ var native;
     class Logic {
         constructor(extensionPath, workspacePath, crit) {
             this.crit = crit;
+            this.killed = false;
             this.parser = new multijson.Parser();
             process.env.RUST_BACKTRACE = '1';
             if (os.platform() === 'linux') {
@@ -383,7 +384,9 @@ var native;
                 });
             }
             this.kid.on('exit', (code, signal) => {
-                throw this.crit.error(`the extension process crashed with exit code ${code}`, stderr_buf);
+                if (!this.killed) {
+                    throw this.crit.error(`the extension process crashed with exit code ${code}`, stderr_buf);
+                }
             });
         }
         send(impulse) {
@@ -409,6 +412,7 @@ var native;
             });
         }
         kill() {
+            this.killed = true;
             this.kid.kill('SIGKILL');
         }
     }
