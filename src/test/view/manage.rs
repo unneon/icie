@@ -1,5 +1,5 @@
 use crate::{
-	build::build, ci::{cpp::Codegen, exec::Environment}, dir, discover::manage::add_test, test::{
+	build::build, ci::{cpp::Codegen, exec::Environment}, dir, discover::manage::add_test, telemetry::TELEMETRY, test::{
 		self, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
 	}, util
 };
@@ -70,6 +70,7 @@ impl Computation for TestViewLogic {
 						evscode::runtime::spawn(move || crate::test::add(note["input"].as_str().unwrap(), note["desired"].as_str().unwrap()))
 					},
 					Some("set_alt") => evscode::runtime::spawn({
+						TELEMETRY.test_alternative_add.spark();
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
@@ -81,6 +82,7 @@ impl Computation for TestViewLogic {
 						}
 					}),
 					Some("del_alt") => evscode::runtime::spawn({
+						TELEMETRY.test_alternative_delete.spark();
 						let source = source.clone();
 						move || {
 							let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
@@ -90,6 +92,7 @@ impl Computation for TestViewLogic {
 						}
 					}),
 					Some("edit") => {
+						TELEMETRY.test_edit.spark();
 						evscode::open_editor(Path::new(note["path"].as_str().unwrap())).open().spawn();
 					},
 					Some("action_notice") => evscode::runtime::spawn(|| {
@@ -104,6 +107,7 @@ impl Computation for TestViewLogic {
 							let input = note["input"].as_str().unwrap();
 							if let Ok(brut) = dir::brut() {
 								if brut.exists() {
+									TELEMETRY.test_eval.spark();
 									let brut = build(brut, &Codegen::Release, false)?;
 									let run = brut.run(input, &[], &Environment { time_limit: time_limit() })?;
 									if run.success() {

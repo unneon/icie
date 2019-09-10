@@ -13,9 +13,11 @@ fn send() -> R<()> {
 	TELEMETRY.submit_f12.spark();
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None)?;
 	if report.runs.iter().any(|test| !test.success()) {
+		TELEMETRY.submit_failtest.spark();
 		return Err(E::error("some tests failed, submit aborted").workflow_error());
 	}
 	if report.runs.is_empty() {
+		TELEMETRY.submit_notest.spark();
 		return Err(E::error("no tests available, add some to check if your solution is correct")
 			.action("Add test (Alt+-)", test::input)
 			.action("Submit anyway", send_passed)
@@ -30,6 +32,7 @@ fn send_passed() -> R<()> {
 	let code = util::fs_read_to_string(dir::solution()?)?;
 	let manifest = crate::manifest::Manifest::load()?;
 	let url = manifest.req_task_url().map_err(|e| {
+		TELEMETRY.submit_notask.spark();
 		e.context("submit aborted, either open a task/contest to be able to submit, or use Alt+0 to only run tests")
 			.action("How to open tasks?", help_init)
 	})?;

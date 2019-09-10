@@ -18,6 +18,7 @@ pub fn check() -> R<()> {
 				TELEMETRY.newsletter_changelog.spark();
 				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").wait()?;
 			} else {
+				TELEMETRY.newsletter_dismiss.spark();
 				LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned());
 			}
 		}
