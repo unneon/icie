@@ -1,16 +1,12 @@
 use crate::{telemetry::TELEMETRY, util::is_installed};
 use evscode::{E, R};
 
-pub fn get_force_ask(site: &str) -> R<(String, String)> {
+pub async fn get_force_ask(site: &str) -> R<(String, String)> {
 	TELEMETRY.auth_ask.spark();
-	let username = evscode::InputBox::new().prompt(format!("Username at {}", site)).ignore_focus_out().build().wait().ok_or_else(E::cancel)?;
-	let password = evscode::InputBox::new()
-		.prompt(format!("Password for {} at {}", username, site))
-		.password()
-		.ignore_focus_out()
-		.build()
-		.wait()
-		.ok_or_else(E::cancel)?;
+	let message = format!("Username at {}", site);
+	let username = evscode::InputBox::new().prompt(&message).ignore_focus_out().show().await.ok_or_else(E::cancel)?;
+	let message = format!("Password for {} at {}", username, site);
+	let password = evscode::InputBox::new().prompt(&message).password().ignore_focus_out().show().await.ok_or_else(E::cancel)?;
 	let kr = Keyring::new("credentials", site);
 	if !kr.set(
 		&json::object! {
@@ -21,20 +17,20 @@ pub fn get_force_ask(site: &str) -> R<(String, String)> {
 	) {
 		E::error("failed to save password to a secure keyring, so it will not be remembered")
 			.warning()
-			.action_if(is_installed("kwalletd5")?, "How to fix (KWallet)", help_fix_kwallet)
+			.action_if(is_installed("kwalletd5")?, "How to fix (KWallet)", help_fix_kwallet())
 			.emit();
 	}
 	Ok((username, password))
 }
 
-pub fn get_cached_or_ask(site: &str) -> R<(String, String)> {
+pub async fn get_cached_or_ask(site: &str) -> R<(String, String)> {
 	let kr = Keyring::new("credentials", site);
 	match kr.get() {
 		Some(encoded) => {
 			let creds = json::parse(&encoded).unwrap();
 			Ok((creds["username"].as_str().unwrap().to_owned(), creds["password"].as_str().unwrap().to_owned()))
 		},
-		None => get_force_ask(site),
+		None => get_force_ask(site).await,
 	}
 }
 
@@ -51,14 +47,14 @@ pub fn has_any_saved(site: &str) -> bool {
 }
 
 #[evscode::command(title = "ICIE Password reset")]
-fn reset() -> R<()> {
+async fn reset() -> R<()> {
 	TELEMETRY.auth_reset.spark();
 	let url = evscode::InputBox::new()
 		.prompt("Enter any contest/task URL from the site for which you want to reset the password")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
-		.build()
-		.wait()
+		.show()
+		.await
 		.ok_or_else(E::cancel)?;
 	let site = crate::net::interpret_url(&url)?.0.site;
 	Keyring::new("credentials", &site).delete();
@@ -66,8 +62,8 @@ fn reset() -> R<()> {
 	Ok(())
 }
 
-fn help_fix_kwallet() -> R<()> {
-	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").wait()
+async fn help_fix_kwallet() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").await
 }
 
 struct Keyring {

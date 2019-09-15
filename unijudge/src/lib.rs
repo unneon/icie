@@ -1,4 +1,4 @@
-#![feature(never_type)]
+#![feature(type_alias_impl_trait, never_type)]
 
 pub extern crate backtrace;
 pub extern crate chrono;
@@ -9,16 +9,19 @@ pub extern crate reqwest;
 pub extern crate scraper;
 pub extern crate selectors;
 pub extern crate serde;
+pub extern crate url;
 
 pub mod boxed;
+pub mod http;
 pub mod json;
 #[macro_use]
 pub mod statement;
 
+use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
-use reqwest::Url;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug};
+use url::Url;
 
 #[derive(Debug)]
 pub enum Error {
@@ -29,37 +32,37 @@ pub enum Error {
 	NotYetStarted,
 	RateLimit,
 	NetworkFailure(reqwest::Error),
-	TLSFailure(reqwest::Error),
-	URLParseFailure(reqwest::UrlError),
+	NoTLS(reqwest::Error),
+	URLParseFailure(url::ParseError),
 	StateCorruption,
 	UnexpectedHTML(debris::Error),
 	UnexpectedJSON {
 		endpoint: &'static str,
 		backtrace: backtrace::Backtrace,
 		resp_raw: String,
-		inner: Option<Box<dyn std::error::Error+'static>>,
+		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
 	},
 	UnexpectedResponse {
 		endpoint: &'static str,
 		message: &'static str,
 		backtrace: backtrace::Backtrace,
 		resp_raw: String,
-		inner: Option<Box<dyn std::error::Error+'static>>,
+		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
 	},
+}
+impl From<debris::Error> for Error {
+	fn from(e: debris::Error) -> Self {
+		Error::UnexpectedHTML(e)
+	}
 }
 impl From<reqwest::Error> for Error {
 	fn from(e: reqwest::Error) -> Self {
 		Error::NetworkFailure(e)
 	}
 }
-impl From<reqwest::UrlError> for Error {
-	fn from(e: reqwest::UrlError) -> Self {
+impl From<url::ParseError> for Error {
+	fn from(e: url::ParseError) -> Self {
 		Error::URLParseFailure(e)
-	}
-}
-impl From<debris::Error> for Error {
-	fn from(e: debris::Error) -> Self {
-		Error::UnexpectedHTML(e)
 	}
 }
 impl fmt::Display for Error {
@@ -72,7 +75,7 @@ impl fmt::Display for Error {
 			Error::NotYetStarted => f.write_str("contest not yet started"),
 			Error::RateLimit => f.write_str("rate limited due to too frequent network operations"),
 			Error::NetworkFailure(_) => f.write_str("network failure"),
-			Error::TLSFailure(_) => f.write_str("TLS encryption failure"),
+			Error::NoTLS(_) => f.write_str("could not initialize TLS on this system"),
 			Error::URLParseFailure(_) => f.write_str("URL parse failure"),
 			Error::StateCorruption => f.write_str("network agent corrupted due to earlier panic"),
 			Error::UnexpectedHTML(_) => f.write_str("error when scrapping site API response"),
@@ -91,12 +94,12 @@ impl std::error::Error for Error {
 			Error::NotYetStarted => None,
 			Error::RateLimit => None,
 			Error::NetworkFailure(e) => Some(e),
-			Error::TLSFailure(e) => Some(e),
+			Error::NoTLS(e) => Some(e),
 			Error::URLParseFailure(e) => Some(e),
 			Error::StateCorruption => None,
 			Error::UnexpectedHTML(e) => Some(e),
-			Error::UnexpectedJSON { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
-			Error::UnexpectedResponse { inner, .. } => inner.as_ref().map(|bx| bx.as_ref()),
+			Error::UnexpectedJSON { inner, .. } => inner.as_ref().map(|bx| bx.as_ref() as &dyn std::error::Error),
+			Error::UnexpectedResponse { inner, .. } => inner.as_ref().map(|bx| bx.as_ref() as &dyn std::error::Error),
 		}
 	}
 }
@@ -189,6 +192,7 @@ impl URL<(), ()> {
 	}
 }
 
+#[async_trait]
 pub trait Backend: Send+Sync+'static {
 	type CachedAuth: Debug+Send+Sync+'static;
 	type Contest: Debug+Send+Sync+'static;
@@ -207,24 +211,24 @@ pub trait Backend: Send+Sync+'static {
 			Ok(None)
 		}
 	}
-	fn connect(&self, client: reqwest::Client, domain: &str) -> Self::Session;
-	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>>;
+	fn connect(&self, client: http::Client, domain: &str) -> Self::Session;
+	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>>;
 	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth>;
-	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
-	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()>;
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()>;
+	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()>;
 	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String>;
 	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest>;
-	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
-	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
-	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
-	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String>;
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
+	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
+	async fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String>;
 	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> Result<String>;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
 	fn contest_site_prefix(&self) -> &'static str;
-	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
+	async fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>>;
 	fn contest_url(&self, contest: &Self::Contest) -> String;
-	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String>;
-	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
+	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String>;
+	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>>;
 	fn name_short(&self) -> &'static str;
 	fn supports_contests(&self) -> bool;
 }

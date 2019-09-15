@@ -5,6 +5,7 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1.11"
 unijudge = { path = "../unijudge" }
 pulldown-cmark = { version = "0.6", default-features = false }
 serde = { version = "1.0", features = ["derive"] }

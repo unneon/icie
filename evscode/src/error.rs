@@ -5,20 +5,22 @@
 //! this logic inside Evscode allows to improve error message format across all extensions.
 
 use backtrace::Backtrace;
-use std::ops::Try;
+use futures::{
+	stream::{once, select}, Stream, StreamExt
+};
+use std::{fmt, future::Future, ops::Try, pin::Pin};
 
 /// Result type used for errors in Evscode. See [`E`] for details.
 pub type R<T> = Result<T, E>;
 
 /// A button on an error message that the user can press.
-#[derive(Clone, Debug)]
 pub struct Action {
 	/// Title displayed to the user.
 	/// Preferably one-word, because wider buttons look weird.
 	pub title: String,
 	/// The function that will be launched upon clicking the button.
 	/// It will be called in a separate thread.
-	pub trigger: fn() -> R<()>,
+	pub trigger: Pin<Box<dyn Future<Output=R<()>>+Send>>,
 }
 
 /// Indication of how serious the error is.
@@ -38,7 +40,7 @@ pub enum Severity {
 /// Error type used by Evscode.
 ///
 /// See [module documentation](index.html) for details.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct E {
 	/// Marks whose fault this error is and how serious is it.
 	pub severity: Severity,
@@ -141,13 +143,13 @@ impl E {
 	}
 
 	/// Add a follow-up action that can be taken by the user, who will see the action as a button on the error message.
-	pub fn action(mut self, title: impl AsRef<str>, trigger: fn() -> R<()>) -> Self {
-		self.actions.push(Action { title: title.as_ref().to_owned(), trigger });
+	pub fn action(mut self, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+Send+'static) -> Self {
+		self.actions.push(Action { title: title.as_ref().to_owned(), trigger: Box::pin(trigger) });
 		self
 	}
 
 	/// A convenience function to add a follow-up action if the condition is true. See [`E::action`] for details.
-	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: fn() -> R<()>) -> Self {
+	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+Send+'static) -> Self {
 		if cond { self.action(title, trigger) } else { self }
 	}
 
@@ -209,6 +211,13 @@ pub struct Cancellation;
 ///
 /// It implements [`std::ops::Try`], which makes it possible to use ? operator in functions returning [`R`].
 pub struct Cancellable<T>(pub Option<T>);
+
+/// Return a stream yielding values from this stream, unless the other future yields any value.
+/// In that case the stream will yield a Result-like value representing a cancelled operation, that can be forwarder using the ? operator.
+pub fn cancel_on<T, A: Stream<Item=T>, B: Future<Output=()>>(a: A, b: B) -> impl Stream<Item=Cancellable<T>> {
+	select(a.map(|x| Cancellable(Some(x))), once(b).map(|()| Cancellable(None)))
+}
+
 impl<T> Try for Cancellable<T> {
 	type Error = Cancellation;
 	type Ok = T;
@@ -236,5 +245,11 @@ impl From<Cancellation> for E {
 			backtrace: Backtrace::new(),
 			extended: Vec::new(),
 		}
+	}
+}
+
+impl fmt::Debug for Action {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f.debug_struct("Action").field("title", &self.title).finish()
 	}
 }

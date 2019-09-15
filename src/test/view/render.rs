@@ -1,5 +1,5 @@
 use crate::{
-	ci::test::Verdict, test::{view::SKILL_ACTIONS, TestRun}, util
+	test::{judge::Verdict, view::SKILL_ACTIONS, TestRun}, util::{self, fs_read_to_string}
 };
 use evscode::R;
 use std::cmp::max;
@@ -31,7 +31,7 @@ static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 #[evscode::config]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-pub fn render(tests: &[TestRun]) -> R<String> {
+pub async fn render(tests: &[TestRun]) -> R<String> {
 	Ok(format!(
 		r#"
 		<html>
@@ -56,20 +56,20 @@ pub fn render(tests: &[TestRun]) -> R<String> {
 		material_icons = util::html_material_icons(),
 		css_layout = include_str!("./layout.css"),
 		css_paint = include_str!("./paint.css"),
-		table = render_test_table(tests)?
+		table = render_test_table(tests).await?
 	))
 }
 
-fn render_test_table(tests: &[TestRun]) -> R<String> {
+async fn render_test_table(tests: &[TestRun]) -> R<String> {
 	let any_failed = tests.iter().any(|test| !test.success());
 	let mut html = String::new();
 	for test in tests {
-		html += &render_test(test, any_failed)?;
+		html += &render_test(test, any_failed).await?;
 	}
 	Ok(html)
 }
 
-fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
+async fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 	if test.success() && HIDE_AC.get().should(any_failed) {
 		return Ok(String::new());
 	}
@@ -97,28 +97,31 @@ fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 		},
 		path_in = html_escape(test.in_path.to_str().unwrap()),
 		raw_out = html_escape(&test.outcome.out),
-		input = render_in_cell(test, folded)?,
-		output = render_out_cell(test, folded)?,
-		desired = render_desired_cell(test, folded)?,
+		input = render_in_cell(test, folded).await?,
+		output = render_out_cell(test, folded).await?,
+		desired = render_desired_cell(test, folded).await?,
 	))
 }
 
-fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
-	let data = util::fs_read_to_string(&test.in_path)?;
-	Ok(render_cell("input", &[("data-raw", &data)], &[(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)], None, &data, None, folded))
+async fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
+	let data = util::fs_read_to_string(&test.in_path).await?;
+	let attrs = [("data-raw", data.as_str())];
+	let actions = [(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
+	Ok(render_cell("input", &attrs, &actions, None, &data, None, folded).await)
 }
 
 /// If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration will be displayed. Set to 0 to always display the timings, or to a large value to never display the timings.
 #[evscode::config]
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
-fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	let note_time = if test.outcome.time.as_millis() >= u128::from(*TIME_DISPLAY_THRESHOLD.get()) {
-		let ms = test.outcome.time.as_millis();
-		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
-	} else {
-		None
-	};
+async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
+	let note_time =
+		if test.outcome.time.as_millis() >= u128::from(*TIME_DISPLAY_THRESHOLD.get()) || test.outcome.verdict == Verdict::TimeLimitExceeded {
+			let ms = test.outcome.time.as_millis();
+			Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
+		} else {
+			None
+		};
 	let note_verdict = match test.outcome.verdict {
 		Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
 		Verdict::RuntimeError => Some("RE"),
@@ -126,34 +129,31 @@ fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 	};
 	let notes = vec![note_time.as_ref().map(|s| s.as_str()), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
 	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
+	let attrs = [("data-raw", test.outcome.out.as_str())];
+	let actions = [
+		(!*HIDE_COPY.get(), ACTION_COPY),
+		(test.outcome.verdict == Verdict::WrongAnswer, ACTION_SET_ALT),
+		(test.outcome.verdict == Verdict::Accepted { alternative: true }, ACTION_DEL_ALT),
+		(true, ACTION_GDB),
+		(true, ACTION_RR),
+	];
 	Ok(render_cell(
 		"output",
-		&[("data-raw", &test.outcome.out)],
-		&[
-			(!*HIDE_COPY.get(), ACTION_COPY),
-			(test.outcome.verdict == Verdict::WrongAnswer, ACTION_SET_ALT),
-			(test.outcome.verdict == Verdict::Accepted { alternative: true }, ACTION_DEL_ALT),
-			(true, ACTION_GDB),
-			(true, ACTION_RR),
-		],
+		&attrs,
+		&actions,
 		Some(test.outcome.stderr.as_str()),
 		&test.outcome.out,
 		note.as_ref().map(|note| note.as_str()),
 		folded,
-	))
+	)
+	.await)
 }
 
-fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
-	let data = std::fs::read_to_string(&test.out_path).unwrap_or_default();
-	Ok(render_cell(
-		"desired",
-		&[("data-raw", &data)],
-		&[(test.outcome.verdict != Verdict::IgnoredNoOut && !*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)],
-		None,
-		&data,
-		None,
-		folded,
-	))
+async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
+	let data = fs_read_to_string(&test.out_path).await.unwrap_or_default();
+	let attrs = [("data-raw", data.as_str())];
+	let actions = [(test.outcome.verdict != Verdict::IgnoredNoOut && !*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
+	Ok(render_cell("desired", &attrs, &actions, None, &data, None, folded).await)
 }
 
 struct Action {
@@ -172,7 +172,7 @@ const ACTION_DEL_ALT: Action = Action { onclick: "action_delalt()", icon: "close
 #[evscode::config]
 static HIDE_COPY: evscode::Config<bool> = false;
 
-fn render_cell(
+async fn render_cell(
 	class: &str,
 	attrs: &[(&str, &str)],
 	actions: &[(bool, Action)],
@@ -182,9 +182,10 @@ fn render_cell(
 	folded: bool,
 ) -> String {
 	if !folded {
-		render_cell_raw(class, attrs, actions, stderr, stdout, note)
+		render_cell_raw(class, attrs, actions, stderr, stdout, note).await
 	} else {
-		render_cell_raw(&format!("{} folded", class), attrs, &[], None, "", None)
+		let class = format!("{} folded", class);
+		render_cell_raw(&class, attrs, &[], None, "", None).await
 	}
 }
 
@@ -194,7 +195,7 @@ const MIN_CELL_LINES: i64 = 2;
 #[evscode::config]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
-fn render_cell_raw(
+async fn render_cell_raw(
 	class: &str,
 	attrs: &[(&str, &str)],
 	actions: &[(bool, Action)],
@@ -207,7 +208,8 @@ fn render_cell_raw(
 		.filter_map(|(active, action)| if *active { Some(action) } else { None })
 		.map(|action| format!("<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>", action.onclick, action.hint, action.icon))
 		.collect::<Vec<_>>();
-	let actions = format!("<div class=\"actions {}\">{}</div>", if !SKILL_ACTIONS.is_proficient() { "tutorialize" } else { "" }, actions.join("\n"));
+	let actions =
+		format!("<div class=\"actions {}\">{}</div>", if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" }, actions.join("\n"));
 	let note = note.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
 	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
 	let stderr = stderr.as_ref().map_or(String::new(), |stderr| format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())));

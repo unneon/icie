@@ -1,12 +1,12 @@
 //! Builder pattern implementation for opening an editor.
 
-use crate::{internal::executor::send_object, Column, LazyFuture, Position, Range};
-use std::path::{Path, PathBuf};
+use crate::{future::Pong, internal::executor::send_object, Column, Position, Range};
+use std::path::Path;
 
 /// Builder for opening text files in a VS Code editor.
 #[must_use]
-pub struct Builder {
-	path: PathBuf,
+pub struct Builder<'a> {
+	path: &'a Path,
 	cursor: Option<Position>,
 	selection: Option<Range>,
 	view_column: Option<Column>,
@@ -17,10 +17,10 @@ pub struct Builder {
 
 /// Open a text file in an editor, or focuses an existing one if it exists. Uses the builder pattern.
 pub fn open_editor(path: &Path) -> Builder {
-	Builder { path: path.to_owned(), cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None, force_new: false }
+	Builder { path, cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None, force_new: false }
 }
 
-impl Builder {
+impl<'a> Builder<'a> {
 	/// Set cursor position in the text editor. The indices are 0-based.
 	pub fn cursor(mut self, pos: impl Into<Option<Position>>) -> Self {
 		self.cursor = pos.into();
@@ -59,22 +59,19 @@ impl Builder {
 	}
 
 	/// Open the text file in the specified way.
-	pub fn open(self) -> LazyFuture<()> {
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "open_editor",
-					"path" => self.path.to_str().expect("evscode::open_editor non-utf8 path"),
-					"cursor" => self.cursor,
-					"preserve_focus" => self.preserve_focus,
-					"preview" => self.preview,
-					"selection" => self.selection,
-					"view_column" => self.view_column,
-					"force_new" => self.force_new,
-					"aid" => aid,
-				})
-			},
-			|_| (),
-		)
+	pub async fn open(self) {
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "open_editor",
+			"path" => self.path.to_str().expect("evscode::open_editor non-utf8 path"),
+			"cursor" => self.cursor,
+			"preserve_focus" => self.preserve_focus,
+			"preview" => self.preview,
+			"selection" => self.selection,
+			"view_column" => self.view_column,
+			"force_new" => self.force_new,
+			"aid" => pong.aid(),
+		});
+		pong.await;
 	}
 }

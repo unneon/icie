@@ -1,57 +1,14 @@
 const vscode = acquireVsCodeApi();
 
-function button_start() {
-	vscode.postMessage({
-		tag: 'discovery_start'
-	});
-}
-
-function button_pause() {
-	vscode.postMessage({
-		tag: 'discovery_pause'
-	});
-}
-
-function button_clear() {
-	vscode.postMessage({
-		tag: 'discovery_reset'
-	});
-}
-
 function action_save() {
 	vscode.postMessage({
 		tag: 'discovery_save',
-		input: document.getElementById('best-test').dataset.input
 	});
 }
 
 window.addEventListener('message', event => {
 	let message = event.data;
-	if (message.tag === 'discovery_state') {
-		let actions = document.getElementsByClassName('control-button');
-		let best_test = document.getElementById('best-test');
-		let current = document.getElementById('current');
-		let normal_tests = document.getElementsByClassName('normal-test');
-		if (message.running === true) {
-			for (let action of actions) {
-				action.classList.add('running');
-			}
-			current.classList.add('running');
-		} else {
-			for (let action of actions) {
-				action.classList.remove('running');
-			}
-			current.classList.remove('running');
-		}
-		if (message.reset === true) {
-			best_test.textContent = '';
-			while (normal_tests.length > 0) {
-				normal_tests[0].remove();
-			}
-			current.children[0].textContent = 1;
-		}
-
-	} else if (message.tag === 'discovery_row') {
+	if (message.tag === 'discovery_row') {
 		let current = document.getElementById('current');
 		let log_body = document.getElementById('log-body');
 		current.children[0].textContent = message.number + 1;

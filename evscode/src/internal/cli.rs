@@ -1,7 +1,7 @@
 use crate::meta::Package;
 use std::path::Path;
 
-pub fn run_main(meta: &'static Package, manifest_dir: &str) -> std::io::Result<()> {
+pub fn run_main(meta: &'static mut Package, manifest_dir: &str) -> std::io::Result<()> {
 	let exec_path = std::env::current_exe().expect("evscode::run_main current_exe() errored");
 	let toolchain = crate::internal::compile::Toolchain::new(meta, Path::new(manifest_dir), &exec_path);
 	let subcommand = std::env::args().nth(1);

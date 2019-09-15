@@ -4,7 +4,7 @@ use crate::util::{
 use proc_macro::{Span, TokenStream};
 use quote::quote;
 use syn::{
-	parse::{Parse, ParseStream}, parse_macro_input, ItemFn, LitStr, ReturnType
+	parse::{Parse, ParseStream}, parse_macro_input, ItemFn, LitStr
 };
 
 pub static COMMAND_INVOKELIST: InvocationList = InvocationList::new("Command");
@@ -16,10 +16,6 @@ pub fn generate(params: TokenStream, item: TokenStream) -> TokenStream {
 	let title = LitStr::new(&params.title, Span::call_site().into());
 	let key = option_literal(params.key.map(|key| LitStr::new(&key, Span::call_site().into())));
 	let raw_name = &item.sig.ident;
-	let trigger = match &item.sig.output {
-		ReturnType::Default => quote! { (|| Ok(#raw_name())) },
-		_ => quote! { #raw_name },
-	};
 	let machinery = COMMAND_INVOKELIST.invoke(quote! {
 		evscode::meta::Command {
 			id: evscode::meta::Identifier {
@@ -28,7 +24,7 @@ pub fn generate(params: TokenStream, item: TokenStream) -> TokenStream {
 			},
 			title: #title,
 			key: #key,
-			trigger: #trigger
+			trigger: || Box::pin(#raw_name()),
 		}
 	});
 	TokenStream::from(quote! {

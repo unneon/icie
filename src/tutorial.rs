@@ -9,12 +9,12 @@ impl Skill {
 		Skill { use_count: State::new(state_entry_name, Scope::Global), proficiency_threshold }
 	}
 
-	pub fn is_proficient(&'static self) -> bool {
-		self.use_count.get().map(move |count| count.unwrap().unwrap_or(0) >= self.proficiency_threshold).wait()
+	pub async fn is_proficient(&'static self) -> bool {
+		self.use_count.get().await.unwrap().unwrap_or(0) >= self.proficiency_threshold
 	}
 
-	pub fn add_use(&'static self) {
-		let new_uses = self.use_count.get().map(|count| count.unwrap().unwrap_or(0) + 1).wait();
+	pub async fn add_use(&'static self) {
+		let new_uses = self.use_count.get().await.unwrap().unwrap_or(0) + 1;
 		self.use_count.set(&new_uses); // race condition, yay
 	}
 }

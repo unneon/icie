@@ -4,25 +4,28 @@
 //! directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
 
 use crate::{
-	internal::executor::{send_object, HANDLE_FACTORY}, Column, LazyFuture
+	future::{Pong, PongStream}, internal::executor::{send_object, HANDLE_FACTORY}, Column
 };
+use futures::Stream;
 use json::JsonValue;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+	future::Future, ops::Deref, pin::Pin, task::{Context, Poll}
+};
 
 /// Builder for configurating webviews. See [module documentation](index.html) for details.
 #[must_use]
-pub struct Builder {
-	view_type: String,
-	title: String,
+pub struct Builder<'a> {
+	view_type: &'a str,
+	title: &'a str,
 	view_column: Column,
 	preserve_focus: bool,
 	enable_command_uris: bool,
 	enable_scripts: bool,
-	local_resource_roots: Option<Vec<String>>,
+	local_resource_roots: Option<&'a [&'a str]>,
 	enable_find_widget: bool,
 	retain_context_when_hidden: bool,
 }
-impl Builder {
+impl<'a> Builder<'a> {
 	/// Do not focus the newly created webview.
 	pub fn preserve_focus(mut self) -> Self {
 		self.preserve_focus = true;
@@ -58,16 +61,13 @@ impl Builder {
 
 	/// Add a path from which assets created with [`crate::asset`] or `vscode-resource://` scheme can be used.
 	/// If this function is not called at all, by default the extension install directory and the workspace directory are allowed.
-	pub fn local_resource_root(mut self, uri: impl AsRef<str>) -> Self {
-		match self.local_resource_roots.as_mut() {
-			Some(lrr) => lrr.push(uri.as_ref().to_owned()),
-			None => self.local_resource_roots = Some(vec![uri.as_ref().to_owned()]),
-		}
+	pub fn local_resource_roots(mut self, uris: &'a [&'a str]) -> Self {
+		self.local_resource_roots = Some(uris);
 		self
 	}
 
 	/// Spawn the webview.
-	pub fn create(self) -> Webview {
+	pub fn create(self) -> WebviewMeta {
 		let hid = HANDLE_FACTORY.generate();
 		send_object(json::object! {
 			"tag" => "webview_create",
@@ -82,7 +82,8 @@ impl Builder {
 			"retain_context_when_hidden" => self.retain_context_when_hidden,
 			"hid" => hid,
 		});
-		Webview { hid, listener_spawned: AtomicBool::new(false), disposer_spawned: AtomicBool::new(false) }
+		let webview = Webview { hid: WebviewRef { hid } };
+		WebviewMeta { listener: webview.listener(), disposer: webview.disposer(), webview }
 	}
 }
 
@@ -90,17 +91,15 @@ impl Builder {
 ///
 /// See [module documentation](index.html) for details.
 pub struct Webview {
-	hid: u64,
-	listener_spawned: AtomicBool,
-	disposer_spawned: AtomicBool,
+	hid: WebviewRef,
 }
 impl Webview {
 	/// Create a new builder to configure the webview.
 	/// View type is a panel type identifier.
-	pub fn new(view_type: impl AsRef<str>, title: impl AsRef<str>, view_column: impl Into<Column>) -> Builder {
+	pub fn new<'a>(view_type: &'a str, title: &'a str, view_column: impl Into<Column>) -> Builder<'a> {
 		Builder {
-			view_type: view_type.as_ref().to_owned(),
-			title: title.as_ref().to_owned(),
+			view_type,
+			title,
 			view_column: view_column.into(),
 			preserve_focus: false,
 			enable_command_uris: false,
@@ -110,13 +109,31 @@ impl Webview {
 			retain_context_when_hidden: false,
 		}
 	}
+}
 
+impl Deref for Webview {
+	type Target = WebviewRef;
+
+	fn deref(&self) -> &Self::Target {
+		&self.hid
+	}
+}
+
+/// A cloneable reference to a webview.
+///
+/// Remains valid and usable even after the webview is dropped and destroyed, although various methods will naturally return errors.
+#[derive(Clone)]
+pub struct WebviewRef {
+	pub(crate) hid: u64,
+}
+
+impl WebviewRef {
 	/// Set the HTML content.
-	pub fn set_html(&self, html: impl AsRef<str>) {
+	pub fn set_html(&self, html: &str) {
 		send_object(json::object! {
 			"tag" => "webview_set_html",
 			"hid" => self.hid,
-			"html" => html.as_ref(),
+			"html" => html,
 		});
 	}
 
@@ -133,48 +150,39 @@ impl Webview {
 	}
 
 	/// Check if the webview can be seen by the user.
-	pub fn is_visible(&self) -> LazyFuture<bool> {
+	pub async fn is_visible(&self) -> bool {
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "webview_is_visible",
-					"hid" => hid,
-					"aid" => aid,
-				})
-			},
-			|raw| raw.as_bool().unwrap(),
-		)
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "webview_is_visible",
+			"hid" => hid,
+			"aid" => pong.aid(),
+		});
+		pong.await.as_bool().unwrap()
 	}
 
 	/// Check whether the webview is the currently active webview.
-	pub fn is_active(&self) -> LazyFuture<bool> {
+	pub async fn is_active(&self) -> bool {
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "webview_is_active",
-					"hid" => hid,
-					"aid" => aid,
-				})
-			},
-			|raw| raw.as_bool().unwrap(),
-		)
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "webview_is_active",
+			"hid" => hid,
+			"aid" => pong.aid(),
+		});
+		pong.await.as_bool().unwrap()
 	}
 
 	/// Check whether the webview was closed.
-	pub fn was_disposed(&self) -> LazyFuture<bool> {
+	pub async fn was_disposed(&self) -> bool {
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "webview_was_disposed",
-					"hid" => hid,
-					"aid" => aid,
-				})
-			},
-			|raw| raw.as_bool().unwrap(),
-		)
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "webview_was_disposed",
+			"hid" => hid,
+			"aid" => pong.aid(),
+		});
+		pong.await.as_bool().unwrap()
 	}
 
 	/// Show the webview in the given view column.
@@ -195,37 +203,65 @@ impl Webview {
 		});
 	}
 
-	/// Returns a lazy future that will yield message [sent by JS inside the webview](https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-a-webview-to-an-extension).
-	/// This function can only be called once.
-	pub fn listener(&self) -> LazyFuture<JsonValue> {
-		assert!(!self.listener_spawned.fetch_or(true, Ordering::SeqCst));
+	/// Creates the listener stream, only call this once.
+	fn listener(&self) -> Listener {
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "webview_register_listener",
-					"hid" => hid,
-					"aid" => aid,
-				})
-			},
-			|raw| raw.clone(),
-		)
+		let pong = PongStream::new();
+		send_object(json::object! {
+			"tag" => "webview_register_listener",
+			"hid" => hid,
+			"aid" => pong.aid(),
+		});
+		Listener { pong }
 	}
 
-	/// Returns a lazy future that will yield `()` when the webview is closed.
-	/// This function can only be called once.
-	pub fn disposer(&self) -> LazyFuture<()> {
-		assert!(!self.disposer_spawned.fetch_or(true, Ordering::SeqCst));
+	/// Creates the disposer future, only call this once.
+	fn disposer(&self) -> Disposer {
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "webview_register_disposer",
-					"hid" => hid,
-					"aid" => aid,
-				})
-			},
-			|_| (),
-		)
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "webview_register_disposer",
+			"hid" => hid,
+			"aid" => pong.aid(),
+		});
+		Disposer { pong }
+	}
+}
+
+/// The products of creating a webview.
+///
+/// Aside from the actual webview, also contains the event stream and the dispose future.
+pub struct WebviewMeta {
+	/// The created webview.
+	pub webview: Webview,
+	/// A stream that will contain JSON messages sent by [JS inside the webview]https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-a-webview-to-an-extension).
+	pub listener: Listener,
+	/// A future that will yield a value when the webview is destroyed.
+	pub disposer: Disposer,
+}
+
+/// A stream that will contain JSON messages sent by [JS inside the webview]https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-a-webview-to-an-extension).
+pub struct Listener {
+	pong: PongStream,
+}
+
+impl Stream for Listener {
+	type Item = JsonValue;
+
+	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+		Pin::new(&mut self.pong).poll_next(cx)
+	}
+}
+
+/// A future that will yield a value when the webview is destroyed.
+pub struct Disposer {
+	pong: Pong,
+}
+
+impl Future for Disposer {
+	type Output = ();
+
+	fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+		Pin::new(&mut self.pong).poll(cx).map(|_| ())
 	}
 }

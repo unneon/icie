@@ -23,22 +23,25 @@ pub use terminal::Terminal;
 pub use types::*;
 pub use webview::Webview;
 
-use crate::{internal::executor::send_object, LazyFuture, E, R};
+use crate::{future::Pong, internal::executor::send_object, E, R};
 use std::{
 	borrow::Borrow, path::{Path, PathBuf}
 };
 
 /// Save all modified files in the workspace.
-pub fn save_all() -> LazyFuture<()> {
-	LazyFuture::new_vscode(
-		|aid| {
-			send_object(json::object! {
-				"tag" => "save_all",
-				"aid" => aid,
-			})
-		},
-		|_| (),
-	)
+///
+/// The returned future will wait until all the files are actually saved.
+///
+/// According to the [source code][1], this will fail without a specific reason if any operation fails.
+///
+/// [1]: https://github.com/microsoft/vscode/blob/c467419e0e3023668b8f031d3be768b79eeb1eb7/src/vs/workbench/api/browser/mainThreadWorkspace.ts#L207-L211
+pub async fn save_all() -> R<()> {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "save_all",
+		"aid" => pong.aid(),
+	});
+	if pong.await.as_bool().expect("internal evscode type error in save_all") { Ok(()) } else { Err(E::error("could not save all files")) }
 }
 
 /// Open a folder in a new or existing VS Code window.
@@ -53,104 +56,79 @@ pub fn open_folder(path: impl AsRef<Path>, in_new_window: bool) {
 /// Open an external item(e.g. http/https/mailto URL), using the default system application.
 ///
 /// Use [`open_editor()`] to open text files instead.
-pub fn open_external(url: impl AsRef<str>) -> LazyFuture<R<()>> {
-	let url = url.as_ref().to_owned();
-	LazyFuture::new_vscode(
-		{
-			let url = url.clone();
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "open_external",
-					"url" => url,
-					"aid" => aid,
-				})
-			}
-		},
-		{
-			let url = url;
-			move |raw| {
-				if raw.as_bool().expect("evscode::open_external raw not a [bool]") {
-					Ok(())
-				} else {
-					Err(E::error(format!("could not open external URL {}", url)))
-				}
-			}
-		},
-	)
+pub async fn open_external(url: &str) -> R<()> {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "open_external",
+		"url" => url,
+		"aid" => pong.aid(),
+	});
+	if pong.await.as_bool().expect("internal evscode type error in open_external") {
+		Ok(())
+	} else {
+		Err(E::error(format!("could not open external URL {}", url)))
+	}
 }
 
 /// Get the text present in the editor of a given path.
-pub fn query_document_text(path: impl AsRef<Path>+'static) -> LazyFuture<String> {
-	LazyFuture::new_vscode(
-		move |aid| {
-			send_object(json::object! {
-				"tag" => "query_document_text",
-				"path" => path.as_ref().to_str().expect("evscode::query_document_text_lazy non-utf8 path"),
-				"aid" => aid,
-			})
-		},
-		|raw| raw.as_str().expect("evscode::query_document_text_lazy raw not a [str]").to_string(),
-	)
+pub async fn query_document_text(path: &Path) -> String {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "query_document_text",
+		"path" => path.to_str().expect("evscode::query_document_text_lazy non-utf8 path"),
+		"aid" => pong.aid(),
+	});
+	pong.await.as_str().expect("internal evscode type error in query_document_text").to_string()
 }
 
 /// Make an edit action that consists of pasting a given text in a given position in a given file.
 ///
 /// The indices in the (row, column) tuple are 0-based.
-pub fn edit_paste(path: impl AsRef<Path>+'static, text: impl AsRef<str>+'static, position: (usize, usize)) -> LazyFuture<()> {
-	LazyFuture::new_vscode(
-		move |aid| {
-			send_object(json::object! {
-				"tag" => "edit_paste",
-				"position" => json::object! {
-					"line" => position.0,
-					"character" => position.1,
-				},
-				"text" => text.as_ref(),
-				"path" => path.as_ref().to_str().expect("evscode::edit_paste_lazy non-utf8 path"),
-				"aid" => aid,
-			})
+pub async fn edit_paste(path: &Path, text: &str, position: (usize, usize)) {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "edit_paste",
+		"position" => json::object! {
+			"line" => position.0,
+			"character" => position.1,
 		},
-		|_| (),
-	)
+		"text" => text,
+		"path" => path.to_str().expect("evscode::edit_paste_lazy non-utf8 path"),
+		"aid" => pong.aid(),
+	});
+	pong.await;
 }
 
 /// Get the path to workspace folder.
 /// Returns an error if no folder is opened.
 pub fn workspace_root() -> R<PathBuf> {
-	crate::internal::executor::WORKSPACE_ROOT.lock().unwrap().clone().ok_or_else(|| E::error("this operation requires a folder to be open"))
+	crate::internal::executor::ROOT_WORKSPACE.lock().unwrap().clone().ok_or_else(|| E::error("this operation requires a folder to be open"))
 }
 
 /// Get the path to the root directory of the extension installation.
 pub fn extension_root() -> PathBuf {
-	crate::internal::executor::EXTENSION_ROOT.lock().unwrap().clone().unwrap()
+	crate::internal::executor::ROOT_EXTENSION.lock().unwrap().clone().unwrap()
 }
 
 /// Get the path to the currently edited file.
-pub fn active_editor_file() -> LazyFuture<Option<PathBuf>> {
-	LazyFuture::new_vscode(
-		move |aid| {
-			send_object(json::object! {
-				"tag" => "active_editor_file",
-				"aid" => aid,
-			})
-		},
-		|raw| raw.as_str().map(PathBuf::from),
-	)
+pub async fn active_editor_file() -> Option<PathBuf> {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "active_editor_file",
+		"aid" => pong.aid(),
+	});
+	pong.await.as_str().map(PathBuf::from)
 }
 
 /// Set the OS clipboard content to a given value.
-pub fn clipboard_write(val: impl AsRef<str>) -> LazyFuture<()> {
-	let val = val.as_ref().to_owned();
-	LazyFuture::new_vscode(
-		move |aid| {
-			send_object(json::object! {
-				"tag" => "clipboard_write",
-				"aid" => aid,
-				"val" => val,
-			})
-		},
-		|_| (),
-	)
+pub async fn clipboard_write(val: &str) {
+	let pong = Pong::new();
+	send_object(json::object! {
+		"tag" => "clipboard_write",
+		"aid" => pong.aid(),
+		"val" => val,
+	});
+	pong.await;
 }
 
 /// Return an URI pointing to a given path for use with webviews.

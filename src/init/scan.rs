@@ -1,48 +1,38 @@
-use crate::net::{self, BackendMeta, BACKENDS};
+use crate::net::{self, BackendMeta, Session, BACKENDS};
 use evscode::R;
-use std::{
-	sync::Arc, thread::{self, JoinHandle}
-};
-use unijudge::{boxed::BoxedContestDetails, Backend, URL};
+use futures::future::join_all;
+use std::sync::Arc;
+use unijudge::{boxed::BoxedContestDetails, Backend};
 
-pub fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)> {
-	let _status = crate::STATUS.push("Fetching contests");
-	let domains: Vec<(&'static str, &'static BackendMeta)> = BACKENDS
+pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)> {
+	let domains = BACKENDS
 		.iter()
 		.filter(|backend| backend.backend.supports_contests())
 		.flat_map(|backend| backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend)))
-		.collect();
-	let _status = crate::STATUS.push_silence();
-	let tasks: Vec<_> = domains
-		.into_iter()
-		.map(|(domain, backend)| {
+		.collect::<Vec<_>>();
+	join_all(domains.iter().map(|(domain, backend)| {
+		async move {
 			(
 				domain,
-				thread::spawn(move || {
-					let url = URL::dummy_domain(domain);
-					let sess = {
-						let _status = crate::STATUS.push(format!("Connecting {}", domain));
-						Arc::new(net::Session::connect(&url.domain, backend.backend)?)
-					};
+				try {
+					let _status = crate::STATUS.push(format!("Connecting {}", domain));
+					let sess = Arc::new(Session::connect(domain, backend.backend).await?);
+					drop(_status);
 					let _status = crate::STATUS.push(format!("Fetching {}", domain));
-					let contests = sess.run(|backend, sess| backend.contests(sess))?;
-					Ok((sess, contests))
-				}),
-				backend,
+					let contests = sess.run(|backend, sess| backend.contests(sess)).await?;
+					(sess, contests, *backend)
+				},
 			)
-		})
-		.collect();
-	tasks
-		.into_iter()
-		.flat_map(|(domain, handle, backend): (_, JoinHandle<R<_>>, _)| -> Vec<(Arc<net::Session>, BoxedContestDetails, _)> {
-			handle
-				.join()
-				.unwrap()
-				.map(|(sess, contests)| contests.into_iter().map(|contest| (sess.clone(), contest, backend)).collect::<Vec<_>>())
-				.unwrap_or_else(|e| {
-					e.context(format!("failed to fetch {} contests", domain)).warning().emit();
-					Vec::new()
-				})
-		})
-		.collect()
+		}
+	}))
+	.await
+	.into_iter()
+	.flat_map(|(domain, resp): (_, R<_>)| match resp {
+		Ok((sess, contests, backend)) => contests.into_iter().map(move |contest| (sess.clone(), contest, backend)).collect(),
+		Err(e) => {
+			e.context(format!("failed to fetch {} contests", domain)).warning().emit();
+			Vec::new()
+		},
+	})
+	.collect()
 }

@@ -1,22 +1,20 @@
 use crate::telemetry::TELEMETRY;
 use evscode::R;
 
-pub fn check() -> R<()> {
-	let last = LAST_ACKNOWLEDGED_VERSION.get().wait()?;
+pub async fn check() -> R<()> {
+	let last = LAST_ACKNOWLEDGED_VERSION.get().await?;
 	if last.as_ref().map(String::as_ref) != Some(LAST_IMPORTANT_UPDATE.version) {
 		TELEMETRY.newsletter_show.spark();
-		let choice = evscode::Message::new(format!(
+		let message = format!(
 			"Hey, ICIE {} has some cool new features, like: {}; check them out!",
 			LAST_IMPORTANT_UPDATE.version, LAST_IMPORTANT_UPDATE.features
-		))
-		.item("changelog", "See full changelog", false)
-		.item("ok", "Ok", false)
-		.build()
-		.wait();
+		);
+		let choice =
+			evscode::Message::new(&message).item("changelog".to_owned(), "See full changelog", false).item("ok".to_owned(), "Ok", false).show().await;
 		if let Some(choice) = choice {
 			if choice == "changelog" {
 				TELEMETRY.newsletter_changelog.spark();
-				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").wait()?;
+				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
 			} else {
 				TELEMETRY.newsletter_dismiss.spark();
 				LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned());

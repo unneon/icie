@@ -1,8 +1,11 @@
+#![feature(try_blocks)]
+
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	backtrace::Backtrace, chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, reqwest::{
-		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, Url
+	backtrace::Backtrace, chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
+		self, header::{ORIGIN, REFERER}, Url
 	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
 
@@ -32,16 +35,17 @@ pub struct Task {
 
 #[derive(Debug)]
 pub struct Session {
-	client: reqwest::Client,
+	client: Client,
 	username: Mutex<Option<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CachedAuth {
-	jsessionid: Cookie<'static>,
+	jsessionid: Cookie,
 	username: String,
 }
 
+#[async_trait]
 impl unijudge::Backend for Codeforces {
 	type CachedAuth = CachedAuth;
 	type Contest = Contest;
@@ -67,38 +71,32 @@ impl unijudge::Backend for Codeforces {
 		}))
 	}
 
-	fn connect(&self, client: reqwest::Client, _: &str) -> Self::Session {
+	fn connect(&self, client: Client, _: &str) -> Self::Session {
 		Session { client, username: Mutex::new(None) }
 	}
 
-	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = match session.username.lock().map_err(|_| Error::StateCorruption)?.clone() {
-			Some(username) => username,
-			None => return Ok(None),
-		};
-		let cookies = session.client.cookies().read().map_err(|_| Error::StateCorruption)?;
-		let jsessionid = match cookies.0.get("codeforces.com", "/", "JSESSIONID") {
-			Some(cookie) => cookie.clone().into_owned(),
-			None => return Ok(None),
-		};
-		Ok(Some(CachedAuth { jsessionid, username }))
+	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let username = session.username.lock().map_err(|_| Error::StateCorruption)?.clone();
+		let jsessionid = session.client.cookie_get("JSESSIONID")?;
+		Ok(try { CachedAuth { jsessionid: jsessionid?, username: username? } })
 	}
 
 	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
 		unijudge::deserialize_auth(data)
 	}
 
-	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
-		let csrf = self.fetch_csrf(session)?;
-		let mut resp = session
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let csrf = self.fetch_csrf(session).await?;
+		let resp = session
 			.client
-			.post("https://codeforces.com/enter")
+			.post("https://codeforces.com/enter".parse()?)
 			.header(ORIGIN, "https://codeforces.com")
 			.header(REFERER, "https://codeforces.com/enter?back=/")
 			.query(&[("back", "/")])
 			.form(&[("action", "enter"), ("csrf_token", &csrf), ("handleOrEmail", username), ("password", password), ("remember", "on")])
-			.send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+			.send()
+			.await?;
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let login_succeeded =
 			doc.find_all(".lang-chooser a").any(|v| v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username)));
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
@@ -112,10 +110,9 @@ impl unijudge::Backend for Codeforces {
 		}
 	}
 
-	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
+	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
 		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(auth.username.clone());
-		let mut cookies = session.client.cookies().write().map_err(|_| Error::StateCorruption)?;
-		cookies.0.insert(auth.jsessionid.clone(), &"https://codeforces.com".parse()?).map_err(|_| Error::WrongData)?;
+		session.client.cookie_set(auth.jsessionid.clone(), "https://codeforces.com")?;
 		Ok(())
 	}
 
@@ -127,24 +124,22 @@ impl unijudge::Backend for Codeforces {
 		Some(task.contest.clone())
 	}
 
-	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.xtask_url(task)?;
-		let mut resp = session.client.get(url.clone()).send()?;
+		let resp = session.client.get(url.clone()).send().await?;
 		let statement = if *resp.url() != url {
-			let doc = unijudge::debris::Document::new(&resp.text()?);
-			let mut resp = session
-				.client
-				.get(&format!("https://codeforces.com{}", doc.find(".datatable > div > table > tbody > tr > td > a")?.attr("href")?.as_str()))
-				.send()?;
-			let mut pdf = Vec::new();
-			while resp.copy_to(&mut pdf)? > 0 {}
-			ExtractedStatement::from_pdf(self, session, task, pdf)?
+			let href = {
+				let doc = unijudge::debris::Document::new(&resp.text().await?);
+				doc.find(".datatable > div > table > tbody > tr > td > a")?.attr("href")?.string()
+			};
+			let resp = session.client.get(format!("https://codeforces.com{}", href).parse()?).send().await?;
+			let pdf = resp.bytes().await?.as_ref().to_owned();
+			ExtractedStatement::from_pdf(self, session, task, pdf).await?
 		} else if resp.headers()["Content-Type"] == "application/pdf;charset=UTF-8" {
-			let mut pdf = Vec::new();
-			while resp.copy_to(&mut pdf)? > 0 {}
-			ExtractedStatement::from_pdf(self, session, task, pdf)?
+			let pdf = resp.bytes().await?.as_ref().to_owned();
+			ExtractedStatement::from_pdf(self, session, task, pdf).await?
 		} else {
-			let doc = unijudge::debris::Document::new(&resp.text()?);
+			let doc = unijudge::debris::Document::new(&resp.text().await?);
 			ExtractedStatement::from_html(doc)?
 		};
 		Ok(unijudge::TaskDetails {
@@ -158,13 +153,13 @@ impl unijudge::Backend for Codeforces {
 		})
 	}
 
-	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		let url = self.task_contest_url(task)?.join("submit")?;
-		let mut resp = session.client.get(url).send()?;
+		let resp = session.client.get(url).send().await?;
 		if resp.url().as_str() == "https://codeforces.com/" {
 			return Err(Error::AccessDenied);
 		}
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let languages = doc
 			.find_all("[name=\"programTypeId\"] option")
 			.map(|opt| Ok(unijudge::Language { id: opt.attr("value")?.as_str().trim().to_owned(), name: opt.text().string() }))
@@ -172,13 +167,13 @@ impl unijudge::Backend for Codeforces {
 		Ok(languages)
 	}
 
-	fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
 		let url = match task.contest.source {
 			Source::Contest | Source::Gym => self.task_contest_url(task)?.join("my")?,
 			Source::Problemset => format!("https://codeforces.com/submissions/{}", session.req_user()?).parse()?,
 		};
-		let mut resp = session.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+		let resp = session.client.get(url).send().await?;
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		Ok(doc
 			.find_all("[data-submission-id]")
 			.map(|node| {
@@ -211,12 +206,12 @@ impl unijudge::Backend for Codeforces {
 			.collect::<Result<Vec<_>>>()?)
 	}
 
-	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+	async fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
 		let url = self.task_contest_url(task)?.join("submit")?;
-		let mut resp1 = session.client.get(url.clone()).send()?;
+		let resp1 = session.client.get(url.clone()).send().await?;
 		let referer = resp1.url().clone();
 		let csrf = {
-			let doc = unijudge::debris::Document::new(&resp1.text()?);
+			let doc = unijudge::debris::Document::new(&resp1.text().await?);
 			doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string()
 		};
 		let form = reqwest::multipart::Form::new()
@@ -236,9 +231,9 @@ impl unijudge::Backend for Codeforces {
 			.header(REFERER, referer.as_str())
 			.query(&[("csrf_token", &csrf)])
 			.multipart(form)
-			.send()?;
-
-		Ok(self.task_submissions(session, task)?[0].id.to_string())
+			.send()
+			.await?;
+		Ok(self.task_submissions(session, task).await?[0].id.to_string())
 	}
 
 	fn task_url(&self, _sess: &Self::Session, task: &Self::Task) -> Result<String> {
@@ -257,9 +252,10 @@ impl unijudge::Backend for Codeforces {
 		"Codeforces"
 	}
 
-	fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+	async fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		Ok(self
-			.contest_tasks_ex(session, contest)?
+			.contest_tasks_ex(session, contest)
+			.await?
 			.into_iter()
 			.map(|task| Task { contest: contest.clone(), task: TaskID::Normal(task.symbol) })
 			.collect())
@@ -273,17 +269,17 @@ impl unijudge::Backend for Codeforces {
 		}
 	}
 
-	fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
 		let url: Url = self.contest_url(contest).parse()?;
-		let doc = Document::new(&session.client.get(url).send()?.text()?);
+		let doc = Document::new(&session.client.get(url).send().await?.text().await?);
 		Ok(doc.find_nth("#sidebar > div.roundbox.sidebox", 0)?.find("table.rtable > tbody > tr > th > a")?.text().string())
 	}
 
-	fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let moscow_standard_time = FixedOffset::east(3 * 3600);
 		let url: Url = "https://codeforces.com/contests".parse()?;
-		let mut resp = session.client.get(url).send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+		let resp = session.client.get(url).send().await?;
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		doc.find("#pageContent > .contestList")?
 			.find_first(".datatable")?
 			.find("table")?
@@ -317,13 +313,13 @@ pub struct ContestTaskEx {
 }
 
 impl Codeforces {
-	pub fn contest_tasks_ex(&self, session: &Session, contest: &Contest) -> Result<Vec<ContestTaskEx>> {
+	pub async fn contest_tasks_ex(&self, session: &Session, contest: &Contest) -> Result<Vec<ContestTaskEx>> {
 		let url: Url = self.contest_url(contest).parse()?;
-		let mut resp = session.client.get(url.clone()).send()?;
+		let resp = session.client.get(url.clone()).send().await?;
 		if *resp.url() != url {
 			return Err(Error::NotYetStarted);
 		}
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		doc.find(".problems")?
 			.find_all("tr")
 			.skip(1)
@@ -364,9 +360,9 @@ impl Codeforces {
 		}
 	}
 
-	fn fetch_csrf(&self, session: &Session) -> Result<String> {
-		let mut resp = session.client.get("https://codeforces.com").send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+	async fn fetch_csrf(&self, session: &Session) -> Result<String> {
+		let resp = session.client.get("https://codeforces.com".parse()?).send().await?;
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
 		Ok(csrf)
 	}
@@ -421,17 +417,17 @@ impl ExtractedStatement {
 		Ok(ExtractedStatement { symbol, title, examples, statement: statement.export() })
 	}
 
-	fn from_pdf(backend: &Codeforces, session: &Session, task: &Task, pdf: Vec<u8>) -> Result<ExtractedStatement> {
+	async fn from_pdf(backend: &Codeforces, session: &Session, task: &Task, pdf: Vec<u8>) -> Result<ExtractedStatement> {
 		let task =
-			backend.contest_tasks_ex(session, &task.contest)?.into_iter().find(|t| t.symbol == backend.resolve_task_id(&task)).ok_or_else(|| {
-				Error::UnexpectedResponse {
+			backend.contest_tasks_ex(session, &task.contest).await?.into_iter().find(|t| t.symbol == backend.resolve_task_id(&task)).ok_or_else(
+				|| Error::UnexpectedResponse {
 					endpoint: "/{contests|gym|problemset}/{}",
 					message: "title not found in contest task list",
 					backtrace: Backtrace::new(),
 					resp_raw: String::new(),
 					inner: None,
-				}
-			})?;
+				},
+			)?;
 		Ok(ExtractedStatement { symbol: task.symbol, title: task.title, examples: None, statement: Statement::PDF { pdf } })
 	}
 }

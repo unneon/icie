@@ -67,46 +67,9 @@ body {
 	}
 }
 #current {
-	display: none;
 	animation-name: blinking-row;
 	animation-duration: 1.2s;
 	animation-iteration-count: infinite;
-}
-#current.running {
-	display: table-row;
-}
-
-.controls {
-	float: right;
-}
-div.control-button {
-	font-size: 64px;
-	user-select: none;
-}
-#start.running {
-	display: none;
-}
-#pause {
-	display: none;
-}
-#pause.running {
-	display: unset;
-}
-#clear.running {
-	display: none;
-}
-
-a.control-button {
-	color: inherit;
-	text-decoration: inherit;
-	cursor: pointer;
-	font-size: 64px;
-	float: right;
-	color: rgba(255, 255, 255, 0.4);
-	user-select: none;
-}
-a.control-button:hover {
-	color: rgba(255, 255, 255, 1);
 }
 
 .data {

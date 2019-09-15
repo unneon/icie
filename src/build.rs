@@ -1,5 +1,7 @@
+pub mod clang;
+
 use crate::{
-	ci::{self, exec::Executable}, dir, telemetry::TELEMETRY, util, STATUS
+	build::clang::{compile, Codegen, Message, ALLOWED_EXTENSIONS, CODEGEN_LIST}, dir, telemetry::TELEMETRY, test::exec::Executable, util, STATUS
 };
 use evscode::{error::ResultExt, Position, R};
 use std::{
@@ -39,7 +41,7 @@ static ADDITIONAL_CPP_FLAGS_RELEASE: evscode::Config<String> = "";
 static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
-fn manual() -> evscode::R<()> {
+async fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
 	TELEMETRY.build_manual.spark();
 	let root = evscode::workspace_root()?;
@@ -49,7 +51,7 @@ fn manual() -> evscode::R<()> {
 		.filter(|entry| {
 			entry
 				.as_ref()
-				.map(|entry| ci::cpp::ALLOWED_EXTENSIONS.iter().any(|ext| Some(std::ffi::OsStr::new(ext)) == entry.path().extension()))
+				.map(|entry| ALLOWED_EXTENSIONS.iter().any(|ext| Some(std::ffi::OsStr::new(ext)) == entry.path().extension()))
 				.unwrap_or(true)
 		})
 		.collect::<walkdir::Result<Vec<_>>>()
@@ -59,33 +61,31 @@ fn manual() -> evscode::R<()> {
 			.items(sources.into_iter().map(|entry| {
 				let path = entry.path();
 				let text = path.strip_prefix(&root).unwrap_or(path).to_str().unwrap();
-				evscode::quick_pick::Item::new(path.to_str().unwrap(), text)
+				evscode::quick_pick::Item::new(path.to_str().unwrap().to_owned(), text.to_owned())
 			}))
-			.build()
-			.spawn()
-			.wait()
+			.show()
+			.await
 			.ok_or_else(evscode::E::cancel)?,
 	);
-	let codegen = &ci::cpp::CODEGEN_LIST[evscode::QuickPick::new()
+	let codegen = &CODEGEN_LIST[evscode::QuickPick::new()
 		.ignore_focus_out()
 		.match_on_all()
 		.items(
-			ci::cpp::CODEGEN_LIST
+			CODEGEN_LIST
 				.iter()
 				.enumerate()
 				.map(|(i, codegen)| evscode::quick_pick::Item::new(i.to_string(), format!("{:?}", codegen)).description(codegen.flags().join(" "))),
 		)
-		.build()
-		.spawn()
-		.wait()
+		.show()
+		.await
 		.ok_or_else(evscode::E::cancel)?
 		.parse::<usize>()
 		.unwrap()];
-	build(source, codegen, true)?;
+	build(source, codegen, true).await?;
 	Ok(())
 }
 
-pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_rebuild: bool) -> R<Executable> {
+pub async fn build(source: impl util::MaybePath, codegen: &Codegen, force_rebuild: bool) -> R<Executable> {
 	TELEMETRY.build_all.spark();
 	let source = source.as_option_path();
 	let _status = STATUS.push(util::fmt_verb("Building", &source));
@@ -95,24 +95,24 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_reb
 		let pretty_source = source.strip_prefix(evscode::workspace_root()?).wrap("tried to build source outside of project directory")?;
 		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source.display())));
 	}
-	evscode::save_all().wait();
+	evscode::save_all().await?;
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if !force_rebuild && should_cache(&source, &out)? {
 		return Ok(Executable::new(out));
 	}
 	let standard = CPP_STANDARD.get();
 	let flags = format!("{} {}", ADDITIONAL_CPP_FLAGS.get(), match codegen {
-		ci::cpp::Codegen::Debug => ADDITIONAL_CPP_FLAGS_DEBUG.get(),
-		ci::cpp::Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
-		ci::cpp::Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
+		Codegen::Debug => ADDITIONAL_CPP_FLAGS_DEBUG.get(),
+		Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
+		Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
 	});
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
-	let status = ci::cpp::compile(&[&source], &out, &*standard, &codegen, &flags)?;
+	let status = compile(&[&source], &out, &*standard, &codegen, &flags)?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
 				if *AUTO_MOVE_TO_ERROR.get() {
-					evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().spawn();
+					evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().await;
 				}
 			}
 			Err(evscode::E::error(error.message.clone()).context("compilation error").workflow_error())
@@ -122,7 +122,7 @@ pub fn build(source: impl util::MaybePath, codegen: &ci::cpp::Codegen, force_reb
 	} else {
 		if !status.warnings.is_empty() {
 			let warnings = status.warnings;
-			evscode::runtime::spawn(move || show_warnings(warnings));
+			evscode::spawn(show_warnings(warnings));
 		}
 		Ok(status.executable)
 	}
@@ -146,25 +146,20 @@ pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {
 	Ok(source.with_extension(&*EXECUTABLE_EXTENSION.get()))
 }
 
-fn show_warnings(warnings: Vec<ci::cpp::Message>) -> R<()> {
+async fn show_warnings(warnings: Vec<Message>) -> R<()> {
 	if !*AUTO_MOVE_TO_WARNING.get() {
-		let msg = evscode::Message::new(format!("{} compilation warning{}", warnings.len(), if warnings.len() == 1 { "" } else { "s" }))
-			.warning()
-			.item("show", "Show", false)
-			.build();
-		if msg.wait().is_none() {
+		let message = format!("{} compilation warning{}", warnings.len(), if warnings.len() == 1 { "" } else { "s" });
+		if evscode::Message::new(&message).warning().item("show".to_owned(), "Show", false).show().await.is_none() {
 			return Ok(());
 		}
 	}
 	for (i, warning) in warnings.iter().enumerate() {
 		if let Some(location) = &warning.location {
-			evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().spawn();
+			evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().await;
 		}
-		let mut msg = evscode::Message::new(&warning.message).warning();
-		if i + 1 != warnings.len() {
-			msg = msg.item("next", "Next", false);
-		}
-		if msg.build().wait().is_none() {
+		let msg = evscode::Message::new(&warning.message).warning();
+		let choice = if i + 1 != warnings.len() { msg.item("next".to_owned(), "Next", false).show().await } else { msg.show().await };
+		if choice.is_none() {
 			break;
 		}
 	}
@@ -184,7 +179,7 @@ enum Standard {
 	#[evscode(name = "C++20")]
 	FutureCpp20,
 }
-impl ci::cpp::Standard for Standard {
+impl clang::Standard for Standard {
 	fn as_gcc_flag(&self) -> &'static str {
 		match self {
 			Standard::Cpp03 => "-std=c++03",

@@ -1,17 +1,19 @@
-#![feature(never_type)]
+#![feature(never_type, try_blocks)]
 
+use async_trait::async_trait;
 use unijudge::{
-	debris::{self, Context, Find}, reqwest::{
-		self, cookie_store::Cookie, header::{ORIGIN, REFERER}, multipart, Url
-	}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
+	self, debris::{self, Context, Find}, http::{Client, Cookie}, reqwest::{
+		header::{ORIGIN, REFERER}, multipart
+	}, url::Url, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 pub struct SPOJ;
 
+#[async_trait]
 impl unijudge::Backend for SPOJ {
-	type CachedAuth = [Cookie<'static>; 3];
+	type CachedAuth = [Cookie; 3];
 	type Contest = !;
-	type Session = reqwest::Client;
+	type Session = Client;
 	type Task = String;
 
 	fn accepted_domains(&self) -> &'static [&'static str] {
@@ -25,55 +27,45 @@ impl unijudge::Backend for SPOJ {
 		}
 	}
 
-	fn connect(&self, client: reqwest::Client, _domain: &str) -> Self::Session {
+	fn connect(&self, client: Client, _domain: &str) -> Self::Session {
 		client
 	}
 
-	fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let cookies = session.cookies().read().map_err(|_| Error::StateCorruption)?;
-		let spoj = match cookies.0.get("spoj.com", "/", "SPOJ") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		let login = match cookies.0.get("spoj.com", "/", "autologin_login") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		let hash = match cookies.0.get("spoj.com", "/", "autologin_hash") {
-			Some(c) => c.clone().into_owned(),
-			None => return Ok(None),
-		};
-		Ok(Some([spoj, login, hash]))
+	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
+		let spoj = session.cookie_get("SPOJ")?;
+		let autologin_login = session.cookie_get("autologin_login")?;
+		let autologin_hash = session.cookie_get("autologin_hash")?;
+		Ok(try { [spoj?, autologin_login?, autologin_hash?] })
 	}
 
 	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
 		unijudge::deserialize_auth(data)
 	}
 
-	fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
-		let mut resp = session
-			.post("https://www.spoj.com/login/")
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		let resp = session
+			.post("https://www.spoj.com/login/".parse()?)
 			.header(ORIGIN, "https://www.spoj.com")
 			.header(REFERER, "https://www.spoj.com/")
 			.form(&[("next_raw", "/"), ("autologin", "1"), ("login_user", username), ("password", password)])
-			.send()?;
-		let doc = debris::Document::new(&resp.text()?);
-		if resp.url().as_str() == "https://www.spoj.com/login/" {
+			.send()
+			.await?;
+		let url = resp.url().clone();
+		let doc = debris::Document::new(&resp.text().await?);
+		if url.as_str() == "https://www.spoj.com/login/" {
 			Err(Error::WrongCredentials)
-		} else if resp.url().as_str() == "https://www.spoj.com/" {
+		} else if url.as_str() == "https://www.spoj.com/" {
 			Ok(())
 		} else {
 			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
 		}
 	}
 
-	fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		let url = "https://www.spoj.com/".parse()?;
+	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
 		let [c1, c2, c3] = auth;
-		let mut cookies = session.cookies().write().map_err(|_| Error::StateCorruption)?;
-		cookies.0.insert(c2.clone(), &url).map_err(|_| Error::WrongData)?;
-		cookies.0.insert(c3.clone(), &url).map_err(|_| Error::WrongData)?;
-		cookies.0.insert(c1.clone(), &url).map_err(|_| Error::WrongData)?;
+		session.cookie_set(c1.clone(), "https://www.spoj.com/")?;
+		session.cookie_set(c2.clone(), "https://www.spoj.com/")?;
+		session.cookie_set(c3.clone(), "https://www.spoj.com/")?;
 		Ok(())
 	}
 
@@ -85,10 +77,10 @@ impl unijudge::Backend for SPOJ {
 		None
 	}
 
-	fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse()?;
-		let mut resp = session.get(url.clone()).send()?;
-		let doc = debris::Document::new(&resp.text()?);
+		let resp = session.get(url.clone()).send().await?;
+		let doc = debris::Document::new(&resp.text().await?);
 		let title = doc.find(".breadcrumb > .active")?.text().string();
 		let mut statement = unijudge::statement::Rewrite::start(doc);
 		statement.fix_hide(|v| {
@@ -122,20 +114,20 @@ impl unijudge::Backend for SPOJ {
 		})
 	}
 
-	fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse()?;
-		let mut resp = session.get(url).send()?;
-		let doc = debris::Document::new(&resp.text()?);
+		let resp = session.get(url).send().await?;
+		let doc = debris::Document::new(&resp.text().await?);
 		doc.find_all("#lang > option")
 			.map(|node| Ok(Language { id: node.attr("value")?.string(), name: node.text().string() }))
 			.collect::<Result<_>>()
 	}
 
-	fn task_submissions(&self, session: &Self::Session, _task: &Self::Task) -> Result<Vec<Submission>> {
+	async fn task_submissions(&self, session: &Self::Session, _task: &Self::Task) -> Result<Vec<Submission>> {
 		let user = req_user(session)?;
 		let url: Url = format!("https://www.spoj.com/status/{}/", user).parse()?;
-		let mut resp = session.get(url).send()?;
-		let doc = debris::Document::new(&resp.text()?);
+		let resp = session.get(url).send().await?;
+		let doc = debris::Document::new(&resp.text().await?);
 		Ok(doc
 			.find_all("table.newstatus > tbody > tr")
 			.map(|row| {
@@ -167,9 +159,9 @@ impl unijudge::Backend for SPOJ {
 			.collect::<Result<_>>()?)
 	}
 
-	fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
-		let mut resp = session
-			.post("https://www.spoj.com/submit/complete/")
+	async fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+		let resp = session
+			.post("https://www.spoj.com/submit/complete/".parse()?)
 			.multipart(
 				multipart::Form::new()
 					.part(
@@ -183,8 +175,9 @@ impl unijudge::Backend for SPOJ {
 			)
 			.header(ORIGIN, "https://www.spoj.com")
 			.header(REFERER, "https://www.spoj.com/submit/TEST/")
-			.send()?;
-		let doc = unijudge::debris::Document::new(&resp.text()?);
+			.send()
+			.await?;
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		if doc.find("title")?.text().string().contains("Authorisation required") {
 			return Err(Error::AccessDenied);
 		}
@@ -203,7 +196,7 @@ impl unijudge::Backend for SPOJ {
 		unimplemented!()
 	}
 
-	fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+	async fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		*contest
 	}
 
@@ -211,11 +204,11 @@ impl unijudge::Backend for SPOJ {
 		*contest
 	}
 
-	fn contest_title(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+	async fn contest_title(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<String> {
 		*contest
 	}
 
-	fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+	async fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		Ok(Vec::new())
 	}
 
@@ -228,14 +221,6 @@ impl unijudge::Backend for SPOJ {
 	}
 }
 
-fn req_user(session: &reqwest::Client) -> Result<String> {
-	Ok(session
-		.cookies()
-		.read()
-		.map_err(|_| Error::StateCorruption)?
-		.0
-		.get("spoj.com", "/", "autologin_login")
-		.ok_or(Error::AccessDenied)?
-		.value()
-		.to_owned())
+fn req_user(session: &Client) -> Result<String> {
+	Ok(session.cookie_get("autologin_login")?.ok_or(Error::AccessDenied)?.value().to_owned())
 }

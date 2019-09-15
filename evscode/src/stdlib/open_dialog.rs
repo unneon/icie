@@ -1,6 +1,6 @@
 //! Dialog for selecting files or directories.
 
-use crate::{internal::executor::send_object, LazyFuture};
+use crate::{future::Pong, internal::executor::send_object};
 use json::{object, JsonValue};
 use std::{
 	collections::HashMap, marker::PhantomData, path::{Path, PathBuf}
@@ -61,23 +61,19 @@ impl<C: Count> Builder<C> {
 	}
 }
 impl Builder<Single> {
-	/// Prepare a lazy future with the dialog.
-	/// This does not display it yet.
-	pub fn build(self) -> LazyFuture<Option<PathBuf>> {
-		LazyFuture::new_vscode(
-			move |aid| send_request(self.files, self.folders, false, self.default, self.filters, self.action_label, aid),
-			|raw| parse_response(raw).map(|arr| arr[0].clone()),
-		)
+	/// Open the dialog.
+	pub async fn show(self) -> Option<PathBuf> {
+		let pong = Pong::new();
+		send_request(self.files, self.folders, false, self.default, self.filters, self.action_label, pong.aid());
+		parse_response(pong.await).and_then(|arr| arr.into_iter().next())
 	}
 }
 impl Builder<Many> {
-	/// Prepare a lazy future with the dialog.
-	/// This does not display it yet.
-	pub fn build(self) -> LazyFuture<Option<Vec<PathBuf>>> {
-		LazyFuture::new_vscode(
-			move |aid| send_request(self.files, self.folders, true, self.default, self.filters, self.action_label, aid),
-			parse_response,
-		)
+	/// Open the dialog.
+	pub async fn show(self) -> Option<Vec<PathBuf>> {
+		let pong = Pong::new();
+		send_request(self.files, self.folders, true, self.default, self.filters, self.action_label, pong.aid());
+		parse_response(pong.await)
 	}
 }
 

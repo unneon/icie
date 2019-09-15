@@ -1,6 +1,4 @@
-use crate::ci::{
-	exec::{Executable, ExitKind}, task::Task
-};
+use crate::test::exec::{Executable, ExitKind, Task};
 use evscode::R;
 use std::{fmt, time::Duration};
 
@@ -36,16 +34,16 @@ impl Outcome {
 	}
 }
 
-pub fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, alternative: Option<&str>, task: &Task) -> R<Outcome> {
-	let run = exec.run(input, &[], &task.environment)?;
+pub async fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, alternative: Option<&str>, task: &Task) -> R<Outcome> {
+	let run = exec.run(input, &[], &task.environment).await?;
 	let verdict = match run.exit_kind {
 		ExitKind::Normal => {
 			if run.status.success() {
 				if let Some(desired) = desired {
-					if task.checker.judge(input, desired, &run.stdout)? {
+					if task.checker.judge(input, desired, &run.stdout).await? {
 						Verdict::Accepted { alternative: false }
 					} else if let Some(alternative) = alternative {
-						if task.checker.judge(input, alternative, &run.stdout)? {
+						if task.checker.judge(input, alternative, &run.stdout).await? {
 							Verdict::Accepted { alternative: true }
 						} else {
 							Verdict::WrongAnswer

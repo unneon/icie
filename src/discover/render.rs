@@ -25,12 +25,6 @@ pub fn render() -> String {
 							</tr>
 						</tbody>
 					</table>
-					<div class="controls">
-						<a id="start" class="material-icons control-button" onclick="button_start()">play_arrow</a>
-						<a id="pause" class="material-icons control-button" onclick="button_pause()">pause</a>
-						<br/>
-						<a id="reset" class="material-icons control-button" onclick="button_clear()">clear</a>
-					</div>
 				</div>
 				<br/>
 				<div id="best-test-container" class="data">

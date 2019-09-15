@@ -19,9 +19,9 @@ mod scan;
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
-fn scan() -> R<()> {
+async fn scan() -> R<()> {
 	TELEMETRY.init_scan.spark();
-	let mut contests = scan::fetch_contests();
+	let mut contests = scan::fetch_contests().await;
 	contests.sort_by_key(|contest| contest.1.start);
 	let pick = QuickPick::new()
 		.items(contests.iter().enumerate().map(|(index, (sess, contest, _))| {
@@ -32,63 +32,71 @@ fn scan() -> R<()> {
 		}))
 		.match_on_description()
 		.ignore_focus_out()
-		.build()
-		.wait()
+		.show()
+		.await
 		.ok_or_else(E::cancel)?;
 	let (sess, contest, backend) = &contests[pick.parse::<usize>().unwrap()];
 	backend.counter.spark();
 	TELEMETRY.init_scan_ok.spark();
-	contest::sprint(sess.clone(), &contest.id, Some(&contest.title))?;
+	contest::sprint(sess.clone(), &contest.id, Some(&contest.title)).await?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Init URL", key = "alt+f11")]
-fn url() -> R<()> {
+async fn url() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	TELEMETRY.init_url.spark();
-	let raw_url = ask_url()?;
+	let raw_url = ask_url().await?;
 	match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(url) => {
 			TELEMETRY.init_url_task.spark();
-			let meta = url.map(|(url, backend)| fetch_task_details(url, backend)).transpose()?;
-			let root = names::design_task_name(&*crate::dir::PROJECT_DIRECTORY.get(), meta.as_ref())?;
-			let dir = util::TransactionDir::new(&root)?;
-			init_task(&root, raw_url, meta)?;
+			let meta = match url {
+				Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
+				None => None,
+			};
+			let root = crate::dir::PROJECT_DIRECTORY.get();
+			let root = names::design_task_name(&*root, meta.as_ref()).await?;
+			let dir = util::TransactionDir::new(&root).await?;
+			init_task(&root, raw_url, meta).await?;
 			dir.commit();
 			evscode::open_folder(root, false);
 		},
 		InitCommand::Contest { url, backend } => {
 			TELEMETRY.init_url_contest.spark();
-			let sess = net::Session::connect(&url.domain, backend.backend)?;
+			let sess = net::Session::connect(&url.domain, backend.backend).await?;
 			let Resource::Contest(contest) = url.resource;
-			contest::sprint(Arc::new(sess), &contest, None)?;
+			drop(_status);
+			contest::sprint(Arc::new(sess), &contest, None).await?;
 		},
 	}
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Init URL (current directory)")]
-fn url_existing() -> R<()> {
+async fn url_existing() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	TELEMETRY.init_url_existing.spark();
-	let raw_url = ask_url()?;
+	let raw_url = ask_url().await?;
 	let url = match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(task) => task,
 		InitCommand::Contest { .. } => return Err(E::error("it is forbidden to init a contest in an existing directory")),
 	};
-	let meta = url.map(|(url, backend)| fetch_task_details(url, backend)).transpose()?;
+	let meta = match url {
+		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
+		None => None,
+	};
 	let root = evscode::workspace_root()?;
-	init_task(&root, raw_url, meta)?;
+	init_task(&root, raw_url, meta).await?;
 	Ok(())
 }
 
-fn ask_url() -> R<Option<String>> {
+async fn ask_url() -> R<Option<String>> {
 	Ok(evscode::InputBox::new()
 		.prompt("Enter task/contest URL or leave empty")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
 		.ignore_focus_out()
-		.build()
-		.wait()
+		.show()
+		.await
 		.map(|url| if url.trim().is_empty() { None } else { Some(url) })
 		.ok_or_else(E::cancel)?)
 }
@@ -111,30 +119,29 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 	})
 }
 
-fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) -> R<TaskDetails> {
+async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) -> R<TaskDetails> {
 	let Resource::Task(task) = &url.resource;
-	let sess = net::Session::connect(&url.domain, backend.backend)?;
+	let sess = net::Session::connect(&url.domain, backend.backend).await?;
 	let meta = {
 		let _status = crate::STATUS.push("Fetching task");
-		sess.run(|backend, sess| backend.task_details(sess, &task))?
+		sess.run(|backend, sess| backend.task_details(sess, &task)).await?
 	};
 	Ok(meta)
 }
 
-fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	fs_create_dir_all(root)?;
+	fs_create_dir_all(root).await?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
-	files::init_manifest(root, &url, statement)?;
-	files::init_template(root)?;
-	files::init_examples(root, examples)?;
+	files::init_manifest(root, &url, statement).await?;
+	files::init_template(root).await?;
+	files::init_examples(root, examples).await?;
 	Ok(())
 }
 
-pub fn help_init() -> R<()> {
-	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start").wait()?;
-	Ok(())
+pub async fn help_init() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start").await
 }
 
 /// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. Variable contest.title is not available in this context. See example list:
@@ -177,7 +184,7 @@ enum PathDialog {
 }
 
 impl PathDialog {
-	fn query(&self, directory: &Path, codename: &str) -> R<PathBuf> {
+	async fn query(&self, directory: &Path, codename: &str) -> R<PathBuf> {
 		let basic = format!("{}/{}", directory.to_str().unwrap(), codename);
 		match self {
 			PathDialog::None => Ok(PathBuf::from(basic)),
@@ -187,11 +194,11 @@ impl PathDialog {
 					.prompt("New project directory")
 					.value(&basic)
 					.value_selection(basic.len() - codename.len(), basic.len())
-					.build()
-					.wait()
+					.show()
+					.await
 					.ok_or_else(E::cancel)?,
 			)),
-			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").build().wait().ok_or_else(E::cancel)?),
+			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?),
 		}
 	}
 }

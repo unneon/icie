@@ -51,8 +51,8 @@ pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	}
 }
 
-pub fn active_tab() -> evscode::R<Option<PathBuf>> {
-	let source = evscode::active_editor_file().wait().ok_or_else(E::cancel)?;
+pub async fn active_tab() -> R<Option<PathBuf>> {
+	let source = evscode::active_editor_file().await.ok_or_else(E::cancel)?;
 	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
 }
 
@@ -144,27 +144,33 @@ fn test_mex() {
 	assert_eq!(mex(5, vec![]), 5);
 }
 
-pub fn fs_read_to_string(path: impl AsRef<Path>) -> evscode::R<String> {
-	std::fs::read_to_string(path.as_ref()).map_err(|e| {
+pub async fn fs_read_to_string(path: &Path) -> R<String> {
+	String::from_utf8(tokio::fs::read(path).await.map_err(|e| {
 		let is_not_found = e.kind() == std::io::ErrorKind::NotFound;
 		evscode::E::from_std(e).context(if is_not_found {
-			format!("file {} does not exist", path.as_ref().display())
+			format!("file {} does not exist", path.display())
 		} else {
-			format!("failed to read file {}", path.as_ref().display())
+			format!("failed to read file {}", path.display())
 		})
-	})
+	})?)
+	.wrap(format!("file {} is not utf8 encoded", path.display()))
 }
 
-pub fn fs_write(path: impl AsRef<Path>, content: impl AsRef<[u8]>) -> R<()> {
-	std::fs::write(path.as_ref(), content.as_ref()).wrap(format!("failed to write to {}", path.as_ref().display()))
+pub async fn fs_write(path: &Path, content: impl AsRef<[u8]>) -> R<()> {
+	let content = content.as_ref().to_owned();
+	tokio::fs::write(path.to_owned(), content).await.wrap(format!("failed to write to {}", path.display()))
 }
 
-pub fn fs_create_dir_all(path: impl AsRef<Path>) -> R<()> {
-	std::fs::create_dir_all(path.as_ref()).wrap(format!("failed to create directory {}", path.as_ref().display()))
+pub async fn fs_remove_file(path: &Path) -> R<()> {
+	tokio::fs::remove_file(path).await.wrap(format!("failed to remove {}", path.display()))
 }
 
-pub fn find_cursor_place(path: &Path) -> Option<Position> {
-	let doc = std::fs::read_to_string(path).unwrap_or_default();
+pub async fn fs_create_dir_all(path: &Path) -> R<()> {
+	tokio::fs::create_dir_all(path).await.wrap(format!("failed to create directory {}", path.display()))
+}
+
+pub async fn find_cursor_place(path: &Path) -> Option<Position> {
+	let doc = fs_read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
 	for (line, content) in doc.lines().enumerate() {
 		if !found_main && content.contains("int main(") {
@@ -199,8 +205,8 @@ pub struct TransactionDir<'a> {
 	good: bool,
 }
 impl<'a> TransactionDir<'a> {
-	pub fn new(path: &'a Path) -> evscode::R<TransactionDir<'a>> {
-		fs_create_dir_all(path)?;
+	pub async fn new(path: &'a Path) -> evscode::R<TransactionDir<'a>> {
+		fs_create_dir_all(path).await?;
 		Ok(TransactionDir { path, good: false })
 	}
 

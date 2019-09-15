@@ -1,7 +1,7 @@
 //! Progress bars, both finite and infinite.
 
 use crate::{
-	internal::executor::{send_object, HANDLE_FACTORY}, LazyFuture
+	future::Pong, internal::executor::{send_object, HANDLE_FACTORY}
 };
 use std::sync::{
 	atomic::{AtomicBool, Ordering}, Mutex
@@ -110,19 +110,16 @@ impl Progress {
 	/// Returns a lazy future that will yield () if user presses the cancel button.
 	/// For this to ever happen, [`Builder::cancellable`] must be called when building the progress bar.
 	/// This function can only be called once.
-	pub fn canceler(&self) -> LazyFuture<()> {
+	pub async fn on_cancel(&self) {
 		assert!(!self.canceler_spawned.fetch_or(true, Ordering::SeqCst));
+		let pong = Pong::new();
 		let hid = self.hid;
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "progress_register_cancel",
-					"hid" => hid.to_string(),
-					"aid" => aid,
-				})
-			},
-			|_| (),
-		)
+		send_object(json::object! {
+			"tag" => "progress_register_cancel",
+			"hid" => hid.to_string(),
+			"aid" => pong.aid(),
+		});
+		pong.await;
 	}
 
 	/// Close the progress bar.

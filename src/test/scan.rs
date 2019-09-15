@@ -9,7 +9,7 @@ pub fn scan_and_order(root: &Path) -> Vec<PathBuf> {
 	tests
 }
 
-pub fn scan(root: &Path) -> Vec<PathBuf> {
+fn scan(root: &Path) -> Vec<PathBuf> {
 	walkdir::WalkDir::new(root)
 		.follow_links(true)
 		.into_iter()
@@ -19,7 +19,7 @@ pub fn scan(root: &Path) -> Vec<PathBuf> {
 		.collect()
 }
 
-pub fn order(tests: &mut Vec<PathBuf>) {
+fn order(tests: &mut Vec<PathBuf>) {
 	tests.sort_by(comp_by_test_number);
 }
 

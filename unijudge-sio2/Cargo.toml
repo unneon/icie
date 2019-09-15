@@ -5,5 +5,6 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1.11"
 serde = "1.0"
 unijudge = { path = "../unijudge" }

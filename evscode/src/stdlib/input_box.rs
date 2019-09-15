@@ -1,18 +1,18 @@
 //! Input boxes displayed at the top of the editor.
 
-use crate::{internal::executor::send_object, LazyFuture};
+use crate::{future::Pong, internal::executor::send_object};
 
 /// Builder for configurating input boxes. Use [`InputBox::new`] to create.
 #[must_use]
-pub struct Builder {
+pub struct Builder<'a> {
 	ignore_focus_out: bool,
 	password: bool,
-	placeholder: Option<String>,
-	prompt: Option<String>,
-	value: Option<String>,
+	placeholder: Option<&'a str>,
+	prompt: Option<&'a str>,
+	value: Option<&'a str>,
 	value_selection: Option<(usize, usize)>,
 }
-impl Builder {
+impl<'a> Builder<'a> {
 	/// Do not make the input box disappear when user breaks focus.
 	pub fn ignore_focus_out(mut self) -> Self {
 		self.ignore_focus_out = true;
@@ -27,21 +27,21 @@ impl Builder {
 	}
 
 	/// Set a placeholder value that will be displayed with low opacity if the input box is empty.
-	pub fn placeholder(mut self, x: impl AsRef<str>) -> Self {
-		self.placeholder = Some(x.as_ref().to_owned());
+	pub fn placeholder(mut self, x: &'a str) -> Self {
+		self.placeholder = Some(x);
 		self
 	}
 
 	/// Set a prompt text that tells the user what to do.
 	/// VS Code will append a text that says to press Enter to continue or Escape to cancel.
-	pub fn prompt(mut self, x: impl AsRef<str>) -> Self {
-		self.prompt = Some(x.as_ref().to_owned());
+	pub fn prompt(mut self, x: &'a str) -> Self {
+		self.prompt = Some(x);
 		self
 	}
 
 	/// Set default value in the input box.
-	pub fn value(mut self, x: impl AsRef<str>) -> Self {
-		self.value = Some(x.as_ref().to_owned());
+	pub fn value(mut self, x: &'a str) -> Self {
+		self.value = Some(x);
 		self
 	}
 
@@ -52,24 +52,20 @@ impl Builder {
 		self
 	}
 
-	/// Prepare a lazy future with the input box.
-	/// This does not spawn it yet.
-	pub fn build(self) -> LazyFuture<Option<String>> {
-		LazyFuture::new_vscode(
-			move |aid| {
-				send_object(json::object! {
-					"tag" => "input_box",
-					"prompt" => self.prompt,
-					"placeHolder" => self.placeholder,
-					"password" => self.password,
-					"ignoreFocusOut" => self.ignore_focus_out,
-					"value" => self.value,
-					"valueSelection" => self.value_selection.map(|(l, r)| json::array! [l, r]),
-					"aid" => aid,
-				})
-			},
-			|raw| raw.as_str().map(String::from),
-		)
+	/// Display the input box.
+	pub async fn show(self) -> Option<String> {
+		let pong = Pong::new();
+		send_object(json::object! {
+			"tag" => "input_box",
+			"prompt" => self.prompt,
+			"placeHolder" => self.placeholder,
+			"password" => self.password,
+			"ignoreFocusOut" => self.ignore_focus_out,
+			"value" => self.value,
+			"valueSelection" => self.value_selection.map(|(l, r)| json::array! [l, r]),
+			"aid" => pong.aid(),
+		});
+		pong.await.as_str().map(str::to_owned)
 	}
 }
 
@@ -82,7 +78,7 @@ pub struct InputBox {
 
 impl InputBox {
 	/// Create a new builder to configure the input box.
-	pub fn new() -> Builder {
+	pub fn new() -> Builder<'static> {
 		Builder { ignore_focus_out: false, password: false, placeholder: None, prompt: None, value: None, value_selection: None }
 	}
 }

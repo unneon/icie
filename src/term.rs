@@ -5,7 +5,7 @@ use std::{
 };
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
-fn spawn() -> R<()> {
+async fn spawn() -> R<()> {
 	External::command::<String, Vec<String>, String>(None, None)
 }
 
@@ -61,7 +61,7 @@ impl External {
 			.stderr(Stdio::piped())
 			.spawn()
 			.wrap(format!("failed to launch external terminal {:?}", program))?;
-		evscode::runtime::spawn(move || {
+		evscode::spawn(async move {
 			let out = kid.wait_with_output().wrap(format!("waiting for external terminal {:?} failed", program))?;
 			if !out.status.success() {
 				E::error(format!(

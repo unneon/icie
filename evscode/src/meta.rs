@@ -1,6 +1,6 @@
 //! Extension metadata types.
 
-use crate::{config::ErasedConfig, R};
+use crate::{config::ErasedConfig, future::BoxedFuture, R};
 use json::JsonValue;
 use std::fmt::{self, Write};
 
@@ -34,7 +34,7 @@ pub struct Command {
 	pub id: Identifier,
 	pub title: &'static str,
 	pub key: Option<&'static str>,
-	pub trigger: fn() -> R<()>,
+	pub trigger: fn() -> BoxedFuture<'static, R<()>>,
 }
 
 /// Metadata of a configuration entry.
@@ -121,9 +121,9 @@ pub struct Package {
 	pub repository: &'static str,
 	/// Function intended to run when the extension is activated.
 	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
-	pub on_activate: Option<fn() -> R<()>>,
+	pub on_activate: Option<BoxedFuture<'static, R<()>>>,
 	/// Function intended to run when the extension is deactivated.
-	pub on_deactivate: Option<fn() -> R<()>>,
+	pub on_deactivate: Option<BoxedFuture<'static, R<()>>>,
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],

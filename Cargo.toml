@@ -5,7 +5,9 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1"
 evscode = { path = "./evscode" }
+futures-preview = { version = "0.3.0-alpha.18", features = ["async-await", "nightly"] }
 itertools = "0.8"
 json = "0.12"
 keyring = "0.7"
@@ -13,22 +15,23 @@ lazy_static = "1.0"
 log = { version = "0.4", features = ["std"] }
 rand = "0.7"
 regex = "1.1"
-reqwest = { version = "0.9.14", default-features = false, features = ["default-tls-vendored"] }
+reqwest = { git = "https://github.com/pustaczek/reqwest", branch = "dirty-acookies", features = ["default-tls-vendored"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 shellexpand = "1.0"
 tempfile = "3.1"
+tokio = { version = "0.2.0-alpha.4", features = ["fs", "timer"], default-features = false }
+tokio-net = { version = "0.2.0-alpha.4", features = ["process"], default-features = false }
 unijudge = { path = "./unijudge" }
 unijudge-atcoder = { path = "./unijudge-atcoder" }
 unijudge-codechef = { path = "./unijudge-codechef" }
 unijudge-codeforces = { path = "./unijudge-codeforces" }
 unijudge-sio2 = { path = "./unijudge-sio2" }
 unijudge-spoj = { path = "./unijudge-spoj" }
-wait-timeout = "0.2"
 walkdir = "2.2"
 
-[patch.crates-io]
-reqwest = { git = "https://github.com/pustaczek/reqwest", branch = "dirty-cookies" }
+[dev-dependencies]
+tokio = { version = "0.2.0-alpha.4", features = ["rt-full"], default-features = false }
 
 [profile.release]
 lto = true

@@ -5,11 +5,14 @@ authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+async-trait = "0.1"
 arc-swap = "0.4"
 backtrace = "0.3"
+evscode-codegen = { path = "../evscode-codegen" }
+futures-preview = "0.3.0-alpha.18"
 json = "0.12"
 lazy_static = "1.0"
-log = "0.4"
-evscode-codegen = { path = "../evscode-codegen" }
+log = { version = "0.4", features = ["std"] }
 radix_trie = "0.1.4"
 shellexpand = "1.0"
+tokio = { version = "0.2.0-alpha.4", features = ["io", "rt-full"], default-features = false }

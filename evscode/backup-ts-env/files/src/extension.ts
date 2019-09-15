@@ -124,8 +124,8 @@ export function activate(ctx: vscode.ExtensionContext) {
         } else if (reaction.tag === 'console_group_end') {
             console.groupEnd();
         } else if (reaction.tag === "save_all") {
-            vscode.workspace.saveAll(false).then(_ => {
-                logic.send({ tag: 'async', aid: reaction.aid, value: null });
+            vscode.workspace.saveAll(false).then(ret => {
+                logic.send({ tag: 'async', aid: reaction.aid, value: ret });
             });
         } else if (reaction.tag === "open_folder") {
             vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(reaction.path), reaction.in_new_window);
