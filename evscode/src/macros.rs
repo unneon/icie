@@ -1,6 +1,8 @@
-pub use crate::config::Configurable;
-pub use json;
+pub use crate::{
+	config::Configurable, glue::{activate, deactivate, generate_package_json}
+};
 pub use lazy_static::lazy_static;
+pub use vscode_sys::ExtensionContext;
 
 pub trait InvocChain<T> {
 	type Payload;

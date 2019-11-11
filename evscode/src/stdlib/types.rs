@@ -1,22 +1,11 @@
 //! Definitions of common types used throughout VS Code API.
 
-use json::JsonValue;
-
 /// Represents a line and character position.
 pub struct Position {
 	/// The number of characters from the left.
 	pub column: usize,
 	/// The line number.
 	pub line: usize,
-}
-
-impl From<Position> for JsonValue {
-	fn from(pos: Position) -> Self {
-		json::object! {
-			"column" => pos.column,
-			"line" => pos.line,
-		}
-	}
 }
 
 /// Represents an ordered pair of two positions.
@@ -27,45 +16,46 @@ pub struct Range {
 	pub end: Position,
 }
 
-impl From<Range> for JsonValue {
-	fn from(r: Range) -> Self {
-		json::object! {
-			"start" => r.start,
-			"end" => r.end,
-		}
-	}
-}
-
 /// View column where a tab can appear.
-#[derive(Clone)]
+///
+/// The values are from the [docs](1), and hopefully no one changes them.
+///
+/// [1]: https://code.visualstudio.com/api/references/vscode-api#ViewColumn
+#[derive(Clone, Copy)]
+#[repr(i32)]
 pub enum Column {
 	/// View column of the currently active tab.
-	Active,
+	Active = -1,
 	/// View column to the right of the currently active tab.
 	/// This can create new columns depending on what is currently selected.
 	/// Examples:
 	/// - One column exists: the column is split in half, the right half is taken by the new webview.
 	/// - Two columns exist, left active: the new webvieb is added to the right column as a new tab.
 	/// - Two columns exist, right active: the right column is split in half, the right half of the right half is taken by the new webview.
-	Beside,
+	Beside = -2,
 	/// First, leftmost column.
-	One,
+	One = 1,
 	/// Second column.
-	Two,
+	Two = 2,
 	/// Third column.
-	Three,
+	Three = 3,
 	/// Fourth column.
-	Four,
+	Four = 4,
 	/// Fifth column.
-	Five,
+	Five = 5,
 	/// Sixth column.
-	Six,
+	Six = 6,
 	/// Seventh column.
-	Seven,
+	Seven = 7,
 	/// Eighth column.
-	Eight,
+	Eight = 8,
 	/// Ninth column.
-	Nine,
+	Nine = 9,
+}
+impl Column {
+	pub(crate) fn as_enum_id(self) -> i32 {
+		self as i32
+	}
 }
 impl From<i32> for Column {
 	fn from(x: i32) -> Self {
@@ -82,23 +72,5 @@ impl From<i32> for Column {
 			9 => Nine,
 			_ => panic!("view column number should be in [1, 9]"),
 		}
-	}
-}
-impl From<Column> for JsonValue {
-	fn from(col: Column) -> JsonValue {
-		use Column::*;
-		json::from(match col {
-			Active => "active",
-			Beside => "beside",
-			Eight => "eight",
-			Five => "five",
-			Four => "four",
-			Nine => "nine",
-			One => "one",
-			Seven => "seven",
-			Six => "six",
-			Three => "three",
-			Two => "two",
-		})
 	}
 }

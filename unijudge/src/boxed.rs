@@ -18,7 +18,7 @@ pub type BoxedContestURL = URL<BoxedContest, !>;
 pub type BoxedResource = Resource<BoxedContest, BoxedTask>;
 pub type BoxedContestDetails = ContestDetails<BoxedContest>;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl crate::Backend for (dyn DynamicBackend+'static) {
 	type CachedAuth = BoxedCachedAuth;
 	type Contest = BoxedContest;
@@ -114,7 +114,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 	}
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait DynamicBackend: Send+Sync {
 	fn accepted_domainsx(&self) -> &'static [&'static str];
 	fn deconstruct_resourcex(&self, domain: &str, segments: &[&str]) -> Result<BoxedResource>;
@@ -140,7 +140,7 @@ pub trait DynamicBackend: Send+Sync {
 	fn supports_contestsx(&self) -> bool;
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl<T> DynamicBackend for T
 where
 	T: crate::Backend,

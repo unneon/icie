@@ -1,17 +1,17 @@
-use json::JsonValue;
 use std::{
 	cmp::min, fmt::{self, Write}, str::FromStr
 };
+use wasm_bindgen::JsValue;
 
 const SPACE_CHARACTERS: &[char] = &['/', '-', '_', '+'];
 const BLANK_CHARACTERS: &[char] = &[':', '(', ')', '[', ']', ',', '!', '\'', '"', '.', '#'];
 
-pub trait VariableSet: FromStr<Err=String>+fmt::Display {
+pub trait VariableSet: FromStr<Err=String>+Clone+fmt::Display {
 	type Map;
 	fn expand(&self, map: &Self::Map) -> Option<String>;
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 enum Case {
 	None,
 	Camel,  // camelCase
@@ -87,13 +87,13 @@ impl FromStr for Case {
 	}
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 enum Segment<V: VariableSet> {
 	Literal(String),
 	Substitution { variable: V, case: Case },
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Interpolation<V: VariableSet> {
 	segments: Vec<Segment<V>>,
 }
@@ -191,17 +191,21 @@ impl<V: VariableSet> FromStr for Interpolation<V> {
 }
 
 impl<V: VariableSet> evscode::marshal::Marshal for Interpolation<V> {
-	fn to_json(&self) -> JsonValue {
-		self.to_string().to_json()
+	fn to_js(&self) -> JsValue {
+		self.to_string().into()
 	}
 
-	fn from_json(raw: JsonValue) -> Result<Self, String> {
-		<String as evscode::marshal::Marshal>::from_json(raw)?.parse()
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		<String as evscode::marshal::Marshal>::from_js(raw)?.parse()
 	}
 }
 
 impl<V: VariableSet> evscode::Configurable for Interpolation<V> {
-	fn schema(default: Option<&Self>) -> JsonValue {
+	fn to_json(&self) -> serde_json::Value {
+		self.to_string().into()
+	}
+
+	fn schema(default: Option<&Self>) -> serde_json::Value {
 		<String as evscode::Configurable>::schema(default.map(std::string::ToString::to_string).as_ref())
 	}
 }

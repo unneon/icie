@@ -15,28 +15,35 @@ fn transform(item: &ItemEnum) -> Result<TokenStream, ProcError> {
 	let variant_names = variants.iter().map(|variant| &variant.name).collect::<Vec<_>>();
 	Ok(TokenStream::from(quote! {
 		impl evscode::marshal::Marshal for #enum_name {
-			fn to_json(&self) -> evscode::json::JsonValue {
-				evscode::json::from(match self {
+			fn to_js(&self) -> wasm_bindgen::JsValue {
+				wasm_bindgen::JsValue::from_str(match self {
 					#(#enum_name::#variant_idents => #variant_names,)*
 				})
 			}
-			fn from_json(obj: evscode::json::JsonValue) -> Result<Self, String> {
-				match obj.as_str().unwrap() {
+
+			fn from_js(obj: wasm_bindgen::JsValue) -> Result<Self, String> {
+				match obj.as_string().unwrap().as_str() {
 					#(#variant_names => Ok(#enum_name::#variant_idents),)*
 					got => Err(format!("expected one of [{}], found `{:?}`", stringify!(#(#variant_names),*), got)),
 				}
 			}
 		}
 		impl evscode::Configurable for #enum_name {
-			fn schema(default: Option<&Self>) -> evscode::json::JsonValue {
-				let mut obj = evscode::json::object! {
-					"type" => "string",
-					"enum" => vec! [
+			fn to_json(&self) -> serde_json::Value {
+				serde_json::Value::from(match self {
+					#(#enum_name::#variant_idents => #variant_names,)*
+				})
+			}
+
+			fn schema(default: Option<&Self>) -> serde_json::Value {
+				let mut obj = serde_json::json!({
+					"type": "string",
+					"enum": vec! [
 						#(#variant_names,)*
 					],
-				};
+				});
 				if let Some(default) = default {
-					obj["default"] = evscode::marshal::Marshal::to_json(default);
+					obj["default"] = default.to_json();
 				}
 				obj
 			}
@@ -90,16 +97,10 @@ fn find_attribute<'a>(ident: &'static str, attrs: &'a [Attribute], span: Span) -
 }
 
 fn parse_attribute(attr: &Attribute) -> Result<LitStr, ProcError> {
-	let name: Option<LitStr> = try {
-		let [meta_name_value] = parse_meta_name_value_list::<1>(attr)?;
-		if !meta_name_value.path.is_ident("name") {
-			None?
-		}
-		match meta_name_value.lit {
-			Lit::Str(name) => Some(name),
-			_ => None,
-		}?
-	};
+	let name = parse_meta_name_value_list::<1>(attr).and_then(|[meta_name_value]| match &meta_name_value.lit {
+		Lit::Str(name) if meta_name_value.path.is_ident("name") => Some(name.clone()),
+		_ => None,
+	});
 	name.ok_or_else(|| ProcError::new(Diagnostic::spanned(attr.span().unwrap(), Level::Error, "expected `(name = \"...\")` inside the attribute")))
 }
 

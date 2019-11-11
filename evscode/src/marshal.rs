@@ -1,26 +1,26 @@
 //! Conversion traits between Rust and JavaScript types.
 
-use json::{JsonValue, Null};
 use std::{collections::HashMap, fmt, path::PathBuf};
+use wasm_bindgen::{prelude::*, JsCast};
 
 /// Trait responsible for converting values between Rust and JavaScript.
 pub trait Marshal: Sized {
-	/// Convert a Rust value to JavaScript.
+	/// Convert a Rust value to a JavaScript value.
 	/// This conversion must not fail - if it can, consider using Rust's type system to enforce that condition.
-	fn to_json(&self) -> JsonValue;
+	fn to_js(&self) -> JsValue;
 	/// Convert a JavaScript value to a Rust value.
-	fn from_json(raw: JsonValue) -> Result<Self, String>;
+	fn from_js(raw: JsValue) -> Result<Self, String>;
 }
 
 macro_rules! impl_number {
 	($t:ty, $method:ident) => {
 		impl Marshal for $t {
-			fn to_json(&self) -> JsonValue {
-				json::from(*self)
+			fn to_js(self: &Self) -> JsValue {
+				JsValue::from_f64(*self as f64)
 			}
 
-			fn from_json(raw: JsonValue) -> Result<Self, String> {
-				raw.$method().ok_or_else(|| type_error(stringify!($t), &raw))
+			fn from_js(raw: JsValue) -> Result<Self, String> {
+				raw.as_f64().ok_or_else(|| type_error2(stringify!($t), &raw)).map(|f| f as $t)
 			}
 		}
 	};
@@ -39,85 +39,89 @@ impl_number!(usize, as_usize);
 impl_number!(f32, as_f32);
 impl_number!(f64, as_f64);
 impl Marshal for bool {
-	fn to_json(&self) -> JsonValue {
-		JsonValue::from(*self)
+	fn to_js(&self) -> JsValue {
+		JsValue::from_bool(*self)
 	}
 
-	fn from_json(raw: JsonValue) -> Result<Self, String> {
-		raw.as_bool().ok_or_else(|| type_error("bool", &raw))
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		raw.as_bool().ok_or_else(|| type_error2("bool", &raw))
 	}
 }
 impl Marshal for String {
-	fn to_json(&self) -> JsonValue {
-		json::from(self.as_str())
+	fn to_js(&self) -> JsValue {
+		self.into()
 	}
 
-	fn from_json(mut raw: JsonValue) -> Result<Self, String> {
-		raw.take_string().ok_or_else(|| type_error("string", &raw))
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		raw.as_string().ok_or_else(|| type_error2("string", &raw))
 	}
 }
 impl Marshal for PathBuf {
-	fn to_json(&self) -> JsonValue {
-		json::from(self.to_str().unwrap())
+	fn to_js(&self) -> JsValue {
+		JsValue::from_str(self.to_str().unwrap())
 	}
 
-	fn from_json(raw: JsonValue) -> Result<Self, String> {
-		Ok(PathBuf::from(&*shellexpand::tilde(&String::from_json(raw)?)))
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		Ok(expand_path(&raw.as_string().ok_or_else(|| type_error2("path", &raw))?))
 	}
 }
 impl<T: Marshal> Marshal for Option<T> {
-	fn to_json(&self) -> JsonValue {
-		self.as_ref().map_or(Null, Marshal::to_json)
+	fn to_js(&self) -> JsValue {
+		self.as_ref().map_or(JsValue::undefined(), T::to_js)
 	}
 
-	fn from_json(raw: JsonValue) -> Result<Self, String> {
-		if raw.is_null() { Ok(None) } else { Ok(Some(T::from_json(raw)?)) }
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		if raw.is_undefined() || raw.is_null() { Ok(None) } else { Ok(Some(T::from_js(raw)?)) }
 	}
 }
 impl<T: Marshal> Marshal for Vec<T> {
-	fn to_json(&self) -> JsonValue {
-		JsonValue::Array(self.iter().map(Marshal::to_json).collect())
+	fn to_js(&self) -> JsValue {
+		let arr = js_sys::Array::new();
+		for value in self {
+			arr.push(&value.to_js());
+		}
+		JsValue::from(arr)
 	}
 
-	fn from_json(mut raw: JsonValue) -> Result<Self, String> {
-		if raw.is_array() {
-			Ok(raw.members_mut().map(|x| T::from_json(x.take())).collect::<Result<Self, String>>()?)
-		} else {
-			Err(type_error("array", &raw))
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		match raw.dyn_into::<js_sys::Array>() {
+			Ok(raw) => Ok(raw.values().into_iter().map(|raw| T::from_js(raw.unwrap())).collect::<Result<_, _>>()?),
+			Err(raw) => Err(type_error2("array", &raw)),
 		}
 	}
 }
 impl<T: Marshal, S: std::hash::BuildHasher+Default> Marshal for HashMap<String, T, S> {
-	fn to_json(&self) -> JsonValue {
-		let mut obj = json::object::Object::with_capacity(self.len());
-		for (k, v) in self {
-			obj.insert(k, v.to_json());
+	fn to_js(&self) -> JsValue {
+		let obj = js_sys::Object::new();
+		for (key, value) in self {
+			js_sys::Reflect::set(&obj, &JsValue::from_str(&key), &value.to_js()).unwrap();
 		}
-		JsonValue::Object(obj)
+		obj.into()
 	}
 
-	fn from_json(mut raw: JsonValue) -> Result<Self, String> {
-		if raw.is_object() {
-			Ok(raw.entries_mut().map(|(k, v)| Ok((k.to_owned(), T::from_json(v.take())?))).collect::<Result<Self, String>>()?)
-		} else {
-			Err(type_error("object", &raw))
-		}
+	fn from_js(raw: JsValue) -> Result<Self, String> {
+		let obj = raw.dyn_into::<js_sys::Object>().expect("not a js_sys.Object");
+		Ok(js_sys::Object::entries(&obj)
+			.values()
+			.into_iter()
+			.map(|kv| {
+				let kv: Vec<_> =
+					kv.expect("object iteration failed").dyn_into::<js_sys::Array>().unwrap().values().into_iter().map(Result::unwrap).collect();
+				match kv.as_slice() {
+					[key, value] => {
+						let key = key.as_string().unwrap();
+						let value = T::from_js(value.clone()).unwrap();
+						(key, value)
+					},
+					_ => unreachable!(),
+				}
+			})
+			.collect())
 	}
 }
 
-fn type_error(expected: &'static str, raw: &JsonValue) -> String {
-	format!("expected {}, found `{}`", expected, json_type(raw))
-}
-fn json_type(raw: &JsonValue) -> &'static str {
-	match raw {
-		JsonValue::Null => "null",
-		JsonValue::Short(_) => "string",
-		JsonValue::String(_) => "string",
-		JsonValue::Number(_) => "number",
-		JsonValue::Boolean(_) => "boolean",
-		JsonValue::Object(_) => "object",
-		JsonValue::Array(_) => "array",
-	}
+pub(crate) fn type_error2(expected: &'static str, raw: &JsValue) -> String {
+	format!("expected {}, found `{:?}`", expected, raw)
 }
 
 pub(crate) fn camel_case(s: &str, f: &mut fmt::Formatter) -> fmt::Result {
@@ -139,4 +143,8 @@ pub(crate) fn camel_case(s: &str, f: &mut fmt::Formatter) -> fmt::Result {
 		}
 	}
 	Ok(())
+}
+
+fn expand_path(path: &str) -> PathBuf {
+	PathBuf::from(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
 }

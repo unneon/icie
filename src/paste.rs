@@ -2,12 +2,13 @@ mod library;
 mod logic;
 mod piece_parse;
 
-use crate::{dir, telemetry::TELEMETRY};
+use crate::{
+	dir, paste::logic::{Library, Piece}, telemetry::TELEMETRY, util::time_now
+};
 use async_trait::async_trait;
 use evscode::{error::ResultExt, E, R};
 use itertools::Itertools;
-use logic::{Library, Piece};
-use std::{path::PathBuf, time::SystemTime};
+use std::path::PathBuf;
 
 #[evscode::command(title = "ICIE Quick Paste", key = "alt+[")]
 async fn quick() -> R<()> {
@@ -72,7 +73,7 @@ async fn qistruct() -> R<()> {
 		guarantee: format!("struct {} {{", name),
 		dependencies: Vec::new(),
 		parent: None,
-		modified: SystemTime::now(),
+		modified: time_now(),
 	};
 	let mut library = Library::new_empty();
 	library.pieces.insert(String::from("__qistruct"), piece);
@@ -83,7 +84,7 @@ async fn qistruct() -> R<()> {
 
 async fn query_context(library: &Library) -> R<VscodePaste<'_>> {
 	let solution = dir::solution()?;
-	let text = evscode::query_document_text(&solution).await;
+	let text = evscode::query_document_text(&solution).await?;
 	let context = VscodePaste { solution, text, library };
 	Ok(context)
 }
@@ -94,7 +95,7 @@ pub struct VscodePaste<'a> {
 	library: &'a Library,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl logic::PasteContext for VscodePaste<'_> {
 	fn has(&mut self, piece_id: &str) -> bool {
 		let piece = &self.library.pieces[piece_id];
@@ -103,8 +104,8 @@ impl logic::PasteContext for VscodePaste<'_> {
 
 	async fn paste(&mut self, piece_id: &str) -> R<()> {
 		let (position, snippet) = self.library.place(piece_id, &self.text);
-		evscode::edit_paste(&self.solution, &snippet, position).await;
-		self.text = evscode::query_document_text(&self.solution).await;
+		evscode::edit_paste(&self.solution, &snippet, position).await?;
+		self.text = evscode::query_document_text(&self.solution).await?;
 		Ok(())
 	}
 }

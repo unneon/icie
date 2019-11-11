@@ -1,6 +1,4 @@
-use crate::internal::executor::send_object;
-use json::object;
-use log::{Level, Log, Metadata, Record};
+use log::{Log, Metadata, Record};
 
 pub struct VSCodeLoger {
 	pub blacklist: radix_trie::Trie<&'static str, log::LevelFilter>,
@@ -15,17 +13,7 @@ impl Log for VSCodeLoger {
 
 	fn log(&self, record: &Record) {
 		if self.enabled(record.metadata()) {
-			send_object(object! {
-				"tag" => "console",
-				"level" => match record.level() {
-					Level::Error => "error",
-					Level::Warn => "warn",
-					Level::Info => "info",
-					Level::Debug => "log",
-					Level::Trace => "debug",
-				},
-				"message" => format!("{}", record.args()),
-			});
+			crate::console::log(record.level().into(), &format!("{}", record.args()));
 		}
 	}
 

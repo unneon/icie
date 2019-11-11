@@ -1,12 +1,13 @@
-use crate::{telemetry::TELEMETRY, util};
-use evscode::{error::ResultExt, E, R};
-use std::{
-	path::Path, process::{Command, Stdio}
+use crate::{
+	executable::{Environment, Executable}, telemetry::TELEMETRY, util
 };
+use evscode::{error::ResultExt, E, R};
+use std::path::Path;
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
 async fn spawn() -> R<()> {
-	External::command::<String, Vec<String>, String>(None, None)
+	evscode::workspace_root()?;
+	External::command::<Vec<String>, String>(None, None)
 }
 
 pub struct Internal;
@@ -14,7 +15,7 @@ pub struct External;
 
 pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: impl AsRef<Path>, command: impl IntoIterator<Item=A>) -> R<()> {
 	let test = util::without_extension(test.as_ref().strip_prefix(evscode::workspace_root()?).wrap("found test outside of test directory")?);
-	External::command(Some(format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
+	External::command(Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
 }
 
 pub fn install<A: AsRef<str>>(name: impl AsRef<str>, command: impl IntoIterator<Item=A>) -> R<()> {
@@ -25,7 +26,7 @@ pub fn install<A: AsRef<str>>(name: impl AsRef<str>, command: impl IntoIterator<
 impl Internal {
 	pub fn raw<T: AsRef<str>, S: AsRef<str>>(title: T, data: S) -> R<()> {
 		let term = evscode::Terminal::new().name(title).create();
-		term.write(data);
+		term.write(data.as_ref());
 		term.reveal();
 		Ok(())
 	}
@@ -44,36 +45,30 @@ static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
 static EXTERNAL_CUSTOM_TITLE: evscode::Config<bool> = true;
 
 impl External {
-	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<T>, command: Option<I>) -> R<()> {
-		let program = EXTERNAL_COMMAND.get();
-		let mut cmd = Command::new(&*program);
-		if *EXTERNAL_CUSTOM_TITLE.get() {
-			if let Some(title) = title {
-				cmd.arg("--title").arg(title.as_ref());
-			}
-		}
-		if let Some(command) = command {
-			cmd.arg("-e").arg(bash_escape_command(command));
-		}
-		let kid = cmd
-			.stdin(Stdio::null())
-			.stdout(Stdio::piped())
-			.stderr(Stdio::piped())
-			.spawn()
-			.wrap(format!("failed to launch external terminal {:?}", program))?;
+	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<&str>, command: Option<I>) -> R<()> {
+		let title = title.map(str::to_owned);
+		let command = command.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
 		evscode::spawn(async move {
-			let out = kid.wait_with_output().wrap(format!("waiting for external terminal {:?} failed", program))?;
-			if !out.status.success() {
-				E::error(format!(
-					"{:?} {:?} {:?}",
-					out.status,
-					String::from_utf8(out.stdout).wrap(format!("external terminal {:?} stdout is not utf8", program))?,
-					String::from_utf8(out.stderr).wrap(format!("external terminal {:?} stderr is not utf8", program))?
-				))
-				.context(format!("failed to run external terminal {:?}", program))
-				.emit();
+			let program = Executable::new_name(EXTERNAL_COMMAND.get());
+			let mut args = Vec::new();
+			if EXTERNAL_CUSTOM_TITLE.get() {
+				if let Some(title) = &title {
+					args.push("--title");
+					args.push(title.as_ref());
+				}
 			}
-			Ok(())
+			let command = command.map(bash_escape_command);
+			if let Some(command) = &command {
+				args.push("-e");
+				args.push(&command);
+			}
+			let run = program.run("", &args, &Environment { time_limit: None }).await?;
+			if run.success() {
+				Ok(())
+			} else {
+				Err(E::error(format!("{:?} {:?} {:?}", run.exit_code, run.stdout, run.stderr))
+					.context(format!("failed to run external terminal {:?}", program.command)))
+			}
 		});
 		Ok(())
 	}

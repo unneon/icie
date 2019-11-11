@@ -1,6 +1,5 @@
 #![feature(type_alias_impl_trait, never_type)]
 
-pub extern crate backtrace;
 pub extern crate chrono;
 pub extern crate debris;
 pub extern crate html5ever;
@@ -38,14 +37,12 @@ pub enum Error {
 	UnexpectedHTML(debris::Error),
 	UnexpectedJSON {
 		endpoint: &'static str,
-		backtrace: backtrace::Backtrace,
 		resp_raw: String,
 		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
 	},
 	UnexpectedResponse {
 		endpoint: &'static str,
 		message: &'static str,
-		backtrace: backtrace::Backtrace,
 		resp_raw: String,
 		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
 	},
@@ -192,7 +189,7 @@ impl URL<(), ()> {
 	}
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Backend: Send+Sync+'static {
 	type CachedAuth: Debug+Send+Sync+'static;
 	type Contest: Debug+Send+Sync+'static;

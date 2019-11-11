@@ -1,36 +1,20 @@
 //! Dialog for selecting files or directories.
 
-use crate::{future::Pong, internal::executor::send_object};
-use json::{object, JsonValue};
 use std::{
-	collections::HashMap, marker::PhantomData, path::{Path, PathBuf}
+	collections::HashMap, path::{Path, PathBuf}
 };
 
 /// Builder for configuring dialogs. Use [`OpenDialog::new`] to create.
 #[must_use]
-pub struct Builder<C: Count> {
+pub struct Builder {
 	files: bool,
 	folders: bool,
 	default: Option<PathBuf>,
 	filters: Option<HashMap<String, Vec<String>>>,
 	action_label: Option<String>,
-	_count: PhantomData<C>,
 }
 
-impl Builder<Single> {
-	/// Allow selecting multiple entries.
-	pub fn many(self) -> Builder<Many> {
-		Builder {
-			files: self.files,
-			folders: self.folders,
-			default: self.default,
-			filters: self.filters,
-			action_label: self.action_label,
-			_count: PhantomData,
-		}
-	}
-}
-impl<C: Count> Builder<C> {
+impl Builder {
 	/// Switch to selecting directories instead of files.
 	pub fn directory(mut self) -> Self {
 		self.files = false;
@@ -59,21 +43,18 @@ impl<C: Count> Builder<C> {
 		self.action_label = Some(label.as_ref().to_owned());
 		self
 	}
-}
-impl Builder<Single> {
+
 	/// Open the dialog.
 	pub async fn show(self) -> Option<PathBuf> {
-		let pong = Pong::new();
-		send_request(self.files, self.folders, false, self.default, self.filters, self.action_label, pong.aid());
-		parse_response(pong.await).and_then(|arr| arr.into_iter().next())
-	}
-}
-impl Builder<Many> {
-	/// Open the dialog.
-	pub async fn show(self) -> Option<Vec<PathBuf>> {
-		let pong = Pong::new();
-		send_request(self.files, self.folders, true, self.default, self.filters, self.action_label, pong.aid());
-		parse_response(pong.await)
+		vscode_sys::window::show_open_dialog(vscode_sys::window::OpenDialogOptions {
+			can_select_files: self.files,
+			can_select_folders: self.folders,
+			can_select_many: false,
+			filters: self.filters,
+			open_label: self.action_label,
+		})
+		.await
+		.map(|chosen| PathBuf::from(chosen.into_iter().next().unwrap()))
 	}
 }
 
@@ -86,46 +67,7 @@ pub struct OpenDialog {
 
 impl OpenDialog {
 	/// Create a new builder to configure the dialog
-	pub fn new() -> Builder<Single> {
-		Builder { files: true, folders: false, default: None, filters: None, action_label: None, _count: PhantomData }
+	pub fn new() -> Builder {
+		Builder { files: true, folders: false, default: None, filters: None, action_label: None }
 	}
-}
-
-#[doc(hidden)]
-pub trait Count {}
-
-#[doc(hidden)]
-pub struct Single;
-
-#[doc(hidden)]
-pub struct Many;
-
-impl Count for Single {
-}
-impl Count for Many {
-}
-
-fn send_request(
-	files: bool,
-	folders: bool,
-	many: bool,
-	default: Option<PathBuf>,
-	filters: Option<HashMap<String, Vec<String>>>,
-	label: Option<String>,
-	aid: u64,
-) {
-	send_object(object! {
-		"tag" => "open_dialog",
-		"canSelectFiles" => files,
-		"canSelectFolders" => folders,
-		"canSelectMany" => many,
-		"defaultFile" => default.map(|p| p.to_str().unwrap().to_owned()),
-		"filters" => filters.map(|hm| hm.into_iter().map(|(k, v)| (k, json::from(v))).collect::<HashMap<String, JsonValue>>()),
-		"openLabel" => label,
-		"aid" => aid,
-	})
-}
-
-fn parse_response(raw: JsonValue) -> Option<Vec<PathBuf>> {
-	if raw.is_null() { None } else { Some(raw.members().map(|p| PathBuf::from(p.as_str().unwrap())).collect()) }
 }

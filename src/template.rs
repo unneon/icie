@@ -1,6 +1,6 @@
-use crate::{dir, telemetry::TELEMETRY, util};
+use crate::{dir, telemetry::TELEMETRY, util, util::fs};
 use evscode::{E, R};
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
 /// A list of files used as code templates. If you see "Edit in settings.json", click it, then add a new entry starting with "icie.template.list" and if you use autocomplete, VS Code should autofill the current config. Replace the path placeholder with a path to your template file or add more templates
 #[evscode::config]
@@ -28,11 +28,12 @@ async fn instantiate() -> R<()> {
 		.await
 		.ok_or_else(E::cancel)?;
 	let path = evscode::workspace_root()?.join(filename);
-	if path.exists() {
+	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}
-	util::fs_write(&path, tpl.code).await?;
-	evscode::open_editor(&path).cursor(util::find_cursor_place(&path).await).open().await;
+	fs::write(&path, tpl.code).await?;
+	// FIXME: This for some reason failed to open the editor after the WASM rewrite.
+	evscode::open_editor(&path).cursor(util::find_cursor_place(&path).await).open().await?;
 	Ok(())
 }
 
@@ -44,9 +45,9 @@ pub async fn load(path: &str) -> R<LoadedTemplate> {
 	TELEMETRY.template_load.spark();
 	if path != BUILTIN_TEMPLATE_PSEUDOPATH {
 		TELEMETRY.template_load_custom.spark();
-		let path = PathBuf::from(shellexpand::tilde(path).into_owned());
+		let path = util::expand_path(path);
 		let suggested_filename = path.file_name().unwrap().to_str().unwrap().to_owned();
-		let code = util::fs_read_to_string(&path).await?;
+		let code = fs::read_to_string(&path).await?;
 		Ok(LoadedTemplate { suggested_filename, code })
 	} else {
 		TELEMETRY.template_load_builtin.spark();

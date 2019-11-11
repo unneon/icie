@@ -1,9 +1,13 @@
-use crate::paste::{
-	logic::{Library, Piece}, qpaste_doc_error
+use crate::{
+	paste::{
+		logic::{Library, Piece}, qpaste_doc_error
+	}, util::fs
 };
 use evscode::{error::ResultExt, E, R};
 use futures::lock::{Mutex, MutexGuard};
-use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
+use std::{
+	collections::HashMap, ffi::OsStr, path::{Path, PathBuf}
+};
 
 lazy_static::lazy_static! {
 	pub static ref CACHED_LIBRARY: LibraryCache = LibraryCache::new();
@@ -11,7 +15,7 @@ lazy_static::lazy_static! {
 
 /// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press Alt+[ with this not set to see how to set up this functionality.
 #[evscode::config]
-static PATH: evscode::Config<String> = "";
+static PATH: evscode::Config<PathBuf> = "";
 
 pub struct LibraryCache {
 	lock: Mutex<Library>,
@@ -22,16 +26,15 @@ impl LibraryCache {
 		LibraryCache { lock: Mutex::new(Library { directory: PathBuf::new(), pieces: HashMap::new() }) }
 	}
 
+	#[allow(clippy::extra_unused_lifetimes)]
 	pub async fn update(&'static self) -> R<MutexGuard<'_, Library>> {
 		let mut lib = self.lock.lock().await;
-		let directory = self.get_directory()?;
+		let directory = self.get_directory().await?;
 		if directory != lib.directory {
 			lib.pieces = HashMap::new();
 		}
 		let mut new_pieces = HashMap::new();
-		for entry in directory.read_dir().map_err(|e| E::from_std(e).context(format!("error when reading {} directory", directory.display())))? {
-			let entry = entry.wrap(format!("error when reading file entries in {} directory", directory.display()))?;
-			let path = entry.path();
+		for path in fs::read_dir(&directory).await? {
 			let id = crate::util::without_extension(&path)
 				.strip_prefix(&directory)
 				.wrap("piece outside the piece collection directory")?
@@ -53,7 +56,7 @@ impl LibraryCache {
 	}
 
 	async fn maybe_load_piece(&self, path: PathBuf, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
-		let modified = path.metadata().wrap("could not query piece metadata")?.modified().wrap("could not query piece modification time")?;
+		let modified = fs::metadata(&path).await?.modified;
 		let cached = if let Some(cached) = cached_pieces.remove(id) {
 			if cached.modified == modified { Some(cached) } else { None }
 		} else {
@@ -62,19 +65,18 @@ impl LibraryCache {
 		let piece = if let Some(cached) = cached {
 			cached
 		} else {
-			let code = crate::util::fs_read_to_string(&path).await?;
+			let code = fs::read_to_string(&path).await?;
 			Piece::parse(&code, id.to_owned(), modified)?
 		};
 		Ok(piece)
 	}
 
-	fn get_directory(&self) -> R<PathBuf> {
+	async fn get_directory(&self) -> R<PathBuf> {
 		let dir = PATH.get();
-		if dir.trim().is_empty() {
+		if dir == Path::new("") {
 			return Err(E::error(qpaste_doc_error("no competitive programming library found")));
 		}
-		let dir = PathBuf::from(shellexpand::tilde(&*dir).into_owned());
-		if !dir.exists() {
+		if !fs::exists(&dir).await? {
 			return Err(E::error(format!("directory {} does not exist", dir.display())));
 		}
 		Ok(dir)

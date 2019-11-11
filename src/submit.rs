@@ -1,9 +1,8 @@
 use crate::{
-	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{self, plural}
+	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, plural, sleep}
 };
 use evscode::{E, R};
-use std::time::{Duration, Instant};
-use tokio::timer::delay;
+use std::time::Duration;
 use unijudge::{
 	boxed::{BoxedContest, BoxedTask}, Backend, RejectionCause, Resource
 };
@@ -32,7 +31,7 @@ async fn send_passed() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
 	TELEMETRY.submit_send.spark();
 	let code = dir::solution()?;
-	let code = util::fs_read_to_string(&code).await?;
+	let code = fs::read_to_string(&code).await?;
 	let manifest = Manifest::load().await?;
 	let url = manifest.req_task_url().map_err(|e| {
 		TELEMETRY.submit_notask.spark();
@@ -65,7 +64,7 @@ const TRACK_NOT_SEEN_RETRY_DELAY: Duration = Duration::from_secs(5);
 
 async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
-	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show();
+	let progress = evscode::Progress::new().title(format!("Tracking submit #{}", id)).show().0;
 	let mut last_verdict = None;
 	let mut not_seen_retry_limit = TRACK_NOT_SEEN_RETRY_LIMIT;
 	let verdict = loop {
@@ -79,7 +78,7 @@ async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: 
 				log::debug!("submission {} not found on status page, {} left", id, plural(not_seen_retry_limit, "retry", "retries"));
 				let _status = crate::STATUS.push("Retrying...");
 				not_seen_retry_limit -= 1;
-				delay(Instant::now() + TRACK_NOT_SEEN_RETRY_DELAY).await;
+				sleep(TRACK_NOT_SEEN_RETRY_DELAY).await;
 				continue;
 			},
 			None => return Err(E::error(format!("submission {} not found on status page", id))),
@@ -94,11 +93,11 @@ async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: 
 			progress.message(fmt_verdict(&submission.verdict));
 			last_verdict = Some(submission.verdict);
 		}
-		delay(Instant::now() + TRACK_DELAY).await;
+		sleep(TRACK_DELAY).await;
 	};
 	progress.end();
 	let message = fmt_verdict(&verdict);
-	evscode::Message::new(&message).show().await;
+	evscode::Message::new::<()>(&message).show().await;
 	Ok(())
 }
 

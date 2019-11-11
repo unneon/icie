@@ -1,22 +1,14 @@
 use itertools::Itertools;
-use std::{
-	cmp::Ordering, path::{Path, PathBuf}
-};
+use std::{cmp::Ordering, path::PathBuf};
 
-pub fn scan_and_order(root: &Path) -> Vec<PathBuf> {
-	let mut tests = scan(root);
+pub async fn scan_and_order(test_dir: &str) -> Vec<PathBuf> {
+	let mut tests = scan(test_dir).await;
 	order(&mut tests);
 	tests
 }
 
-fn scan(root: &Path) -> Vec<PathBuf> {
-	walkdir::WalkDir::new(root)
-		.follow_links(true)
-		.into_iter()
-		.filter_map(|e| e.ok())
-		.map(|entry| entry.path().to_path_buf())
-		.filter(|path| path.extension().map(|ext| ext == "in").unwrap_or(false))
-		.collect()
+async fn scan(test_dir: &str) -> Vec<PathBuf> {
+	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir)).await.into_iter().map(|uri| PathBuf::from(uri.fs_path())).collect()
 }
 
 fn order(tests: &mut Vec<PathBuf>) {

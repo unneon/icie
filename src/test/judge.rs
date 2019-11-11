@@ -1,8 +1,10 @@
-use crate::test::exec::{Executable, ExitKind, Task};
+use crate::{
+	executable::{Executable, ExitKind}, test::Task
+};
 use evscode::R;
 use std::{fmt, time::Duration};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Verdict {
 	Accepted { alternative: bool },
 	WrongAnswer,
@@ -12,7 +14,7 @@ pub enum Verdict {
 }
 
 impl Verdict {
-	pub fn success(&self) -> bool {
+	pub fn success(self) -> bool {
 		match self {
 			Verdict::Accepted { .. } => true,
 			_ => false,
@@ -38,7 +40,7 @@ pub async fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, 
 	let run = exec.run(input, &[], &task.environment).await?;
 	let verdict = match run.exit_kind {
 		ExitKind::Normal => {
-			if run.status.success() {
+			if run.success() {
 				if let Some(desired) = desired {
 					if task.checker.judge(input, desired, &run.stdout).await? {
 						Verdict::Accepted { alternative: false }

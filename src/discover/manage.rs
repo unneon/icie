@@ -1,6 +1,6 @@
 use crate::{
-	build::{build, clang::Codegen}, checker::get_checker, dir, discover::render::render, test::{
-		self, add_test, exec::{Environment, Executable, Task}, judge::{simple_test, Outcome, Verdict}, time_limit
+	build::{build, clang::Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{
+		self, add_test, judge::{simple_test, Outcome, Verdict}, time_limit, Task
 	}
 };
 use async_trait::async_trait;
@@ -8,6 +8,7 @@ use evscode::{
 	error::cancel_on, goodies::webview_collection::{Behaviour, Collection}, webview::{Disposer, Listener, WebviewMeta, WebviewRef}, E, R
 };
 use futures::{stream::select, Stream, StreamExt, TryStreamExt};
+use serde::{Serialize, Serializer};
 
 lazy_static::lazy_static! {
 	pub static ref WEBVIEW: Collection<Discover> = Collection::new(Discover);
@@ -15,7 +16,7 @@ lazy_static::lazy_static! {
 
 pub struct Discover;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Behaviour for Discover {
 	type K = ();
 	type V = ();
@@ -41,27 +42,24 @@ impl Behaviour for Discover {
 		let gen = build(dir::gen()?, &Codegen::Release, false).await?;
 		let task = Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit() } };
 		let mut best_row: Option<Row> = None;
-		let mut events =
-			cancel_on(select(execute_runs(&solution, &brut, &gen, &task).map_ok(Event::Row), listener.map(|_| Event::Add).map(Ok)), disposer).boxed();
+		let mut events = Box::pin(cancel_on(
+			select(execute_runs(&solution, &brut, &gen, &task).map_ok(Event::Row), listener.map(|_| Event::Add).map(Ok)),
+			disposer,
+		));
 		while let Some(event) = events.next().await {
 			match event?? {
 				Event::Row(row) => {
 					let is_counterexample = !row.outcome.success();
 					let is_smallest = best_row.as_ref().map_or(true, |best_row| row.fitness > best_row.fitness);
 					let is_new_best = is_counterexample && is_smallest;
-					webview.post_message(json::object! {
-						"tag" => "discovery_row",
-						"number" => row.number,
-						"outcome" => match row.outcome.verdict {
-							Verdict::Accepted { .. } => "accept",
-							Verdict::WrongAnswer => "wrong_answer",
-							Verdict::RuntimeError => "runtime_error",
-							Verdict::TimeLimitExceeded => "time_limit_exceeded",
-							Verdict::IgnoredNoOut => "ignored_no_out",
-						},
-						"fitness" => row.fitness,
-						"input" => if is_new_best { Some(row.input.as_str()) } else { None }
-					});
+					webview
+						.post_message(Food::Row {
+							number: row.number,
+							outcome: row.outcome.verdict,
+							fitness: row.fitness,
+							input: if is_new_best { Some(row.input.as_str()) } else { None },
+						})
+						.await;
 					if is_new_best {
 						best_row = Some(row);
 					}
@@ -112,4 +110,31 @@ async fn execute_run(number: usize, solution: &Executable, brut: &Executable, ge
 	let fitness = -(input.len() as i64);
 	let row = Row { number, outcome, fitness, input, desired };
 	Ok(row)
+}
+
+#[derive(Serialize)]
+#[serde(tag = "tag")]
+enum Food<'a> {
+	#[serde(rename = "row")]
+	Row {
+		number: usize,
+		#[serde(serialize_with = "ser_verdict")]
+		outcome: Verdict,
+		fitness: i64,
+		input: Option<&'a str>,
+	},
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn ser_verdict<S>(verdict: &Verdict, s: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	s.serialize_str(match verdict {
+		Verdict::Accepted { .. } => "accept",
+		Verdict::WrongAnswer => "wrong_answer",
+		Verdict::RuntimeError => "runtime_error",
+		Verdict::TimeLimitExceeded => "time_limit_exceeded",
+		Verdict::IgnoredNoOut => "ignored_no_out",
+	})
 }

@@ -45,7 +45,7 @@ impl Rewrite {
 		});
 	}
 
-	fn impl_fix_hide(mut v: ego_tree::NodeMut<scraper::Node>, f: &mut (impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool)) -> bool {
+	fn impl_fix_hide(mut v: ego_tree::NodeMut<scraper::Node>, f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool) -> bool {
 		let good_self = f(&mut v);
 		let good_path = good_self || v.first_child().map(|kid| Self::impl_fix_hide(kid, f)).unwrap_or(false);
 		let good_siblings = v.next_sibling().map(|sib| Self::impl_fix_hide(sib, f)).unwrap_or(false);
@@ -61,7 +61,7 @@ impl Rewrite {
 		Self::impl_traversal(self.doc.tree.tree.root_mut(), &mut f);
 	}
 
-	fn impl_traversal(mut v: ego_tree::NodeMut<scraper::Node>, f: &mut (impl FnMut(ego_tree::NodeMut<scraper::Node>))) {
+	fn impl_traversal(mut v: ego_tree::NodeMut<scraper::Node>, f: &mut impl FnMut(ego_tree::NodeMut<scraper::Node>)) {
 		if let Some(kid) = v.first_child() {
 			Self::impl_traversal(kid, f)
 		}
@@ -89,10 +89,10 @@ pub fn any_sibling(v: &mut ego_tree::NodeMut<scraper::Node>, mut f: impl FnMut(&
 	impl_any_sibling_prev(v, &mut f) || impl_any_sibling_next(v, &mut f)
 }
 
-fn impl_any_sibling_prev(v: &mut ego_tree::NodeMut<scraper::Node>, f: &mut (impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool)) -> bool {
+fn impl_any_sibling_prev(v: &mut ego_tree::NodeMut<scraper::Node>, f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool) -> bool {
 	f(v) || v.prev_sibling().map_or(false, |mut u| impl_any_sibling_prev(&mut u, f))
 }
 
-fn impl_any_sibling_next(v: &mut ego_tree::NodeMut<scraper::Node>, f: &mut (impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool)) -> bool {
+fn impl_any_sibling_next(v: &mut ego_tree::NodeMut<scraper::Node>, f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool) -> bool {
 	f(v) || v.next_sibling().map_or(false, |mut u| impl_any_sibling_next(&mut u, f))
 }

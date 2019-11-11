@@ -14,16 +14,30 @@ pub fn generate(input: TokenStream) -> TokenStream {
 	TokenStream::from(quote! {
 		#base_defs
 		#base_defs2
-		fn main() {
-			const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
-			let package = Box::leak(Box::new(evscode::meta::Package {
+
+		#[wasm_bindgen::prelude::wasm_bindgen(js_name = internal_generate_package_json)]
+		pub fn __evscode_generate_package_json(path: &str) {
+			evscode::macros::generate_package_json(path, __evscode_metadata());
+		}
+
+		#[wasm_bindgen::prelude::wasm_bindgen(js_name = activate)]
+		pub fn __evscode_activate(ctx: &evscode::macros::ExtensionContext) {
+			evscode::macros::activate(ctx, __evscode_metadata());
+		}
+
+		#[wasm_bindgen::prelude::wasm_bindgen(js_name = deactivate)]
+		pub async fn __evscode_deactivate() {
+			evscode::macros::deactivate().await;
+		}
+
+		fn __evscode_metadata() -> evscode::meta::Package  {
+			evscode::meta::Package {
 				identifier: env!("CARGO_PKG_NAME"),
 				version: env!("CARGO_PKG_VERSION"),
 				commands: #commands,
 				configuration: #config,
 				#fields
-			}));
-			evscode::internal::cli::run_main(package, MANIFEST_DIR).expect("running failed");
+			}
 		}
 	})
 }

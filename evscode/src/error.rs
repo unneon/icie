@@ -4,7 +4,6 @@
 //! from the user, backtraces and carrying extended logs. Properly connecting these features to VS Code API is a little bit code-heavy, and keeping
 //! this logic inside Evscode allows to improve error message format across all extensions.
 
-use backtrace::Backtrace;
 use futures::{
 	stream::{once, select}, Stream, StreamExt
 };
@@ -20,7 +19,7 @@ pub struct Action {
 	pub title: String,
 	/// The function that will be launched upon clicking the button.
 	/// It will be called in a separate thread.
-	pub trigger: Pin<Box<dyn Future<Output=R<()>>+Send>>,
+	pub trigger: Pin<Box<dyn Future<Output=R<()>>>>,
 }
 
 /// Indication of how serious the error is.
@@ -35,6 +34,23 @@ pub enum Severity {
 	Warning,
 	/// Abort the operation, display an error message, do not provide a link to GitHub issues.
 	Workflow,
+}
+
+#[derive(Debug)]
+/// A captured WASM backtrace.
+pub struct Backtrace(js_sys::Error);
+
+impl Backtrace {
+	/// Capture a backtrace in WASM.
+	pub fn new() -> Backtrace {
+		Backtrace(js_sys::Error::new(""))
+	}
+}
+
+impl Default for Backtrace {
+	fn default() -> Backtrace {
+		Backtrace::new()
+	}
 }
 
 /// Error type used by Evscode.
@@ -143,13 +159,13 @@ impl E {
 	}
 
 	/// Add a follow-up action that can be taken by the user, who will see the action as a button on the error message.
-	pub fn action(mut self, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+Send+'static) -> Self {
+	pub fn action(mut self, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+'static) -> Self {
 		self.actions.push(Action { title: title.as_ref().to_owned(), trigger: Box::pin(trigger) });
 		self
 	}
 
 	/// A convenience function to add a follow-up action if the condition is true. See [`E::action`] for details.
-	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+Send+'static) -> Self {
+	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+'static) -> Self {
 		if cond { self.action(title, trigger) } else { self }
 	}
 
@@ -178,7 +194,54 @@ impl E {
 	/// Prefer to return this value from event handlers instead.
 	/// This is meant to be used e.g. for warnings.
 	pub fn emit(self) {
-		crate::internal::executor::error_show(self)
+		let should_show = match self.severity {
+			Severity::Error => true,
+			Severity::Cancel => false,
+			Severity::Warning => true,
+			Severity::Workflow => true,
+		};
+		if should_show {
+			let mut log_msg = String::new();
+			for reason in &self.reasons {
+				log_msg += &format!("{}\n", reason);
+			}
+			for detail in &self.details {
+				log_msg += &format!("{}\n", detail);
+			}
+			log_msg += &format!("\nContains {} extended log entries\n\n{:?}", self.extended.len(), self.backtrace);
+			log::error!("{}", log_msg);
+			for extended in &self.extended {
+				log::info!("{}", extended);
+			}
+			let should_suggest_report = match self.severity {
+				Severity::Error => true,
+				Severity::Cancel => false,
+				Severity::Warning => true,
+				Severity::Workflow => false,
+			};
+			let message =
+				format!("{}{}", self.human(), if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues)" } else { "" });
+			let items = self
+				.actions
+				.iter()
+				.enumerate()
+				.map(|(i, action)| crate::message::Action { id: i.to_string(), title: action.title.clone(), is_close_affordance: false })
+				.collect::<Vec<_>>();
+			let mut msg = crate::Message::new(&message).error().items(items);
+			if let Severity::Warning = self.severity {
+				msg = msg.warning();
+			}
+			let promise = msg.show_eager();
+			crate::spawn(async move {
+				let choice = promise.await;
+				if let Some(choice) = choice {
+					let i: usize = choice.parse().unwrap();
+					let action = self.actions.into_iter().nth(i).unwrap();
+					action.trigger.await?;
+				}
+				Ok(())
+			});
+		}
 	}
 }
 
@@ -243,6 +306,18 @@ impl From<Cancellation> for E {
 			details: Vec::new(),
 			actions: Vec::new(),
 			backtrace: Backtrace::new(),
+			extended: Vec::new(),
+		}
+	}
+}
+impl From<js_sys::Error> for E {
+	fn from(e: js_sys::Error) -> Self {
+		E {
+			severity: Severity::Error,
+			reasons: vec![String::from(e.message())],
+			details: Vec::new(),
+			actions: Vec::new(),
+			backtrace: Backtrace(e),
 			extended: Vec::new(),
 		}
 	}

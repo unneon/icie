@@ -1,17 +1,15 @@
 //! Progress bars, both finite and infinite.
 
-use crate::{
-	future::Pong, internal::executor::{send_object, HANDLE_FACTORY}
-};
-use std::sync::{
-	atomic::{AtomicBool, Ordering}, Mutex
-};
+use futures::{channel::mpsc, FutureExt, StreamExt};
+use js_sys::Promise;
+use std::{future::Future, sync::Mutex};
+use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 /// Builder for configuring progress bars. Use [`Progress::new`] to create.
 #[must_use]
 pub struct Builder {
 	title: Option<String>,
-	location: &'static str,
+	location: vscode_sys::window::ProgressLocation,
 	cancellable: bool,
 }
 impl Builder {
@@ -23,13 +21,13 @@ impl Builder {
 
 	/// Change the progress bar location to the source control tab.
 	pub fn in_source_control(mut self) -> Self {
-		self.location = "source_control";
+		self.location = vscode_sys::window::ProgressLocation::SourceControl;
 		self
 	}
 
 	/// Change the progress bar location to the entire window(instead of a message).
 	pub fn in_window(mut self) -> Self {
-		self.location = "window";
+		self.location = vscode_sys::window::ProgressLocation::Window;
 		self
 	}
 
@@ -40,28 +38,47 @@ impl Builder {
 	}
 
 	/// Display the progress bar.
-	pub fn show(self) -> Progress {
-		let hid = HANDLE_FACTORY.generate();
-		send_object(json::object! {
-			"tag" => "progress_start",
-			"hid" => hid.to_string(),
-			"title" => self.title,
-			"location" => self.location,
-			"cancellable" => self.cancellable,
-		});
-		Progress { hid, canceler_spawned: AtomicBool::new(false), value: Mutex::new(0.0) }
+	pub fn show(self) -> (Progress, impl Future<Output=()>) {
+		let (tx, mut rx) = mpsc::unbounded::<(Option<f64>, Option<String>)>();
+		let (cancel_tx, cancel_rx) = futures::channel::oneshot::channel();
+		let cancel_callback = move |_: JsValue| {
+			let _ = cancel_tx.send(());
+		};
+		let progress_loop = move |progress: vscode_sys::ProgressProgress, cancel_token: vscode_sys::CancellationToken| -> Promise {
+			js_sys::Reflect::apply(
+				&cancel_token.on_cancellation_requested().unchecked_into(),
+				&JsValue::undefined(),
+				&js_sys::Array::of1(&Closure::once_into_js(cancel_callback)),
+			)
+			.unwrap();
+			wasm_bindgen_futures::future_to_promise(async move {
+				while let Some(update) = rx.next().await {
+					progress.report(vscode_sys::ProgressProgressValue { increment: update.0, message: update.1.as_ref().map(String::as_str) })
+				}
+				Ok(JsValue::undefined())
+			})
+		};
+		vscode_sys::window::with_progress(
+			vscode_sys::window::ProgressOptions {
+				cancellable: self.cancellable,
+				location: self.location,
+				title: self.title.as_ref().map(String::as_str),
+			},
+			Closure::once_into_js(progress_loop),
+		);
+		(Progress { tx, value: Mutex::new(0.0) }, cancel_rx.map(Result::unwrap))
 	}
 }
+
 /// Progress bar provided by the VS Code API.
 pub struct Progress {
-	hid: u64,
-	canceler_spawned: AtomicBool,
+	tx: mpsc::UnboundedSender<(Option<f64>, Option<String>)>,
 	value: Mutex<f64>,
 }
 impl Progress {
 	/// Create a new builder to configure the progress bar.
 	pub fn new() -> Builder {
-		Builder { title: None, location: "notification", cancellable: false }
+		Builder { title: None, location: vscode_sys::window::ProgressLocation::Notification, cancellable: false }
 	}
 
 	/// Increment and set message on the progress bar, see [`Progress::increment`] and [`Progress::message`].
@@ -99,40 +116,10 @@ impl Progress {
 			*self.value.lock().unwrap() += inc;
 			assert!(*self.value.lock().unwrap() <= 110.0);
 		}
-		send_object(json::object! {
-			"tag" => "progress_update",
-			"hid" => self.hid.to_string(),
-			"increment" => inc,
-			"message" => msg,
-		});
-	}
-
-	/// Returns a lazy future that will yield () if user presses the cancel button.
-	/// For this to ever happen, [`Builder::cancellable`] must be called when building the progress bar.
-	/// This function can only be called once.
-	pub async fn on_cancel(&self) {
-		assert!(!self.canceler_spawned.fetch_or(true, Ordering::SeqCst));
-		let pong = Pong::new();
-		let hid = self.hid;
-		send_object(json::object! {
-			"tag" => "progress_register_cancel",
-			"hid" => hid.to_string(),
-			"aid" => pong.aid(),
-		});
-		pong.await;
+		let _ = self.tx.unbounded_send((inc, msg.map(str::to_owned)));
 	}
 
 	/// Close the progress bar.
 	pub fn end(self) {
-	}
-}
-
-/// Dropping the object closes the progress bar
-impl Drop for Progress {
-	fn drop(&mut self) {
-		send_object(json::object! {
-			"tag" => "progress_end",
-			"hid" => self.hid.to_string(),
-		});
 	}
 }

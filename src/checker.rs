@@ -1,10 +1,9 @@
 use crate::{
-	build::{build, clang::Codegen}, dir, telemetry::TELEMETRY, test::exec::{Environment, Executable}
+	build::{build, clang::Codegen}, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, util::{fs, Tempfile}
 };
 use async_trait::async_trait;
-use evscode::{error::ResultExt, R};
-use std::{fmt, io::Write, time::Duration};
-use tempfile::NamedTempFile;
+use evscode::R;
+use std::{fmt, time::Duration};
 
 /// The maximum time a checker executable can run before getting killed, specified in milliseconds. Killing will cause the test to be classified as failed. Leaving this empty(which denotes no limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting system resources.
 #[evscode::config]
@@ -12,18 +11,18 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 	let checker = dir::checker()?;
-	Ok(if !checker.exists() {
+	Ok(if !fs::exists(&checker).await? {
 		let bx: Box<dyn Checker+Send+Sync> = Box::new(FreeWhitespaceChecker);
 		bx
 	} else {
 		TELEMETRY.checker_exists.spark();
-		let environment = Environment { time_limit: (*TIME_LIMIT.get()).map(Duration::from_millis) };
+		let environment = Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis) };
 		let executable = build(checker, &Codegen::Release, false).await?;
 		Box::new(ExecChecker { executable, environment })
 	})
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Checker: fmt::Debug {
 	async fn judge(&self, input: &str, desired: &str, out: &str) -> R<bool>;
 }
@@ -31,7 +30,7 @@ pub trait Checker: fmt::Debug {
 #[derive(Debug)]
 pub struct FreeWhitespaceChecker;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Checker for FreeWhitespaceChecker {
 	async fn judge(&self, _input: &str, desired: &str, out: &str) -> R<bool> {
 		Ok(self.equal_bew(desired, out))
@@ -78,15 +77,12 @@ pub struct ExecChecker {
 	pub environment: Environment,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Checker for ExecChecker {
 	async fn judge(&self, input: &str, desired: &str, out: &str) -> R<bool> {
-		let mut input_file = NamedTempFile::new().wrap("failed to create temporary input file")?;
-		let mut desired_file = NamedTempFile::new().wrap("failed to create temporary correct-output file")?;
-		let mut out_file = NamedTempFile::new().wrap("failed to create temporary output file")?;
-		input_file.write_all(input.as_bytes()).wrap("failed to fill temporary input file")?;
-		desired_file.write_all(desired.as_bytes()).wrap("failed to fill temporary correct-output file")?;
-		out_file.write_all(out.as_bytes()).wrap("failed to fill temporary output file")?;
+		let input_file = Tempfile::new("input.in", input).await?;
+		let desired_file = Tempfile::new("desired.out", desired).await?;
+		let out_file = Tempfile::new("output.out", out).await?;
 		let args = [input_file.path().to_str().unwrap(), out_file.path().to_str().unwrap(), desired_file.path().to_str().unwrap()];
 		let run = self.executable.run("", &args, &self.environment).await?;
 		Ok(run.success())

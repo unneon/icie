@@ -2,7 +2,7 @@ use crate::telemetry::TELEMETRY;
 use evscode::R;
 
 pub async fn check() -> R<()> {
-	let last = LAST_ACKNOWLEDGED_VERSION.get().await?;
+	let last = LAST_ACKNOWLEDGED_VERSION.get()?;
 	if last.as_ref().map(String::as_ref) != Some(LAST_IMPORTANT_UPDATE.version) {
 		TELEMETRY.newsletter_show.spark();
 		let message = format!(
@@ -17,7 +17,8 @@ pub async fn check() -> R<()> {
 				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
 			} else {
 				TELEMETRY.newsletter_dismiss.spark();
-				LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned());
+				let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
+				LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 			}
 		}
 	}

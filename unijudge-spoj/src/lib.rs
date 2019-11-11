@@ -9,7 +9,7 @@ use unijudge::{
 
 pub struct SPOJ;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl unijudge::Backend for SPOJ {
 	type CachedAuth = [Cookie; 3];
 	type Contest = !;

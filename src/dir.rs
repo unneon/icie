@@ -22,7 +22,7 @@ pub static CPP_EXTENSION: evscode::Config<String> = "cpp";
 
 /// The directory used for storing test cases. Usually, the directory will contain other subdirectories with files called ID.in or ID.out. For example, if this is set to "tests", test paths may look like tests/example/1.in or tests/user/3.out.
 #[evscode::config]
-static TESTS_DIRECTORY: evscode::Config<String> = "tests";
+pub static TESTS_DIRECTORY: evscode::Config<String> = "tests";
 
 /// The subdirectory used for storing test cases entered by the user. See icie.dir.testsDirectory configuration entry for details.
 #[evscode::config]
@@ -54,42 +54,4 @@ pub fn tests() -> evscode::R<PathBuf> {
 
 pub fn custom_tests() -> evscode::R<PathBuf> {
 	Ok(tests()?.join(&*CUSTOM_TESTS_SUBDIRECTORY.get()))
-}
-
-pub fn random_adjective() -> &'static str {
-	use rand::seq::SliceRandom;
-	let mut rng = rand::thread_rng();
-	static ADJECTIVES: &[&str] = &[
-		"playful",
-		"shining",
-		"sparkling",
-		"rainbow",
-		"kawaii",
-		"superb",
-		"amazing",
-		"glowing",
-		"blessed",
-		"smiling",
-		"exquisite",
-		"cuddly",
-		"caramel",
-		"serene",
-		"sublime",
-		"beaming",
-		"graceful",
-		"plushy",
-		"heavenly",
-		"marshmallow",
-	];
-	ADJECTIVES.choose(&mut rng).unwrap()
-}
-
-pub fn random_animal() -> &'static str {
-	use rand::seq::SliceRandom;
-	let mut rng = rand::thread_rng();
-	static ANIMALS: &[&str] = &[
-		"capybara", "squirrel", "spider", "anteater", "hamster", "whale", "eagle", "zebra", "dolphin", "hedgehog", "penguin", "wombat", "ladybug",
-		"platypus", "squid", "koala", "panda",
-	];
-	ANIMALS.choose(&mut rng).unwrap()
 }

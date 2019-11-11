@@ -1,6 +1,7 @@
 use crate::{Error, Result};
-use http::{header::HeaderName, HeaderValue};
-use reqwest::RequestBuilder;
+use reqwest::{
+	header::{HeaderName, HeaderValue}, RequestBuilder
+};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::{fmt, ops::Deref};
 use url::Url;

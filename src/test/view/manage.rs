@@ -1,7 +1,7 @@
 use crate::{
-	build::{build, clang::Codegen}, debug::{gdb, rr}, dir, telemetry::TELEMETRY, test::{
-		add_test, exec::Environment, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{fmt_verb, fs_remove_file, fs_write}
+	build::{build, clang::Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
+		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
+	}, util::{fmt_verb, fs}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -9,7 +9,8 @@ use evscode::{
 };
 use futures::StreamExt;
 use lazy_static::lazy_static;
-use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 lazy_static! {
 	pub static ref COLLECTION: Collection<TestView> = Collection::new(TestView);
@@ -17,7 +18,7 @@ lazy_static! {
 
 pub struct TestView;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Behaviour for TestView {
 	type K = Option<PathBuf>;
 	type V = Vec<TestRun>;
@@ -34,10 +35,8 @@ impl Behaviour for TestView {
 	async fn update(&self, _: Self::K, report: &Self::V, webview: WebviewRef) -> R<()> {
 		webview.set_html(&render(&report).await?);
 		webview.reveal(2, true);
-		if *SCROLL_TO_FIRST_FAILED.get() {
-			webview.post_message(json::object! {
-				"tag" => "scroll_to_wa",
-			});
+		if SCROLL_TO_FIRST_FAILED.get() {
+			webview.post_message(Food::ScrollToWA).await;
 		}
 		Ok(())
 	}
@@ -45,66 +44,53 @@ impl Behaviour for TestView {
 	async fn manage(&self, source: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let mut stream = cancel_on(listener, disposer);
 		while let Some(note) = stream.next().await {
-			let note = note?;
-			match note["tag"].as_str() {
-				Some("trigger_rr") => {
+			let note: Note = note?.into_serde().unwrap();
+			match note {
+				Note::TriggerRR { in_path } => {
 					let source = source.clone();
-					let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 					evscode::spawn(rr(in_path, source));
 				},
-				Some("trigger_gdb") => {
+				Note::TriggerGDB { in_path } => {
 					let source = source.clone();
-					let in_path = PathBuf::from(note["in_path"].as_str().unwrap());
 					evscode::spawn(gdb(in_path, source));
 				},
-				Some("new_test") => evscode::spawn(async move {
-					let input = note["input"].as_str().unwrap();
-					let desired = note["desired"].as_str().unwrap();
-					add_test(input, desired).await
-				}),
-				Some("set_alt") => evscode::spawn(async move {
+				Note::NewTest { input, desired } => evscode::spawn(async move { add_test(&input, &desired).await }),
+				Note::SetAlt { in_path, out } => evscode::spawn(async move {
 					TELEMETRY.test_alternative_add.spark();
-					let in_path = Path::new(note["in_path"].as_str().unwrap());
 					let in_alt_path = in_path.with_extension("alt.out");
-					let out = note["out"].as_str().unwrap().trim();
-					fs_write(&in_alt_path, out).await?;
+					fs::write(&in_alt_path, out).await?;
 					COLLECTION.update_all().await?;
 					Ok(())
 				}),
-				Some("del_alt") => evscode::spawn(async move {
+				Note::DelAlt { in_path } => evscode::spawn(async move {
 					TELEMETRY.test_alternative_delete.spark();
-					let in_path = Path::new(note["in_path"].as_str().unwrap());
 					let in_alt_path = in_path.with_extension("alt.out");
-					fs_remove_file(&in_alt_path).await?;
+					fs::remove_file(&in_alt_path).await?;
 					COLLECTION.update_all().await?;
 					Ok(())
 				}),
-				Some("edit") => {
+				Note::Edit { path } => {
 					TELEMETRY.test_edit.spark();
-					let path = Path::new(note["path"].as_str().unwrap());
-					evscode::open_editor(path).open().await;
+					if !fs::exists(&path).await? {
+						fs::write(&path, "").await?;
+					}
+					evscode::open_editor(&path).open().await?;
 				},
-				Some("action_notice") => SKILL_ACTIONS.add_use().await,
-				Some("eval_req") => {
+				Note::ActionNotice => SKILL_ACTIONS.add_use().await,
+				Note::EvalReq { id, input } => {
 					if let Ok(brut) = dir::brut() {
-						if brut.exists() {
+						if fs::exists(&brut).await? {
 							let webview = webview.clone();
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let id = note["id"].as_i64().unwrap();
-								let input = note["input"].as_str().unwrap();
 								let brut = build(brut, &Codegen::Release, false).await?;
 								let environment = Environment { time_limit: time_limit() };
-								let run = brut.run(input, &[], &environment).await?;
+								let run = brut.run(&input, &[], &environment).await?;
 								drop(_status);
 								if run.success() {
-									add_test(input, &run.stdout).await?;
-									webview.post_message(json::object! {
-										"tag" => "eval_resp",
-										"id" => id,
-										"input" => input,
-									});
+									add_test(&input, &run.stdout).await?;
+									webview.post_message(Food::EvalResp { id, input }).await;
 									Ok(())
 								} else {
 									Err(E::error("brut did not evaluate test successfully"))
@@ -113,9 +99,40 @@ impl Behaviour for TestView {
 						}
 					}
 				},
-				_ => return Err(E::error(format!("invalid webview message `{}`", note.dump()))),
 			}
 		}
 		Ok(())
 	}
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "tag")]
+enum Note {
+	#[serde(rename = "trigger_rr")]
+	TriggerRR { in_path: PathBuf },
+	#[serde(rename = "trigger_gdb")]
+	TriggerGDB { in_path: PathBuf },
+	#[serde(rename = "new_test")]
+	NewTest { input: String, desired: String },
+	#[serde(rename = "set_alt")]
+	SetAlt { in_path: PathBuf, out: String },
+	#[serde(rename = "del_alt")]
+	DelAlt { in_path: PathBuf },
+	#[serde(rename = "edit")]
+	Edit { path: PathBuf },
+	#[serde(rename = "action_notice")]
+	ActionNotice,
+	#[serde(rename = "eval_req")]
+	EvalReq { id: i64, input: String },
+}
+
+#[derive(Serialize)]
+#[serde(tag = "tag")]
+pub enum Food {
+	#[serde(rename = "scroll_to_wa")]
+	ScrollToWA,
+	#[serde(rename = "eval_resp")]
+	EvalResp { id: i64, input: String },
+	#[serde(rename = "new_start")]
+	NewStart,
 }

@@ -30,7 +30,7 @@ pub struct CachedAuth {
 	sessionid: Cookie,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl unijudge::Backend for Sio2 {
 	type CachedAuth = CachedAuth;
 	type Contest = !;

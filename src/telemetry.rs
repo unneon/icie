@@ -1,8 +1,8 @@
-use crate::net::BACKENDS;
+use crate::{net::BACKENDS, util::node_hrtime};
 use std::{
 	sync::{
 		atomic::{AtomicU64, Ordering}, Mutex
-	}, time::Instant
+	}, time::Duration
 };
 
 pub fn send_usage() {
@@ -67,7 +67,7 @@ pub fn send_usage() {
 			.chain((&[("session_duration", get_session_duration())]).iter().cloned())
 			.chain(BACKENDS.iter().map(|backend| (backend.telemetry_id, backend.counter.get())))
 			.chain(
-				evscode::runtime::config_entries()
+				evscode::meta::config_entries()
 					.iter()
 					.map(|config_entry| (config_entry.telemetry_id.as_str(), config_entry.telemetry_config_delta())),
 			),
@@ -92,11 +92,11 @@ impl Counter {
 }
 
 lazy_static::lazy_static! {
-	pub static ref START_TIME: Mutex<Option<Instant>> = Mutex::new(None);
+	pub static ref START_TIME: Mutex<Option<Duration>> = Mutex::new(None);
 }
 
 fn get_session_duration() -> f64 {
-	let t = Instant::now();
+	let t = node_hrtime();
 	(t - START_TIME.lock().unwrap().unwrap_or(t)).as_secs_f64()
 }
 

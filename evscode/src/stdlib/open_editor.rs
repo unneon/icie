@@ -1,7 +1,8 @@
 //! Builder pattern implementation for opening an editor.
 
-use crate::{future::Pong, internal::executor::send_object, Column, Position, Range};
+use crate::{Column, Position, Range, R};
 use std::path::Path;
+use wasm_bindgen::JsCast;
 
 /// Builder for opening text files in a VS Code editor.
 #[must_use]
@@ -59,19 +60,28 @@ impl<'a> Builder<'a> {
 	}
 
 	/// Open the text file in the specified way.
-	pub async fn open(self) {
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "open_editor",
-			"path" => self.path.to_str().expect("evscode::open_editor non-utf8 path"),
-			"cursor" => self.cursor,
-			"preserve_focus" => self.preserve_focus,
-			"preview" => self.preview,
-			"selection" => self.selection,
-			"view_column" => self.view_column,
-			"force_new" => self.force_new,
-			"aid" => pong.aid(),
-		});
-		pong.await;
+	pub async fn open(self) -> R<()> {
+		let editor = if !self.force_new {
+			vscode_sys::window::VISIBLE_TEXT_EDITORS
+				.values()
+				.into_iter()
+				.map(|edi| edi.unwrap().unchecked_into::<vscode_sys::TextEditor>())
+				.find(|edi| edi.document().file_name() == self.path.to_str().unwrap())
+		} else {
+			None
+		};
+		let editor = match editor {
+			Some(editor) => (*editor).clone().unchecked_into(),
+			None => {
+				let doc = vscode_sys::workspace::open_text_document(self.path.to_str().unwrap()).await?;
+				vscode_sys::window::show_text_document(&doc).await
+			},
+		};
+		if let Some(cursor) = self.cursor {
+			let pos = vscode_sys::Position::new(cursor.line, cursor.column);
+			editor.set_selection(vscode_sys::Selection::new(&pos, &pos));
+			editor.reveal_range(&vscode_sys::Range::new(&pos, &pos), vscode_sys::TextEditorRevealType::InCenter);
+		}
+		Ok(())
 	}
 }

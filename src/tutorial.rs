@@ -10,11 +10,11 @@ impl Skill {
 	}
 
 	pub async fn is_proficient(&'static self) -> bool {
-		self.use_count.get().await.unwrap().unwrap_or(0) >= self.proficiency_threshold
+		self.use_count.get().unwrap().unwrap_or(0) >= self.proficiency_threshold
 	}
 
 	pub async fn add_use(&'static self) {
-		let new_uses = self.use_count.get().await.unwrap().unwrap_or(0) + 1;
-		self.use_count.set(&new_uses); // race condition, yay
+		let new_uses = self.use_count.get().unwrap().unwrap_or(0) + 1;
+		self.use_count.set(&new_uses).await; // race condition, yay
 	}
 }

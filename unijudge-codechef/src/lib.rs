@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	backtrace::Backtrace, debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{StatusCode, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{StatusCode, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 pub struct CodeChef;
@@ -33,7 +33,7 @@ pub struct CachedAuth {
 	c_sess: Cookie,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl unijudge::Backend for CodeChef {
 	type CachedAuth = CachedAuth;
 	type Contest = Contest;
@@ -219,7 +219,7 @@ impl unijudge::Backend for CodeChef {
 		let resp_raw = resp.text().await?;
 		let resp = json::from_str::<api::Submit>(&resp_raw, endpoint)?;
 		if resp.status == "OK" {
-			Ok(resp.upid.ok_or_else(|| Error::UnexpectedJSON { endpoint, backtrace: Backtrace::new(), resp_raw, inner: None })?)
+			Ok(resp.upid.ok_or_else(|| Error::UnexpectedJSON { endpoint, resp_raw, inner: None })?)
 		} else {
 			Err(Error::RateLimit)
 		}
@@ -348,7 +348,7 @@ impl CodeChef {
 				let contest = Contest::Normal(child.clone());
 				self.contest_details_ex_boxed(session, &contest).await
 			};
-			tasks.ok_or_else(|| Error::UnexpectedJSON { endpoint, backtrace: Backtrace::new(), resp_raw, inner: None })?
+			tasks.ok_or_else(|| Error::UnexpectedJSON { endpoint, resp_raw, inner: None })?
 		} else {
 			// If no username is present in the previous case, codechef assumes you're div2.
 			// This behaviour is unsatisfactory, so we require a login from the user.
@@ -360,7 +360,7 @@ impl CodeChef {
 		&'a self,
 		session: &'a Session,
 		contest: &'a Contest,
-	) -> Pin<Box<dyn Future<Output=Result<ContestDetailsEx>>+Send+'a>> {
+	) -> Pin<Box<dyn Future<Output=Result<ContestDetailsEx>>+'a>> {
 		Box::pin(self.contest_details_ex(session, contest))
 	}
 

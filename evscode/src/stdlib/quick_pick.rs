@@ -1,20 +1,22 @@
 //! Selecting one or some of the given options.
 
-use crate::{future::Pong, internal::executor::send_object};
+use js_sys::Array;
+use serde::{Deserialize, Serialize};
 use std::iter::{Chain, Empty, Once};
+use wasm_bindgen::JsValue;
 
 /// Builder object for an item that can be selected.
 #[must_use]
-pub struct Item {
+pub struct Item<T> {
 	always_show: bool,
 	description: Option<String>,
 	detail: Option<String>,
 	label: String,
-	id: String,
+	id: T,
 }
-impl Item {
+impl<T> Item<T> {
 	/// Create a new item with the given ID and label.
-	pub fn new(id: String, label: String) -> Item {
+	pub fn new(id: T, label: String) -> Item<T> {
 		Item { always_show: false, description: None, detail: None, label, id }
 	}
 
@@ -39,14 +41,14 @@ impl Item {
 
 /// Builder for configuring quick picks. Use [`QuickPick::new`] to create.
 #[must_use]
-pub struct Builder<'a, I: Iterator<Item=Item>> {
+pub struct Builder<'a, T, I: Iterator<Item=Item<T>>> {
 	ignore_focus_out: bool,
 	match_on_description: bool,
 	match_on_detail: bool,
 	placeholder: Option<&'a str>,
 	items: I,
 }
-impl<'a, I: Iterator<Item=Item>> Builder<'a, I> {
+impl<'a, T: Serialize+for<'d> Deserialize<'d>, I: Iterator<Item=Item<T>>> Builder<'a, T, I> {
 	/// Do not make the quick pick disappear when user breaks focus.
 	pub fn ignore_focus_out(mut self) -> Self {
 		self.ignore_focus_out = true;
@@ -79,7 +81,7 @@ impl<'a, I: Iterator<Item=Item>> Builder<'a, I> {
 	}
 
 	/// Add an item to the selection.
-	pub fn item(self, item: Item) -> Builder<'a, Chain<I, Once<Item>>> {
+	pub fn item(self, item: Item<T>) -> Builder<'a, T, Chain<I, Once<Item<T>>>> {
 		Builder {
 			ignore_focus_out: self.ignore_focus_out,
 			match_on_description: self.match_on_description,
@@ -90,7 +92,7 @@ impl<'a, I: Iterator<Item=Item>> Builder<'a, I> {
 	}
 
 	/// Add items to the selection.
-	pub fn items<I2: IntoIterator<Item=Item>>(self, items: I2) -> Builder<'a, Chain<I, I2::IntoIter>> {
+	pub fn items<I2: IntoIterator<Item=Item<T>>>(self, items: I2) -> Builder<'a, T, Chain<I, I2::IntoIter>> {
 		Builder {
 			ignore_focus_out: self.ignore_focus_out,
 			match_on_description: self.match_on_description,
@@ -102,24 +104,35 @@ impl<'a, I: Iterator<Item=Item>> Builder<'a, I> {
 
 	/// Prepare a lazy future with the quick pick.
 	/// This does not spawn it yet.
-	pub async fn show(self) -> Option<String> {
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "quick_pick",
-			"ignoreFocusOut" => self.ignore_focus_out,
-			"matchOnDescription" => self.match_on_description,
-			"matchOnDetail" => self.match_on_detail,
-			"placeholder" => self.placeholder,
-			"items" => self.items.map(|item| json::object! {
-				"label" => item.label,
-				"description" => item.description,
-				"detail" => item.detail,
-				"alwaysShow" => item.always_show,
-				"id" => item.id,
-			}).collect::<Vec<_>>(),
-			"aid" => pong.aid(),
-		});
-		pong.await.as_str().map(str::to_owned)
+	pub async fn show(self) -> Option<T> {
+		let items = Array::new();
+		for item in self.items {
+			items.push(
+				&JsValue::from_serde(&vscode_sys::window::ShowQuickPickItem {
+					detail: item.detail.as_ref().map(String::as_str),
+					description: item.description.as_ref().map(String::as_str),
+					always_show: item.always_show,
+					label: &item.label,
+					id: item.id,
+					picked: false,
+				})
+				.unwrap(),
+			);
+		}
+		let options = vscode_sys::window::ShowQuickPickOptions {
+			can_pick_many: false,
+			ignore_focus_out: self.ignore_focus_out,
+			match_on_description: self.match_on_description,
+			match_on_detail: self.match_on_detail,
+			place_holder: self.placeholder,
+		};
+		let item = vscode_sys::window::show_quick_pick(&items, options).await;
+		if !item.is_undefined() {
+			let item: vscode_sys::ItemRet<T> = item.into_serde().unwrap();
+			Some(item.id)
+		} else {
+			None
+		}
 	}
 }
 
@@ -132,7 +145,7 @@ pub struct QuickPick {
 
 impl QuickPick {
 	/// Create a new builder to configure the quick pick.
-	pub fn new() -> Builder<'static, Empty<Item>> {
+	pub fn new<T>() -> Builder<'static, T, Empty<Item<T>>> {
 		Builder { ignore_focus_out: false, match_on_detail: false, match_on_description: false, placeholder: None, items: std::iter::empty() }
 	}
 }

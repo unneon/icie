@@ -1,7 +1,11 @@
 use evscode::{error::ResultExt, Position, E, R};
+use futures::channel::oneshot;
 use std::{
-	path::{Path, PathBuf}, time::Duration
+	path::{Path, PathBuf}, time::{Duration, SystemTime}
 };
+use wasm_bindgen::{closure::Closure, JsValue};
+
+pub mod fs;
 
 pub fn fmt_time_short(t: &Duration) -> String {
 	let s = t.as_secs();
@@ -77,20 +81,23 @@ fn test_bash_escape() {
 	assert_eq!(bash_escape("${HOME}\\Projects"), r#""\${HOME}\\Projects""#);
 }
 
-pub fn is_installed(app: &'static str) -> evscode::R<bool> {
-	let exec_lookups = std::env::var("PATH").wrap("env var PATH does not exist")?;
-	for exec_lookup in std::env::split_paths(&exec_lookups) {
-		if exec_lookup.join(app).exists() {
+pub async fn is_installed(app: &'static str) -> R<bool> {
+	let exec_lookups = env("PATH")?;
+	for exec_lookup in exec_lookups.split(&String::from(node_sys::path::DELIMITER.clone())) {
+		let path = Path::new(exec_lookup).join(app);
+		if fs::exists(&path).await? {
 			return Ok(true);
 		}
 	}
 	Ok(false)
 }
 
-#[test]
-fn test_is_installed() {
-	assert_eq!(is_installed("cargo").unwrap(), true);
-	assert_eq!(is_installed("icie-this-executable-does-no-exist").unwrap(), false);
+pub fn env(key: &'static str) -> R<String> {
+	Ok(js_sys::Reflect::get(&node_sys::process::ENV, &JsValue::from_str(key))
+		.ok()
+		.wrap(format!("env var {} does not exist", key))?
+		.as_string()
+		.unwrap())
 }
 
 pub fn html_material_icons() -> String {
@@ -144,33 +151,12 @@ fn test_mex() {
 	assert_eq!(mex(5, vec![]), 5);
 }
 
-pub async fn fs_read_to_string(path: &Path) -> R<String> {
-	String::from_utf8(tokio::fs::read(path).await.map_err(|e| {
-		let is_not_found = e.kind() == std::io::ErrorKind::NotFound;
-		evscode::E::from_std(e).context(if is_not_found {
-			format!("file {} does not exist", path.display())
-		} else {
-			format!("failed to read file {}", path.display())
-		})
-	})?)
-	.wrap(format!("file {} is not utf8 encoded", path.display()))
-}
-
-pub async fn fs_write(path: &Path, content: impl AsRef<[u8]>) -> R<()> {
-	let content = content.as_ref().to_owned();
-	tokio::fs::write(path.to_owned(), content).await.wrap(format!("failed to write to {}", path.display()))
-}
-
-pub async fn fs_remove_file(path: &Path) -> R<()> {
-	tokio::fs::remove_file(path).await.wrap(format!("failed to remove {}", path.display()))
-}
-
-pub async fn fs_create_dir_all(path: &Path) -> R<()> {
-	tokio::fs::create_dir_all(path).await.wrap(format!("failed to create directory {}", path.display()))
+pub fn time_now() -> SystemTime {
+	SystemTime::UNIX_EPOCH + Duration::from_millis(js_sys::Date::now() as u64)
 }
 
 pub async fn find_cursor_place(path: &Path) -> Option<Position> {
-	let doc = fs_read_to_string(path).await.unwrap_or_default();
+	let doc = fs::read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
 	for (line, content) in doc.lines().enumerate() {
 		if !found_main && content.contains("int main(") {
@@ -187,6 +173,10 @@ pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 	format!("{} {}", x, if x == 1 { singular } else { plural })
 }
 
+pub fn expand_path(path: &str) -> PathBuf {
+	PathBuf::from(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
+}
+
 pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
 	let path = path.as_ref();
 	path.parent().unwrap().join(path.file_stem().unwrap())
@@ -200,30 +190,11 @@ fn test_pathmanip() {
 	assert_eq!(without_extension("./inner/dev0"), Path::new("./inner/dev0"));
 }
 
-pub struct TransactionDir<'a> {
-	path: &'a Path,
-	good: bool,
-}
-impl<'a> TransactionDir<'a> {
-	pub async fn new(path: &'a Path) -> evscode::R<TransactionDir<'a>> {
-		fs_create_dir_all(path).await?;
-		Ok(TransactionDir { path, good: false })
-	}
-
-	pub fn path(&self) -> &'a Path {
-		self.path
-	}
-
-	pub fn commit(mut self) -> &'a Path {
-		self.good = true;
-		self.path
-	}
-}
-impl Drop for TransactionDir<'_> {
-	fn drop(&mut self) {
-		if !self.good {
-			std::fs::remove_dir_all(self.path).expect("failed to delete uncommited directory");
-		}
+pub fn node_hrtime() -> Duration {
+	let raw_time = node_sys::process::hrtime();
+	match raw_time.values().into_iter().map(|v| v.unwrap().as_f64().unwrap()).collect::<Vec<_>>().as_slice() {
+		[seconds, nanoseconds] => Duration::new(*seconds as u64, *nanoseconds as u32),
+		_ => unreachable!(),
 	}
 }
 
@@ -253,5 +224,38 @@ impl MaybePath for Option<PathBuf> {
 impl<'a, T: MaybePath> MaybePath for &'a T {
 	fn as_option_path(&self) -> Option<&Path> {
 		(*self).as_option_path()
+	}
+}
+
+pub async fn sleep(delay: Duration) {
+	let (tx, rx) = oneshot::channel();
+	node_sys::timers::set_timeout(
+		Closure::once_into_js(move || {
+			let _ = tx.send(());
+		}),
+		delay.as_secs_f64() * 1000.0,
+	);
+	rx.await.unwrap();
+}
+
+pub struct Tempfile {
+	path: PathBuf,
+}
+
+impl Tempfile {
+	pub async fn new(uniq_name: &str, data: impl AsRef<[u8]>) -> R<Tempfile> {
+		let path = PathBuf::from(format!("/tmp/icie_{}", uniq_name));
+		fs::write(&path, data.as_ref()).await?;
+		Ok(Tempfile { path })
+	}
+
+	pub fn path(&self) -> &Path {
+		&self.path
+	}
+}
+
+impl Drop for Tempfile {
+	fn drop(&mut self) {
+		fs::remove_file_sync(&self.path).unwrap();
 	}
 }

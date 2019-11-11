@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	backtrace::Backtrace, chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
 	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
@@ -45,7 +45,7 @@ pub struct CachedAuth {
 	username: String,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl unijudge::Backend for Codeforces {
 	type CachedAuth = CachedAuth;
 	type Contest = Contest;
@@ -96,7 +96,7 @@ impl unijudge::Backend for Codeforces {
 			.form(&[("action", "enter"), ("csrf_token", &csrf), ("handleOrEmail", username), ("password", password), ("remember", "on")])
 			.send()
 			.await?;
-		let doc = unijudge::debris::Document::new(&resp.text().await?);
+		let doc = unijudge::debris::Document::new(resp.text().await?.as_str());
 		let login_succeeded =
 			doc.find_all(".lang-chooser a").any(|v| v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username)));
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
@@ -423,7 +423,6 @@ impl ExtractedStatement {
 				|| Error::UnexpectedResponse {
 					endpoint: "/{contests|gym|problemset}/{}",
 					message: "title not found in contest task list",
-					backtrace: Backtrace::new(),
 					resp_raw: String::new(),
 					inner: None,
 				},

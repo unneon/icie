@@ -1,8 +1,12 @@
 //! Extension metadata types.
 
-use crate::{config::ErasedConfig, future::BoxedFuture, R};
-use json::JsonValue;
+use crate::{config::ErasedConfig, BoxFuture, R};
 use std::fmt::{self, Write};
+
+/// Returns a vector with metadata on all configuration entries in the plugin.
+pub fn config_entries() -> Vec<ConfigEntry> {
+	crate::glue::CONFIG_ENTRIES.with(|ce| ce.borrow().as_ref().unwrap().clone())
+}
 
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -26,6 +30,18 @@ impl Identifier {
 	pub fn to_telemetry_fmt(&self) -> String {
 		format!("config_delta_{}", self).replace(".", "").to_lowercase()
 	}
+
+	pub(crate) fn extension_id(&self) -> String {
+		let full_path = self.to_string();
+		let i = full_path.find('.').unwrap();
+		full_path[..i].to_owned()
+	}
+
+	pub(crate) fn inner_path(&self) -> String {
+		let full_path = self.to_string();
+		let i = full_path.find('.').unwrap();
+		full_path[i + 1..].to_owned()
+	}
 }
 
 #[doc(hidden)]
@@ -34,10 +50,11 @@ pub struct Command {
 	pub id: Identifier,
 	pub title: &'static str,
 	pub key: Option<&'static str>,
-	pub trigger: fn() -> BoxedFuture<'static, R<()>>,
+	pub trigger: fn() -> BoxFuture<'static, R<()>>,
 }
 
 /// Metadata of a configuration entry.
+#[derive(Clone)]
 pub struct ConfigEntry {
 	#[doc(hidden)]
 	pub id: Identifier,
@@ -50,7 +67,7 @@ pub struct ConfigEntry {
 	#[doc(hidden)]
 	pub reference: &'static dyn ErasedConfig,
 	#[doc(hidden)]
-	pub schema: fn() -> JsonValue,
+	pub schema: fn() -> serde_json::Value,
 }
 
 impl ConfigEntry {
@@ -78,17 +95,17 @@ impl Activation<&'static str> {
 	pub fn own(&self) -> Activation<String> {
 		match self {
 			Activation::OnCommand { command } => Activation::OnCommand { command: *command },
-			Activation::WorkspaceContains { selector } => Activation::WorkspaceContains { selector: selector.to_string() },
+			Activation::WorkspaceContains { selector } => Activation::WorkspaceContains { selector: (*selector).to_owned() },
 		}
 	}
 }
 #[doc(hidden)]
 impl Activation<String> {
-	pub fn package_json_format(&self) -> JsonValue {
-		json::from(match self {
+	pub fn package_json_format(&self) -> String {
+		match self {
 			Activation::OnCommand { command } => format!("onCommand:{}", command),
 			Activation::WorkspaceContains { selector } => format!("workspaceContains:{}", selector),
-		})
+		}
 	}
 }
 
@@ -121,9 +138,9 @@ pub struct Package {
 	pub repository: &'static str,
 	/// Function intended to run when the extension is activated.
 	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
-	pub on_activate: Option<BoxedFuture<'static, R<()>>>,
+	pub on_activate: Option<BoxFuture<'static, R<()>>>,
 	/// Function intended to run when the extension is deactivated.
-	pub on_deactivate: Option<BoxedFuture<'static, R<()>>>,
+	pub on_deactivate: Option<BoxFuture<'static, R<()>>>,
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],

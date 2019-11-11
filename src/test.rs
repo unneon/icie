@@ -1,15 +1,14 @@
-pub mod exec;
 pub mod judge;
 pub mod scan;
 pub mod view;
 
 use crate::{
-	build::{self, clang::Codegen}, dir, telemetry::TELEMETRY, test::{
-		exec::{Environment, Executable, Task}, judge::{simple_test, Outcome}, scan::scan_and_order
-	}, util::{self, mex}, STATUS
+	build::{self, clang::Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
+		judge::{simple_test, Outcome}, scan::scan_and_order
+	}, util, util::fs
 };
-use evscode::{error::ResultExt, webview::WebviewRef, E, R};
-use futures::{stream::Stream, SinkExt, StreamExt};
+use evscode::{error::ResultExt, webview::WebviewRef, R};
+use futures::{SinkExt, Stream, StreamExt};
 use std::{
 	path::{Path, PathBuf}, time::Duration
 };
@@ -26,20 +25,27 @@ impl TestRun {
 	}
 }
 
+#[derive(Debug)]
+pub struct Task {
+	pub checker: Box<dyn Checker+Send+Sync>,
+	pub environment: Environment,
+}
+
 /// The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds. Leaving this empty(which denotes no limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting system resources.
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub async fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
-	let _status = STATUS.push("Testing");
+	let _status = crate::STATUS.push("Testing");
 	TELEMETRY.test_run.spark();
 	let solution = build::build(main_source, &Codegen::Debug, false).await?;
 	let task = Task { checker: crate::checker::get_checker().await?, environment: Environment { time_limit: time_limit() } };
+	let test_dir_name = dir::TESTS_DIRECTORY.get();
 	let test_dir = dir::tests()?;
-	let ins = scan_and_order(&test_dir);
+	let ins = scan_and_order(&test_dir_name).await;
 	let mut runs = Vec::new();
 	let test_count = ins.len();
-	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).cancellable().show();
+	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).show().0;
 	let mut worker = run_thread(ins, task, solution);
 	for _ in 0..test_count {
 		let run = worker.next().await.wrap("did not ran all tests due to an internal panic")??;
@@ -64,17 +70,18 @@ fn run_thread(ins: Vec<PathBuf>, task: Task, solution: Executable) -> impl Strea
 		let task = task;
 		let solution = solution;
 		for in_path in ins {
+			// TODO: Refactor try block into a function
 			let r = try {
 				let out_path = in_path.with_extension("out");
 				let alt_path = in_path.with_extension("alt.out");
-				let input = util::fs_read_to_string(&in_path).await?;
-				let output = match tokio::fs::read(&out_path).await.map(String::from_utf8) {
-					Ok(Ok(output)) => Some(output),
-					Ok(Err(e)) => return Err(E::from_std(e).context(format!("test output for {} is not valid utf8", in_path.display()))),
-					Err(ref e) if e.kind() == std::io::ErrorKind::NotFound => None,
-					Err(e) => return Err(E::from_std(e).context(format!("failed to read test out {}", out_path.display()))),
+				let input = fs::read_to_string(&in_path).await?;
+				let output = match fs::read_to_string(&out_path).await {
+					Ok(output) => Some(output),
+					// Matching on JS errors would be irritating, so let's just do this.
+					Err(ref e) if e.human().contains("ENOENT: no such file or directory") => None,
+					Err(e) => return Err(e.context(format!("failed to read test out {}", out_path.display()))),
 				};
-				let alt = if alt_path.exists() { Some(util::fs_read_to_string(&alt_path).await?) } else { None };
+				let alt = if fs::exists(&alt_path).await? { Some(fs::read_to_string(&alt_path).await?) } else { None };
 				let outcome = simple_test(&solution, &input, output.as_ref().map(String::as_str), alt.as_ref().map(|p| p.as_str()), &task)
 					.await
 					.map_err(|e| e.context("failed to run test"))?;
@@ -112,12 +119,12 @@ async fn view_current() -> R<()> {
 pub async fn add_test(input: &str, desired: &str) -> R<()> {
 	TELEMETRY.test_add.spark();
 	let tests = dir::custom_tests()?;
-	util::fs_create_dir_all(&tests).await?;
-	let id = unused_test_id(&tests)?;
+	fs::create_dir_all(&tests).await?;
+	let id = unused_test_id(&tests).await?;
 	let in_path = tests.join(format!("{}.in", id));
 	let out_path = tests.join(format!("{}.out", id));
-	util::fs_write(&in_path, input).await?;
-	util::fs_write(&out_path, desired).await?;
+	fs::write(&in_path, input).await?;
+	fs::write(&out_path, desired).await?;
 	view::manage::COLLECTION.update_all().await?;
 	Ok(())
 }
@@ -128,24 +135,21 @@ pub async fn input() -> evscode::R<()> {
 	let view = if let Some(view) = view::manage::COLLECTION.find_active().await { view } else { view::manage::COLLECTION.get_lazy(None).await? };
 	// FIXME: Despite this reveal, VS Code does not focus the webview hard enough for a .focus() in the JS code to work.
 	view.reveal(2, false);
-	touch_input(view);
+	touch_input(view).await;
 	Ok(())
 }
 
-fn unused_test_id(dir: &Path) -> evscode::R<i64> {
+async fn unused_test_id(dir: &Path) -> evscode::R<i64> {
 	let mut taken = Vec::new();
-	for test in dir.read_dir().wrap("failed to read tests directory")? {
-		let test = test.wrap("failed to read a test file entry in tests directory")?;
-		if let Ok(id) = test.path().file_stem().unwrap().to_str().unwrap().parse::<i64>() {
+	for test in fs::read_dir(dir).await? {
+		if let Ok(id) = test.file_stem().unwrap().to_str().unwrap().parse::<i64>() {
 			taken.push(id);
 		}
 	}
-	let id = mex(1, taken);
+	let id = util::mex(1, taken);
 	Ok(id)
 }
 
-pub fn touch_input(webview: WebviewRef) {
-	webview.post_message(json::object! {
-		"tag" => "new_start",
-	});
+pub async fn touch_input(webview: WebviewRef) {
+	webview.post_message(view::manage::Food::NewStart).await;
 }

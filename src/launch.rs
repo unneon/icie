@@ -1,14 +1,15 @@
 use crate::{
-	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::{self, TELEMETRY}, util
+	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::{self, TELEMETRY}, util::{self, fs, node_hrtime}
 };
-use evscode::{error::ResultExt, quick_pick, stdlib::webview::WebviewMeta, QuickPick, E, R};
-use futures::stream::StreamExt;
-use std::time::Instant;
+use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
+use futures::StreamExt;
+use serde::Serialize;
 use unijudge::{Backend, Resource, Statement};
 
 pub async fn activate() -> R<()> {
+	log::info!("icie.launch.@activate");
 	let _status = crate::STATUS.push("Launching");
-	*telemetry::START_TIME.lock().unwrap() = Some(Instant::now());
+	*telemetry::START_TIME.lock().unwrap() = Some(node_hrtime());
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;
 	init::contest::check_for_manifest().await?;
@@ -22,13 +23,17 @@ pub async fn deactivate() -> R<()> {
 
 pub async fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
-	if let (Ok(_), Ok(manifest), Ok(solution)) = (evscode::workspace_root(), Manifest::load().await, dir::solution()) {
-		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+	if let Ok(manifest) = Manifest::load().await {
+		if let Ok(solution) = dir::solution() {
+			let _ = evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+		}
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
-		// refocus the cursor, because apparently preserve_focus is useless
-		evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+		if let Ok(solution) = dir::solution() {
+			// refocus the cursor, because apparently preserve_focus is useless
+			let _ = evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+		}
 	}
 	Ok(())
 }
@@ -43,9 +48,12 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See [`evscode::Webview::post_message`] docs.
 	webview.listener.next().await;
-	webview.webview.post_message(evscode::json::object! {
-		"pdf_data_base64" => pdf,
-	});
+	webview.webview.post_message(StatementData { pdf_data_base64: pdf }).await;
+}
+
+#[derive(Serialize)]
+struct StatementData<'a> {
+	pdf_data_base64: &'a [u8],
 }
 
 #[evscode::command(title = "ICIE Statement", key = "alt+8")]
@@ -80,15 +88,10 @@ async fn nearby() -> R<()> {
 	TELEMETRY.launch_nearby.spark();
 	let root = evscode::workspace_root()?;
 	let parent = root.parent().wrap("current directory has no parent")?;
-	let mut nearby = parent
-		.read_dir()
-		.wrap("could not read parent directory")?
-		.filter_map(|entry| {
-			let entry = entry.ok()?;
-			if entry.file_type().ok()?.is_dir() { Some(entry) } else { None }
-		})
-		.map(|entry| {
-			let path = entry.path();
+	let mut nearby = fs::read_dir(parent)
+		.await?
+		.into_iter()
+		.map(|path| {
 			let title = match path.strip_prefix(parent) {
 				Ok(rel) => rel.to_str().unwrap(),
 				Err(_) => path.to_str().unwrap(),
@@ -99,11 +102,11 @@ async fn nearby() -> R<()> {
 		.collect::<Vec<_>>();
 	nearby.sort_by_key(|nearby| nearby.1.clone());
 	let select = QuickPick::new()
-		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.to_str().unwrap().to_owned(), nearby.1)))
+		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.clone(), nearby.1)))
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	evscode::open_folder(select, false);
+	evscode::open_folder(&select, false).await;
 	Ok(())
 }
 

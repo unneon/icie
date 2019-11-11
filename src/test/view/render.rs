@@ -1,10 +1,10 @@
 use crate::{
-	test::{judge::Verdict, view::SKILL_ACTIONS, TestRun}, util::{self, fs_read_to_string}
+	test::{judge::Verdict, view::SKILL_ACTIONS, TestRun}, util::{self, fs}
 };
 use evscode::R;
 use std::cmp::max;
 
-#[derive(Debug, PartialEq, Eq, evscode::Configurable)]
+#[derive(Clone, Debug, PartialEq, Eq, evscode::Configurable)]
 enum HideBehaviour {
 	#[evscode(name = "Always")]
 	Always,
@@ -104,9 +104,9 @@ async fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 }
 
 async fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
-	let data = util::fs_read_to_string(&test.in_path).await?;
+	let data = fs::read_to_string(&test.in_path).await?;
 	let attrs = [("data-raw", data.as_str())];
-	let actions = [(!*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
+	let actions = [(!HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
 	Ok(render_cell("input", &attrs, &actions, None, &data, None, folded).await)
 }
 
@@ -115,13 +115,13 @@ async fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
 async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	let note_time =
-		if test.outcome.time.as_millis() >= u128::from(*TIME_DISPLAY_THRESHOLD.get()) || test.outcome.verdict == Verdict::TimeLimitExceeded {
-			let ms = test.outcome.time.as_millis();
-			Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
-		} else {
-			None
-		};
+	let note_time = if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get()) || test.outcome.verdict == Verdict::TimeLimitExceeded
+	{
+		let ms = test.outcome.time.as_millis();
+		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
+	} else {
+		None
+	};
 	let note_verdict = match test.outcome.verdict {
 		Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
 		Verdict::RuntimeError => Some("RE"),
@@ -131,7 +131,7 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
 	let attrs = [("data-raw", test.outcome.out.as_str())];
 	let actions = [
-		(!*HIDE_COPY.get(), ACTION_COPY),
+		(!HIDE_COPY.get(), ACTION_COPY),
 		(test.outcome.verdict == Verdict::WrongAnswer, ACTION_SET_ALT),
 		(test.outcome.verdict == Verdict::Accepted { alternative: true }, ACTION_DEL_ALT),
 		(true, ACTION_GDB),
@@ -150,9 +150,9 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 }
 
 async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
-	let data = fs_read_to_string(&test.out_path).await.unwrap_or_default();
+	let data = fs::read_to_string(&test.out_path).await.unwrap_or_default();
 	let attrs = [("data-raw", data.as_str())];
-	let actions = [(test.outcome.verdict != Verdict::IgnoredNoOut && !*HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
+	let actions = [(test.outcome.verdict != Verdict::IgnoredNoOut && !HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
 	Ok(render_cell("desired", &attrs, &actions, None, &data, None, folded).await)
 }
 
@@ -216,7 +216,7 @@ async fn render_cell_raw(
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
 	let max_test_height = MAX_TEST_HEIGHT.get();
 	let max_test_height =
-		if let Some(max_test_height) = *max_test_height { format!("style=\"max-height: {}px;\"", max_test_height) } else { String::new() };
+		if let Some(max_test_height) = max_test_height { format!("style=\"max-height: {}px;\"", max_test_height) } else { String::new() };
 	let mut attr_html = String::new();
 	for (k, v) in attrs {
 		attr_html += &format!(" {}=\"{}\"", k, html_escape(v));

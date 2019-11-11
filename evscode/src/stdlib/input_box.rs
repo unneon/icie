@@ -1,7 +1,5 @@
 //! Input boxes displayed at the top of the editor.
 
-use crate::{future::Pong, internal::executor::send_object};
-
 /// Builder for configurating input boxes. Use [`InputBox::new`] to create.
 #[must_use]
 pub struct Builder<'a> {
@@ -54,18 +52,15 @@ impl<'a> Builder<'a> {
 
 	/// Display the input box.
 	pub async fn show(self) -> Option<String> {
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "input_box",
-			"prompt" => self.prompt,
-			"placeHolder" => self.placeholder,
-			"password" => self.password,
-			"ignoreFocusOut" => self.ignore_focus_out,
-			"value" => self.value,
-			"valueSelection" => self.value_selection.map(|(l, r)| json::array! [l, r]),
-			"aid" => pong.aid(),
-		});
-		pong.await.as_str().map(str::to_owned)
+		vscode_sys::window::show_input_box(vscode_sys::window::InputBoxOptions {
+			ignore_focus_out: self.ignore_focus_out,
+			password: self.password,
+			place_holder: self.placeholder,
+			prompt: self.prompt,
+			value: self.value,
+			value_selection: self.value_selection.map(|(a, b)| [a, b]),
+		})
+		.await
 	}
 }
 

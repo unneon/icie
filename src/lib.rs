@@ -1,5 +1,4 @@
-#![feature(bind_by_move_pattern_guards, const_fn, exhaustive_patterns, never_type, proc_macro_hygiene, specialization, todo_macro, try_blocks)]
-#![allow(clippy::extra_unused_lifetimes, clippy::unit_arg)]
+#![feature(const_fn, exhaustive_patterns, never_type, specialization, try_blocks)]
 
 mod auth;
 mod build;
@@ -7,6 +6,7 @@ mod checker;
 mod debug;
 mod dir;
 mod discover;
+mod executable;
 mod init;
 mod interpolation;
 mod launch;

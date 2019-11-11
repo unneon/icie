@@ -1,11 +1,8 @@
 use crate::{
-	auth, telemetry::{self, TELEMETRY}
+	auth, telemetry::{self, TELEMETRY}, util::sleep
 };
 use evscode::{error::ResultExt, E, R};
-use std::{
-	fmt, future::Future, pin::Pin, time::{Duration, Instant}
-};
-use tokio::timer::delay;
+use std::{fmt, future::Future, pin::Pin, time::Duration};
 use unijudge::{
 	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Resource, URL
 };
@@ -64,7 +61,7 @@ impl Session {
 		let client = Client::new(USER_AGENT).map_err(from_unijudge_error)?;
 		let session = backend.connect(client, domain);
 		let site = format!("https://{}", domain);
-		if let Some(auth) = auth::get_if_cached(&site) {
+		if let Some(auth) = auth::get_if_cached(&site).await {
 			if let Ok(auth) = backend.auth_deserialize(&auth) {
 				log::debug!("cached auth found for {}, {:?}", domain, auth);
 				match backend.auth_restore(&session, &auth).await {
@@ -81,7 +78,7 @@ impl Session {
 		Ok(Session { backend, session, site, domain: domain.to_owned() })
 	}
 
-	pub async fn run<'f, Y, F: Future<Output=unijudge::Result<Y>>+Send+'f>(
+	pub async fn run<'f, Y, F: Future<Output=unijudge::Result<Y>>+'f>(
 		&'f self,
 		mut f: impl FnMut(&'static dyn DynamicBackend, &'f BoxedSession) -> F+'f,
 	) -> R<Y> {
@@ -109,7 +106,7 @@ impl Session {
 				log::debug!("login successful for {}, trying to cache session", self.domain);
 				if let Some(cache) = self.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)? {
 					log::debug!("caching session for {}, {:?}", self.domain, cache);
-					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?);
+					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?).await;
 				} else {
 					log::warn!("could not cache session for {} even though login succeded", self.domain);
 				}
@@ -130,13 +127,16 @@ impl Session {
 		self.login(&username, &password).await
 	}
 
-	fn force_login_boxed<'a>(&'a self) -> Pin<Box<dyn Future<Output=R<()>>+Send+'a>> {
+	fn force_login_boxed<'a>(&'a self) -> Pin<Box<dyn Future<Output=R<()>>+'a>> {
 		Box::pin(self.force_login())
 	}
 
 	fn maybe_error_show(&self, e: unijudge::Error) {
 		if let unijudge::Error::WrongCredentials = e {
-			evscode::Message::new("Wrong username or password").error().show_detach();
+			evscode::spawn(async {
+				evscode::Message::new::<()>("Wrong username or password").error().show().await;
+				Ok(())
+			});
 		}
 	}
 
@@ -150,7 +150,7 @@ impl Session {
 				.emit();
 		}
 		*retries_left -= 1;
-		delay(Instant::now() + NETWORK_ERROR_RETRY_DELAY).await;
+		sleep(NETWORK_ERROR_RETRY_DELAY).await;
 	}
 }
 
@@ -190,29 +190,27 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 				reasons: vec![format!("unexpected HTML structure ({:?} at {:?})", e.reason, e.operations)],
 				details: Vec::new(),
 				actions: Vec::new(),
-				backtrace: e.backtrace,
+				backtrace: evscode::error::Backtrace::new(),
 				extended,
 			}
 		},
-		unijudge::Error::UnexpectedJSON { endpoint, backtrace, resp_raw, inner } => {
+		unijudge::Error::UnexpectedJSON { endpoint, resp_raw, inner } => {
 			TELEMETRY.error_unijudge.spark();
 			let message = format!("unexpected JSON response at {}", endpoint);
 			let mut e = match inner {
 				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
 				None => E::error(message),
 			};
-			e.backtrace = backtrace;
 			e.extended.push(resp_raw);
 			e
 		},
-		unijudge::Error::UnexpectedResponse { endpoint, message, backtrace, resp_raw, inner } => {
+		unijudge::Error::UnexpectedResponse { endpoint, message, resp_raw, inner } => {
 			TELEMETRY.error_unijudge.spark();
 			let mut e = match inner {
 				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
 				None => E::error(message),
 			}
 			.context(format!("unexpected site response at {}", endpoint));
-			e.backtrace = backtrace;
 			e.extended.push(resp_raw);
 			e
 		},

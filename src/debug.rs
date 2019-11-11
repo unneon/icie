@@ -1,16 +1,13 @@
-use crate::{build, telemetry::TELEMETRY, term, util};
-use evscode::{error::ResultExt, E, R};
-use std::{
-	fs::File, path::PathBuf, process::{Command, Stdio}
+use crate::{
+	build, executable::{Environment, Executable}, telemetry::TELEMETRY, term, test::time_limit, util, util::fs
 };
+use evscode::{E, R};
+use std::path::PathBuf;
 
 pub async fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 	TELEMETRY.debug_gdb.spark();
-	if cfg!(not(unix)) {
-		return Err(E::error("GDB debugging is only supported on Linux"));
-	}
-	if !util::is_installed("gdb")? {
-		return Err(E::error("GDB is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_gdb()));
+	if !util::is_installed("gdb").await? {
+		return Err(E::error("GDB is not installed").action_if(util::is_installed("apt").await?, "🔐 Auto-install", install_gdb()));
 	}
 	term::debugger("GDB", &in_path, &[
 		"gdb",
@@ -23,22 +20,16 @@ pub async fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 
 pub async fn rr(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 	TELEMETRY.debug_rr.spark();
-	if cfg!(not(unix)) {
-		return Err(E::error("RR debugging is only supported on Linux"));
+	if !util::is_installed("rr").await? {
+		return Err(E::error("RR is not installed").action_if(util::is_installed("apt").await?, "🔐 Auto-install", install_rr()));
 	}
-	if !util::is_installed("rr")? {
-		return Err(E::error("RR is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_rr()));
-	}
-	let record_out = Command::new("rr")
-		.arg("record")
-		.arg(build::exec_path(source)?)
-		.stdin(File::open(&in_path).wrap("failed to redirect test input")?)
-		.stdout(Stdio::null())
-		.stderr(Stdio::piped())
-		.output()
-		.wrap("failed to spawn rr record session")?;
-	if std::str::from_utf8(&record_out.stderr).wrap("rr record has written non-utf8 text to stderr")?.contains("/proc/sys/kernel/perf_event_paranoid")
-	{
+	let input = fs::read_to_string(&in_path).await?;
+	let exec_path = build::exec_path(source)?;
+	let rr = Executable::new_name("rr".to_owned());
+	let args = ["record", exec_path.to_str().unwrap()];
+	let environment = Environment { time_limit: time_limit() };
+	let record_out = rr.run(&input, &args, &environment).await?;
+	if record_out.stderr.contains("/proc/sys/kernel/perf_event_paranoid") {
 		return Err(E::error("RR is not configured properly (this is to be expected), kernel.perf_event_paranoid must be <= 1")
 			.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid()));
 	}

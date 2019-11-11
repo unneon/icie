@@ -8,7 +8,7 @@ use futures::{future::join_all, lock::Mutex};
 use std::{collections::HashMap, future::Future, hash::Hash, ops::Deref};
 
 /// Trait controlling the webview collection behaviour.
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Behaviour: Send+Sync {
 	/// Key type provided to the computation.
 	type K: Eq+Hash+Clone+Send+Sync;
@@ -28,6 +28,12 @@ pub trait Behaviour: Send+Sync {
 pub struct Collection<T: Behaviour> {
 	computation: T,
 	collection: Mutex<HashMap<T::K, Webview>>,
+}
+
+// Safe because WebAssembly has no threads... yet.
+unsafe impl<T: Behaviour+Sync> Send for Collection<T> {
+}
+unsafe impl<T: Behaviour+Sync> Sync for Collection<T> {
 }
 
 impl<T: Behaviour> Collection<T> {
@@ -52,7 +58,7 @@ impl<T: Behaviour> Collection<T> {
 	pub async fn find_active(&self) -> Option<WebviewRef> {
 		let lck = self.collection.lock().await;
 		for webview in lck.values() {
-			if webview.is_active().await {
+			if webview.is_active() {
 				return Some(webview.deref().clone());
 			}
 		}
@@ -103,9 +109,8 @@ impl<T: Behaviour> Collection<T> {
 			let delayed_error = worker.await;
 			let mut collection = resultmap.collection.lock().await;
 			if let std::collections::hash_map::Entry::Occupied(e) = collection.entry(key) {
-				if e.get().hid == handle.hid {
-					e.remove_entry();
-				}
+				// TODO: Is this the right webview?
+				e.remove_entry();
 			}
 			handle.dispose();
 			delayed_error

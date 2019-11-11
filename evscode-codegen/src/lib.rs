@@ -1,4 +1,4 @@
-#![feature(const_generics, proc_macro_diagnostic, proc_macro_span, slice_patterns, try_blocks)]
+#![feature(const_generics, proc_macro_diagnostic)]
 #![allow(incomplete_features)]
 
 extern crate proc_macro;

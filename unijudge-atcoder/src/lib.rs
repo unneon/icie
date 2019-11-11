@@ -13,7 +13,7 @@ pub struct Task {
 	task: String,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl unijudge::Backend for AtCoder {
 	type CachedAuth = Cookie;
 	type Contest = String;

@@ -25,8 +25,8 @@ pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<Path
 	};
 	let (codename, all_good) = PROJECT_NAME_TEMPLATE.get().interpolate(&variables);
 	let config_strategy = ASK_FOR_PATH.get();
-	let strategy = match (&*config_strategy, all_good) {
-		(_, false) => &PathDialog::InputBox,
+	let strategy = match (config_strategy, all_good) {
+		(_, false) => PathDialog::InputBox,
 		(s, true) => s,
 	};
 	strategy.query(root, &codename).await
@@ -42,18 +42,16 @@ pub async fn design_contest_name(contest_id: String, contest_title: String, site
 	};
 	let (codename, all_good) = CONTEST.get().interpolate(&variables);
 	let config_strategy = ASK_FOR_PATH.get();
-	let strategy = match (&*config_strategy, all_good) {
-		(_, false) => &PathDialog::InputBox,
+	let strategy = match (config_strategy, all_good) {
+		(_, false) => PathDialog::InputBox,
 		(s, true) => s,
 	};
 	let directory = dir::PROJECT_DIRECTORY.get();
 	strategy.query(&*directory, &codename).await
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Variable {
-	RandomCute,
-	RandomAnimal,
 	TaskId,
 	TaskTitle,
 	ContestId,
@@ -71,7 +69,7 @@ pub struct Mapping {
 
 macro_rules! constrain_variable {
 	($name:ident, $($matching:ident)|*) => {
-		#[derive(PartialEq, Eq)]
+		#[derive(Clone, PartialEq, Eq)]
 		pub struct $name(Variable);
 		impl crate::interpolation::VariableSet for $name {
 			type Map = Mapping;
@@ -100,17 +98,15 @@ macro_rules! constrain_variable {
 	};
 }
 
-constrain_variable!(TaskVariable, RandomCute | RandomAnimal | TaskId | TaskTitle | ContestId | SiteShort);
-constrain_variable!(ContestVariable, RandomCute | RandomAnimal | ContestId | ContestTitle | SiteShort);
-constrain_variable!(ContestTaskVariable, RandomCute | RandomAnimal | TaskId | TaskTitle | ContestId | SiteShort);
+constrain_variable!(TaskVariable, TaskId | TaskTitle | ContestId | SiteShort);
+constrain_variable!(ContestVariable, ContestId | ContestTitle | SiteShort);
+constrain_variable!(ContestTaskVariable, TaskId | TaskTitle | ContestId | SiteShort);
 
 impl crate::interpolation::VariableSet for Variable {
 	type Map = Mapping;
 
 	fn expand(&self, map: &Self::Map) -> Option<String> {
 		match self {
-			Variable::RandomCute => Some(crate::dir::random_adjective().to_owned()),
-			Variable::RandomAnimal => Some(crate::dir::random_animal().to_owned()),
 			Variable::TaskId => map.task_id.clone(),
 			Variable::TaskTitle => map.task_title.clone(),
 			Variable::ContestId => map.contest_id.clone(),
@@ -125,8 +121,6 @@ impl FromStr for Variable {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"random.cute" => Ok(Variable::RandomCute),
-			"random.animal" => Ok(Variable::RandomAnimal),
 			"task.symbol" => Ok(Variable::TaskId),
 			"task.name" => Ok(Variable::TaskTitle),
 			"contest.id" => Ok(Variable::ContestId),
@@ -140,8 +134,6 @@ impl FromStr for Variable {
 impl fmt::Display for Variable {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.write_str(match self {
-			Variable::RandomCute => "random.cute",
-			Variable::RandomAnimal => "random.animal",
 			Variable::TaskId => "task.symbol",
 			Variable::TaskTitle => "task.name",
 			Variable::ContestId => "contest.id",

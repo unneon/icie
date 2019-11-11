@@ -3,14 +3,15 @@
 //! Consider using one of the [predefined webview patterns](../../goodies/index.html) or writing your own general pattern instead of using this
 //! directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
 
-use crate::{
-	future::{Pong, PongStream}, internal::executor::{send_object, HANDLE_FACTORY}, Column
+use crate::Column;
+use futures::{
+	channel::{mpsc, oneshot}, Stream
 };
-use futures::Stream;
-use json::JsonValue;
+use serde::Serialize;
 use std::{
 	future::Future, ops::Deref, pin::Pin, task::{Context, Poll}
 };
+use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 /// Builder for configurating webviews. See [module documentation](index.html) for details.
 #[must_use]
@@ -68,21 +69,19 @@ impl<'a> Builder<'a> {
 
 	/// Spawn the webview.
 	pub fn create(self) -> WebviewMeta {
-		let hid = HANDLE_FACTORY.generate();
-		send_object(json::object! {
-			"tag" => "webview_create",
-			"view_type" => self.view_type,
-			"title" => self.title,
-			"view_column" => self.view_column,
-			"preserve_focus" => self.preserve_focus,
-			"enable_command_uris" => self.enable_command_uris,
-			"enable_scripts" => self.enable_scripts,
-			"local_resource_roots" => self.local_resource_roots,
-			"enable_find_widget" => self.enable_find_widget,
-			"retain_context_when_hidden" => self.retain_context_when_hidden,
-			"hid" => hid,
-		});
-		let webview = Webview { hid: WebviewRef { hid } };
+		let panel = vscode_sys::window::create_webview_panel(
+			self.view_type,
+			self.title,
+			vscode_sys::window::CreateWebviewPanelShowOptions { preserve_focus: self.preserve_focus, view_column: self.view_column.as_enum_id() },
+			vscode_sys::window::CreateWebviewPanelOptions {
+				general: vscode_sys::window::WebviewOptions { enable_scripts: self.enable_scripts, enable_command_uris: self.enable_command_uris },
+				panel: vscode_sys::window::WebviewPanelOptions {
+					enable_find_widget: self.enable_find_widget,
+					retain_context_when_hidden: self.retain_context_when_hidden,
+				},
+			},
+		);
+		let webview = Webview { reference: WebviewRef { panel } };
 		WebviewMeta { listener: webview.listener(), disposer: webview.disposer(), webview }
 	}
 }
@@ -91,7 +90,7 @@ impl<'a> Builder<'a> {
 ///
 /// See [module documentation](index.html) for details.
 pub struct Webview {
-	hid: WebviewRef,
+	reference: WebviewRef,
 }
 impl Webview {
 	/// Create a new builder to configure the webview.
@@ -115,116 +114,74 @@ impl Deref for Webview {
 	type Target = WebviewRef;
 
 	fn deref(&self) -> &Self::Target {
-		&self.hid
+		&self.reference
 	}
 }
 
 /// A cloneable reference to a webview.
 ///
 /// Remains valid and usable even after the webview is dropped and destroyed, although various methods will naturally return errors.
-#[derive(Clone)]
 pub struct WebviewRef {
-	pub(crate) hid: u64,
+	pub(crate) panel: vscode_sys::WebviewPanel,
 }
 
 impl WebviewRef {
 	/// Set the HTML content.
 	pub fn set_html(&self, html: &str) {
-		send_object(json::object! {
-			"tag" => "webview_set_html",
-			"hid" => self.hid,
-			"html" => html,
-		});
+		self.panel.webview().set_html(html);
 	}
 
 	/// Send a message which can be [received by the JS inside the webview](https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-an-extension-to-a-webview).
 	///
 	/// The messages are not guaranteed to arrive if the webview is not ["live"](https://code.visualstudio.com/api/references/vscode-api#1637) yet.
 	/// To circumvent this horrible behaviour, whenever you call this method on a fresh webview, you must add script that sends a "I'm ready!" message and wait for it before calling.
-	pub fn post_message(&self, msg: impl Into<JsonValue>) {
-		send_object(json::object! {
-			"tag" => "webview_post_message",
-			"hid" => self.hid,
-			"message" => msg,
-		});
+	pub async fn post_message(&self, msg: impl Serialize) -> bool {
+		self.panel.webview().post_message(JsValue::from_serde(&msg).unwrap()).await
 	}
 
 	/// Check if the webview can be seen by the user.
-	pub async fn is_visible(&self) -> bool {
-		let hid = self.hid;
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "webview_is_visible",
-			"hid" => hid,
-			"aid" => pong.aid(),
-		});
-		pong.await.as_bool().unwrap()
+	pub fn is_visible(&self) -> bool {
+		self.panel.visible()
 	}
 
 	/// Check whether the webview is the currently active webview.
-	pub async fn is_active(&self) -> bool {
-		let hid = self.hid;
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "webview_is_active",
-			"hid" => hid,
-			"aid" => pong.aid(),
-		});
-		pong.await.as_bool().unwrap()
-	}
-
-	/// Check whether the webview was closed.
-	pub async fn was_disposed(&self) -> bool {
-		let hid = self.hid;
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "webview_was_disposed",
-			"hid" => hid,
-			"aid" => pong.aid(),
-		});
-		pong.await.as_bool().unwrap()
+	pub fn is_active(&self) -> bool {
+		self.panel.active()
 	}
 
 	/// Show the webview in the given view column.
 	pub fn reveal(&self, view_column: impl Into<Column>, preserve_focus: bool) {
-		send_object(json::object! {
-			"tag" => "webview_reveal",
-			"hid" => self.hid,
-			"view_column" => view_column.into(),
-			"preserve_focus" => preserve_focus,
-		});
+		self.panel.reveal(view_column.into().as_enum_id(), preserve_focus);
 	}
 
 	/// Close the webview.
 	pub fn dispose(&self) {
-		send_object(json::object! {
-			"tag" => "webview_dispose",
-			"hid" => self.hid,
-		});
+		self.panel.dispose();
 	}
 
 	/// Creates the listener stream, only call this once.
 	fn listener(&self) -> Listener {
-		let hid = self.hid;
-		let pong = PongStream::new();
-		send_object(json::object! {
-			"tag" => "webview_register_listener",
-			"hid" => hid,
-			"aid" => pong.aid(),
-		});
-		Listener { pong }
+		let (tx, rx) = mpsc::unbounded();
+		let capture = Closure::wrap(Box::new(move |event| {
+			let _ = tx.unbounded_send(event);
+		}) as Box<dyn FnMut(JsValue)>);
+		self.panel.webview().on_did_receive_message(&capture);
+		Listener { _capture: capture, rx }
 	}
 
 	/// Creates the disposer future, only call this once.
 	fn disposer(&self) -> Disposer {
-		let hid = self.hid;
-		let pong = Pong::new();
-		send_object(json::object! {
-			"tag" => "webview_register_disposer",
-			"hid" => hid,
-			"aid" => pong.aid(),
-		});
-		Disposer { pong }
+		let (tx, rx) = oneshot::channel();
+		self.panel.on_did_dispose(Closure::once_into_js(move || {
+			let _ = tx.send(());
+		}));
+		Disposer { rx }
+	}
+}
+
+impl Clone for WebviewRef {
+	fn clone(&self) -> Self {
+		WebviewRef { panel: self.panel.clone().unchecked_into::<vscode_sys::WebviewPanel>() }
 	}
 }
 
@@ -242,26 +199,27 @@ pub struct WebviewMeta {
 
 /// A stream that will contain JSON messages sent by [JS inside the webview]https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-a-webview-to-an-extension).
 pub struct Listener {
-	pong: PongStream,
+	_capture: Closure<dyn FnMut(JsValue)>,
+	rx: mpsc::UnboundedReceiver<JsValue>,
 }
 
 impl Stream for Listener {
-	type Item = JsonValue;
+	type Item = JsValue;
 
 	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-		Pin::new(&mut self.pong).poll_next(cx)
+		Pin::new(&mut self.rx).poll_next(cx)
 	}
 }
 
 /// A future that will yield a value when the webview is destroyed.
 pub struct Disposer {
-	pong: Pong,
+	rx: oneshot::Receiver<()>,
 }
 
 impl Future for Disposer {
 	type Output = ();
 
-	fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-		Pin::new(&mut self.pong).poll(cx).map(|_| ())
+	fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+		Pin::new(&mut self.rx).poll(cx).map(Result::unwrap)
 	}
 }

@@ -16,7 +16,7 @@ impl InvocationList {
 		let marker = self.marker_struct();
 		quote! {
 			struct #marker<T>(std::marker::PhantomData<T>);
-			impl<T> evscode::internal::macros::InvocChain<T> for crate::#marker<[(); 0]> {
+			impl<T> evscode::macros::InvocChain<T> for crate::#marker<[(); 0]> {
 				type Payload = #payload_type;
 				fn payload() -> Self::Payload {
 					unreachable!()
@@ -35,8 +35,8 @@ impl InvocationList {
 		let iid_lit = LitInt::new(&iid.to_string(), Span::call_site().into());
 		let prev_iid_lit = LitInt::new(&(iid - 1).to_string(), Span::call_site().into());
 		quote! {
-			impl<T> evscode::internal::macros::InvocChain<T> for crate::#marker<[(); #iid_lit]> {
-				type Payload = <crate::#marker<[(); #prev_iid_lit]> as evscode::internal::macros::InvocChain<()>>::Payload;
+			impl<T> evscode::macros::InvocChain<T> for crate::#marker<[(); #iid_lit]> {
+				type Payload = <crate::#marker<[(); #prev_iid_lit]> as evscode::macros::InvocChain<()>>::Payload;
 				fn payload() -> Self::Payload {
 					#payload
 				}
@@ -45,7 +45,7 @@ impl InvocationList {
 				}
 				default type Next = Self;
 			}
-			impl evscode::internal::macros::InvocChain<()> for crate::#marker<[(); #prev_iid_lit]> {
+			impl evscode::macros::InvocChain<()> for crate::#marker<[(); #prev_iid_lit]> {
 				fn is_last() -> bool {
 					false
 				}
@@ -57,7 +57,7 @@ impl InvocationList {
 	pub fn payloads(&self) -> proc_macro2::TokenStream {
 		let marker = self.marker_struct();
 		quote! {
-			evscode::internal::macros::collect_payloads::<crate::#marker<[(); 0]>>()
+			evscode::macros::collect_payloads::<crate::#marker<[(); 0]>>()
 		}
 	}
 

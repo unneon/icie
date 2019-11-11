@@ -1,10 +1,10 @@
-use crate::{term, test::exec::Executable, util};
-use evscode::{error::ResultExt, E, R};
+use crate::{
+	executable::{Environment, Executable}, term, util
+};
+use evscode::{E, R};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::{
-	path::{Path, PathBuf}, process::{Command, Stdio}
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub enum Codegen {
@@ -53,29 +53,25 @@ pub trait Standard {
 
 pub static ALLOWED_EXTENSIONS: &[&str] = &["cpp", "cxx", "cc"];
 
-pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
-	if !util::is_installed("clang++")? {
-		return Err(E::error("Clang is not installed").action_if(util::is_installed("apt")?, "🔐 Auto-install", install_clang()));
+pub async fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
+	if !util::is_installed("clang++").await? {
+		return Err(E::error("Clang is not installed").action_if(util::is_installed("apt").await?, "🔐 Auto-install", install_clang()));
 	}
 	let executable = Executable::new(out.to_path_buf());
-	let mut cmd = Command::new("clang++");
-	cmd.arg(standard.as_gcc_flag());
-	cmd.args(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
-	cmd.args(codegen.flags());
-	cmd.args(custom_flags);
-	cmd.args(sources);
-	cmd.arg("-o");
-	cmd.arg(&executable.path);
-	cmd.stdin(Stdio::null());
-	cmd.stdout(Stdio::null());
-	cmd.stderr(Stdio::piped());
-	let kid = cmd.spawn().wrap("failed to spawn compiler(clang++) process")?;
-	let output = kid.wait_with_output().wrap("failed to wait for compiler output")?;
-	let success = output.status.success();
-	let stderr = String::from_utf8(output.stderr).unwrap();
+	let mut args = Vec::new();
+	args.push(standard.as_gcc_flag());
+	args.extend(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
+	args.extend(codegen.flags());
+	args.extend(custom_flags);
+	args.extend(sources.iter().map(|p| p.to_str().unwrap()));
+	args.push("-o");
+	args.push(&executable.command);
+	let clang = Executable::new_name("clang++".to_owned());
+	let run = clang.run("", &args, &Environment { time_limit: None }).await?;
+	let success = run.success();
 	let mut errors = Vec::new();
 	let mut warnings = Vec::new();
-	for cap in (&ERROR_RE as &Regex).captures_iter(&stderr) {
+	for cap in (&ERROR_RE as &Regex).captures_iter(&run.stderr) {
 		let line = cap[2].parse().unwrap();
 		let column = cap[3].parse().unwrap();
 		let severity = &cap[4];
@@ -84,10 +80,11 @@ pub fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen:
 		(if severity == "error" || severity == "fatal error" { &mut errors } else { &mut warnings })
 			.push(Message { message, location: Some(Location { path, line, column }) });
 	}
-	for cap in (&LINK_RE as &Regex).captures_iter(&stderr) {
+	for cap in (&LINK_RE as &Regex).captures_iter(&run.stderr) {
 		let message = cap[1].to_owned();
 		errors.push(Message { message, location: None });
 	}
+	let stderr = run.stderr;
 	Ok(Status { success, executable, errors, warnings, stderr })
 }
 

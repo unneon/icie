@@ -171,7 +171,7 @@ fn skip_to_toplevel(mut pos: usize, source: &str) -> usize {
 	}
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait PasteContext {
 	fn has(&mut self, piece: &str) -> bool;
 	async fn paste(&mut self, piece: &str) -> R<()>;

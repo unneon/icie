@@ -13,27 +13,26 @@
 //! The system supports all types that implement the [`Configurable`](trait.Configurable.html) trait.
 //! If the conversion provided via the [`Marshal`](../marshal/trait.Marshal.html) trait fails, the default value will be used.
 
-use crate::marshal::Marshal;
-use arc_swap::ArcSwapOption;
-use json::JsonValue;
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use crate::{marshal::Marshal, meta::Identifier};
+use std::{collections::HashMap, path::PathBuf};
+use wasm_bindgen::JsValue;
 
 macro_rules! optobject_impl {
 	($obj:ident, ) => {};
 	($obj:ident, optional $key:expr => $value:expr, $($rest:tt)*) => {
 		if let Some(value) = $value {
-			$obj[$key] = json::from(value);
+			$obj[$key] = serde_json::Value::from(value);
 		}
 		optobject_impl!($obj, $($rest)*);
 	};
 	($obj:ident, $key:expr => $value:expr, $($rest:tt)*) => {
-		$obj[$key] = json::from($value);
+		$obj[$key] = serde_json::Value::from($value);
 		optobject_impl!($obj, $($rest)*);
 	};
 }
 macro_rules! optobject {
 	{ $($token:tt)* } => {
-		let mut obj = json::JsonValue::new_object();
+		let mut obj = serde_json::Value::Object(Default::default());
 		optobject_impl!(obj, $($token)*);
 		obj
 	};
@@ -44,19 +43,26 @@ macro_rules! optobject {
 /// To get the current value, call the [`Config::get`] method which will return an [`std::sync::Arc`].
 /// Do not store the Arc for extended periods of time, so that your extension is responsive to configuration updates.
 #[derive(Debug)]
-pub struct Config<T: Configurable+Sized> {
-	arc: ArcSwapOption<T>,
-	default: Arc<T>,
+pub struct Config<T: Configurable> {
+	id: Identifier,
+	default: T,
 }
 impl<T: Configurable> Config<T> {
 	#[doc(hidden)]
-	pub fn placeholder(default: T) -> Config<T> {
-		Config { arc: ArcSwapOption::new(None), default: Arc::new(default) }
+	pub fn placeholder(default: T, id: Identifier) -> Config<T> {
+		Config { id, default }
 	}
 
 	/// Return a reference-counted pointer to the current configuration values.
-	pub fn get(&self) -> Arc<T> {
-		self.arc.load_full().expect("evscode::Config::get config not set")
+	pub fn get(&self) -> T {
+		let mut tree = vscode_sys::workspace::get_configuration(&self.id.extension_id());
+		for key in self.id.inner_path().split('.') {
+			tree = js_sys::Reflect::get(&tree, &JsValue::from_str(key)).unwrap();
+		}
+		match T::from_js(tree) {
+			Ok(value) => value,
+			Err(_) => self.default.clone(),
+		}
 	}
 }
 
@@ -73,15 +79,21 @@ impl<T: Configurable> Config<T> {
 /// }
 /// ```
 /// There does not exist a simple way to implement it for any custom types, because the VS Code [documentation of config API](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) is lacking.
-pub trait Configurable: Marshal {
+pub trait Configurable: Marshal+Clone {
 	#[doc(hidden)]
-	fn schema(default: Option<&Self>) -> JsonValue;
+	fn to_json(&self) -> serde_json::Value;
+	#[doc(hidden)]
+	fn schema(default: Option<&Self>) -> serde_json::Value;
 }
 
 macro_rules! simple_configurable {
 	($rust:ty, $json:expr) => {
 		impl Configurable for $rust {
-			fn schema(default: Option<&Self>) -> JsonValue {
+			fn to_json(&self) -> serde_json::Value {
+				self.clone().into()
+			}
+
+			fn schema(default: Option<&Self>) -> serde_json::Value {
 				optobject! {
 					"type" => $json,
 					optional "default" => default.map(Self::to_json),
@@ -93,7 +105,6 @@ macro_rules! simple_configurable {
 
 simple_configurable!(bool, "boolean");
 simple_configurable!(String, "string");
-simple_configurable!(PathBuf, "string");
 simple_configurable!(i8, "number");
 simple_configurable!(i16, "number");
 simple_configurable!(i32, "number");
@@ -105,16 +116,29 @@ simple_configurable!(u32, "number");
 simple_configurable!(u64, "number");
 simple_configurable!(usize, "number");
 
+impl Configurable for PathBuf {
+	fn to_json(&self) -> serde_json::Value {
+		self.to_str().unwrap().into()
+	}
+
+	fn schema(default: Option<&Self>) -> serde_json::Value {
+		<String as Configurable>::schema(default.map(|p| p.to_str().unwrap().to_owned()).as_ref())
+	}
+}
 impl<T: Configurable> Configurable for Option<T> {
-	fn schema(default: Option<&Option<T>>) -> JsonValue {
+	fn to_json(&self) -> serde_json::Value {
+		self.as_ref().map_or(serde_json::Value::Null, T::to_json)
+	}
+
+	fn schema(default: Option<&Option<T>>) -> serde_json::Value {
 		let mut obj = T::schema(default.and_then(|default| default.as_ref()));
-		if obj["type"].is_array() {
-			obj["type"].push("null").unwrap();
+		if let serde_json::Value::Array(type_array) = &mut obj["type"] {
+			type_array.push(serde_json::Value::Null);
 		} else {
-			obj["type"] = json::array!["null", obj["type"].as_str().unwrap()];
+			obj["type"] = serde_json::json!(["null", obj["type"].as_str().unwrap()]);
 		}
 		if let Some(None) = default {
-			obj["default"] = json::Null;
+			obj["default"] = serde_json::Value::Null;
 		}
 		obj
 	}
@@ -122,39 +146,28 @@ impl<T: Configurable> Configurable for Option<T> {
 /// This implementation is not editable in VS Code setting UI.
 /// I am not sure why, because VS Code has builtin configuration entries that have the same manifest entry, but are editable.
 /// Naturally, the [documentation](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) of this behaviour does not exist.
-impl<T: Configurable, S: std::hash::BuildHasher+Default> Configurable for HashMap<String, T, S> {
-	fn schema(default: Option<&Self>) -> JsonValue {
+impl<T: Configurable, S: std::hash::BuildHasher+Default+Clone> Configurable for HashMap<String, T, S> {
+	fn to_json(&self) -> serde_json::Value {
+		serde_json::Value::Object(self.iter().map(|(key, value)| (key.clone(), value.to_json())).collect())
+	}
+
+	fn schema(default: Option<&Self>) -> serde_json::Value {
 		optobject! {
 			"type" => "object",
 			optional "default" => default.map(Self::to_json),
-			"additionalProperties" => json::object! {
-				"anyOf" => json::array! [T::schema(None)],
-			},
+			"additionalProperties" => serde_json::json!({
+				"anyOf": serde_json::json!([T::schema(None)])
+			}),
 		}
 	}
 }
 
 #[doc(hidden)]
 pub trait ErasedConfig: Send+Sync {
-	fn update(&self, raw: JsonValue) -> Result<(), String>;
 	fn is_default(&self) -> bool;
 }
 impl<T: PartialEq+Eq+Configurable+Send+Sync> ErasedConfig for Config<T> {
-	fn update(&self, raw: JsonValue) -> Result<(), String> {
-		match T::from_json(raw) {
-			Ok(obj) => {
-				let arc = Some(Arc::new(obj));
-				self.arc.swap(arc);
-				Ok(())
-			},
-			Err(e) => {
-				self.arc.swap(None);
-				Err(e)
-			},
-		}
-	}
-
 	fn is_default(&self) -> bool {
-		*self.get() == *self.default
+		self.get() == self.default
 	}
 }

@@ -1,5 +1,5 @@
 use crate::{
-	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{self, fs_create_dir_all}
+	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::fs
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::{
@@ -56,10 +56,9 @@ async fn url() -> R<()> {
 			};
 			let root = crate::dir::PROJECT_DIRECTORY.get();
 			let root = names::design_task_name(&*root, meta.as_ref()).await?;
-			let dir = util::TransactionDir::new(&root).await?;
+			fs::create_dir_all(&root).await?;
 			init_task(&root, raw_url, meta).await?;
-			dir.commit();
-			evscode::open_folder(root, false);
+			evscode::open_folder(&root, false).await;
 		},
 		InitCommand::Contest { url, backend } => {
 			TELEMETRY.init_url_contest.spark();
@@ -131,7 +130,7 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 
 async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	fs_create_dir_all(root).await?;
+	fs::create_dir_all(root).await?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
 	files::init_manifest(root, &url, statement).await?;
@@ -147,12 +146,9 @@ pub async fn help_init() -> R<()> {
 /// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. Variable contest.title is not available in this context. See example list:
 ///
 /// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)
-/// {random.cute}-{random.animal} -> kawaii-hedgehog
 /// {site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab} -> cf/1144/A-diverse-strings
 /// {task.symbol case.upper}-{{ -> A-{
 ///
-/// {random.cute} -> kawaii
-/// {random.animal} -> hedgehog
 /// {task.symbol} -> A
 /// {task.name} -> Diverse Strings
 /// {contest.id} -> 1144
@@ -173,7 +169,7 @@ static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>
 #[evscode::config]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
-#[derive(Debug, PartialEq, Eq, evscode::Configurable)]
+#[derive(Clone, Debug, PartialEq, Eq, evscode::Configurable)]
 enum PathDialog {
 	#[evscode(name = "No")]
 	None,

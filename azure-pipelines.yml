@@ -12,43 +12,51 @@ trigger:
 stages:
   - stage: Build
     jobs:
-    - job: Test
+    - job: Build
       steps:
-      - script: sudo apt install libdbus-1-dev
-        displayName: Install dependencies
-      - script: cargo test
-        displayName: Cargo Test
+      - script: git clone https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
+        displayName: Install dependencies (binaryen)
+      - script: rustup default nightly
+        displayName: Install Rust nightly
+      - script: cargo install wasm-bindgen-cli wasm-pack
+        displayName: Install WASM utilities
+      - script: ./build.sh
+        displayName: Build
     - job: Format
       steps:
       - script: rustup component add rustfmt
         displayName: Install Rustfmt
+      - script: rustup default nightly
+        displayName: Install Rust nightly
       - script: cargo fmt --all -- --check
         displayName: Cargo Fmt
     - job: Lint
       steps:
       - script: rustup component add clippy
         displayName: Install Clippy
-      - script: cargo clippy --all -- -D warnings
+      - script: rustup default nightly
+        displayName: Install Rust nightly
+      - script: rustup target add wasm32-unknown-unknown
+        displayName: Install Rust WASM target
+      - script: cargo clippy --all --target=wasm32-unknown-unknown -- -D warnings
         displayName: Cargo Clippy
   - stage: Release
     condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
     jobs:
     - job: Verify
       steps:
-        - script: '[[ `cat CHANGELOG.md` == "## $(Build.SourceBranchName)"* ]]'
-          displayName: Verify changelog was updated
-        - script: '[[ `sed "3q;d" Cargo.toml` = "version = \"$(Build.SourceBranchName)\""* ]]'
-          displayName: Verify Cargo.toml was updated
+      - script: '[[ `cat CHANGELOG.md` == "## $(Build.SourceBranchName)"* ]]'
+        displayName: Verify changelog was updated
+      - script: '[[ `sed "3q;d" Cargo.toml` = "version = \"$(Build.SourceBranchName)\""* ]]'
+        displayName: Verify Cargo.toml was updated
     - job: GitHub
       dependsOn: Verify
       steps:
-      - script: sudo apt install libdbus-1-dev
-        displayName: Install dependencies
+      - script: git clone https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
+        displayName: Install dependencies (binaryen)
       - script: sudo npm install -g vsce
         displayName: Install dependencies (npm)
-      - script: cargo build --release
-        displayName: Build extension
-      - script: cargo run --release -- --package
+      - script: BUILDSH_RELEASE=1 ./build.sh package
         displayName: Package extension
       - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n -2 > github-release-changelog-diff.md
         displayName: Prepare changelog
@@ -58,5 +66,5 @@ stages:
           gitHubConnection: github/pustaczek
           repositoryName: pustaczek/icie
           releaseNotesFile: github-release-changelog-diff.md
-          assets: target/release/evscode/icie-$(Build.SourceBranchName).vsix
+          assets: target/evscode/icie-$(Build.SourceBranchName).vsix
           addChangeLog: false

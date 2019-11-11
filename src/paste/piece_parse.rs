@@ -119,10 +119,13 @@ template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typen
 	assert_eq!(piece.name, "DFS");
 	assert_eq!(piece.description, Some("Depth First Search".to_owned()));
 	assert_eq!(piece.detail, Some("An algorithm for traversing or searching tree or graph data structures with backtracking.".to_owned()));
-	assert_eq!(piece.code, r#"template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typename PostE=Dummyf, typename FailE=Dummyf> void DFS(int source, Pre pre, Post post, PreE pree, PostE poste, FailE faile) const {
+	assert_eq!(
+		piece.code,
+		r#"template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typename PostE=Dummyf, typename FailE=Dummyf> void DFS(int source, Pre pre, Post post, PreE pree, PostE poste, FailE faile) const {
 	auto visit = vector<bool>(size(), false);
 	implDFS(source, visit, pre, post, pree, poste, faile);
-}"#);
+}"#
+	);
 	assert_eq!(piece.guarantee, "void DFS(");
 	assert_eq!(piece.dependencies, &["graph", "dummyf", "dfs-impl"]);
 	assert_eq!(piece.parent, Some("graph".to_owned()));
