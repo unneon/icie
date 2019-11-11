@@ -197,6 +197,11 @@ impl unijudge::Backend for Codeforces {
 						"PARTIAL" => Verdict::Partial(verdict_span.find(".verdict-format-points")?.text().parse()?),
 						"SKIPPED" => Verdict::Skipped,
 						"CHALLENGED" => Verdict::Hacked,
+						"FAILED" => Verdict::JudgementFailed,
+						"IDLENESS_LIMIT_EXCEEDED" => Verdict::IdlenessLimitExceeded(TestIndex::scrap(verdict_span)?),
+						"CRASHED" => Verdict::DenialOfJudgement,
+						// PE is present as a verdict filter, but not as an actual verdict.
+						// SV/IPF seem to be an actual verdicts, but I can't find an example.
 						_ => return Err(Error::from(verdict_span.error("unrecognized verdict tag"))),
 					}
 				}
@@ -457,6 +462,9 @@ enum Verdict {
 	InQueue,
 	TestingStart,
 	Skipped,
+	JudgementFailed,
+	DenialOfJudgement,
+	IdlenessLimitExceeded(TestIndex),
 }
 
 impl TestIndex {
@@ -501,6 +509,9 @@ impl Verdict {
 			CV::InQueue => UV::Pending { test: None },
 			CV::TestingStart => UV::Pending { test: None },
 			CV::Skipped => UV::Skipped,
+			CV::JudgementFailed => UV::Glitch,
+			CV::DenialOfJudgement => UV::Glitch,
+			CV::IdlenessLimitExceeded(ti) => UV::Rejected { cause: Some(UR::IdlenessLimitExceeded), test: Some(ti.desc()) },
 		}
 	}
 }

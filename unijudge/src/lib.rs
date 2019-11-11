@@ -146,6 +146,7 @@ pub enum RejectionCause {
 	RuleViolation,
 	SystemError,
 	CompilationError,
+	IdlenessLimitExceeded,
 }
 
 #[derive(Clone, Debug)]
@@ -161,6 +162,7 @@ pub enum Verdict {
 	Rejected { cause: Option<RejectionCause>, test: Option<String> },
 	Pending { test: Option<String> },
 	Skipped,
+	Glitch,
 }
 
 #[derive(Clone, Debug)]

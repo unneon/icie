@@ -125,6 +125,9 @@ fn fmt_verdict(verdict: &unijudge::Verdict) -> String {
 		unijudge::Verdict::Skipped => {
 			message += "Skipped";
 		},
+		unijudge::Verdict::Glitch => {
+			message += "Glitched";
+		},
 	};
 	message
 }
@@ -138,6 +141,7 @@ fn fmt_cause_withtest(cause: &Option<RejectionCause>, test: &Option<String>) -> 
 		(Some(RejectionCause::RuleViolation), _) => " due to a Rule Violation",
 		(Some(RejectionCause::SystemError), _) => " due to a System Error",
 		(Some(RejectionCause::CompilationError), _) => " due to a Compilation Error",
+		(Some(RejectionCause::IdlenessLimitExceeded), _) => " due to an Idleness Limit Exceeded",
 		(None, Some(_)) => " failing",
 		(None, None) => "",
 	}
