@@ -9,18 +9,13 @@ pub async fn check() -> R<()> {
 			"Hey, ICIE {} has some cool new features, like: {}; check them out!",
 			LAST_IMPORTANT_UPDATE.version, LAST_IMPORTANT_UPDATE.features
 		);
-		let choice =
-			evscode::Message::new(&message).item("changelog".to_owned(), "See full changelog", false).item("ok".to_owned(), "Ok", false).show().await;
-		if let Some(choice) = choice {
-			if choice == "changelog" {
-				TELEMETRY.newsletter_changelog.spark();
-				evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
-			} else {
-				TELEMETRY.newsletter_dismiss.spark();
-				let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
-				LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
-			}
+		let choice = evscode::Message::new(&message).item((), "See changelog", false).show().await;
+		if let Some(()) = choice {
+			TELEMETRY.newsletter_changelog.spark();
+			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
 		}
+		let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
+		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 	}
 	Ok(())
 }
