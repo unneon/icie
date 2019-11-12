@@ -21,6 +21,7 @@ pub enum Source {
 	Contest,
 	Gym,
 	Problemset,
+	Group { group: String },
 }
 #[derive(Debug, Clone)]
 pub struct Contest {
@@ -60,6 +61,10 @@ impl unijudge::Backend for Codeforces {
 		let (source, contest, task) = match segments {
 			["contest", contest] => return Ok(Resource::Contest(Contest { source: Source::Contest, id: (*contest).to_owned() })),
 			["contest", contest, "problem", task] => (Source::Contest, contest, task),
+			["group", group, "contest", contest] => {
+				return Ok(Resource::Contest(Contest { source: Source::Group { group: (*group).to_owned() }, id: (*contest).to_owned() }));
+			},
+			["group", group, "contest", contest, "problem", task] => (Source::Group { group: (*group).to_owned() }, contest, task),
 			["gym", contest] => return Ok(Resource::Contest(Contest { source: Source::Gym, id: (*contest).to_owned() })),
 			["gym", contest, "problem", task] => (Source::Gym, contest, task),
 			["problemset", "problem", contest, task] => (Source::Problemset, contest, task),
@@ -168,9 +173,10 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
-		let url = match task.contest.source {
+		let url = match &task.contest.source {
 			Source::Contest | Source::Gym => self.task_contest_url(task)?.join("my")?,
 			Source::Problemset => format!("https://codeforces.com/submissions/{}", session.req_user()?).parse()?,
+			Source::Group { group } => format!("https://codeforces.com/group/{}/contest/{}/my", group, task.contest.id).parse()?,
 		};
 		let resp = session.client.get(url).send().await?;
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
@@ -246,10 +252,11 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn contest_id(&self, contest: &Self::Contest) -> String {
-		match contest.source {
+		match &contest.source {
 			Source::Contest => contest.id.clone(),
 			Source::Gym => format!("gym{}", contest.id),
 			Source::Problemset => "problemset".to_owned(),
+			Source::Group { group } => format!("group{}{}", group, contest.id),
 		}
 	}
 
@@ -267,10 +274,11 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	fn contest_url(&self, contest: &Self::Contest) -> String {
-		match contest.source {
+		match &contest.source {
 			Source::Contest => format!("https://codeforces.com/contest/{}/", contest.id),
 			Source::Gym => format!("https://codeforces.com/gym/{}/", contest.id),
 			Source::Problemset => "https://codeforces.com/problemset/".to_owned(),
+			Source::Group { group } => format!("https://codeforces.com/group/{}/contest/{}/", group, contest.id),
 		}
 	}
 
@@ -345,10 +353,13 @@ impl Codeforces {
 
 	fn xtask_url(&self, task: &Task) -> Result<Url> {
 		let task_id = self.resolve_task_id(task);
-		Ok(match task.contest.source {
+		Ok(match &task.contest.source {
 			Source::Contest => format!("https://codeforces.com/contest/{}/problem/{}", task.contest.id, task_id),
 			Source::Gym => format!("https://codeforces.com/gym/{}/problem/{}", task.contest.id, task_id),
 			Source::Problemset => format!("https://codeforces.com/problemset/problem/{}/{}", task.contest.id, task_id),
+			Source::Group { group } => {
+				format!("https://codeforces.com/group/{}/contest/{}/problem/{}/", group, task.contest.id, self.resolve_task_id(&task))
+			},
 		}
 		.parse()?)
 	}
@@ -358,10 +369,11 @@ impl Codeforces {
 	}
 
 	fn pretty_contest(&self, task: &Task) -> String {
-		match task.contest.source {
+		match &task.contest.source {
 			Source::Contest => task.contest.id.clone(),
 			Source::Gym => format!("gym {}", task.contest.id),
 			Source::Problemset => format!("problemset {}", task.contest.id),
+			Source::Group { group } => format!("group {} {}", group, task.contest.id),
 		}
 	}
 
