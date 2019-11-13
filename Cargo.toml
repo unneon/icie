@@ -37,6 +37,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
 [patch.crates-io]
+cookie = { git = "https://github.com/SergioBenitez/cookie-rs/" }
 js-sys = { git = "https://github.com/pustaczek/wasm-bindgen", branch = "hack-window-conflict" }
 time = { git = "https://github.com/pustaczek/time", branch = "icie" }
 wasm-bindgen = { git = "https://github.com/pustaczek/wasm-bindgen", branch = "hack-window-conflict" }
