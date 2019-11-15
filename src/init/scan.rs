@@ -5,12 +5,15 @@ use std::sync::Arc;
 use unijudge::{boxed::BoxedContestDetails, Backend};
 
 pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)> {
+	let (progress, _) = evscode::Progress::new().title("ICIE Scan").show();
 	let domains = BACKENDS
 		.iter()
 		.filter(|backend| backend.backend.supports_contests())
 		.flat_map(|backend| backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend)))
 		.collect::<Vec<_>>();
+	let progress_inc = 100. / (domains.len() as f64);
 	join_all(domains.iter().map(|(domain, backend)| {
+		let progress = &progress;
 		async move {
 			(
 				domain,
@@ -20,6 +23,7 @@ pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'
 					drop(_status);
 					let _status = crate::STATUS.push(format!("Fetching {}", domain));
 					let contests = sess.run(|backend, sess| backend.contests(sess)).await?;
+					progress.increment(progress_inc);
 					(sess, contests, *backend)
 				},
 			)
