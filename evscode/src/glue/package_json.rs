@@ -14,6 +14,7 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		description: pkg.description.to_owned(),
 		categories: pkg.categories.iter().map(|s| (*s).to_owned()).collect(),
 		keywords: pkg.keywords.iter().map(|s| (*s).to_owned()).collect(),
+		gallery_banner: GalleryBanner { color: "#6d0759", theme: "dark" },
 		license: pkg.license.to_owned(),
 		repository: pkg.repository.to_owned(),
 		main: "icie.js".to_owned(),
@@ -52,6 +53,7 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		]
 		.into_iter()
 		.collect(),
+		icon: "icon.png",
 	}
 }
 
@@ -66,6 +68,8 @@ pub struct PackageJson {
 	description: String,
 	categories: Vec<String>,
 	keywords: Vec<String>,
+	#[serde(rename = "galleryBanner")]
+	gallery_banner: GalleryBanner,
 	license: String,
 	repository: String,
 	main: String,
@@ -75,11 +79,18 @@ pub struct PackageJson {
 	markdown: &'static str,
 	qna: &'static str,
 	dependencies: HashMap<String, String>,
+	icon: &'static str,
 }
 
 #[derive(Debug, Serialize)]
 struct Engines {
 	vscode: String,
+}
+
+#[derive(Debug, Serialize)]
+struct GalleryBanner {
+	color: &'static str,
+	theme: &'static str,
 }
 
 #[derive(Debug, Serialize)]
