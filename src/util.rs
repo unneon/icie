@@ -259,3 +259,16 @@ impl Drop for Tempfile {
 		fs::remove_file_sync(&self.path).unwrap();
 	}
 }
+
+pub enum OS {
+	Windows,
+	Linux,
+}
+
+pub fn get_os() -> R<OS> {
+	match (node_sys::process::PLATFORM.as_str(), node_sys::process::ARCH.as_str()) {
+		("linux", _) | ("freebsd", _) | ("openbsd", _) => Ok(OS::Linux),
+		("win32", _) => Ok(OS::Windows),
+		(platform, arch) => Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch))),
+	}
+}

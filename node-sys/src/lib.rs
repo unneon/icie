@@ -240,10 +240,16 @@ pub mod process {
 	#[wasm_bindgen(module = process)]
 	extern "C" {
 
+		#[wasm_bindgen(js_name = arch)]
+		pub static ARCH: String;
+
 		#[wasm_bindgen(js_name = env)]
 		pub static ENV: JsValue;
 
 		pub fn hrtime() -> js_sys::Array;
+
+		#[wasm_bindgen(js_name = platform)]
+		pub static PLATFORM: String;
 
 	}
 }
