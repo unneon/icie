@@ -11,7 +11,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 	let checker = dir::checker()?;
-	Ok(if !fs::exists(&checker).await? {
+	Ok(if !fs::exists(checker.as_ref()).await? {
 		let bx: Box<dyn Checker+Send+Sync> = Box::new(FreeWhitespaceChecker);
 		bx
 	} else {

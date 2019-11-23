@@ -1,7 +1,7 @@
 use crate::{
 	build::{build, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{fmt_verb, fs}
+	}, util::{fmt_verb, fs, path::PathBuf}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -10,7 +10,6 @@ use evscode::{
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 lazy_static! {
 	pub static ref COLLECTION: Collection<TestView> = Collection::new(TestView);

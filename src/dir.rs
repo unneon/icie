@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use crate::util::path::PathBuf;
 
 /// File stem of the mail source file. This is the optimal solution, which should be tested, sent to judging systems for scoring etc. For example, if this is set to "main", the source will be called "main.cpp"(assuming icie.dir.cppExtension is set to "cpp").
 #[evscode::config]
@@ -33,23 +33,23 @@ static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 pub static PROJECT_DIRECTORY: evscode::Config<PathBuf> = "~";
 
 pub fn solution() -> evscode::R<PathBuf> {
-	Ok(evscode::workspace_root()?.join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
+	Ok(PathBuf::from_native(evscode::workspace_root()?).join(&*SOLUTION_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn brut() -> evscode::R<PathBuf> {
-	Ok(evscode::workspace_root()?.join(&*BRUT_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
+	Ok(PathBuf::from_native(evscode::workspace_root()?).join(&*BRUT_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn gen() -> evscode::R<PathBuf> {
-	Ok(evscode::workspace_root()?.join(&*GEN_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
+	Ok(PathBuf::from_native(evscode::workspace_root()?).join(&*GEN_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn checker() -> evscode::R<PathBuf> {
-	Ok(evscode::workspace_root()?.join(&*CHECKER_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
+	Ok(PathBuf::from_native(evscode::workspace_root()?).join(&*CHECKER_STEM.get()).with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn tests() -> evscode::R<PathBuf> {
-	Ok(evscode::workspace_root()?.join(&*TESTS_DIRECTORY.get()))
+	Ok(PathBuf::from_native(evscode::workspace_root()?).join(&*TESTS_DIRECTORY.get()))
 }
 
 pub fn custom_tests() -> evscode::R<PathBuf> {

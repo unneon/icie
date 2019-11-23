@@ -1,6 +1,7 @@
+use crate::util::path::PathBuf;
 use async_trait::async_trait;
 use evscode::{E, R};
-use std::{collections::HashMap, path::PathBuf, time::SystemTime};
+use std::{collections::HashMap, time::SystemTime};
 
 #[derive(Debug)]
 pub struct Library {
@@ -22,7 +23,7 @@ pub struct Piece {
 
 impl Library {
 	pub fn new_empty() -> Library {
-		Library { directory: PathBuf::new(), pieces: HashMap::new() }
+		Library { directory: PathBuf::from_native(String::new()), pieces: HashMap::new() }
 	}
 
 	pub fn verify(&self) -> R<()> {

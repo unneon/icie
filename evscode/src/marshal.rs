@@ -1,6 +1,6 @@
 //! Conversion traits between Rust and JavaScript types.
 
-use std::{collections::HashMap, fmt, path::PathBuf};
+use std::{collections::HashMap, fmt};
 use wasm_bindgen::{prelude::*, JsCast};
 
 /// Trait responsible for converting values between Rust and JavaScript.
@@ -54,15 +54,6 @@ impl Marshal for String {
 
 	fn from_js(raw: JsValue) -> Result<Self, String> {
 		raw.as_string().ok_or_else(|| type_error2("string", &raw))
-	}
-}
-impl Marshal for PathBuf {
-	fn to_js(&self) -> JsValue {
-		JsValue::from_str(self.to_str().unwrap())
-	}
-
-	fn from_js(raw: JsValue) -> Result<Self, String> {
-		Ok(expand_path(&raw.as_string().ok_or_else(|| type_error2("path", &raw))?))
 	}
 }
 impl<T: Marshal> Marshal for Option<T> {
@@ -120,7 +111,8 @@ impl<T: Marshal, S: std::hash::BuildHasher+Default> Marshal for HashMap<String, 
 	}
 }
 
-pub(crate) fn type_error2(expected: &'static str, raw: &JsValue) -> String {
+/// Returns a string describing a type error when casting from JS.
+pub fn type_error2(expected: &'static str, raw: &JsValue) -> String {
 	format!("expected {}, found `{:?}`", expected, raw)
 }
 
@@ -143,8 +135,4 @@ pub(crate) fn camel_case(s: &str, f: &mut fmt::Formatter) -> fmt::Result {
 		}
 	}
 	Ok(())
-}
-
-fn expand_path(path: &str) -> PathBuf {
-	PathBuf::from(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
 }

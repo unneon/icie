@@ -1,13 +1,11 @@
 use crate::{
 	paste::{
 		logic::{Library, Piece}, qpaste_doc_error
-	}, util::fs
+	}, util::{fs, path::PathBuf}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::lock::{Mutex, MutexGuard};
-use std::{
-	collections::HashMap, ffi::OsStr, path::{Path, PathBuf}
-};
+use std::collections::HashMap;
 
 lazy_static::lazy_static! {
 	pub static ref CACHED_LIBRARY: LibraryCache = LibraryCache::new();
@@ -23,7 +21,7 @@ pub struct LibraryCache {
 
 impl LibraryCache {
 	pub fn new() -> LibraryCache {
-		LibraryCache { lock: Mutex::new(Library { directory: PathBuf::new(), pieces: HashMap::new() }) }
+		LibraryCache { lock: Mutex::new(Library { directory: PathBuf::from_native(String::new()), pieces: HashMap::new() }) }
 	}
 
 	#[allow(clippy::extra_unused_lifetimes)]
@@ -41,7 +39,7 @@ impl LibraryCache {
 				.to_str()
 				.unwrap()
 				.to_owned();
-			if path.extension() == Some(OsStr::new("cpp")) {
+			if path.extension() == Some("cpp".to_owned()) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces).await?;
 				new_pieces.insert(id, piece);
 			}
@@ -73,11 +71,11 @@ impl LibraryCache {
 
 	async fn get_directory(&self) -> R<PathBuf> {
 		let dir = PATH.get();
-		if dir == Path::new("") {
+		if dir.to_str().unwrap() == "" {
 			return Err(E::error(qpaste_doc_error("no competitive programming library found")));
 		}
 		if !fs::exists(&dir).await? {
-			return Err(E::error(format!("directory {} does not exist", dir.display())));
+			return Err(E::error(format!("directory {} does not exist", dir)));
 		}
 		Ok(dir)
 	}

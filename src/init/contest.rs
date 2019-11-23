@@ -1,13 +1,15 @@
 use crate::{
 	auth, init::{
 		init_task, names::{design_contest_name, design_task_name}
-	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs, plural, sleep, time_now}
+	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{
+		fmt_time_left, fs, path::{PathBuf, PathRef}, plural, sleep, time_now
+	}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
 use serde::{Deserialize, Serialize};
 use std::{
-	cmp::min, path::Path, sync::Arc, time::{Duration, SystemTime}
+	cmp::min, sync::Arc, time::{Duration, SystemTime}
 };
 use unijudge::{
 	boxed::{BoxedContest, BoxedTask}, Backend, Resource, TaskDetails
@@ -27,7 +29,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 		sess.backend.name_short(),
 	)
 	.await?;
-	fs::create_dir_all(&root_dir).await?;
+	fs::create_dir_all(root_dir.as_ref()).await?;
 	let url_raw = sess.backend.contest_url(contest);
 	let (url, _) = interpret_url(&url_raw)?;
 	let url = require_contest(url)?;
@@ -38,28 +40,29 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	let task0_name = format!("1/{}", tasks.len());
 	let task0_details = fetch_task(task0, &task0_name, &sess).await?;
 	let task0_url = sess.run(|backend, sess| async move { backend.task_url(sess, task0) }).await?;
-	let task0_path = design_task_name(&root_dir, Some(&task0_details)).await?;
-	init_task(&task0_path, Some(task0_url), Some(task0_details)).await?;
+	let task0_path = design_task_name(root_dir.as_ref(), Some(&task0_details)).await?;
+	init_task(task0_path.as_ref(), Some(task0_url), Some(task0_details)).await?;
 	let manifest = Manifest { contest_url: url_raw };
-	let manifest_path = task0_path.join(".icie-contest");
-	fs::write(&manifest_path, serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?).await?;
-	evscode::open_folder(&task0_path, false).await;
+	let manifest_path = task0_path.as_ref().join(".icie-contest");
+	fs::write(manifest_path.as_ref(), serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?).await?;
+	evscode::open_folder(task0_path.to_str().unwrap(), false).await;
 	Ok(())
 }
 
 /// Check if a contest manifest exists, and if it does, start the rest of the contest setup.
 pub async fn check_for_manifest() -> R<()> {
 	if let Ok(workspace) = evscode::workspace_root() {
+		let workspace = PathBuf::from_native(workspace);
 		let manifest = workspace.join(".icie-contest");
-		if fs::exists(&manifest).await? {
-			inner_sprint(&manifest).await?;
+		if fs::exists(manifest.as_ref()).await? {
+			inner_sprint(manifest.as_ref()).await?;
 		}
 	}
 	Ok(())
 }
 
 /// Do the setup for the rest of the contest tasks.
-async fn inner_sprint(manifest: &Path) -> R<()> {
+async fn inner_sprint(manifest: PathRef<'_>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let manifest = pop_manifest(manifest).await?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
@@ -67,14 +70,14 @@ async fn inner_sprint(manifest: &Path) -> R<()> {
 	let sess = Session::connect(&url.domain, backend.backend).await?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
-	let task_dir = evscode::workspace_root()?;
-	let contest_dir = task_dir.parent().wrap("task directory has no parent contest directory")?;
+	let task_dir = PathBuf::from_native(evscode::workspace_root()?);
+	let contest_dir = task_dir.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {
 			let taski_name = format!("{}/{}", i + 1, tasks.len());
 			let details = fetch_task(task, &taski_name, &sess).await?;
-			let root = design_task_name(contest_dir, Some(&details)).await?;
-			init_task(&root, Some(sess.run(|_, _| async { sess.backend.task_url(&sess.session, &task) }).await?), Some(details)).await?;
+			let root = design_task_name(contest_dir.as_ref(), Some(&details)).await?;
+			init_task(root.as_ref(), Some(sess.run(|_, _| async { sess.backend.task_url(&sess.session, &task) }).await?), Some(details)).await?;
 		}
 	}
 	Ok(())
@@ -122,7 +125,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 }
 
 /// Parse the manifest and removes it.
-async fn pop_manifest(path: &Path) -> R<Manifest> {
+async fn pop_manifest(path: PathRef<'_>) -> R<Manifest> {
 	let manifest = serde_json::from_str(&fs::read_to_string(path).await?).wrap("malformed contest manifest")?;
 	fs::remove_file(path).await.map_err(|e| e.context("could not delete contest manifest after use"))?;
 	Ok(manifest)

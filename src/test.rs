@@ -5,13 +5,13 @@ pub mod view;
 use crate::{
 	build::{self, Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
 		judge::{simple_test, Outcome}, scan::scan_and_order
-	}, util, util::fs
+	}, util, util::{
+		fs, path::{PathBuf, PathRef}
+	}
 };
 use evscode::{error::ResultExt, webview::WebviewRef, R};
 use futures::{SinkExt, Stream, StreamExt};
-use std::{
-	path::{Path, PathBuf}, time::Duration
-};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct TestRun {
@@ -50,10 +50,8 @@ pub async fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	for _ in 0..test_count {
 		let run = worker.next().await.wrap("did not ran all tests due to an internal panic")??;
 		let name = run.in_path.strip_prefix(&test_dir).wrap("found test outside of test directory")?;
-		progress.update_inc(
-			100.0 / test_count as f64,
-			format!("{} on `{}` in {}", run.outcome.verdict, name.display(), util::fmt_time_short(&run.outcome.time)),
-		);
+		progress
+			.update_inc(100.0 / test_count as f64, format!("{} on `{}` in {}", run.outcome.verdict, name, util::fmt_time_short(&run.outcome.time)));
 		runs.push(run);
 	}
 	Ok(runs)
@@ -79,7 +77,7 @@ fn run_thread(ins: Vec<PathBuf>, task: Task, solution: Executable) -> impl Strea
 					Ok(output) => Some(output),
 					// Matching on JS errors would be irritating, so let's just do this.
 					Err(ref e) if e.human().contains("ENOENT: no such file or directory") => None,
-					Err(e) => return Err(e.context(format!("failed to read test out {}", out_path.display()))),
+					Err(e) => return Err(e.context(format!("failed to read test out {}", out_path))),
 				};
 				let alt = if fs::exists(&alt_path).await? { Some(fs::read_to_string(&alt_path).await?) } else { None };
 				let outcome = simple_test(&solution, &input, output.as_ref().map(String::as_str), alt.as_ref().map(|p| p.as_str()), &task)
@@ -139,10 +137,10 @@ pub async fn input() -> evscode::R<()> {
 	Ok(())
 }
 
-async fn unused_test_id(dir: &Path) -> evscode::R<i64> {
+async fn unused_test_id(dir: PathRef<'_>) -> evscode::R<i64> {
 	let mut taken = Vec::new();
 	for test in fs::read_dir(dir).await? {
-		if let Ok(id) = test.file_stem().unwrap().to_str().unwrap().parse::<i64>() {
+		if let Ok(id) = test.file_stem().parse::<i64>() {
 			taken.push(id);
 		}
 	}

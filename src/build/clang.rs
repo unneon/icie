@@ -4,11 +4,11 @@ use crate::{
 use evscode::{E, R};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::path::{Path, PathBuf};
+use util::path::{PathBuf, PathRef};
 
-pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
+pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
 	let clang = find_clang().await?;
-	let executable = Executable::new(out.to_path_buf());
+	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();
 	args.push(flag_standard(standard));
 	args.extend(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
@@ -26,7 +26,7 @@ pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen:
 		let column = cap[3].parse().unwrap();
 		let severity = &cap[4];
 		let message = cap[5].to_owned();
-		let path = PathBuf::from(&cap[1]);
+		let path = PathBuf::from_native(cap[1].to_owned());
 		(if severity == "error" || severity == "fatal error" { &mut errors } else { &mut warnings })
 			.push(Message { message, location: Some(Location { path, line, column }) });
 	}

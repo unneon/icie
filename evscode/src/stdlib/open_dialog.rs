@@ -1,15 +1,13 @@
 //! Dialog for selecting files or directories.
 
-use std::{
-	collections::HashMap, path::{Path, PathBuf}
-};
+use std::collections::HashMap;
 
 /// Builder for configuring dialogs. Use [`OpenDialog::new`] to create.
 #[must_use]
 pub struct Builder {
 	files: bool,
 	folders: bool,
-	default: Option<PathBuf>,
+	default: Option<String>,
 	filters: Option<HashMap<String, Vec<String>>>,
 	action_label: Option<String>,
 }
@@ -23,8 +21,8 @@ impl Builder {
 	}
 
 	/// Set a value selected by default.
-	pub fn default(mut self, p: impl AsRef<Path>) -> Self {
-		self.default = Some(p.as_ref().to_owned());
+	pub fn default(mut self, p: &str) -> Self {
+		self.default = Some(p.to_owned());
 		self
 	}
 
@@ -45,7 +43,7 @@ impl Builder {
 	}
 
 	/// Open the dialog.
-	pub async fn show(self) -> Option<PathBuf> {
+	pub async fn show(self) -> Option<String> {
 		vscode_sys::window::show_open_dialog(vscode_sys::window::OpenDialogOptions {
 			can_select_files: self.files,
 			can_select_folders: self.folders,
@@ -54,7 +52,7 @@ impl Builder {
 			open_label: self.action_label,
 		})
 		.await
-		.map(|chosen| PathBuf::from(chosen.into_iter().next().unwrap()))
+		.map(|chosen| chosen.into_iter().next().unwrap())
 	}
 }
 

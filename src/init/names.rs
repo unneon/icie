@@ -1,10 +1,8 @@
 use crate::{
-	dir, init::{PathDialog, ASK_FOR_PATH, PROJECT_NAME_TEMPLATE}, interpolation::Interpolation
+	dir, init::{PathDialog, ASK_FOR_PATH, PROJECT_NAME_TEMPLATE}, interpolation::Interpolation, util::path::{PathBuf, PathRef}
 };
 use evscode::R;
-use std::{
-	fmt, path::{Path, PathBuf}, str::FromStr
-};
+use std::{fmt, str::FromStr};
 use unijudge::TaskDetails;
 
 /// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. Variables task.id and task.title are not available in this context. See "Icie Init Project name template" for details.
@@ -15,7 +13,7 @@ static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{contest.titl
 #[evscode::config]
 static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<PathBuf> {
+pub async fn design_task_name(root: PathRef<'_>, meta: Option<&TaskDetails>) -> R<PathBuf> {
 	let variables = Mapping {
 		task_id: meta.as_ref().map(|meta| meta.id.clone()),
 		task_title: meta.as_ref().map(|meta| meta.title.clone()),
@@ -47,7 +45,7 @@ pub async fn design_contest_name(contest_id: String, contest_title: String, site
 		(s, true) => s,
 	};
 	let directory = dir::PROJECT_DIRECTORY.get();
-	strategy.query(&*directory, &codename).await
+	strategy.query(&directory, &codename).await
 }
 
 #[derive(Clone, PartialEq, Eq)]

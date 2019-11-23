@@ -1,5 +1,6 @@
+use crate::util::path::PathBuf;
 use itertools::Itertools;
-use std::{cmp::Ordering, path::PathBuf};
+use std::cmp::Ordering;
 
 pub async fn scan_and_order(test_dir: &str) -> Vec<PathBuf> {
 	let mut tests = scan(test_dir).await;
@@ -8,14 +9,14 @@ pub async fn scan_and_order(test_dir: &str) -> Vec<PathBuf> {
 }
 
 async fn scan(test_dir: &str) -> Vec<PathBuf> {
-	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir)).await.into_iter().map(|uri| PathBuf::from(uri.fs_path())).collect()
+	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir)).await.into_iter().map(|uri| PathBuf::from_native(uri.fs_path())).collect()
 }
 
 fn order(tests: &mut Vec<PathBuf>) {
 	tests.sort_by(comp_by_test_number);
 }
 
-fn comp_by_test_number(lhs: &std::path::PathBuf, rhs: &std::path::PathBuf) -> Ordering {
+fn comp_by_test_number(lhs: &PathBuf, rhs: &PathBuf) -> Ordering {
 	let lgroups = lhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
 	let rgroups = rhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
 	for ((isdig, lgrp), (_, rgrp)) in lgroups.into_iter().zip(rgroups.into_iter()) {

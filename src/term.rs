@@ -1,8 +1,7 @@
 use crate::{
-	executable::{Environment, Executable}, telemetry::TELEMETRY, util
+	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::path::{PathBuf, PathRef}
 };
 use evscode::{error::ResultExt, E, R};
-use std::path::Path;
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
 async fn spawn() -> R<()> {
@@ -13,8 +12,10 @@ async fn spawn() -> R<()> {
 pub struct Internal;
 pub struct External;
 
-pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: impl AsRef<Path>, command: impl IntoIterator<Item=A>) -> R<()> {
-	let test = util::without_extension(test.as_ref().strip_prefix(evscode::workspace_root()?).wrap("found test outside of test directory")?);
+pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: PathRef, command: impl IntoIterator<Item=A>) -> R<()> {
+	let test = util::without_extension(
+		&test.as_ref().strip_prefix(&PathBuf::from_native(evscode::workspace_root()?)).wrap("found test outside of test directory")?,
+	);
 	External::command(Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
 }
 

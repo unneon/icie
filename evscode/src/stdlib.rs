@@ -24,9 +24,7 @@ pub use types::*;
 pub use webview::Webview;
 
 use crate::{error::ResultExt, E, R};
-use std::{
-	borrow::Borrow, cell::RefCell, path::{Path, PathBuf}
-};
+use std::{borrow::Borrow, cell::RefCell};
 use wasm_bindgen::{closure::Closure, JsValue};
 
 /// Save all modified files in the workspace.
@@ -41,8 +39,8 @@ pub async fn save_all() -> R<()> {
 }
 
 /// Open a folder in a new or existing VS Code window.
-pub async fn open_folder(path: &Path, in_new_window: bool) {
-	let uri = vscode_sys::Uri::file(path.to_str().unwrap());
+pub async fn open_folder(path: &str, in_new_window: bool) {
+	let uri = vscode_sys::Uri::file(path);
 	let in_new_window = JsValue::from_bool(in_new_window);
 	vscode_sys::commands::execute_command("vscode.openFolder", js_sys::Array::of2(&uri, &in_new_window)).await;
 }
@@ -57,17 +55,17 @@ pub async fn open_external(url: &str) -> R<()> {
 }
 
 /// Get the text present in the editor of a given path.
-pub async fn query_document_text(path: &Path) -> R<String> {
-	let doc = vscode_sys::workspace::open_text_document(path.to_str().unwrap()).await?;
+pub async fn query_document_text(path: &str) -> R<String> {
+	let doc = vscode_sys::workspace::open_text_document(path).await?;
 	Ok(doc.text())
 }
 
 /// Make an edit action that consists of pasting a given text in a given position in a given file.
 ///
 /// The indices in the (row, column) tuple are 0-based.
-pub async fn edit_paste(path: &Path, text: &str, position: (usize, usize)) -> R<()> {
+pub async fn edit_paste(path: &str, text: &str, position: (usize, usize)) -> R<()> {
 	let text = text.to_owned();
-	let doc = vscode_sys::workspace::open_text_document(path.to_str().unwrap()).await.expect("unwrap in evscode.edit_paste");
+	let doc = vscode_sys::workspace::open_text_document(path).await.expect("unwrap in evscode.edit_paste");
 	let edi = vscode_sys::window::show_text_document(&doc).await;
 	let suc = edi
 		.edit(&Closure::wrap(Box::new(move |edit_builder: &vscode_sys::TextEditorEdit| {
@@ -79,18 +77,18 @@ pub async fn edit_paste(path: &Path, text: &str, position: (usize, usize)) -> R<
 
 /// Get the path to workspace folder.
 /// Returns an error if no folder is opened.
-pub fn workspace_root() -> R<PathBuf> {
-	Ok(PathBuf::from(vscode_sys::workspace::ROOT_PATH.as_string().wrap("this operation requires a folder to be open")?))
+pub fn workspace_root() -> R<String> {
+	Ok(vscode_sys::workspace::ROOT_PATH.as_string().wrap("this operation requires a folder to be open")?)
 }
 
 /// Get the path to the root directory of the extension installation.
-pub fn extension_root() -> PathBuf {
-	crate::glue::EXTENSION_PATH.with(|ep| PathBuf::from(ep.borrow().as_ref().unwrap().as_str()))
+pub fn extension_root() -> String {
+	crate::glue::EXTENSION_PATH.with(|ep| ep.borrow().as_ref().unwrap().clone())
 }
 
 /// Get the path to the currently edited file.
-pub async fn active_editor_file() -> Option<PathBuf> {
-	vscode_sys::window::ACTIVE_TEXT_EDITOR.as_ref().map(|edi| PathBuf::from(edi.document().file_name()))
+pub async fn active_editor_file() -> Option<String> {
+	vscode_sys::window::ACTIVE_TEXT_EDITOR.as_ref().map(|edi| edi.document().file_name())
 }
 
 /// Set the OS clipboard content to a given value.
@@ -99,8 +97,8 @@ pub async fn clipboard_write(val: &str) {
 }
 
 /// Return an URI pointing to a given path for use with webviews.
-pub fn asset(rel_path: impl AsRef<Path>) -> String {
-	format!("vscode-resource://{}", extension_root().join("assets").join(rel_path.as_ref()).to_str().unwrap())
+pub fn asset(rel_path: &str) -> String {
+	format!("vscode-resource://{}/assets/{}", extension_root(), rel_path)
 }
 
 /// Set the status message on a global widget.

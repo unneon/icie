@@ -8,7 +8,6 @@ use crate::{
 use async_trait::async_trait;
 use evscode::{error::ResultExt, E, R};
 use itertools::Itertools;
-use std::path::PathBuf;
 
 #[evscode::command(title = "ICIE Quick Paste", key = "alt+[")]
 async fn quick() -> R<()> {
@@ -85,12 +84,12 @@ async fn qistruct() -> R<()> {
 async fn query_context(library: &Library) -> R<VscodePaste<'_>> {
 	let solution = dir::solution()?;
 	let text = evscode::query_document_text(&solution).await?;
-	let context = VscodePaste { solution, text, library };
+	let context = VscodePaste { solution: solution.to_str().unwrap().to_owned(), text, library };
 	Ok(context)
 }
 
 pub struct VscodePaste<'a> {
-	solution: PathBuf,
+	solution: String,
 	text: String,
 	library: &'a Library,
 }

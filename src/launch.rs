@@ -1,5 +1,5 @@
 use crate::{
-	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::{self, TELEMETRY}, util::{self, fs, node_hrtime}
+	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::{self, TELEMETRY}, util::{self, fs, node_hrtime, path::PathBuf}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -86,23 +86,22 @@ async fn statement() -> R<()> {
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]
 async fn nearby() -> R<()> {
 	TELEMETRY.launch_nearby.spark();
-	let root = evscode::workspace_root()?;
-	let parent = root.parent().wrap("current directory has no parent")?;
-	let mut nearby = fs::read_dir(parent)
+	let root = PathBuf::from_native(evscode::workspace_root()?);
+	let parent = root.parent();
+	let mut nearby = fs::read_dir(&parent)
 		.await?
 		.into_iter()
 		.map(|path| {
-			let title = match path.strip_prefix(parent) {
-				Ok(rel) => rel.to_str().unwrap(),
-				Err(_) => path.to_str().unwrap(),
-			}
-			.to_owned();
+			let title = match path.strip_prefix(&parent) {
+				Ok(rel) => rel.to_str().unwrap().to_owned(),
+				Err(_) => path.to_str().unwrap().to_owned(),
+			};
 			(path, title)
 		})
 		.collect::<Vec<_>>();
 	nearby.sort_by_key(|nearby| nearby.1.clone());
 	let select = QuickPick::new()
-		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.clone(), nearby.1)))
+		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.to_string(), nearby.1)))
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;

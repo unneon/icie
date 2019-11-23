@@ -1,11 +1,11 @@
+use crate::util::path::{PathBuf, PathRef};
 use evscode::{error::ResultExt, Position, E, R};
 use futures::channel::oneshot;
-use std::{
-	path::{Path, PathBuf}, time::{Duration, SystemTime}
-};
+use std::time::{Duration, SystemTime};
 use wasm_bindgen::{closure::Closure, JsValue};
 
 pub mod fs;
+pub mod path;
 
 pub fn fmt_time_short(t: &Duration) -> String {
 	let s = t.as_secs();
@@ -46,17 +46,17 @@ fn test_fmt_time() {
 pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	if let Some(path) = path.as_option_path() {
 		let file = match evscode::workspace_root() {
-			Ok(root) => path.strip_prefix(root).unwrap(),
-			Err(_) => path,
+			Ok(root) => path.strip_prefix(&PathBuf::from_native(root)).unwrap(),
+			Err(_) => path.clone(),
 		};
-		format!("{} {}", verb, file.display())
+		format!("{} {}", verb, file)
 	} else {
 		String::from(verb)
 	}
 }
 
 pub async fn active_tab() -> R<Option<PathBuf>> {
-	let source = evscode::active_editor_file().await.ok_or_else(E::cancel)?;
+	let source = PathBuf::from_native(evscode::active_editor_file().await.ok_or_else(E::cancel)?);
 	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
 }
 
@@ -84,7 +84,7 @@ fn test_bash_escape() {
 pub async fn is_installed(app: &'static str) -> R<bool> {
 	let exec_lookups = env("PATH")?;
 	for exec_lookup in exec_lookups.split(&String::from(node_sys::path::DELIMITER.clone())) {
-		let path = Path::new(exec_lookup).join(app);
+		let path = PathBuf::from_native(exec_lookup.to_owned()).join(app);
 		if fs::exists(&path).await? {
 			return Ok(true);
 		}
@@ -155,7 +155,7 @@ pub fn time_now() -> SystemTime {
 	SystemTime::UNIX_EPOCH + Duration::from_millis(js_sys::Date::now() as u64)
 }
 
-pub async fn find_cursor_place(path: &Path) -> Option<Position> {
+pub async fn find_cursor_place(path: PathRef<'_>) -> Option<Position> {
 	let doc = fs::read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
 	for (line, content) in doc.lines().enumerate() {
@@ -173,13 +173,14 @@ pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 	format!("{} {}", x, if x == 1 { singular } else { plural })
 }
 
-pub fn expand_path(path: &str) -> PathBuf {
-	PathBuf::from(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
+pub fn expand_path(_path: &str) -> PathBuf {
+	//	PathBuf::from_native(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
+	unimplemented!()
 }
 
-pub fn without_extension(path: impl AsRef<Path>) -> PathBuf {
+pub fn without_extension(path: PathRef) -> PathBuf {
 	let path = path.as_ref();
-	path.parent().unwrap().join(path.file_stem().unwrap())
+	path.parent().join(path.file_stem())
 }
 
 #[test]
@@ -199,30 +200,25 @@ pub fn node_hrtime() -> Duration {
 }
 
 pub trait MaybePath {
-	fn as_option_path(&self) -> Option<&Path>;
+	fn as_option_path(&self) -> Option<PathRef>;
 }
-impl<'a> MaybePath for &'a Path {
-	fn as_option_path(&self) -> Option<&Path> {
-		Some(self)
-	}
-}
-impl<'a> MaybePath for Option<&'a Path> {
-	fn as_option_path(&self) -> Option<&Path> {
+impl<'a> MaybePath for Option<PathRef<'a>> {
+	fn as_option_path(&self) -> Option<PathRef> {
 		*self
 	}
 }
 impl MaybePath for PathBuf {
-	fn as_option_path(&self) -> Option<&Path> {
-		Some(self.as_path())
+	fn as_option_path(&self) -> Option<PathRef> {
+		Some(&self)
 	}
 }
 impl MaybePath for Option<PathBuf> {
-	fn as_option_path(&self) -> Option<&Path> {
-		self.as_ref().map(|p| p.as_path())
+	fn as_option_path(&self) -> Option<PathRef> {
+		self.as_ref()
 	}
 }
 impl<'a, T: MaybePath> MaybePath for &'a T {
-	fn as_option_path(&self) -> Option<&Path> {
+	fn as_option_path(&self) -> Option<PathRef> {
 		(*self).as_option_path()
 	}
 }
@@ -243,13 +239,14 @@ pub struct Tempfile {
 }
 
 impl Tempfile {
-	pub async fn new(uniq_name: &str, data: impl AsRef<[u8]>) -> R<Tempfile> {
-		let path = PathBuf::from(format!("/tmp/icie_{}", uniq_name));
-		fs::write(&path, data.as_ref()).await?;
-		Ok(Tempfile { path })
+	pub async fn new(_uniq_name: &str, _data: impl AsRef<[u8]>) -> R<Tempfile> {
+		//		let path = PathBuf::from_native(format!("/tmp/icie_{}", uniq_name));
+		//		fs::write(&path, data.as_ref()).await?;
+		//		Ok(Tempfile { path })
+		unimplemented!()
 	}
 
-	pub fn path(&self) -> &Path {
+	pub fn path(&self) -> PathRef {
 		&self.path
 	}
 }

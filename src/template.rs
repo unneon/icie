@@ -1,4 +1,6 @@
-use crate::{dir, telemetry::TELEMETRY, util, util::fs};
+use crate::{
+	dir, telemetry::TELEMETRY, util, util::{fs, path::PathBuf}
+};
 use evscode::{E, R};
 use std::collections::HashMap;
 
@@ -27,7 +29,7 @@ async fn instantiate() -> R<()> {
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	let path = evscode::workspace_root()?.join(filename);
+	let path = PathBuf::from_native(evscode::workspace_root()?).join(filename);
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}
@@ -46,7 +48,7 @@ pub async fn load(path: &str) -> R<LoadedTemplate> {
 	if path != BUILTIN_TEMPLATE_PSEUDOPATH {
 		TELEMETRY.template_load_custom.spark();
 		let path = util::expand_path(path);
-		let suggested_filename = path.file_name().unwrap().to_str().unwrap().to_owned();
+		let suggested_filename = path.file_name();
 		let code = fs::read_to_string(&path).await?;
 		Ok(LoadedTemplate { suggested_filename, code })
 	} else {

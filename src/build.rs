@@ -1,10 +1,11 @@
 pub mod clang;
 
 use crate::{
-	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs}
+	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{
+		self, fs, path::{PathBuf, PathRef}
+	}
 };
 use evscode::{error::ResultExt, Position, R};
-use std::path::{Path, PathBuf};
 
 /// When a compilation error appears, the cursor will automatically move to the file and location which caused the error. Regardless of this setting, an error message containing error details will be shown.
 #[evscode::config]
@@ -42,16 +43,16 @@ static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 async fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
 	TELEMETRY.build_manual.spark();
-	let root = evscode::workspace_root()?;
-	let sources = fs::read_dir(&root)
+	let root = PathBuf::from_native(evscode::workspace_root()?);
+	let sources = fs::read_dir(root.as_ref())
 		.await?
 		.into_iter()
-		.filter(|path| ALLOWED_EXTENSIONS.iter().any(|ext| Some(std::ffi::OsStr::new(ext)) == path.extension()));
-	let source = PathBuf::from(
+		.filter(|path| ALLOWED_EXTENSIONS.iter().any(|ext| Some((*ext).to_owned()) == path.extension()));
+	let source = PathBuf::from_native(
 		evscode::QuickPick::new()
 			.items(sources.map(|path| {
-				let text = path.strip_prefix(&root).unwrap_or(&path).to_str().unwrap();
-				evscode::quick_pick::Item::new(path.to_str().unwrap().to_owned(), text.to_owned())
+				let text = path.strip_prefix(&root).unwrap_or_else(|_| path.clone()).to_str().unwrap().to_owned();
+				evscode::quick_pick::Item::new(path.to_str().unwrap().to_owned(), text)
 			}))
 			.show()
 			.await
@@ -79,14 +80,16 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	let source = source.as_option_path();
 	let _status = crate::STATUS.push(util::fmt_verb("Building", &source));
 	let workspace_source = dir::solution()?;
-	let source = source.unwrap_or_else(|| workspace_source.as_path());
+	let source = source.unwrap_or(&workspace_source);
 	if !fs::exists(source).await? {
-		let pretty_source = source.strip_prefix(evscode::workspace_root()?).wrap("tried to build source outside of project directory")?;
-		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source.display())));
+		let pretty_source = source
+			.strip_prefix(PathBuf::from_native(evscode::workspace_root()?).as_ref())
+			.wrap("tried to build source outside of project directory")?;
+		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source)));
 	}
 	evscode::save_all().await?;
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());
-	if !force_rebuild && should_cache(&source, &out).await? {
+	if !force_rebuild && should_cache(source, out.as_ref()).await? {
 		return Ok(Executable::new(out));
 	}
 	let standard = CPP_STANDARD.get();
@@ -97,12 +100,15 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	});
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
 	let sources = [source];
-	let status = compile(&sources, &out, standard, codegen, &flags).await?;
+	let status = compile(&sources, out.as_ref(), standard, codegen, &flags).await?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
 				if AUTO_MOVE_TO_ERROR.get() {
-					evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().await?;
+					evscode::open_editor(location.path.to_str().unwrap())
+						.cursor(Position { line: location.line - 1, column: location.column - 1 })
+						.open()
+						.await?;
 				}
 			}
 			Err(evscode::E::error(error.message.clone()).context("compilation error").workflow_error())
@@ -118,13 +124,13 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	}
 }
 
-async fn should_cache(source: &Path, out: &Path) -> R<bool> {
+async fn should_cache(source: PathRef<'_>, out: PathRef<'_>) -> R<bool> {
 	Ok(fs::exists(out).await? && fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
 }
 
 pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {
 	let workspace_source = dir::solution()?;
-	let source = source.as_option_path().unwrap_or_else(|| workspace_source.as_path());
+	let source = source.as_option_path().unwrap_or(&workspace_source);
 	Ok(source.with_extension(&*EXECUTABLE_EXTENSION.get()))
 }
 
@@ -137,7 +143,10 @@ async fn show_warnings(warnings: Vec<Message>) -> R<()> {
 	}
 	for (i, warning) in warnings.iter().enumerate() {
 		if let Some(location) = &warning.location {
-			evscode::open_editor(&location.path).cursor(Position { line: location.line - 1, column: location.column - 1 }).open().await?;
+			evscode::open_editor(location.path.to_str().unwrap())
+				.cursor(Position { line: location.line - 1, column: location.column - 1 })
+				.open()
+				.await?;
 		}
 		let msg = evscode::Message::new(&warning.message).warning();
 		let choice = if i + 1 != warnings.len() { msg.item("next".to_owned(), "Next", false).show().await } else { msg.show().await };

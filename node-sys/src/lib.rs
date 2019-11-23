@@ -226,8 +226,21 @@ pub mod path {
 	#[wasm_bindgen(module = path)]
 	extern "C" {
 
+		pub fn basename(path: &str) -> String;
+
+		#[wasm_bindgen(js_name = basename)]
+		pub fn basename_with_ext(path: &str, ext: &str) -> String;
+
 		#[wasm_bindgen(js_name = delimiter)]
 		pub static DELIMITER: js_sys::JsString;
+
+		pub fn dirname(path: &str) -> String;
+
+		pub fn extname(path: &str) -> String;
+
+		pub fn join(a: &str, b: &str) -> String;
+
+		pub fn relative(from: &str, to: &str) -> String;
 
 	}
 }

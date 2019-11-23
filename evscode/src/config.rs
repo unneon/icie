@@ -14,7 +14,7 @@
 //! If the conversion provided via the [`Marshal`](../marshal/trait.Marshal.html) trait fails, the default value will be used.
 
 use crate::{marshal::Marshal, meta::Identifier};
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
 macro_rules! optobject_impl {
@@ -116,15 +116,6 @@ simple_configurable!(u32, "number");
 simple_configurable!(u64, "number");
 simple_configurable!(usize, "number");
 
-impl Configurable for PathBuf {
-	fn to_json(&self) -> serde_json::Value {
-		self.to_str().unwrap().into()
-	}
-
-	fn schema(default: Option<&Self>) -> serde_json::Value {
-		<String as Configurable>::schema(default.map(|p| p.to_str().unwrap().to_owned()).as_ref())
-	}
-}
 impl<T: Configurable> Configurable for Option<T> {
 	fn to_json(&self) -> serde_json::Value {
 		self.as_ref().map_or(serde_json::Value::Null, T::to_json)

@@ -1,13 +1,12 @@
 //! Builder pattern implementation for opening an editor.
 
 use crate::{Column, Position, Range, R};
-use std::path::Path;
 use wasm_bindgen::JsCast;
 
 /// Builder for opening text files in a VS Code editor.
 #[must_use]
 pub struct Builder<'a> {
-	path: &'a Path,
+	path: &'a str,
 	cursor: Option<Position>,
 	selection: Option<Range>,
 	view_column: Option<Column>,
@@ -17,7 +16,7 @@ pub struct Builder<'a> {
 }
 
 /// Open a text file in an editor, or focuses an existing one if it exists. Uses the builder pattern.
-pub fn open_editor(path: &Path) -> Builder {
+pub fn open_editor(path: &str) -> Builder {
 	Builder { path, cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None, force_new: false }
 }
 
@@ -66,14 +65,14 @@ impl<'a> Builder<'a> {
 				.values()
 				.into_iter()
 				.map(|edi| edi.unwrap().unchecked_into::<vscode_sys::TextEditor>())
-				.find(|edi| edi.document().file_name() == self.path.to_str().unwrap())
+				.find(|edi| edi.document().file_name() == self.path)
 		} else {
 			None
 		};
 		let editor = match editor {
 			Some(editor) => (*editor).clone().unchecked_into(),
 			None => {
-				let doc = vscode_sys::workspace::open_text_document(self.path.to_str().unwrap()).await?;
+				let doc = vscode_sys::workspace::open_text_document(self.path).await?;
 				vscode_sys::window::show_text_document(&doc).await
 			},
 		};

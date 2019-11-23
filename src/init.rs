@@ -1,10 +1,10 @@
 use crate::{
-	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::fs
+	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{
+		fs, path::{PathBuf, PathRef}
+	}
 };
 use evscode::{quick_pick, QuickPick, E, R};
-use std::{
-	path::{Path, PathBuf}, sync::Arc
-};
+use std::sync::Arc;
 use unijudge::{
 	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Backend, Resource, TaskDetails, URL
 };
@@ -55,10 +55,10 @@ async fn url() -> R<()> {
 				None => None,
 			};
 			let root = crate::dir::PROJECT_DIRECTORY.get();
-			let root = names::design_task_name(&*root, meta.as_ref()).await?;
-			fs::create_dir_all(&root).await?;
-			init_task(&root, raw_url, meta).await?;
-			evscode::open_folder(&root, false).await;
+			let root = names::design_task_name(root.as_ref(), meta.as_ref()).await?;
+			fs::create_dir_all(root.as_ref()).await?;
+			init_task(root.as_ref(), raw_url, meta).await?;
+			evscode::open_folder(root.to_str().unwrap(), false).await;
 		},
 		InitCommand::Contest { url, backend } => {
 			TELEMETRY.init_url_contest.spark();
@@ -84,8 +84,8 @@ async fn url_existing() -> R<()> {
 		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
 		None => None,
 	};
-	let root = evscode::workspace_root()?;
-	init_task(&root, raw_url, meta).await?;
+	let root = PathBuf::from_native(evscode::workspace_root()?);
+	init_task(root.as_ref(), raw_url, meta).await?;
 	Ok(())
 }
 
@@ -128,7 +128,7 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 	Ok(meta)
 }
 
-async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+async fn init_task(root: PathRef<'_>, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	fs::create_dir_all(root).await?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
@@ -180,21 +180,23 @@ enum PathDialog {
 }
 
 impl PathDialog {
-	async fn query(&self, directory: &Path, codename: &str) -> R<PathBuf> {
-		let basic = format!("{}/{}", directory.to_str().unwrap(), codename);
+	async fn query(&self, directory: PathRef<'_>, codename: &str) -> R<PathBuf> {
+		let basic = directory.join(codename);
 		match self {
-			PathDialog::None => Ok(PathBuf::from(basic)),
-			PathDialog::InputBox => Ok(PathBuf::from(
+			PathDialog::None => Ok(basic),
+			PathDialog::InputBox => Ok(PathBuf::from_native(
 				evscode::InputBox::new()
 					.ignore_focus_out()
 					.prompt("New project directory")
-					.value(&basic)
-					.value_selection(basic.len() - codename.len(), basic.len())
+					.value(basic.to_str().unwrap())
+					.value_selection(basic.to_str().unwrap().len() - codename.len(), basic.to_str().unwrap().len())
 					.show()
 					.await
 					.ok_or_else(E::cancel)?,
 			)),
-			PathDialog::SystemDialog => Ok(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?),
+			PathDialog::SystemDialog => {
+				Ok(PathBuf::from_native(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?))
+			},
 		}
 	}
 }
