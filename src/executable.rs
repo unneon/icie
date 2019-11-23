@@ -93,7 +93,9 @@ impl Executable {
 		});
 		let ((exit_code, t2), stdout, stderr) = join3(drive_exec, capture_stdout, capture_stderr).await;
 		let exit_kind = if timed_out.load(SeqCst) { ExitKind::TimeLimitExceeded } else { ExitKind::Normal };
-		Ok(Run { stdout: String::from_utf8(stdout).unwrap(), stderr: String::from_utf8(stderr).unwrap(), exit_code, exit_kind, time: t2 - t1 })
+		let stdout = String::from_utf8_lossy(&stdout).into_owned();
+		let stderr = String::from_utf8_lossy(&stderr).into_owned();
+		Ok(Run { stdout, stderr, exit_code, exit_kind, time: t2 - t1 })
 	}
 }
 
