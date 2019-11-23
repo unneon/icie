@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, clang::Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
+	build::{build, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
 	}, util::{fmt_verb, fs}
 };
@@ -84,7 +84,7 @@ impl Behaviour for TestView {
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let brut = build(brut, &Codegen::Release, false).await?;
+								let brut = build(brut, Codegen::Release, false).await?;
 								let environment = Environment { time_limit: time_limit() };
 								let run = brut.run(&input, &[], &environment).await?;
 								drop(_status);

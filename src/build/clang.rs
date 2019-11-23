@@ -1,67 +1,20 @@
 use crate::{
-	executable::{Environment, Executable}, term, util
+	build::{Codegen, Location, Message, Standard, Status}, executable::{Environment, Executable}, term, util
 };
 use evscode::{E, R};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-pub enum Codegen {
-	Debug,
-	Release,
-	Profile,
-}
-
-pub static CODEGEN_LIST: &[Codegen] = &[Codegen::Debug, Codegen::Release, Codegen::Profile];
-
-impl Codegen {
-	pub fn flags(&self) -> &'static [&'static str] {
-		match self {
-			Codegen::Debug => &["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"] as &'static [&'static str],
-			Codegen::Release => &["-Ofast"],
-			Codegen::Profile => &["-g", "-O2", "-fno-inline-functions"],
-		}
-	}
-}
-
-#[derive(Debug)]
-pub struct Location {
-	pub path: PathBuf,
-	pub line: usize,
-	pub column: usize,
-}
-
-#[derive(Debug)]
-pub struct Message {
-	pub message: String,
-	pub location: Option<Location>,
-}
-
-#[derive(Debug)]
-pub struct Status {
-	pub success: bool,
-	pub executable: Executable,
-	pub errors: Vec<Message>,
-	pub warnings: Vec<Message>,
-	pub stderr: String,
-}
-
-pub trait Standard {
-	fn as_gcc_flag(&self) -> &'static str;
-}
-
-pub static ALLOWED_EXTENSIONS: &[&str] = &["cpp", "cxx", "cc"];
-
-pub async fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, codegen: &Codegen, custom_flags: &[&str]) -> R<Status> {
+pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
 	if !util::is_installed("clang++").await? {
 		return Err(E::error("Clang is not installed").action_if(util::is_installed("apt").await?, "🔐 Auto-install", install_clang()));
 	}
 	let executable = Executable::new(out.to_path_buf());
 	let mut args = Vec::new();
-	args.push(standard.as_gcc_flag());
+	args.push(flag_standard(standard));
 	args.extend(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
-	args.extend(codegen.flags());
+	args.extend(flags_codegen(codegen));
 	args.extend(custom_flags);
 	args.extend(sources.iter().map(|p| p.to_str().unwrap()));
 	args.push("-o");
@@ -90,6 +43,23 @@ pub async fn compile(sources: &[&Path], out: &Path, standard: &impl Standard, co
 
 async fn install_clang() -> R<()> {
 	term::install("Clang", &["pkexec", "apt", "install", "-y", "clang"])
+}
+
+fn flag_standard(standard: Standard) -> &'static str {
+	match standard {
+		Standard::Cpp03 => "-std=c++03",
+		Standard::Cpp11 => "-std=c++11",
+		Standard::Cpp14 => "-std=c++14",
+		Standard::Cpp17 => "-std=c++17",
+		Standard::FutureCpp20 => "-std=c++2a",
+	}
+}
+pub fn flags_codegen(codegen: Codegen) -> &'static [&'static str] {
+	match codegen {
+		Codegen::Debug => &["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"] as &'static [&'static str],
+		Codegen::Release => &["-Ofast"],
+		Codegen::Profile => &["-g", "-O2", "-fno-inline-functions"],
+	}
 }
 
 lazy_static! {

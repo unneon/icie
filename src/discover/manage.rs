@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, clang::Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{
+	build::{build, Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{
 		self, add_test, judge::{simple_test, Outcome, Verdict}, time_limit, Task
 	}
 };
@@ -37,9 +37,9 @@ impl Behaviour for Discover {
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Discovering");
 		let source = dir::solution()?;
-		let solution = build(&source, &Codegen::Debug, false).await?;
-		let brut = build(dir::brut()?, &Codegen::Release, false).await?;
-		let gen = build(dir::gen()?, &Codegen::Release, false).await?;
+		let solution = build(&source, Codegen::Debug, false).await?;
+		let brut = build(dir::brut()?, Codegen::Release, false).await?;
+		let gen = build(dir::gen()?, Codegen::Release, false).await?;
 		let task = Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit() } };
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(

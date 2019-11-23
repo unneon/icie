@@ -3,7 +3,7 @@ pub mod scan;
 pub mod view;
 
 use crate::{
-	build::{self, clang::Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
+	build::{self, Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
 		judge::{simple_test, Outcome}, scan::scan_and_order
 	}, util, util::fs
 };
@@ -38,7 +38,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 pub async fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
 	TELEMETRY.test_run.spark();
-	let solution = build::build(main_source, &Codegen::Debug, false).await?;
+	let solution = build::build(main_source, Codegen::Debug, false).await?;
 	let task = Task { checker: crate::checker::get_checker().await?, environment: Environment { time_limit: time_limit() } };
 	let test_dir_name = dir::TESTS_DIRECTORY.get();
 	let test_dir = dir::tests()?;

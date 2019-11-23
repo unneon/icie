@@ -1,7 +1,7 @@
 pub mod clang;
 
 use crate::{
-	build::clang::{compile, Codegen, Message, ALLOWED_EXTENSIONS, CODEGEN_LIST}, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs}
+	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs}
 };
 use evscode::{error::ResultExt, Position, R};
 use std::path::{Path, PathBuf};
@@ -57,15 +57,14 @@ async fn manual() -> evscode::R<()> {
 			.await
 			.ok_or_else(evscode::E::cancel)?,
 	);
-	let codegen = &CODEGEN_LIST[evscode::QuickPick::new()
+	let codegen = CODEGEN_LIST[evscode::QuickPick::new()
 		.ignore_focus_out()
 		.match_on_all()
-		.items(
-			CODEGEN_LIST
-				.iter()
-				.enumerate()
-				.map(|(i, codegen)| evscode::quick_pick::Item::new(i.to_string(), format!("{:?}", codegen)).description(codegen.flags().join(" "))),
-		)
+		.items(CODEGEN_LIST.iter().enumerate().map(|(i, codegen)| {
+			let label = format!("{:?}", codegen);
+			let description = clang::flags_codegen(*codegen).join(" ");
+			evscode::quick_pick::Item::new(i.to_string(), label).description(description)
+		}))
 		.show()
 		.await
 		.ok_or_else(evscode::E::cancel)?
@@ -75,7 +74,7 @@ async fn manual() -> evscode::R<()> {
 	Ok(())
 }
 
-pub async fn build(source: impl util::MaybePath, codegen: &Codegen, force_rebuild: bool) -> R<Executable> {
+pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild: bool) -> R<Executable> {
 	TELEMETRY.build_all.spark();
 	let source = source.as_option_path();
 	let _status = crate::STATUS.push(util::fmt_verb("Building", &source));
@@ -98,7 +97,7 @@ pub async fn build(source: impl util::MaybePath, codegen: &Codegen, force_rebuil
 	});
 	let flags = flags.split(' ').map(|flag| flag.trim()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>();
 	let sources = [source];
-	let status = compile(&sources, &out, &standard, &codegen, &flags).await?;
+	let status = compile(&sources, &out, standard, codegen, &flags).await?;
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
@@ -149,8 +148,8 @@ async fn show_warnings(warnings: Vec<Message>) -> R<()> {
 	Ok(())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, evscode::Configurable)]
-enum Standard {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, evscode::Configurable)]
+pub enum Standard {
 	#[evscode(name = "C++03")]
 	Cpp03,
 	#[evscode(name = "C++11")]
@@ -162,14 +161,36 @@ enum Standard {
 	#[evscode(name = "C++20")]
 	FutureCpp20,
 }
-impl clang::Standard for Standard {
-	fn as_gcc_flag(&self) -> &'static str {
-		match self {
-			Standard::Cpp03 => "-std=c++03",
-			Standard::Cpp11 => "-std=c++11",
-			Standard::Cpp14 => "-std=c++14",
-			Standard::Cpp17 => "-std=c++17",
-			Standard::FutureCpp20 => "-std=c++2a",
-		}
-	}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Codegen {
+	Debug,
+	Release,
+	Profile,
 }
+
+pub static CODEGEN_LIST: &[Codegen] = &[Codegen::Debug, Codegen::Release, Codegen::Profile];
+
+#[derive(Debug)]
+pub struct Location {
+	pub path: PathBuf,
+	pub line: usize,
+	pub column: usize,
+}
+
+#[derive(Debug)]
+pub struct Message {
+	pub message: String,
+	pub location: Option<Location>,
+}
+
+#[derive(Debug)]
+pub struct Status {
+	pub success: bool,
+	pub executable: Executable,
+	pub errors: Vec<Message>,
+	pub warnings: Vec<Message>,
+	pub stderr: String,
+}
+
+pub static ALLOWED_EXTENSIONS: &[&str] = &["cpp", "cxx", "cc"];
