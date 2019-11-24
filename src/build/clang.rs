@@ -11,7 +11,7 @@ const CLANG: Service = Service {
 	exec_linux: Some("clang++"),
 	exec_windows: Some("clang++.exe"),
 	package_apt: Some("clang"),
-	package_pacman: Some("pacman"),
+	package_pacman: Some("clang"),
 };
 
 pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
