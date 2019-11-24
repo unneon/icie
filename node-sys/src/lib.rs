@@ -215,6 +215,8 @@ pub mod os {
 		/// Node.js [os.homedir](https://nodejs.org/api/os.html#os_os_homedir)
 		pub fn homedir() -> String;
 
+		pub fn tmpdir() -> String;
+
 	}
 }
 

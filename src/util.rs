@@ -6,6 +6,9 @@ use wasm_bindgen::{closure::Closure, JsValue};
 
 pub mod fs;
 pub mod path;
+pub mod tempfile;
+
+pub use tempfile::Tempfile;
 
 pub fn fmt_time_short(t: &Duration) -> String {
 	let s = t.as_secs();
@@ -233,29 +236,6 @@ pub async fn sleep(delay: Duration) {
 		delay.as_secs_f64() * 1000.0,
 	);
 	rx.await.unwrap();
-}
-
-pub struct Tempfile {
-	path: PathBuf,
-}
-
-impl Tempfile {
-	pub async fn new(_uniq_name: &str, _data: impl AsRef<[u8]>) -> R<Tempfile> {
-		//		let path = PathBuf::from_native(format!("/tmp/icie_{}", uniq_name));
-		//		fs::write(&path, data.as_ref()).await?;
-		//		Ok(Tempfile { path })
-		unimplemented!()
-	}
-
-	pub fn path(&self) -> PathRef {
-		&self.path
-	}
-}
-
-impl Drop for Tempfile {
-	fn drop(&mut self) {
-		fs::remove_file_sync(&self.path).unwrap();
-	}
 }
 
 pub enum OS {
