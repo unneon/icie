@@ -14,7 +14,7 @@ stages:
     jobs:
     - job: Build
       steps:
-      - script: git clone https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
+      - script: git clone --depth=1 --branch=1.39.1 https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
         displayName: Install dependencies (binaryen)
       - script: rustup default nightly
         displayName: Install Rust nightly
