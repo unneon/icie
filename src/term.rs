@@ -1,5 +1,5 @@
 use crate::{
-	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::path::{PathBuf, PathRef}
+	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::path::Path
 };
 use evscode::{error::ResultExt, E, R};
 
@@ -12,9 +12,9 @@ async fn spawn() -> R<()> {
 pub struct Internal;
 pub struct External;
 
-pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: PathRef, command: impl IntoIterator<Item=A>) -> R<()> {
+pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: &Path, command: impl IntoIterator<Item=A>) -> R<()> {
 	let test = util::without_extension(
-		&test.as_ref().strip_prefix(&PathBuf::from_native(evscode::workspace_root()?)).wrap("found test outside of test directory")?,
+		&test.as_ref().strip_prefix(&Path::from_native(evscode::workspace_root()?)).wrap("found test outside of test directory")?,
 	);
 	External::command(Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
 }

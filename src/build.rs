@@ -1,9 +1,7 @@
 pub mod clang;
 
 use crate::{
-	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{
-		self, fs, path::{PathBuf, PathRef}
-	}
+	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path}
 };
 use evscode::{error::ResultExt, Position, R};
 
@@ -43,12 +41,12 @@ static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 async fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
 	TELEMETRY.build_manual.spark();
-	let root = PathBuf::from_native(evscode::workspace_root()?);
+	let root = Path::from_native(evscode::workspace_root()?);
 	let sources = fs::read_dir(root.as_ref())
 		.await?
 		.into_iter()
 		.filter(|path| ALLOWED_EXTENSIONS.iter().any(|ext| Some((*ext).to_owned()) == path.extension()));
-	let source = PathBuf::from_native(
+	let source = Path::from_native(
 		evscode::QuickPick::new()
 			.items(sources.map(|path| {
 				let text = path.strip_prefix(&root).unwrap_or_else(|_| path.clone()).to_str().unwrap().to_owned();
@@ -82,9 +80,8 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	let workspace_source = dir::solution()?;
 	let source = source.unwrap_or(&workspace_source);
 	if !fs::exists(source).await? {
-		let pretty_source = source
-			.strip_prefix(PathBuf::from_native(evscode::workspace_root()?).as_ref())
-			.wrap("tried to build source outside of project directory")?;
+		let pretty_source =
+			source.strip_prefix(Path::from_native(evscode::workspace_root()?).as_ref()).wrap("tried to build source outside of project directory")?;
 		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source)));
 	}
 	evscode::save_all().await?;
@@ -124,11 +121,11 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	}
 }
 
-async fn should_cache(source: PathRef<'_>, out: PathRef<'_>) -> R<bool> {
+async fn should_cache(source: &'_ Path, out: &'_ Path) -> R<bool> {
 	Ok(fs::exists(out).await? && fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
 }
 
-pub fn exec_path(source: impl util::MaybePath) -> evscode::R<PathBuf> {
+pub fn exec_path(source: impl util::MaybePath) -> evscode::R<Path> {
 	let workspace_source = dir::solution()?;
 	let source = source.as_option_path().unwrap_or(&workspace_source);
 	Ok(source.with_extension(&*EXECUTABLE_EXTENSION.get()))
@@ -182,7 +179,7 @@ pub static CODEGEN_LIST: &[Codegen] = &[Codegen::Debug, Codegen::Release, Codege
 
 #[derive(Debug)]
 pub struct Location {
-	pub path: PathBuf,
+	pub path: Path,
 	pub line: usize,
 	pub column: usize,
 }

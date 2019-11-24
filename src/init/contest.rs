@@ -1,9 +1,7 @@
 use crate::{
 	auth, init::{
 		init_task, names::{design_contest_name, design_task_name}
-	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{
-		fmt_time_left, fs, path::{PathBuf, PathRef}, plural, sleep, time_now
-	}
+	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
@@ -52,7 +50,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 /// Check if a contest manifest exists, and if it does, start the rest of the contest setup.
 pub async fn check_for_manifest() -> R<()> {
 	if let Ok(workspace) = evscode::workspace_root() {
-		let workspace = PathBuf::from_native(workspace);
+		let workspace = Path::from_native(workspace);
 		let manifest = workspace.join(".icie-contest");
 		if fs::exists(manifest.as_ref()).await? {
 			inner_sprint(manifest.as_ref()).await?;
@@ -62,7 +60,7 @@ pub async fn check_for_manifest() -> R<()> {
 }
 
 /// Do the setup for the rest of the contest tasks.
-async fn inner_sprint(manifest: PathRef<'_>) -> R<()> {
+async fn inner_sprint(manifest: &'_ Path) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let manifest = pop_manifest(manifest).await?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
@@ -70,7 +68,7 @@ async fn inner_sprint(manifest: PathRef<'_>) -> R<()> {
 	let sess = Session::connect(&url.domain, backend.backend).await?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
-	let task_dir = PathBuf::from_native(evscode::workspace_root()?);
+	let task_dir = Path::from_native(evscode::workspace_root()?);
 	let contest_dir = task_dir.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {
@@ -125,7 +123,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 }
 
 /// Parse the manifest and removes it.
-async fn pop_manifest(path: PathRef<'_>) -> R<Manifest> {
+async fn pop_manifest(path: &'_ Path) -> R<Manifest> {
 	let manifest = serde_json::from_str(&fs::read_to_string(path).await?).wrap("malformed contest manifest")?;
 	fs::remove_file(path).await.map_err(|e| e.context("could not delete contest manifest after use"))?;
 	Ok(manifest)

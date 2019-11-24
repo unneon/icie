@@ -7,20 +7,18 @@ use std::{fmt, ops};
 use wasm_bindgen::JsValue;
 
 #[derive(Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
-pub struct PathBuf {
+pub struct Path {
 	buf: String,
 }
 
-pub type PathRef<'a> = &'a PathBuf;
-
-impl PathBuf {
+impl Path {
 	/// Converts a native-encoded string received from JS to a [`PathBuf`].
 	/// Passing a non-native string will result in various issues with string operations.
-	pub fn from_native(buf: String) -> PathBuf {
-		PathBuf { buf }
+	pub fn from_native(buf: String) -> Path {
+		Path { buf }
 	}
 
-	pub fn as_ref(&self) -> PathRef {
+	pub fn as_ref(&self) -> &Path {
 		&self
 	}
 
@@ -42,50 +40,50 @@ impl PathBuf {
 		node_sys::path::basename_with_ext(&self.buf, &ext)
 	}
 
-	pub fn join(&self, key: impl AsRef<str>) -> PathBuf {
-		PathBuf::from_native(node_sys::path::join(&self.buf, key.as_ref()))
+	pub fn join(&self, key: impl AsRef<str>) -> Path {
+		Path::from_native(node_sys::path::join(&self.buf, key.as_ref()))
 	}
 
-	pub fn parent(&self) -> PathBuf {
-		PathBuf::from_native(node_sys::path::dirname(&self.buf))
+	pub fn parent(&self) -> Path {
+		Path::from_native(node_sys::path::dirname(&self.buf))
 	}
 
-	pub fn strip_prefix(&self, to: &PathBuf) -> Result<PathBuf, std::path::StripPrefixError> {
-		Ok(PathBuf { buf: node_sys::path::relative(&self.buf, &to.buf) })
+	pub fn strip_prefix(&self, to: &Path) -> Result<Path, std::path::StripPrefixError> {
+		Ok(Path { buf: node_sys::path::relative(&self.buf, &to.buf) })
 	}
 
-	pub fn to_owned(&self) -> PathBuf {
-		PathBuf { buf: self.buf.to_owned() }
+	pub fn to_owned(&self) -> Path {
+		Path { buf: self.buf.to_owned() }
 	}
 
-	pub fn with_extension(&self, new_ext: &str) -> PathBuf {
+	pub fn with_extension(&self, new_ext: &str) -> Path {
 		let old_ext_len = match self.extension() {
 			Some(old_ext) => old_ext.len() + 1,
 			None => 0,
 		};
-		PathBuf::from_native(format!("{}.{}", &self.buf[..self.buf.len() - old_ext_len], new_ext))
+		Path::from_native(format!("{}.{}", &self.buf[..self.buf.len() - old_ext_len], new_ext))
 	}
 }
 
-impl From<&'static str> for PathBuf {
+impl From<&'static str> for Path {
 	fn from(s: &'static str) -> Self {
 		expand_path(s)
 	}
 }
 
-impl fmt::Debug for PathBuf {
+impl fmt::Debug for Path {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		<String as fmt::Debug>::fmt(&self.buf, f)
 	}
 }
 
-impl fmt::Display for PathBuf {
+impl fmt::Display for Path {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		<String as fmt::Display>::fmt(&self.buf, f)
 	}
 }
 
-impl serde::Serialize for PathBuf {
+impl serde::Serialize for Path {
 	fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
 	where
 		S: Serializer,
@@ -93,16 +91,16 @@ impl serde::Serialize for PathBuf {
 		self.buf.serialize(serializer)
 	}
 }
-impl<'de> serde::Deserialize<'de> for PathBuf {
+impl<'de> serde::Deserialize<'de> for Path {
 	fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
 	where
 		D: Deserializer<'de>,
 	{
-		Ok(PathBuf::from_native(<String as serde::Deserialize>::deserialize(deserializer)?))
+		Ok(Path::from_native(<String as serde::Deserialize>::deserialize(deserializer)?))
 	}
 }
 
-impl ops::Deref for PathBuf {
+impl ops::Deref for Path {
 	type Target = str;
 
 	fn deref(&self) -> &Self::Target {
@@ -110,7 +108,7 @@ impl ops::Deref for PathBuf {
 	}
 }
 
-impl Marshal for PathBuf {
+impl Marshal for Path {
 	fn to_js(&self) -> JsValue {
 		JsValue::from_str(self.to_str().unwrap())
 	}
@@ -120,7 +118,7 @@ impl Marshal for PathBuf {
 	}
 }
 
-impl Configurable for PathBuf {
+impl Configurable for Path {
 	fn to_json(&self) -> serde_json::Value {
 		self.to_str().unwrap().into()
 	}

@@ -1,5 +1,5 @@
 use crate::{
-	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test::time_limit, util, util::{fs, path::PathBuf}
+	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test::time_limit, util, util::{fs, path::Path}
 };
 use evscode::{E, R};
 
@@ -8,7 +8,7 @@ pub const GDB: Service =
 
 pub const RR: Service = Service { human_name: "RR", exec_linux: Some("rr"), exec_windows: None, package_apt: Some("rr"), package_pacman: None };
 
-pub async fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
+pub async fn gdb(in_path: Path, source: Option<Path>) -> R<()> {
 	TELEMETRY.debug_gdb.spark();
 	let gdb = GDB.find_command().await?;
 	term::debugger("GDB", in_path.as_ref(), &[
@@ -20,7 +20,7 @@ pub async fn gdb(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
 	])
 }
 
-pub async fn rr(in_path: PathBuf, source: Option<PathBuf>) -> R<()> {
+pub async fn rr(in_path: Path, source: Option<Path>) -> R<()> {
 	TELEMETRY.debug_rr.spark();
 	let rr = RR.find_command().await?;
 	let rr_exec = Executable::new_name(rr.clone());

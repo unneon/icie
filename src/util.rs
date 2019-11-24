@@ -1,4 +1,4 @@
-use crate::util::path::{PathBuf, PathRef};
+use crate::util::path::Path;
 use evscode::{error::ResultExt, Position, E, R};
 use futures::channel::oneshot;
 use std::time::{Duration, SystemTime};
@@ -49,7 +49,7 @@ fn test_fmt_time() {
 pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	if let Some(path) = path.as_option_path() {
 		let file = match evscode::workspace_root() {
-			Ok(root) => path.strip_prefix(&PathBuf::from_native(root)).unwrap(),
+			Ok(root) => path.strip_prefix(&Path::from_native(root)).unwrap(),
 			Err(_) => path.clone(),
 		};
 		format!("{} {}", verb, file)
@@ -58,8 +58,8 @@ pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	}
 }
 
-pub async fn active_tab() -> R<Option<PathBuf>> {
-	let source = PathBuf::from_native(evscode::active_editor_file().await.ok_or_else(E::cancel)?);
+pub async fn active_tab() -> R<Option<Path>> {
+	let source = Path::from_native(evscode::active_editor_file().await.ok_or_else(E::cancel)?);
 	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
 }
 
@@ -87,7 +87,7 @@ fn test_bash_escape() {
 pub async fn is_installed(app: &'static str) -> R<bool> {
 	let exec_lookups = env("PATH")?;
 	for exec_lookup in exec_lookups.split(&String::from(node_sys::path::DELIMITER.clone())) {
-		let path = PathBuf::from_native(exec_lookup.to_owned()).join(app);
+		let path = Path::from_native(exec_lookup.to_owned()).join(app);
 		if fs::exists(&path).await? {
 			return Ok(true);
 		}
@@ -171,7 +171,7 @@ pub fn time_now() -> SystemTime {
 	SystemTime::UNIX_EPOCH + Duration::from_millis(js_sys::Date::now() as u64)
 }
 
-pub async fn find_cursor_place(path: PathRef<'_>) -> Option<Position> {
+pub async fn find_cursor_place(path: &'_ Path) -> Option<Position> {
 	let doc = fs::read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
 	for (line, content) in doc.lines().enumerate() {
@@ -189,13 +189,13 @@ pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 	format!("{} {}", x, if x == 1 { singular } else { plural })
 }
 
-pub fn expand_path(path: &str) -> PathBuf {
+pub fn expand_path(path: &str) -> Path {
 	let expanded = if path == "~" || path.starts_with("~/") { format!("{}{}", node_sys::os::homedir(), &path[1..]) } else { path.to_owned() };
 	let normalized = node_sys::path::normalize(&expanded);
-	PathBuf::from_native(normalized)
+	Path::from_native(normalized)
 }
 
-pub fn without_extension(path: PathRef) -> PathBuf {
+pub fn without_extension(path: &Path) -> Path {
 	let path = path.as_ref();
 	path.parent().join(path.file_stem())
 }
@@ -217,25 +217,25 @@ pub fn node_hrtime() -> Duration {
 }
 
 pub trait MaybePath {
-	fn as_option_path(&self) -> Option<PathRef>;
+	fn as_option_path(&self) -> Option<&Path>;
 }
-impl<'a> MaybePath for Option<PathRef<'a>> {
-	fn as_option_path(&self) -> Option<PathRef> {
+impl<'a> MaybePath for Option<&'a Path> {
+	fn as_option_path(&self) -> Option<&Path> {
 		*self
 	}
 }
-impl MaybePath for PathBuf {
-	fn as_option_path(&self) -> Option<PathRef> {
+impl MaybePath for Path {
+	fn as_option_path(&self) -> Option<&Path> {
 		Some(&self)
 	}
 }
-impl MaybePath for Option<PathBuf> {
-	fn as_option_path(&self) -> Option<PathRef> {
+impl MaybePath for Option<Path> {
+	fn as_option_path(&self) -> Option<&Path> {
 		self.as_ref()
 	}
 }
 impl<'a, T: MaybePath> MaybePath for &'a T {
-	fn as_option_path(&self) -> Option<PathRef> {
+	fn as_option_path(&self) -> Option<&Path> {
 		(*self).as_option_path()
 	}
 }

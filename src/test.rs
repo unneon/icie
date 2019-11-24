@@ -5,9 +5,7 @@ pub mod view;
 use crate::{
 	build::{self, Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
 		judge::{simple_test, Outcome}, scan::scan_and_order
-	}, util, util::{
-		fs, path::{PathBuf, PathRef}
-	}
+	}, util, util::{fs, path::Path}
 };
 use evscode::{error::ResultExt, webview::WebviewRef, R};
 use futures::{SinkExt, Stream, StreamExt};
@@ -15,8 +13,8 @@ use std::time::Duration;
 
 #[derive(Debug)]
 pub struct TestRun {
-	in_path: PathBuf,
-	out_path: PathBuf,
+	in_path: Path,
+	out_path: Path,
 	outcome: Outcome,
 }
 impl TestRun {
@@ -35,7 +33,7 @@ pub struct Task {
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
-pub async fn run(main_source: &Option<PathBuf>) -> R<Vec<TestRun>> {
+pub async fn run(main_source: &Option<Path>) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
 	TELEMETRY.test_run.spark();
 	let solution = build::build(main_source, Codegen::Debug, false).await?;
@@ -61,7 +59,7 @@ pub fn time_limit() -> Option<Duration> {
 	TIME_LIMIT.get().map(|ms| Duration::from_millis(ms as u64))
 }
 
-fn run_thread(ins: Vec<PathBuf>, task: Task, solution: Executable) -> impl Stream<Item=R<TestRun>> {
+fn run_thread(ins: Vec<Path>, task: Task, solution: Executable) -> impl Stream<Item=R<TestRun>> {
 	let (tx, rx) = futures::channel::mpsc::unbounded();
 	evscode::spawn(async {
 		let mut tx = tx;
@@ -137,7 +135,7 @@ pub async fn input() -> evscode::R<()> {
 	Ok(())
 }
 
-async fn unused_test_id(dir: PathRef<'_>) -> evscode::R<i64> {
+async fn unused_test_id(dir: &'_ Path) -> evscode::R<i64> {
 	let mut taken = Vec::new();
 	for test in fs::read_dir(dir).await? {
 		if let Ok(id) = test.file_stem().parse::<i64>() {

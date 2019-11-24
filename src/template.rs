@@ -1,5 +1,5 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{fs, path::PathBuf, OS}
+	dir, telemetry::TELEMETRY, util, util::{fs, path::Path, OS}
 };
 use evscode::{E, R};
 use std::collections::HashMap;
@@ -29,7 +29,7 @@ async fn instantiate() -> R<()> {
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	let path = PathBuf::from_native(evscode::workspace_root()?).join(filename);
+	let path = Path::from_native(evscode::workspace_root()?).join(filename);
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}

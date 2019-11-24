@@ -1,7 +1,5 @@
 use crate::{
-	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{
-		fs, path::{PathBuf, PathRef}
-	}
+	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -84,7 +82,7 @@ async fn url_existing() -> R<()> {
 		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
 		None => None,
 	};
-	let root = PathBuf::from_native(evscode::workspace_root()?);
+	let root = Path::from_native(evscode::workspace_root()?);
 	init_task(root.as_ref(), raw_url, meta).await?;
 	Ok(())
 }
@@ -128,7 +126,7 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 	Ok(meta)
 }
 
-async fn init_task(root: PathRef<'_>, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+async fn init_task(root: &'_ Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	fs::create_dir_all(root).await?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
@@ -180,11 +178,11 @@ enum PathDialog {
 }
 
 impl PathDialog {
-	async fn query(&self, directory: PathRef<'_>, codename: &str) -> R<PathBuf> {
+	async fn query(&self, directory: &'_ Path, codename: &str) -> R<Path> {
 		let basic = directory.join(codename);
 		match self {
 			PathDialog::None => Ok(basic),
-			PathDialog::InputBox => Ok(PathBuf::from_native(
+			PathDialog::InputBox => Ok(Path::from_native(
 				evscode::InputBox::new()
 					.ignore_focus_out()
 					.prompt("New project directory")
@@ -195,7 +193,7 @@ impl PathDialog {
 					.ok_or_else(E::cancel)?,
 			)),
 			PathDialog::SystemDialog => {
-				Ok(PathBuf::from_native(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?))
+				Ok(Path::from_native(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?))
 			},
 		}
 	}

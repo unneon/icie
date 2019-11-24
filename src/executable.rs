@@ -1,4 +1,4 @@
-use crate::util::{node_hrtime, path::PathBuf, sleep};
+use crate::util::{node_hrtime, path::Path, sleep};
 use evscode::{E, R};
 use futures::{
 	channel::{mpsc, oneshot}, future::join3, FutureExt, StreamExt
@@ -40,7 +40,7 @@ pub struct Executable {
 }
 
 impl Executable {
-	pub fn new(path: PathBuf) -> Executable {
+	pub fn new(path: Path) -> Executable {
 		Executable { command: path.to_str().unwrap().to_owned() }
 	}
 
@@ -54,7 +54,7 @@ impl Executable {
 			js_args.push(&JsValue::from_str(arg));
 		}
 		let input_buffer = node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
-		let cwd = evscode::workspace_root().ok().map(PathBuf::from_native);
+		let cwd = evscode::workspace_root().ok().map(Path::from_native);
 		let kid = node_sys::child_process::spawn(&self.command, js_args, node_sys::child_process::Options {
 			cwd: cwd.as_ref().map(|p| p.to_str().unwrap()),
 			env: None,

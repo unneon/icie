@@ -1,7 +1,7 @@
 use crate::{
 	paste::{
 		logic::{Library, Piece}, qpaste_doc_error
-	}, util::{fs, path::PathBuf}
+	}, util::{fs, path::Path}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::lock::{Mutex, MutexGuard};
@@ -13,7 +13,7 @@ lazy_static::lazy_static! {
 
 /// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press Alt+[ with this not set to see how to set up this functionality.
 #[evscode::config]
-static PATH: evscode::Config<PathBuf> = "";
+static PATH: evscode::Config<Path> = "";
 
 pub struct LibraryCache {
 	lock: Mutex<Library>,
@@ -21,7 +21,7 @@ pub struct LibraryCache {
 
 impl LibraryCache {
 	pub fn new() -> LibraryCache {
-		LibraryCache { lock: Mutex::new(Library { directory: PathBuf::from_native(String::new()), pieces: HashMap::new() }) }
+		LibraryCache { lock: Mutex::new(Library { directory: Path::from_native(String::new()), pieces: HashMap::new() }) }
 	}
 
 	#[allow(clippy::extra_unused_lifetimes)]
@@ -53,7 +53,7 @@ impl LibraryCache {
 		Ok(lib)
 	}
 
-	async fn maybe_load_piece(&self, path: PathBuf, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
+	async fn maybe_load_piece(&self, path: Path, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
 		let modified = fs::metadata(&path).await?.modified;
 		let cached = if let Some(cached) = cached_pieces.remove(id) {
 			if cached.modified == modified { Some(cached) } else { None }
@@ -69,7 +69,7 @@ impl LibraryCache {
 		Ok(piece)
 	}
 
-	async fn get_directory(&self) -> R<PathBuf> {
+	async fn get_directory(&self) -> R<Path> {
 		let dir = PATH.get();
 		if dir.to_str().unwrap() == "" {
 			return Err(E::error(qpaste_doc_error("no competitive programming library found")));

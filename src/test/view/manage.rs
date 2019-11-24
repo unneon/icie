@@ -1,7 +1,7 @@
 use crate::{
 	build::{build, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{fmt_verb, fs, path::PathBuf}
+	}, util::{fmt_verb, fs, path::Path}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -19,7 +19,7 @@ pub struct TestView;
 
 #[async_trait(?Send)]
 impl Behaviour for TestView {
-	type K = Option<PathBuf>;
+	type K = Option<Path>;
 	type V = Vec<TestRun>;
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
@@ -108,17 +108,17 @@ impl Behaviour for TestView {
 #[serde(tag = "tag")]
 enum Note {
 	#[serde(rename = "trigger_rr")]
-	TriggerRR { in_path: PathBuf },
+	TriggerRR { in_path: Path },
 	#[serde(rename = "trigger_gdb")]
-	TriggerGDB { in_path: PathBuf },
+	TriggerGDB { in_path: Path },
 	#[serde(rename = "new_test")]
 	NewTest { input: String, desired: String },
 	#[serde(rename = "set_alt")]
-	SetAlt { in_path: PathBuf, out: String },
+	SetAlt { in_path: Path, out: String },
 	#[serde(rename = "del_alt")]
-	DelAlt { in_path: PathBuf },
+	DelAlt { in_path: Path },
 	#[serde(rename = "edit")]
-	Edit { path: PathBuf },
+	Edit { path: Path },
 	#[serde(rename = "action_notice")]
 	ActionNotice,
 	#[serde(rename = "eval_req")]

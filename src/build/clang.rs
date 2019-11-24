@@ -4,7 +4,7 @@ use crate::{
 use evscode::R;
 use lazy_static::lazy_static;
 use regex::Regex;
-use util::path::{PathBuf, PathRef};
+use util::path::Path;
 
 const CLANG: Service = Service {
 	human_name: "Clang",
@@ -14,7 +14,7 @@ const CLANG: Service = Service {
 	package_pacman: Some("clang"),
 };
 
-pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
+pub async fn compile(sources: &[&'_ Path], out: &'_ Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
 	let clang = CLANG.find_executable().await?;
 	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();
@@ -34,7 +34,7 @@ pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standa
 		let column = cap[3].parse().unwrap();
 		let severity = &cap[4];
 		let message = cap[5].to_owned();
-		let path = PathBuf::from_native(cap[1].to_owned());
+		let path = Path::from_native(cap[1].to_owned());
 		(if severity == "error" || severity == "fatal error" { &mut errors } else { &mut warnings })
 			.push(Message { message, location: Some(Location { path, line, column }) });
 	}

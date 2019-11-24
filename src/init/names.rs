@@ -1,5 +1,5 @@
 use crate::{
-	dir, init::{PathDialog, ASK_FOR_PATH, PROJECT_NAME_TEMPLATE}, interpolation::Interpolation, util::path::{PathBuf, PathRef}
+	dir, init::{PathDialog, ASK_FOR_PATH, PROJECT_NAME_TEMPLATE}, interpolation::Interpolation, util::path::Path
 };
 use evscode::R;
 use std::{fmt, str::FromStr};
@@ -13,7 +13,7 @@ static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{contest.titl
 #[evscode::config]
 static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-pub async fn design_task_name(root: PathRef<'_>, meta: Option<&TaskDetails>) -> R<PathBuf> {
+pub async fn design_task_name(root: &'_ Path, meta: Option<&TaskDetails>) -> R<Path> {
 	let variables = Mapping {
 		task_id: meta.as_ref().map(|meta| meta.id.clone()),
 		task_title: meta.as_ref().map(|meta| meta.title.clone()),
@@ -30,7 +30,7 @@ pub async fn design_task_name(root: PathRef<'_>, meta: Option<&TaskDetails>) -> 
 	strategy.query(root, &codename).await
 }
 
-pub async fn design_contest_name(contest_id: String, contest_title: String, site_short: &'static str) -> R<PathBuf> {
+pub async fn design_contest_name(contest_id: String, contest_title: String, site_short: &'static str) -> R<Path> {
 	let variables = Mapping {
 		task_id: None,
 		task_title: None,
