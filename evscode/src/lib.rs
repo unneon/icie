@@ -22,7 +22,8 @@ pub use evscode_codegen::{command, config, plugin, *};
 use std::{future::Future, pin::Pin};
 pub use stdlib::*;
 
-pub(crate) type BoxFuture<'a, T> = Pin<Box<dyn Future<Output=T>+'a>>;
+/// A type-erased future.
+pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output=T>+'a>>;
 
 /// Spawn an asynchronous operation concurrently to the active one.
 pub fn spawn(f: impl Future<Output=R<()>>+'static) {
