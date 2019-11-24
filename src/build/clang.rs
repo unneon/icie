@@ -1,13 +1,21 @@
 use crate::{
-	build::{Codegen, Location, Message, Standard, Status}, executable::{Environment, Executable}, term, util, util::{get_os, OS}
+	build::{Codegen, Location, Message, Standard, Status}, executable::{Environment, Executable}, service::Service, util
 };
-use evscode::{E, R};
+use evscode::R;
 use lazy_static::lazy_static;
 use regex::Regex;
 use util::path::{PathBuf, PathRef};
 
+const CLANG: Service = Service {
+	human_name: "Clang",
+	exec_linux: Some("clang++"),
+	exec_windows: Some("clang++.exe"),
+	package_apt: Some("clang"),
+	package_pacman: Some("pacman"),
+};
+
 pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
-	let clang = find_clang().await?;
+	let clang = CLANG.find_executable().await?;
 	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();
 	args.push(flag_standard(standard));
@@ -36,22 +44,6 @@ pub async fn compile(sources: &[PathRef<'_>], out: PathRef<'_>, standard: Standa
 	}
 	let stderr = run.stderr;
 	Ok(Status { success, executable, errors, warnings, stderr })
-}
-
-async fn find_clang() -> R<Executable> {
-	let os = get_os()?;
-	let exec_name = match os {
-		OS::Linux => "clang++",
-		OS::Windows => "clang++.exe",
-	};
-	if !util::is_installed(exec_name).await? {
-		return Err(E::error("Clang is not installed").action_if(util::is_installed("apt").await?, "🔐 Auto-install", install_clang()));
-	}
-	Ok(Executable::new_name(exec_name.to_owned()))
-}
-
-async fn install_clang() -> R<()> {
-	term::install("Clang", &["pkexec", "apt", "install", "-y", "clang"])
 }
 
 fn flag_standard(standard: Standard) -> &'static str {

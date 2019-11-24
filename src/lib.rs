@@ -16,6 +16,7 @@ mod manifest;
 mod net;
 mod newsletter;
 mod paste;
+mod service;
 mod submit;
 mod telemetry;
 mod template;
