@@ -173,9 +173,10 @@ pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 	format!("{} {}", x, if x == 1 { singular } else { plural })
 }
 
-pub fn expand_path(_path: &str) -> PathBuf {
-	//	PathBuf::from_native(shellexpand::tilde_with_context(path, || Some(node_sys::os::homedir())).into_owned())
-	unimplemented!()
+pub fn expand_path(path: &str) -> PathBuf {
+	let expanded = if path == "~" || path.starts_with("~/") { format!("{}{}", node_sys::os::homedir(), &path[1..]) } else { path.to_owned() };
+	let normalized = node_sys::path::normalize(&expanded);
+	PathBuf::from_native(normalized)
 }
 
 pub fn without_extension(path: PathRef) -> PathBuf {

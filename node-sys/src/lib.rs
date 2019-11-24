@@ -240,6 +240,8 @@ pub mod path {
 
 		pub fn join(a: &str, b: &str) -> String;
 
+		pub fn normalize(path: &str) -> String;
+
 		pub fn relative(from: &str, to: &str) -> String;
 
 	}
