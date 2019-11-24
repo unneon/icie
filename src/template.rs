@@ -1,5 +1,5 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{fs, path::PathBuf}
+	dir, telemetry::TELEMETRY, util, util::{fs, get_os, path::PathBuf, OS}
 };
 use evscode::{E, R};
 use std::collections::HashMap;
@@ -55,23 +55,33 @@ pub async fn load(path: &str) -> R<LoadedTemplate> {
 		TELEMETRY.template_load_builtin.spark();
 		Ok(LoadedTemplate {
 			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
-			code: format!("{}\n", BUILTIN_TEMPLATE_CODE.trim()),
+			code: format!("{}\n", builtin_template()?),
 		})
 	}
 }
 
 const BUILTIN_TEMPLATE_PSEUDOPATH: &str = "<enter a path to use a custom template>";
-const BUILTIN_TEMPLATE_CODE: &str = r#"
-#include <bits/stdc++.h>
+
+fn builtin_template() -> R<String> {
+	let includes = match get_os()? {
+		OS::Linux => "#include <bits/stdc++.h>",
+		OS::Windows => "#include <iostream>\n#include<vector>\n#include <algorithm>",
+	};
+	Ok(format!(
+		r#"
+{}
 using namespace std;
 
 // 💖 Hi, thanks for using ICIE! 💖
 // 🔧 To use a custom code template, set it in Settings(Ctrl+,) in "Icie Template List" entry 🔧
 // 📝 If you spot any bugs or miss any features, create an issue at https://github.com/pustaczek/icie/issues 📝
 
-int main() {
+int main() {{
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
     
+}}
+"#,
+		includes
+	))
 }
-"#;
