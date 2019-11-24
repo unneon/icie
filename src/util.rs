@@ -104,6 +104,19 @@ pub fn env(key: &'static str) -> R<String> {
 }
 
 pub fn html_material_icons() -> String {
+	match get_os() {
+		// For whatever reason, bundled icons do not display on Windows.
+		// I made sure the paths are correct and fully-backslashed, but to no avail.
+		Ok(OS::Windows) => material_icons_cloud(),
+		_ => material_icons_bundled(),
+	}
+}
+
+pub fn material_icons_cloud() -> String {
+	r#"<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">"#.to_owned()
+}
+
+pub fn material_icons_bundled() -> String {
 	format!(
 		r#"
 		<style>

@@ -97,8 +97,10 @@ pub async fn clipboard_write(val: &str) {
 }
 
 /// Return an URI pointing to a given path for use with webviews.
-pub fn asset(rel_path: &str) -> String {
-	format!("vscode-resource://{}/assets/{}", extension_root(), rel_path)
+pub fn asset(name: &str) -> String {
+	let assets_path = node_sys::path::join(&extension_root(), "assets");
+	let asset_path = node_sys::path::join(&assets_path, name);
+	format!("vscode-resource://{}", asset_path)
 }
 
 /// Set the status message on a global widget.
