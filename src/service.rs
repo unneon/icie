@@ -2,6 +2,7 @@ use crate::{
 	executable::Executable, term, util::{get_os, is_installed, OS}
 };
 use evscode::{error::ResultExt, E, R};
+use std::{future::Future, pin::Pin};
 
 pub struct Service {
 	pub human_name: &'static str,
@@ -20,11 +21,21 @@ impl Service {
 		let command = self.get_exec().wrap(format!("{} is not supported on your platform", self.human_name))?;
 		if !is_installed(command).await? {
 			let mut e = E::error(format!("{} is not installed", self.human_name));
+			let mut valid_actions: Vec<(_, Pin<Box<dyn Future<Output=R<()>>>>)> = Vec::new();
 			if let Some(package) = self.package_apt {
-				e = e.action_if(is_installed("apt").await?, "🔐 Auto-install", apt_install(package));
+				if is_installed("apt").await? {
+					valid_actions.push(("apt", Box::pin(apt_install(package))));
+				}
 			}
 			if let Some(package) = self.package_pacman {
-				e = e.action_if(is_installed("pacman").await?, "🔐 Auto-install", pacman_s(package));
+				if is_installed("pacman").await? {
+					valid_actions.push(("pacman", Box::pin(pacman_s(package))));
+				}
+			}
+			let action_count = valid_actions.len();
+			for (manager, action) in valid_actions {
+				let title = if action_count <= 1 { "🔐 Auto-install".to_owned() } else { format!("🔐 Auto-install ({})", manager) };
+				e = e.action(title, action);
 			}
 			return Err(e);
 		}
