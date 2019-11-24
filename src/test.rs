@@ -135,7 +135,7 @@ pub async fn input() -> evscode::R<()> {
 	Ok(())
 }
 
-async fn unused_test_id(dir: &'_ Path) -> evscode::R<i64> {
+async fn unused_test_id(dir: &Path) -> evscode::R<i64> {
 	let mut taken = Vec::new();
 	for test in fs::read_dir(dir).await? {
 		if let Ok(id) = test.file_stem().parse::<i64>() {

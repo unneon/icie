@@ -14,7 +14,7 @@ const CLANG: Service = Service {
 	package_pacman: Some("clang"),
 };
 
-pub async fn compile(sources: &[&'_ Path], out: &'_ Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
+pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
 	let clang = CLANG.find_executable().await?;
 	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();

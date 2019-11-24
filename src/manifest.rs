@@ -12,7 +12,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
-	pub async fn save(&self, root: &'_ Path) -> R<()> {
+	pub async fn save(&self, root: &Path) -> R<()> {
 		fs::create_dir_all(&root.parent()).await?;
 		let written = serde_json::to_string(self).wrap("failed to serialize the manifest")?;
 		let path = root.join(".icie");

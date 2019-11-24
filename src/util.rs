@@ -171,7 +171,7 @@ pub fn time_now() -> SystemTime {
 	SystemTime::UNIX_EPOCH + Duration::from_millis(js_sys::Date::now() as u64)
 }
 
-pub async fn find_cursor_place(path: &'_ Path) -> Option<Position> {
+pub async fn find_cursor_place(path: &Path) -> Option<Position> {
 	let doc = fs::read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
 	for (line, content) in doc.lines().enumerate() {

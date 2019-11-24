@@ -60,7 +60,7 @@ pub async fn check_for_manifest() -> R<()> {
 }
 
 /// Do the setup for the rest of the contest tasks.
-async fn inner_sprint(manifest: &'_ Path) -> R<()> {
+async fn inner_sprint(manifest: &Path) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	let manifest = pop_manifest(manifest).await?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
@@ -123,7 +123,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 }
 
 /// Parse the manifest and removes it.
-async fn pop_manifest(path: &'_ Path) -> R<Manifest> {
+async fn pop_manifest(path: &Path) -> R<Manifest> {
 	let manifest = serde_json::from_str(&fs::read_to_string(path).await?).wrap("malformed contest manifest")?;
 	fs::remove_file(path).await.map_err(|e| e.context("could not delete contest manifest after use"))?;
 	Ok(manifest)

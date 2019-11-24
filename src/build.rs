@@ -121,7 +121,7 @@ pub async fn build(source: impl util::MaybePath, codegen: Codegen, force_rebuild
 	}
 }
 
-async fn should_cache(source: &'_ Path, out: &'_ Path) -> R<bool> {
+async fn should_cache(source: &Path, out: &Path) -> R<bool> {
 	Ok(fs::exists(out).await? && fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
 }
 

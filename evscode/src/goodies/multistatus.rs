@@ -38,7 +38,7 @@ impl MultiStatus {
 	}
 
 	/// Set the current thread status message and return a guard object that will control its lifetime
-	pub fn push(&self, msg: impl AsRef<str>) -> Guard<'_> {
+	pub fn push(&self, msg: impl AsRef<str>) -> Guard {
 		let msg = msg.as_ref().to_owned();
 		let mut lck = self.obtain_lock();
 		lck.push(msg.clone());

@@ -13,7 +13,7 @@ static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{contest.titl
 #[evscode::config]
 static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-pub async fn design_task_name(root: &'_ Path, meta: Option<&TaskDetails>) -> R<Path> {
+pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<Path> {
 	let variables = Mapping {
 		task_id: meta.as_ref().map(|meta| meta.id.clone()),
 		task_title: meta.as_ref().map(|meta| meta.title.clone()),

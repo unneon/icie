@@ -72,13 +72,13 @@ impl From<&'static str> for Path {
 }
 
 impl fmt::Debug for Path {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		<String as fmt::Debug>::fmt(&self.buf, f)
 	}
 }
 
 impl fmt::Display for Path {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		<String as fmt::Display>::fmt(&self.buf, f)
 	}
 }

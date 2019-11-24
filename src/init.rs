@@ -126,7 +126,7 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 	Ok(meta)
 }
 
-async fn init_task(root: &'_ Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	fs::create_dir_all(root).await?;
 	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
@@ -178,7 +178,7 @@ enum PathDialog {
 }
 
 impl PathDialog {
-	async fn query(&self, directory: &'_ Path, codename: &str) -> R<Path> {
+	async fn query(&self, directory: &Path, codename: &str) -> R<Path> {
 		let basic = directory.join(codename);
 		match self {
 			PathDialog::None => Ok(basic),
