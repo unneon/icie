@@ -1,5 +1,5 @@
 use crate::{
-	executable::Executable, term, util::{get_os, is_installed, OS}
+	executable::Executable, term, util::{is_installed, OS}
 };
 use evscode::{error::ResultExt, BoxFuture, E, R};
 
@@ -42,7 +42,7 @@ impl Service {
 	}
 
 	fn get_exec(&self) -> Option<&'static str> {
-		match get_os() {
+		match OS::query() {
 			Ok(OS::Linux) => self.exec_linux,
 			Ok(OS::Windows) => self.exec_windows,
 			Err(_) => None,

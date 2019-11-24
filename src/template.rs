@@ -1,5 +1,5 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{fs, get_os, path::PathBuf, OS}
+	dir, telemetry::TELEMETRY, util, util::{fs, path::PathBuf, OS}
 };
 use evscode::{E, R};
 use std::collections::HashMap;
@@ -63,7 +63,7 @@ pub async fn load(path: &str) -> R<LoadedTemplate> {
 const BUILTIN_TEMPLATE_PSEUDOPATH: &str = "<enter a path to use a custom template>";
 
 fn builtin_template() -> R<String> {
-	let includes = match get_os()? {
+	let includes = match OS::query()? {
 		OS::Linux => "#include <bits/stdc++.h>",
 		OS::Windows => "#include <iostream>\n#include<vector>\n#include <algorithm>",
 	};

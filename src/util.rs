@@ -104,7 +104,7 @@ pub fn env(key: &'static str) -> R<String> {
 }
 
 pub fn html_material_icons() -> String {
-	match get_os() {
+	match OS::query() {
 		// For whatever reason, bundled icons do not display on Windows.
 		// I made sure the paths are correct and fully-backslashed, but to no avail.
 		Ok(OS::Windows) => material_icons_cloud(),
@@ -256,10 +256,12 @@ pub enum OS {
 	Linux,
 }
 
-pub fn get_os() -> R<OS> {
-	match (node_sys::process::PLATFORM.as_str(), node_sys::process::ARCH.as_str()) {
-		("linux", _) | ("freebsd", _) | ("openbsd", _) => Ok(OS::Linux),
-		("win32", _) => Ok(OS::Windows),
-		(platform, arch) => Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch))),
+impl OS {
+	pub fn query() -> R<OS> {
+		match (node_sys::process::PLATFORM.as_str(), node_sys::process::ARCH.as_str()) {
+			("linux", _) | ("freebsd", _) | ("openbsd", _) => Ok(OS::Linux),
+			("win32", _) => Ok(OS::Windows),
+			(platform, arch) => Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch))),
+		}
 	}
 }
