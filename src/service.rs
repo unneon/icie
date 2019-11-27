@@ -1,7 +1,7 @@
 use crate::{
 	executable::Executable, term, util::{is_installed, OS}
 };
-use evscode::{error::ResultExt, BoxFuture, E, R};
+use evscode::{error::ResultExt, E, R};
 
 pub struct Service {
 	pub human_name: &'static str,
@@ -20,21 +20,23 @@ impl Service {
 		let command = self.get_exec().wrap(format!("{} is not supported on your platform", self.human_name))?;
 		if !is_installed(command).await? {
 			let mut e = E::error(format!("{} is not installed", self.human_name));
-			let mut valid_actions: Vec<(_, BoxFuture<R<()>>)> = Vec::new();
-			if let Some(package) = self.package_apt {
-				if is_installed("apt").await? {
-					valid_actions.push(("apt", Box::pin(apt_install(package))));
-				}
-			}
-			if let Some(package) = self.package_pacman {
-				if is_installed("pacman").await? {
-					valid_actions.push(("pacman", Box::pin(pacman_s(package))));
-				}
-			}
-			let action_count = valid_actions.len();
-			for (manager, action) in valid_actions {
-				let title = if action_count <= 1 { "🔐 Auto-install".to_owned() } else { format!("🔐 Auto-install ({})", manager) };
-				e = e.action(title, action);
+			match OS::query()? {
+				OS::Linux => {
+					if let Some(package) = self.package_apt {
+						if is_installed("apt").await? {
+							e = e.action("🔐 Auto-install (apt)".to_owned(), apt_install(package));
+						}
+					}
+					if let Some(package) = self.package_pacman {
+						if is_installed("pacman").await? {
+							e = e.action("🔐 Auto-install (pacman)".to_owned(), pacman_s(package));
+						}
+					}
+				},
+				OS::Windows => {
+					// TODO: Add Windows LLVM installation tutorial.
+					// TODO: Add searching for LLVM in standard installation paths, because Windows PATH be bad.
+				},
 			}
 			return Err(e);
 		}
