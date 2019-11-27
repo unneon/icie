@@ -57,11 +57,7 @@ evscode::plugin! {
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Info),
-		("hyper", log::LevelFilter::Info),
-		("mio", log::LevelFilter::Info),
 		("selectors", log::LevelFilter::Info),
 		("reqwest", log::LevelFilter::Info),
-		("tokio_net", log::LevelFilter::Info),
-		("want", log::LevelFilter::Info),
 	],
 }
