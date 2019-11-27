@@ -1,4 +1,4 @@
-use crate::meta::{Activation, Package};
+use crate::meta::{Activation, GalleryTheme, Package};
 use serde::{Serialize, Serializer};
 use std::{
 	collections::{BTreeMap, HashMap}, fmt
@@ -9,12 +9,18 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		name: pkg.identifier.to_owned(),
 		version: pkg.version.to_owned(),
 		publisher: pkg.publisher.to_owned(),
-		engines: Engines { vscode: "^1.33.0".to_owned() },
+		engines: Engines { vscode: pkg.vscode_version.to_owned() },
 		display_name: pkg.name.to_owned(),
 		description: pkg.description.to_owned(),
 		categories: pkg.categories.iter().map(|s| (*s).to_owned()).collect(),
 		keywords: pkg.keywords.iter().map(|s| (*s).to_owned()).collect(),
-		gallery_banner: GalleryBanner { color: "#6d0759", theme: "dark" },
+		gallery_banner: GalleryBanner {
+			color: pkg.gallery.color,
+			theme: match pkg.gallery.theme {
+				GalleryTheme::Dark => "dark",
+				GalleryTheme::Light => "light",
+			},
+		},
 		license: pkg.license.to_owned(),
 		repository: pkg.repository.to_owned(),
 		main: "icie.js".to_owned(),
@@ -46,13 +52,7 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		activation_events: collect_activation_events(pkg).into_iter().map(|ev| ev.package_json_format()).collect(),
 		markdown: "github",
 		qna: "marketplace",
-		dependencies: vec![
-			("keytar".to_owned(), "5.0.0-beta.3".to_owned()),
-			("vscode-extension-telemetry".to_owned(), "0.1.2".to_owned()),
-			("node-fetch".to_owned(), "2.6.0".to_owned()),
-		]
-		.into_iter()
-		.collect(),
+		dependencies: pkg.node_dependencies.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
 		icon: "icon.png",
 	}
 }

@@ -37,11 +37,21 @@ evscode::plugin! {
 	categories: &["Other"],
 	license: "GPL-3.0-only",
 	repository: "https://github.com/pustaczek/icie",
+	gallery: evscode::meta::Gallery {
+		color: "#6d0759",
+		theme: evscode::meta::GalleryTheme::Dark,
+	},
 	on_activate: Some(Box::pin(launch::activate())),
 	on_deactivate: Some(Box::pin(launch::deactivate())),
 	extra_activations: &[
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie-contest" },
+	],
+	vscode_version: "^1.33.0",
+	node_dependencies: &[
+		("node-fetch", "2.6.0"),
+		("keytar", "5.0.0-beta.3"),
+		("vscode-extension-telemetry", "0.1.2")
 	],
 	telemetry_key: "b05c4c82-d1e6-44f5-aa16-321230ad2475",
 	log_filters: &[

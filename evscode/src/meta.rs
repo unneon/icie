@@ -109,6 +109,22 @@ impl Activation<String> {
 	}
 }
 
+/// How should the banner text be displayed.
+pub enum GalleryTheme {
+	/// Light background, dark text.
+	Light,
+	/// Dark background, light text.
+	Dark,
+}
+
+/// Metadata about banner in VS Marketplace.
+pub struct Gallery {
+	/// A HTML RGB color of the banner.
+	pub color: &'static str,
+	/// Options of rendering text on top of the banner.
+	pub theme: GalleryTheme,
+}
+
 /// Extension metadata.
 ///
 /// See [official documentation](https://code.visualstudio.com/api/references/extension-manifest) for detailed information.
@@ -136,6 +152,8 @@ pub struct Package {
 	pub license: &'static str,
 	/// URL of your extension repository.
 	pub repository: &'static str,
+	/// Metadata about the display in VS Marketplace.
+	pub gallery: Gallery,
 	/// Function intended to run when the extension is activated.
 	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
 	pub on_activate: Option<BoxFuture<'static, R<()>>>,
@@ -144,6 +162,12 @@ pub struct Package {
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],
+	/// Minimal required vscode version.
+	/// TODO: Check what happens when the requirement is not fulfilled.
+	pub vscode_version: &'static str,
+	/// Additional dependencies to append to package.json.
+	/// They can be later imported using wasm-bindgen.
+	pub node_dependencies: &'static [(&'static str, &'static str)],
 	/// Telemetry instrumentation key, set up in [Azure Apllication Insights](https://github.com/microsoft/vscode-extension-telemetry).
 	pub telemetry_key: &'static str,
 	/// List of filters that specify what can be logged.
