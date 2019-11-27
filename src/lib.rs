@@ -49,15 +49,15 @@ evscode::plugin! {
 	],
 	vscode_version: "^1.33.0",
 	node_dependencies: &[
-		("node-fetch", "2.6.0"),
 		("keytar", "5.0.0-beta.3"),
+		("node-fetch", "2.6.0"),
 		("vscode-extension-telemetry", "0.1.2")
 	],
 	telemetry_key: "b05c4c82-d1e6-44f5-aa16-321230ad2475",
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Info),
-		("selectors", log::LevelFilter::Info),
 		("reqwest", log::LevelFilter::Info),
+		("selectors", log::LevelFilter::Info),
 	],
 }
