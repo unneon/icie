@@ -72,10 +72,10 @@ impl<T: Configurable> Config<T> {
 /// ```ignore
 /// #[derive(evscode::Configurable)]
 /// enum AnimalBackend {
-/// 	#[evscode(name = "Doggo")]
-/// 	Dog,
-/// 	#[evscode(name = "Kitty")]
-/// 	Cat,
+///     #[evscode(name = "Doggo")]
+///     Dog,
+///     #[evscode(name = "Kitty")]
+///     Cat,
 /// }
 /// ```
 /// There does not exist a simple way to implement it for any custom types, because the VS Code [documentation of config API](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) is lacking.

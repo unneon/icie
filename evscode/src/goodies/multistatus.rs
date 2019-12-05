@@ -4,7 +4,7 @@
 //! The passed string is the prefix added before specific status messages.
 //! ```
 //! lazy_static::lazy_static! {
-//! 		static ref STATUS: evscode::MultiStatus = evscode::MultiStatus::new("EEE ");
+//!     static ref STATUS: evscode::MultiStatus = evscode::MultiStatus::new("EEE ");
 //! }
 //! ```
 //! Then, to set the status use the [`StackedStatus::push`] function and save the returned guard for the duration of the operation.
@@ -15,8 +15,8 @@
 //! let _status = STATUS.push("Building"); // "EEE Building"
 //! compile();
 //! {
-//! 	let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
-//! 	parse_compilation_errors();
+//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
+//!     parse_compilation_errors();
 //! }
 //! // "EEE Building"
 //! // (disappears)

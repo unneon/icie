@@ -19,8 +19,8 @@ mod util;
 /// ```ignore
 /// #[evscode::command(title = "Example Evscode Extension - Hello World", key = "ctrl+alt+5")]
 /// fn spawn() -> evscode::R<()> {
-/// 	evscode::Message::new("Hello, world!").build().spawn();
-/// 	Ok(())
+///     evscode::Message::new("Hello, world!").build().spawn();
+///     Ok(())
 /// }
 /// ```
 #[proc_macro_attribute]
@@ -47,10 +47,10 @@ pub fn config(_params: TokenStream, item: TokenStream) -> TokenStream {
 /// ```ignore
 /// #[derive(evscode::Configurable)]
 /// enum AnimalBackend {
-/// 	#[evscode(name = "Doggo")]
-/// 	Dog,
-/// 	#[evscode(name = "Kitty")]
-/// 	Cat,
+///     #[evscode(name = "Doggo")]
+///     Dog,
+///     #[evscode(name = "Kitty")]
+///     Cat,
 /// }
 /// ```
 #[proc_macro_derive(Configurable, attributes(evscode))]
@@ -64,16 +64,16 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 /// This macro will generate a main function and should only be invoked once, from the main.rs file.
 /// ```ignore
 /// evscode::plugin! {
-/// 	name: "Example Evscode Extension",
-/// 	publisher: "", // fill in your Marketplace publisher username.
-/// 	description: "An example extension developed using Evscode",
-/// 	keywords: &["test"],
-/// 	categories: &["Other"],
-/// 	license: "", // fill in an SPDX 2.0 identifier of your extension's license
-/// 	repository: "", // fill in an URL of your extension repository.
-/// 	on_activate: None,
-/// 	extra_activations: &[],
-/// 	log_filters: &[],
+///     name: "Example Evscode Extension",
+///     publisher: "", // fill in your Marketplace publisher username.
+///     description: "An example extension developed using Evscode",
+///     keywords: &["test"],
+///     categories: &["Other"],
+///     license: "", // fill in an SPDX 2.0 identifier of your extension's license
+///     repository: "", // fill in an URL of your extension repository.
+///     on_activate: None,
+///     extra_activations: &[],
+///     log_filters: &[],
 /// }
 /// ```
 #[proc_macro]

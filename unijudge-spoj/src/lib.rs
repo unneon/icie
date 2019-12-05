@@ -1,4 +1,4 @@
-#![feature(never_type, try_blocks)]
+#![feature(try_blocks)]
 
 use async_trait::async_trait;
 use unijudge::{
