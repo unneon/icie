@@ -67,7 +67,7 @@ impl Path {
 
 impl From<&'static str> for Path {
 	fn from(s: &'static str) -> Self {
-		expand_path(s)
+		Self { buf: s.to_owned() }
 	}
 }
 
