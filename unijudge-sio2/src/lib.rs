@@ -229,6 +229,9 @@ impl unijudge::Backend for Sio2 {
 		// Workaround for https://github.com/rust-lang/rust/issues/57478.
 		let (problem_instance_id, csrf, is_admin) = {
 			let doc = debris::Document::new(&resp.text().await?);
+			if doc.find("#navbar-login").is_ok() {
+				return Err(Error::AccessDenied);
+			}
 			let problem_instance_id = doc
 				.find("#id_problem_instance_id")?
 				.find_all("option")
