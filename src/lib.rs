@@ -53,7 +53,7 @@ evscode::plugin! {
 		("node-fetch", "2.6.0"),
 		("vscode-extension-telemetry", "0.1.2")
 	],
-	telemetry_key: "b05c4c82-d1e6-44f5-aa16-321230ad2475",
+	telemetry_key: "d131172a-874d-4c0a-b02f-dbf4c951de3c",
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Info),
