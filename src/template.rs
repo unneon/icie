@@ -65,7 +65,7 @@ const BUILTIN_TEMPLATE_PSEUDOPATH: &str = "<enter a path to use a custom templat
 fn builtin_template() -> R<String> {
 	let includes = match OS::query()? {
 		OS::Linux => "#include <bits/stdc++.h>",
-		OS::Windows | OS::MacOS => "#include <iostream>\n#include<vector>\n#include <algorithm>",
+		OS::Windows | OS::MacOS => "#include <iostream>\n#include <vector>\n#include <algorithm>",
 	};
 	Ok(format!(
 		r#"
