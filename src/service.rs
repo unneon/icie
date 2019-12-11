@@ -10,6 +10,7 @@ pub struct Service {
 	pub package_apt: Option<&'static str>,
 	pub package_brew: Option<&'static str>,
 	pub package_pacman: Option<&'static str>,
+	pub tutorial_url_windows: Option<&'static str>,
 }
 
 impl Service {
@@ -41,8 +42,9 @@ impl Service {
 				}
 			},
 			OS::Windows => {
-				// TODO: Add Windows LLVM installation tutorial.
-				// TODO: Add searching for LLVM in standard installation paths, because Windows PATH be bad.
+				if let Some(tutorial) = self.tutorial_url_windows {
+					e = e.action("📄 How to install?".to_owned(), tutorial_show(tutorial));
+				}
 			},
 			OS::MacOS => {
 				if let Some(package) = self.package_brew {
@@ -74,4 +76,8 @@ async fn brew_install(package: &'static str) -> R<()> {
 
 async fn pacman_s(package: &'static str) -> R<()> {
 	term::install(package, &["pkexec", "pacman", "-S", package])
+}
+
+async fn tutorial_show(url: &'static str) -> R<()> {
+	evscode::open_external(url).await
 }

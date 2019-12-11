@@ -10,10 +10,18 @@ pub const GDB: Service = Service {
 	package_apt: Some("gdb"),
 	package_brew: Some("gdb"),
 	package_pacman: Some("gdb"),
+	tutorial_url_windows: None,
 };
 
-pub const RR: Service =
-	Service { human_name: "RR", exec_linuxmac: Some("rr"), exec_windows: None, package_apt: Some("rr"), package_brew: None, package_pacman: None };
+pub const RR: Service = Service {
+	human_name: "RR",
+	exec_linuxmac: Some("rr"),
+	exec_windows: None,
+	package_apt: Some("rr"),
+	package_brew: None,
+	package_pacman: None,
+	tutorial_url_windows: None,
+};
 
 pub async fn gdb(in_path: Path, source: Option<Path>) -> R<()> {
 	TELEMETRY.debug_gdb.spark();

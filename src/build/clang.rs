@@ -16,6 +16,7 @@ const CLANG: Service = Service {
 	// In this very specific situation, macOS seems pretty nice.
 	package_brew: None,
 	package_pacman: Some("clang"),
+	tutorial_url_windows: Some("https://github.com/pustaczek/icie/blob/master/docs/WINDOWS.md"),
 };
 
 pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
