@@ -8,3 +8,5 @@
 4. Install the LLVM from the downloaded executable.
     - Make sure to select the "Add to PATH" option. If you do not do this, ICIE will not notice that Clang is installed.
 5. After the installation is finished, restart Visual Studio Code.
+
+*Did you have any issues, or don't understand something? Please create an issue on the [issues page](https://github.com/pustaczek/icie/issues)!*
