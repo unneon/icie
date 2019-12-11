@@ -8,9 +8,13 @@ use util::path::Path;
 
 const CLANG: Service = Service {
 	human_name: "Clang",
-	exec_linux: Some("clang++"),
+	exec_linuxmac: Some("clang++"),
 	exec_windows: Some("clang++.exe"),
 	package_apt: Some("clang"),
+	// On macOS, Clang is supposed to be installed along with some part of Xcode.
+	// Also trying to run the command will display a dialog asking the user to install it.
+	// In this very specific situation, macOS seems pretty nice.
+	package_brew: None,
 	package_pacman: Some("clang"),
 };
 
@@ -43,6 +47,9 @@ pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen:
 		errors.push(Message { message, location: None });
 	}
 	let stderr = run.stderr;
+	if stderr.starts_with("xcode-select: note: no developer tools were found") {
+		return Err(CLANG.not_installed().await?);
+	}
 	Ok(Status { success, executable, errors, warnings, stderr })
 }
 

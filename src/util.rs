@@ -254,6 +254,7 @@ pub async fn sleep(delay: Duration) {
 pub enum OS {
 	Windows,
 	Linux,
+	MacOS,
 }
 
 impl OS {
@@ -261,6 +262,7 @@ impl OS {
 		match (node_sys::process::PLATFORM.as_str(), node_sys::process::ARCH.as_str()) {
 			("linux", _) | ("freebsd", _) | ("openbsd", _) => Ok(OS::Linux),
 			("win32", _) => Ok(OS::Windows),
+			("darwin", _) => Ok(OS::MacOS),
 			(platform, arch) => Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch))),
 		}
 	}

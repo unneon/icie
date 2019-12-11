@@ -3,10 +3,17 @@ use crate::{
 };
 use evscode::{E, R};
 
-pub const GDB: Service =
-	Service { human_name: "GDB", exec_linux: Some("gdb"), exec_windows: None, package_apt: Some("gdb"), package_pacman: Some("gdb") };
+pub const GDB: Service = Service {
+	human_name: "GDB",
+	exec_linuxmac: Some("gdb"),
+	exec_windows: None,
+	package_apt: Some("gdb"),
+	package_brew: Some("gdb"),
+	package_pacman: Some("gdb"),
+};
 
-pub const RR: Service = Service { human_name: "RR", exec_linux: Some("rr"), exec_windows: None, package_apt: Some("rr"), package_pacman: None };
+pub const RR: Service =
+	Service { human_name: "RR", exec_linuxmac: Some("rr"), exec_windows: None, package_apt: Some("rr"), package_brew: None, package_pacman: None };
 
 pub async fn gdb(in_path: Path, source: Option<Path>) -> R<()> {
 	TELEMETRY.debug_gdb.spark();
