@@ -10,12 +10,12 @@ pub async fn check() -> R<()> {
 			LAST_IMPORTANT_UPDATE.version, LAST_IMPORTANT_UPDATE.features
 		);
 		let choice = evscode::Message::new(&message).item((), "See changelog", false).show().await;
+		let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
+		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 		if let Some(()) = choice {
 			TELEMETRY.newsletter_changelog.spark();
 			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
 		}
-		let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
-		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 	}
 	Ok(())
 }
