@@ -135,17 +135,15 @@ const NOT_YET_STARTED_RETRY_DELAY: Duration = Duration::from_secs(1);
 async fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>> {
 	let _status = crate::STATUS.push("Fetching contest");
 	let mut wait_retries = NOT_YET_STARTED_RETRY_LIMIT;
-	sess.run(|backend, sess| {
-		async move {
-			loop {
-				match backend.contest_tasks(sess, &contest).await {
-					Err(unijudge::Error::NotYetStarted) if wait_retries > 0 => {
-						let _status = crate::STATUS.push(format!("Waiting for contest start, {} left", plural(wait_retries, "retry", "retries")));
-						wait_retries -= 1;
-						sleep(NOT_YET_STARTED_RETRY_DELAY).await;
-					},
-					tasks => break tasks,
-				}
+	sess.run(|backend, sess| async move {
+		loop {
+			match backend.contest_tasks(sess, &contest).await {
+				Err(unijudge::Error::NotYetStarted) if wait_retries > 0 => {
+					let _status = crate::STATUS.push(format!("Waiting for contest start, {} left", plural(wait_retries, "retry", "retries")));
+					wait_retries -= 1;
+					sleep(NOT_YET_STARTED_RETRY_DELAY).await;
+				},
+				tasks => break tasks,
 			}
 		}
 	})
