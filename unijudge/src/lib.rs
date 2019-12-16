@@ -1,4 +1,4 @@
-#![feature(type_alias_impl_trait)]
+#![feature(never_type, type_alias_impl_trait)]
 
 pub extern crate chrono;
 pub extern crate debris;

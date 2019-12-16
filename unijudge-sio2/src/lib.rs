@@ -1,4 +1,4 @@
-#![feature(slice_patterns, try_blocks)]
+#![feature(never_type, slice_patterns, try_blocks)]
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
