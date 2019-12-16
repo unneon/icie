@@ -10,3 +10,5 @@
 5. After the installation is finished, restart Visual Studio Code.
 
 *Did you have any issues, or don't understand something? Please create an issue on the [issues page](https://github.com/pustaczek/icie/issues)!*
+
+*See the [README](https://github.com/pustaczek/icie#icie----) to learn how to use ICIE.*

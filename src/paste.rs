@@ -110,5 +110,5 @@ impl logic::PasteContext for VscodePaste<'_> {
 }
 
 fn qpaste_doc_error(s: impl AsRef<str>) -> String {
-	format!("{}; see [quickpasting docs](https://github.com/pustaczek/icie#quickpasting-setup)", s.as_ref())
+	format!("{}; see [quickpasting docs](https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md)", s.as_ref())
 }

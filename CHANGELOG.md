@@ -74,7 +74,7 @@
 This release concludes the month-long rapid development following the 0.5 rewrite. The next planned feature is contest mode, which will take more than a few days - meanwhile, feel free to [ask for other features or bugfixes on GitHub](https://github.com/pustaczek/icie/issues)!
 
 - **Added customizable directory names**, which support using task symbol/title, contest id, site name and random elements, as well as using custom cases like PascalCase or kebab-case. See icie.init.projectNameTemplate configuraiton entry for more details.
-- **Added quickpasting**, which automatically copy-pastes data structures and algorithms to your code after pressing <kbd>Alt</kbd><kbd>[</kbd>. See its [setup docs](https://github.com/pustaczek/icie#quickpasting-setup) to start using it.
+- **Added quickpasting**, which automatically copy-pastes data structures and algorithms to your code after pressing <kbd>Alt</kbd><kbd>[</kbd>. See its [setup docs](https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md) to start using it.
 - Improved README to contain more information
 - Fixed SPOJ login not working at all
 
