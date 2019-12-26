@@ -12,7 +12,8 @@ mod files;
 pub mod names;
 mod scan;
 
-/// The name of the code template used for initializing new projects. The list of code templates' names and paths can be found under the icie.template.list configuration entry.
+/// The name of the code template used for initializing new projects. The list of code templates'
+/// names and paths can be found under the icie.template.list configuration entry.
 #[evscode::config]
 static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
 
@@ -24,7 +25,11 @@ async fn scan() -> R<()> {
 	let pick = QuickPick::new()
 		.items(contests.iter().enumerate().map(|(index, (sess, contest, _))| {
 			let site_prefix = sess.backend.contest_site_prefix();
-			let label = if contest.title.starts_with(site_prefix) { contest.title.clone() } else { format!("{} {}", site_prefix, contest.title) };
+			let label = if contest.title.starts_with(site_prefix) {
+				contest.title.clone()
+			} else {
+				format!("{} {}", site_prefix, contest.title)
+			};
 			let start = contest.start.with_timezone(&Local).to_rfc2822();
 			quick_pick::Item::new(index.to_string(), label).description(start)
 		}))
@@ -76,7 +81,9 @@ async fn url_existing() -> R<()> {
 	let raw_url = ask_url().await?;
 	let url = match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(task) => task,
-		InitCommand::Contest { .. } => return Err(E::error("it is forbidden to init a contest in an existing directory")),
+		InitCommand::Contest { .. } => {
+			return Err(E::error("it is forbidden to init a contest in an existing directory"));
+		},
 	};
 	let meta = match url {
 		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
@@ -108,8 +115,14 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 		Some(raw_url) => {
 			let (URL { domain, site, resource }, backend) = net::interpret_url(&raw_url)?;
 			match resource {
-				Resource::Task(task) => InitCommand::Task(Some((URL { domain, site, resource: Resource::Task(task) }, backend))),
-				Resource::Contest(contest) => InitCommand::Contest { url: URL { domain, site, resource: Resource::Contest(contest) }, backend },
+				Resource::Task(task) => InitCommand::Task(Some((
+					URL { domain, site, resource: Resource::Task(task) },
+					backend,
+				))),
+				Resource::Contest(contest) => InitCommand::Contest {
+					url: URL { domain, site, resource: Resource::Contest(contest) },
+					backend,
+				},
 			}
 		},
 		None => InitCommand::Task(None),
@@ -129,7 +142,11 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	fs::create_dir_all(root).await?;
-	let examples = meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
+	let examples = meta
+		.as_ref()
+		.and_then(|meta| meta.examples.as_ref())
+		.map(|examples| examples.as_slice())
+		.unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
 	files::init_manifest(root, &url, statement).await?;
 	files::init_template(root).await?;
@@ -138,14 +155,16 @@ async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) 
 }
 
 pub async fn help_init() -> R<()> {
-	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start").await
+	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
+		.await
 }
 
-/// Default project directory name. This key uses special syntax to allow using dynamic content, like task names. Variable contest.title is not available in this context. See example list:
+/// Default project directory name. This key uses special syntax to allow using dynamic content,
+/// like task names. Variable contest.title is not available in this context. See example list:
 ///
 /// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)
-/// {site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab} -> cf/1144/A-diverse-strings
-/// {task.symbol case.upper}-{{ -> A-{
+/// {site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab} ->
+/// cf/1144/A-diverse-strings {task.symbol case.upper}-{{ -> A-{
 ///
 /// {task.symbol} -> A
 /// {task.name} -> Diverse Strings
@@ -163,7 +182,10 @@ pub async fn help_init() -> R<()> {
 static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>> =
 	"{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
-/// By default, when initializing a project, the project directory will be created in the directory determined by icie.dir.projectDirectory configuration entry, and the name will be chosen according to the icie.init.projectNameTemplate configuration entry. This option allows to instead specify the directory every time.
+/// By default, when initializing a project, the project directory will be created in the directory
+/// determined by icie.dir.projectDirectory configuration entry, and the name will be chosen
+/// according to the icie.init.projectNameTemplate configuration entry. This option allows to
+/// instead specify the directory every time.
 #[evscode::config]
 static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
 
@@ -187,14 +209,22 @@ impl PathDialog {
 					.ignore_focus_out()
 					.prompt("New project directory")
 					.value(basic.to_str().unwrap())
-					.value_selection(basic.to_str().unwrap().len() - codename.len(), basic.to_str().unwrap().len())
+					.value_selection(
+						basic.to_str().unwrap().len() - codename.len(),
+						basic.to_str().unwrap().len(),
+					)
 					.show()
 					.await
 					.ok_or_else(E::cancel)?,
 			)),
-			PathDialog::SystemDialog => {
-				Ok(Path::from_native(evscode::OpenDialog::new().directory().action_label("Init").show().await.ok_or_else(E::cancel)?))
-			},
+			PathDialog::SystemDialog => Ok(Path::from_native(
+				evscode::OpenDialog::new()
+					.directory()
+					.action_label("Init")
+					.show()
+					.await
+					.ok_or_else(E::cancel)?,
+			)),
 		}
 	}
 }

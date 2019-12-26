@@ -9,7 +9,9 @@ impl Piece {
 			.lines()
 			.filter(|line| line.starts_with("///"))
 			.map(|line| {
-				let m: regex::Captures = HEADER_REGEX.captures(line).wrap(qpaste_doc_error("invalid header in qpaste piece"))?;
+				let m: regex::Captures = HEADER_REGEX
+					.captures(line)
+					.wrap(qpaste_doc_error("invalid header in qpaste piece"))?;
 				Ok((m[1].to_string(), m[2].to_string()))
 			})
 			.collect::<R<HashMap<_, _>>>()?;
@@ -26,7 +28,8 @@ impl Piece {
 			.map(|s| s.trim().to_owned())
 			.collect::<Vec<_>>();
 		let parent = headers.optfield("Parent").map(String::from);
-		let code = code.lines().filter(|line| !line.starts_with("///")).collect::<Vec<_>>().join("\n");
+		let code =
+			code.lines().filter(|line| !line.starts_with("///")).collect::<Vec<_>>().join("\n");
 		Ok(Piece { name, description, detail, code, guarantee, dependencies, parent, modified })
 	}
 }
@@ -38,13 +41,17 @@ struct Headers<'a> {
 impl Headers<'_> {
 	fn field(&self, key: &str) -> R<&str> {
 		match self.headers.get(key).map(|value| value.trim()) {
-			Some("") | None => Err(E::error(format!("piece {:?} does not have the {:?} header", self.id, key))),
+			Some("") | None => {
+				Err(E::error(format!("piece {:?} does not have the {:?} header", self.id, key)))
+			},
 			Some(value) => Ok(value),
 		}
 	}
 
 	fn optfield(&self, key: &str) -> Option<&str> {
-		self.headers.get(key).and_then(|value| if value.trim().is_empty() { None } else { Some(value.trim()) })
+		self.headers
+			.get(key)
+			.and_then(|value| if value.trim().is_empty() { None } else { Some(value.trim()) })
 	}
 }
 
@@ -118,7 +125,14 @@ template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typen
 	let piece = Piece::parse(code, "__".to_owned(), modified).unwrap();
 	assert_eq!(piece.name, "DFS");
 	assert_eq!(piece.description, Some("Depth First Search".to_owned()));
-	assert_eq!(piece.detail, Some("An algorithm for traversing or searching tree or graph data structures with backtracking.".to_owned()));
+	assert_eq!(
+		piece.detail,
+		Some(
+			"An algorithm for traversing or searching tree or graph data structures with \
+			 backtracking."
+				.to_owned()
+		)
+	);
 	assert_eq!(
 		piece.code,
 		r#"template <typename Pre=Dummyf, typename Post=Dummyf, typename PreE=Dummyf, typename PostE=Dummyf, typename FailE=Dummyf> void DFS(int source, Pre pre, Post post, PreE pree, PostE poste, FailE faile) const {

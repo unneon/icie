@@ -35,8 +35,11 @@ async fn send_passed() -> R<()> {
 	let manifest = Manifest::load().await?;
 	let url = manifest.req_task_url().map_err(|e| {
 		TELEMETRY.submit_notask.spark();
-		e.context("submit aborted, either open a task/contest to be able to submit, or use Alt+0 to only run tests")
-			.action("How to open tasks?", help_init())
+		e.context(
+			"submit aborted, either open a task/contest to be able to submit, or use Alt+0 to \
+			 only run tests",
+		)
+		.action("How to open tasks?", help_init())
 	})?;
 	let (url, backend) = net::interpret_url(url)?;
 	let url = require_task::<BoxedContest, BoxedTask>(url)?;
@@ -75,13 +78,19 @@ async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: 
 		let submission = match submissions.into_iter().find(|subm| subm.id == id) {
 			Some(submission) => submission,
 			None if not_seen_retry_limit > 0 => {
-				log::debug!("submission {} not found on status page, {} left", id, plural(not_seen_retry_limit, "retry", "retries"));
+				log::debug!(
+					"submission {} not found on status page, {} left",
+					id,
+					plural(not_seen_retry_limit, "retry", "retries")
+				);
 				let _status = crate::STATUS.push("Retrying...");
 				not_seen_retry_limit -= 1;
 				sleep(TRACK_NOT_SEEN_RETRY_DELAY).await;
 				continue;
 			},
-			None => return Err(E::error(format!("submission {} not found on status page", id))),
+			None => {
+				return Err(E::error(format!("submission {} not found on status page", id)));
+			},
 		};
 		let should_send = match &submission.verdict {
 			unijudge::Verdict::Pending { .. } => false,

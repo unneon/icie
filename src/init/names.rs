@@ -5,13 +5,19 @@ use evscode::R;
 use std::{fmt, str::FromStr};
 use unijudge::TaskDetails;
 
-/// Default contest directory name. This key uses special syntax to allow using dynamic content, like contest ids. Variables task.id and task.title are not available in this context. See "Icie Init Project name template" for details.
+/// Default contest directory name. This key uses special syntax to allow using dynamic content,
+/// like contest ids. Variables task.id and task.title are not available in this context. See "Icie
+/// Init Project name template" for details.
 #[evscode::config]
-static CONTEST: evscode::Config<Interpolation<ContestVariable>> = "{contest.title case.kebab}".parse().unwrap();
+static CONTEST: evscode::Config<Interpolation<ContestVariable>> =
+	"{contest.title case.kebab}".parse().unwrap();
 
-/// Default task directory name, when created as a part of a contest. This key uses special syntax to allow using dynamic content, like task titles. Variable contest.title is not available in this context. See "Icie Init Project name template" for details.
+/// Default task directory name, when created as a part of a contest. This key uses special syntax
+/// to allow using dynamic content, like task titles. Variable contest.title is not available in
+/// this context. See "Icie Init Project name template" for details.
 #[evscode::config]
-static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> = "{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
+static CONTEST_TASK: evscode::Config<Interpolation<ContestTaskVariable>> =
+	"{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
 
 pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<Path> {
 	let variables = Mapping {
@@ -30,7 +36,12 @@ pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<Path
 	strategy.query(root, &codename).await
 }
 
-pub async fn design_contest_name(contest_id: String, contest_title: String, site_short: &'static str) -> R<Path> {
+pub async fn design_contest_name(
+	contest_id: String,
+	contest_title: String,
+	site_short: &'static str,
+) -> R<Path>
+{
 	let variables = Mapping {
 		task_id: None,
 		task_title: None,

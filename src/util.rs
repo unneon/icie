@@ -113,7 +113,8 @@ pub fn html_material_icons() -> String {
 }
 
 pub fn material_icons_cloud() -> String {
-	r#"<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">"#.to_owned()
+	r#"<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">"#
+		.to_owned()
 }
 
 pub fn material_icons_bundled() -> String {
@@ -190,7 +191,11 @@ pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 }
 
 pub fn expand_path(path: &str) -> Path {
-	let expanded = if path == "~" || path.starts_with("~/") { format!("{}{}", node_sys::os::homedir(), &path[1..]) } else { path.to_owned() };
+	let expanded = if path == "~" || path.starts_with("~/") {
+		format!("{}{}", node_sys::os::homedir(), &path[1..])
+	} else {
+		path.to_owned()
+	};
 	let normalized = node_sys::path::normalize(&expanded);
 	Path::from_native(normalized)
 }
@@ -203,14 +208,23 @@ pub fn without_extension(path: &Path) -> Path {
 #[test]
 fn test_pathmanip() {
 	assert_eq!(without_extension("/home/wizard/file.txt"), Path::new("/home/wizard/file"));
-	assert_eq!(without_extension("/home/wizard/source.old.cpp"), Path::new("/home/wizard/source.old"));
+	assert_eq!(
+		without_extension("/home/wizard/source.old.cpp"),
+		Path::new("/home/wizard/source.old")
+	);
 	assert_eq!(without_extension("../manifest.json"), Path::new("../manifest"));
 	assert_eq!(without_extension("./inner/dev0"), Path::new("./inner/dev0"));
 }
 
 pub fn node_hrtime() -> Duration {
 	let raw_time = node_sys::process::hrtime();
-	match raw_time.values().into_iter().map(|v| v.unwrap().as_f64().unwrap()).collect::<Vec<_>>().as_slice() {
+	match raw_time
+		.values()
+		.into_iter()
+		.map(|v| v.unwrap().as_f64().unwrap())
+		.collect::<Vec<_>>()
+		.as_slice()
+	{
 		[seconds, nanoseconds] => Duration::new(*seconds as u64, *nanoseconds as u32),
 		_ => unreachable!(),
 	}
@@ -263,7 +277,9 @@ impl OS {
 			("linux", _) | ("freebsd", _) | ("openbsd", _) => Ok(OS::Linux),
 			("win32", _) => Ok(OS::Windows),
 			("darwin", _) => Ok(OS::MacOS),
-			(platform, arch) => Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch))),
+			(platform, arch) => {
+				Err(E::error(format!("running on unrecognized platform {}-{}", platform, arch)))
+			},
 		}
 	}
 }

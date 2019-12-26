@@ -73,7 +73,8 @@ impl<'a, T: Serialize+for<'d> Deserialize<'d>, I: Iterator<Item=Item<T>>> Builde
 		self
 	}
 
-	/// When user types a filter, match it against the description and the detail as well as the label.
+	/// When user types a filter, match it against the description and the detail as well as the
+	/// label.
 	pub fn match_on_all(mut self) -> Self {
 		self.match_on_description = true;
 		self.match_on_detail = true;
@@ -92,7 +93,11 @@ impl<'a, T: Serialize+for<'d> Deserialize<'d>, I: Iterator<Item=Item<T>>> Builde
 	}
 
 	/// Add items to the selection.
-	pub fn items<I2: IntoIterator<Item=Item<T>>>(self, items: I2) -> Builder<'a, T, Chain<I, I2::IntoIter>> {
+	pub fn items<I2: IntoIterator<Item=Item<T>>>(
+		self,
+		items: I2,
+	) -> Builder<'a, T, Chain<I, I2::IntoIter>>
+	{
 		Builder {
 			ignore_focus_out: self.ignore_focus_out,
 			match_on_description: self.match_on_description,
@@ -146,6 +151,12 @@ pub struct QuickPick {
 impl QuickPick {
 	/// Create a new builder to configure the quick pick.
 	pub fn new<T>() -> Builder<'static, T, Empty<Item<T>>> {
-		Builder { ignore_focus_out: false, match_on_detail: false, match_on_description: false, placeholder: None, items: std::iter::empty() }
+		Builder {
+			ignore_focus_out: false,
+			match_on_detail: false,
+			match_on_description: false,
+			placeholder: None,
+			items: std::iter::empty(),
+		}
 	}
 }

@@ -38,10 +38,21 @@ impl unijudge::Backend for Sio2 {
 	type Task = Task;
 
 	fn accepted_domains(&self) -> &'static [&'static str] {
-		&["kiwi.ii.uni.wroc.pl", "main2.edu.pl", "sio2.mimuw.edu.pl", "sio2.staszic.waw.pl", "szkopul.edu.pl"]
+		&[
+			"kiwi.ii.uni.wroc.pl",
+			"main2.edu.pl",
+			"sio2.mimuw.edu.pl",
+			"sio2.staszic.waw.pl",
+			"szkopul.edu.pl",
+		]
 	}
 
-	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
+	fn deconstruct_resource(
+		&self,
+		_domain: &str,
+		segments: &[&str],
+	) -> Result<Resource<Self::Contest, Self::Task>>
+	{
 		let (contest, task) = match segments {
 			["c", contest, "p", task] => (contest, task),
 			["c", contest, "p", task, ..] => (contest, task),
@@ -64,11 +75,20 @@ impl unijudge::Backend for Sio2 {
 		unijudge::deserialize_auth(data)
 	}
 
-	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+	async fn auth_login(
+		&self,
+		session: &Self::Session,
+		username: &str,
+		password: &str,
+	) -> Result<()>
+	{
 		let url1: Url = format!("{}/login/", session.site).parse()?;
 		let resp1 = session.client.get(url1).send().await?;
 		let url2 = resp1.url().clone();
-		let csrf = debris::Document::new(&resp1.text().await?).find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
+		let csrf = debris::Document::new(&resp1.text().await?)
+			.find_first("input[name=\"csrfmiddlewaretoken\"]")?
+			.attr("value")?
+			.string();
 		let resp2 = session
 			.client
 			.post(url2.clone())
@@ -85,7 +105,8 @@ impl unijudge::Backend for Sio2 {
 			.await?;
 		let doc2 = debris::Document::new(&resp2.text().await?);
 		if doc2.find("#username").is_ok() {
-			*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(username.to_owned());
+			*session.username.lock().map_err(|_| Error::StateCorruption)? =
+				Some(username.to_owned());
 			Ok(())
 		} else if doc2.find("form")?.find("div.form-group > div > div.alert.alert-danger").is_ok() {
 			Err(Error::WrongCredentials)
@@ -108,7 +129,12 @@ impl unijudge::Backend for Sio2 {
 		None
 	}
 
-	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+	async fn task_details(
+		&self,
+		session: &Self::Session,
+		task: &Self::Task,
+	) -> Result<TaskDetails>
+	{
 		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		if resp.url() != &url {
@@ -126,7 +152,9 @@ impl unijudge::Backend for Sio2 {
 		};
 		let url2: Url = format!("{}/c/{}/p/{}/", session.site, task.contest, task.task).parse()?;
 		let resp2 = session.client.get(url2).send().await?;
-		let statement = if resp2.headers().get(CONTENT_TYPE) == Some(&HeaderValue::from_static("application/pdf")) {
+		let statement = if resp2.headers().get(CONTENT_TYPE)
+			== Some(&HeaderValue::from_static("application/pdf"))
+		{
 			let pdf = resp2.bytes().await?.as_ref().to_owned();
 			Some(Statement::PDF { pdf })
 		} else {
@@ -134,7 +162,10 @@ impl unijudge::Backend for Sio2 {
 			let mut statement = unijudge::statement::Rewrite::start(doc2);
 			statement.fix_hide(|v| {
 				if let unijudge::scraper::Node::Element(v) = v.value() {
-					v.has_class("main-content", unijudge::selectors::attr::CaseSensitivity::CaseSensitive)
+					v.has_class(
+						"main-content",
+						unijudge::selectors::attr::CaseSensitivity::CaseSensitive,
+					)
 				} else {
 					false
 				}
@@ -161,7 +192,12 @@ impl unijudge::Backend for Sio2 {
 		})
 	}
 
-	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+	async fn task_languages(
+		&self,
+		session: &Self::Session,
+		task: &Self::Task,
+	) -> Result<Vec<Language>>
+	{
 		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
@@ -175,7 +211,12 @@ impl unijudge::Backend for Sio2 {
 			.collect::<Result<_>>()?)
 	}
 
-	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+	async fn task_submissions(
+		&self,
+		session: &Self::Session,
+		task: &Self::Task,
+	) -> Result<Vec<Submission>>
+	{
 		let url: Url = format!("{}/c/{}/submissions/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
@@ -195,22 +236,42 @@ impl unijudge::Backend for Sio2 {
 					"Pending" | "Oczekuje" => Ok(Some(Status::Pending)),
 					_ => Err(format!("unrecognized submission status {:?}", status)),
 				})?;
-				let score = tr.child(11)?.text().map(|score| score[..score.find(' ').unwrap_or_else(|| score.len())].parse::<i64>()).ok();
+				let score = tr
+					.child(11)?
+					.text()
+					.map(|score| {
+						score[..score.find(' ').unwrap_or_else(|| score.len())].parse::<i64>()
+					})
+					.ok();
 				Ok(Submission {
-					id: tr.find("a")?.attr("href")?.map(|href| match href.split('/').filter(|seg| !seg.is_empty()).collect::<Vec<_>>().last() {
-						Some(id) => Ok(String::from(*id)),
-						None => Err("empty submission href"),
+					id: tr.find("a")?.attr("href")?.map(|href| {
+						match href
+							.split('/')
+							.filter(|seg| !seg.is_empty())
+							.collect::<Vec<_>>()
+							.last()
+						{
+							Some(id) => Ok(String::from(*id)),
+							None => Err("empty submission href"),
+						}
 					})?,
 					verdict: match (status, score) {
-						(Some(Status::CompilationFailed), _) => Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None },
+						(Some(Status::CompilationFailed), _) => Verdict::Rejected {
+							cause: Some(RejectionCause::CompilationError),
+							test: None,
+						},
 						(Some(Status::Pending), _) => Verdict::Pending { test: None },
 						(status, Some(score)) => Verdict::Scored {
 							score: score as f64,
 							max: None,
 							cause: match status {
 								Some(Status::WrongAnswer) => Some(RejectionCause::WrongAnswer),
-								Some(Status::TimeLimitExceeded) => Some(RejectionCause::TimeLimitExceeded),
-								Some(Status::MemoryLimitExceeded) => Some(RejectionCause::MemoryLimitExceeded),
+								Some(Status::TimeLimitExceeded) => {
+									Some(RejectionCause::TimeLimitExceeded)
+								},
+								Some(Status::MemoryLimitExceeded) => {
+									Some(RejectionCause::MemoryLimitExceeded)
+								},
 								Some(Status::RuntimeError) => Some(RejectionCause::RuntimeError),
 								_ => None,
 							},
@@ -223,7 +284,14 @@ impl unijudge::Backend for Sio2 {
 			.collect::<Result<_>>()?)
 	}
 
-	async fn task_submit(&self, session: &Self::Session, task: &Self::Task, language: &Language, code: &str) -> Result<String> {
+	async fn task_submit(
+		&self,
+		session: &Self::Session,
+		task: &Self::Task,
+		language: &Language,
+		code: &str,
+	) -> Result<String>
+	{
 		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		// Workaround for https://github.com/rust-lang/rust/issues/57478.
@@ -240,8 +308,10 @@ impl unijudge::Backend for Sio2 {
 					Ok((
 						opt.attr("value")?.string(),
 						opt.text().map(|joint| {
-							let i1 = joint.rfind('(').ok_or("'(' not found in submittable title")?;
-							let i2 = joint.rfind(')').ok_or("')' not found in submittable title")?;
+							let i1 =
+								joint.rfind('(').ok_or("'(' not found in submittable title")?;
+							let i2 =
+								joint.rfind(')').ok_or("')' not found in submittable title")?;
 							std::result::Result::<_, &'static str>::Ok(joint[i1 + 1..i2].to_owned())
 						})?,
 					))
@@ -251,7 +321,8 @@ impl unijudge::Backend for Sio2 {
 				.find(|(_, symbol)| *symbol == task.task)
 				.ok_or(Error::WrongData)?
 				.0;
-			let csrf = doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
+			let csrf =
+				doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
 			let is_admin = doc.find("#id_kind").is_ok();
 			(problem_instance_id, csrf, is_admin)
 		};
@@ -263,7 +334,13 @@ impl unijudge::Backend for Sio2 {
 		if is_admin {
 			form = form.text("user", session.req_user()?).text("kind", "IGNORED");
 		}
-		session.client.post(url.clone()).header(REFERER, url.to_string()).multipart(form).send().await?;
+		session
+			.client
+			.post(url.clone())
+			.header(REFERER, url.to_string())
+			.multipart(form)
+			.send()
+			.await?;
 		Ok(self.task_submissions(session, task).await?[0].id.to_string())
 	}
 
@@ -279,7 +356,12 @@ impl unijudge::Backend for Sio2 {
 		unimplemented!()
 	}
 
-	async fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
+	async fn contest_tasks(
+		&self,
+		_session: &Self::Session,
+		contest: &Self::Contest,
+	) -> Result<Vec<Self::Task>>
+	{
 		*contest
 	}
 
@@ -287,11 +369,20 @@ impl unijudge::Backend for Sio2 {
 		*contest
 	}
 
-	async fn contest_title(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+	async fn contest_title(
+		&self,
+		_session: &Self::Session,
+		contest: &Self::Contest,
+	) -> Result<String>
+	{
 		*contest
 	}
 
-	async fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+	async fn contests(
+		&self,
+		_session: &Self::Session,
+	) -> Result<Vec<ContestDetails<Self::Contest>>>
+	{
 		Ok(Vec::new())
 	}
 

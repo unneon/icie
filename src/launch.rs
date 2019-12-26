@@ -25,14 +25,22 @@ pub async fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
 		if let Ok(solution) = dir::solution() {
-			let _ = evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+			let _ = evscode::open_editor(&solution)
+				.cursor(util::find_cursor_place(&solution).await)
+				.view_column(1)
+				.open()
+				.await;
 		}
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
 		if let Ok(solution) = dir::solution() {
 			// refocus the cursor, because apparently preserve_focus is useless
-			let _ = evscode::open_editor(&solution).cursor(util::find_cursor_place(&solution).await).view_column(1).open().await;
+			let _ = evscode::open_editor(&solution)
+				.cursor(util::find_cursor_place(&solution).await)
+				.view_column(1)
+				.open()
+				.await;
 		}
 	}
 	Ok(())
@@ -42,11 +50,13 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	TELEMETRY.statement_pdf.spark();
 	webview.webview.set_html(&format!(
-		"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: 0;\"></body></html>",
+		"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" \
+		 style=\"padding: 0;\"></body></html>",
 		evscode::asset("pdf-2.2.228.min.js"),
 		include_str!("pdf.js")
 	));
-	// This webview script sends a message indicating that it is ready to receive messages. See [`evscode::Webview::post_message`] docs.
+	// This webview script sends a message indicating that it is ready to receive messages. See
+	// [`evscode::Webview::post_message`] docs.
 	webview.listener.next().await;
 	webview.webview.post_message(StatementData { pdf_data_base64: pdf }).await;
 }
@@ -101,7 +111,9 @@ async fn nearby() -> R<()> {
 		.collect::<Vec<_>>();
 	nearby.sort_by_key(|nearby| nearby.1.clone());
 	let select = QuickPick::new()
-		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.to_string(), nearby.1)))
+		.items(
+			nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.to_string(), nearby.1)),
+		)
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
@@ -123,7 +135,9 @@ async fn web_contest() -> R<()> {
 	let manifest = Manifest::load().await?;
 	let (url, backend) = interpret_url(manifest.req_task_url()?)?;
 	let Resource::Task(task) = require_task(url)?.resource;
-	let url = backend.backend.contest_url(&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?);
+	let url = backend.backend.contest_url(
+		&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?,
+	);
 	evscode::open_external(&url).await?;
 	Ok(())
 }

@@ -4,12 +4,15 @@ use futures::future::join_all;
 use std::sync::Arc;
 use unijudge::{boxed::BoxedContestDetails, Backend};
 
-pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)> {
+pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)>
+{
 	let (progress, _) = evscode::Progress::new().title("ICIE Scan").show();
 	let domains = BACKENDS
 		.iter()
 		.filter(|backend| backend.backend.supports_contests())
-		.flat_map(|backend| backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend)))
+		.flat_map(|backend| {
+			backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend))
+		})
 		.collect::<Vec<_>>();
 	let progress_inc = 100. / (domains.len() as f64);
 	join_all(domains.iter().map(|(domain, backend)| {
@@ -32,7 +35,9 @@ pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'
 	.await
 	.into_iter()
 	.flat_map(|(domain, resp): (_, R<_>)| match resp {
-		Ok((sess, contests, backend)) => contests.into_iter().map(move |contest| (sess.clone(), contest, backend)).collect(),
+		Ok((sess, contests, backend)) => {
+			contests.into_iter().map(move |contest| (sess.clone(), contest, backend)).collect()
+		},
 		Err(e) => {
 			e.context(format!("failed to fetch {} contests", domain)).warning().emit();
 			Vec::new()

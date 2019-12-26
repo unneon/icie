@@ -44,7 +44,9 @@ impl Builder {
 		let cancel_callback = move |_: JsValue| {
 			let _ = cancel_tx.send(());
 		};
-		let progress_loop = move |progress: vscode_sys::ProgressProgress, cancel_token: vscode_sys::CancellationToken| -> Promise {
+		let progress_loop = move |progress: vscode_sys::ProgressProgress,
+		                          cancel_token: vscode_sys::CancellationToken|
+		      -> Promise {
 			js_sys::Reflect::apply(
 				&cancel_token.on_cancellation_requested().unchecked_into(),
 				&JsValue::undefined(),
@@ -53,7 +55,10 @@ impl Builder {
 			.unwrap();
 			wasm_bindgen_futures::future_to_promise(async move {
 				while let Some(update) = rx.next().await {
-					progress.report(vscode_sys::ProgressProgressValue { increment: update.0, message: update.1.as_ref().map(String::as_str) })
+					progress.report(vscode_sys::ProgressProgressValue {
+						increment: update.0,
+						message: update.1.as_ref().map(String::as_str),
+					})
 				}
 				Ok(JsValue::undefined())
 			})
@@ -78,15 +83,21 @@ pub struct Progress {
 impl Progress {
 	/// Create a new builder to configure the progress bar.
 	pub fn new() -> Builder {
-		Builder { title: None, location: vscode_sys::window::ProgressLocation::Notification, cancellable: false }
+		Builder {
+			title: None,
+			location: vscode_sys::window::ProgressLocation::Notification,
+			cancellable: false,
+		}
 	}
 
-	/// Increment and set message on the progress bar, see [`Progress::increment`] and [`Progress::message`].
+	/// Increment and set message on the progress bar, see [`Progress::increment`] and
+	/// [`Progress::message`].
 	pub fn update_inc(&self, inc: f64, msg: impl AsRef<str>) {
 		self.partial_update(Some(inc), Some(msg.as_ref()));
 	}
 
-	/// Set value and message on the progress bar, see [`Progress::increment`] and [`Progress::message`].
+	/// Set value and message on the progress bar, see [`Progress::increment`] and
+	/// [`Progress::message`].
 	pub fn update_set(&self, val: f64, msg: impl AsRef<str>) {
 		let old_val = *self.value.lock().unwrap();
 		self.partial_update(Some(val - old_val), Some(msg.as_ref()));
@@ -109,8 +120,8 @@ impl Progress {
 		self.partial_update(None, Some(msg.as_ref()));
 	}
 
-	/// Update each components of the progress bar if given, see [`Progress::increment`] and [`Progress::message`].
-	/// This will panic if the progress exceeds 110%.
+	/// Update each components of the progress bar if given, see [`Progress::increment`] and
+	/// [`Progress::message`]. This will panic if the progress exceeds 110%.
 	pub fn partial_update(&self, inc: Option<f64>, msg: Option<&str>) {
 		if let Some(inc) = inc {
 			*self.value.lock().unwrap() += inc;

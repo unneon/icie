@@ -27,12 +27,21 @@ impl Builder {
 	}
 
 	/// Add a filter that allows selecting files based on extension set.
-	/// The name will be displayed in the UI and should indicate what kind of files has these extensions.
-	pub fn filter(mut self, name: impl AsRef<str>, extensions: impl IntoIterator<Item=impl AsRef<str>>) -> Self {
+	/// The name will be displayed in the UI and should indicate what kind of files has these
+	/// extensions.
+	pub fn filter(
+		mut self,
+		name: impl AsRef<str>,
+		extensions: impl IntoIterator<Item=impl AsRef<str>>,
+	) -> Self
+	{
 		if self.filters.is_none() {
 			self.filters = Some(HashMap::new());
 		}
-		self.filters.as_mut().unwrap().insert(name.as_ref().to_owned(), extensions.into_iter().map(|s| s.as_ref().to_owned()).collect());
+		self.filters.as_mut().unwrap().insert(
+			name.as_ref().to_owned(),
+			extensions.into_iter().map(|s| s.as_ref().to_owned()).collect(),
+		);
 		self
 	}
 

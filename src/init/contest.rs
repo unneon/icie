@@ -13,10 +13,16 @@ use unijudge::{
 	boxed::{BoxedContest, BoxedTask}, Backend, Resource, TaskDetails
 };
 
-/// Wait for the contest, set up the first task, save a contest manifest and switch to the directory.  
-/// This will likely kill the extension process, so do not do anything important after calling this function.
-/// Post-setup steps will either be done from this function or the extension activation function.
-pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: Option<&str>) -> R<()> {
+/// Wait for the contest, set up the first task, save a contest manifest and switch to the
+/// directory. This will likely kill the extension process, so do not do anything important after
+/// calling this function. Post-setup steps will either be done from this function or the extension
+/// activation function.
+pub async fn sprint(
+	sess: Arc<Session>,
+	contest: &BoxedContest,
+	contest_title: Option<&str>,
+) -> R<()>
+{
 	let _status = crate::STATUS.push("Initializing");
 	let root_dir = design_contest_name(
 		sess.backend.contest_id(contest),
@@ -42,7 +48,11 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	init_task(task0_path.as_ref(), Some(task0_url), Some(task0_details)).await?;
 	let manifest = Manifest { contest_url: url_raw };
 	let manifest_path = task0_path.as_ref().join(".icie-contest");
-	fs::write(manifest_path.as_ref(), serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?).await?;
+	fs::write(
+		manifest_path.as_ref(),
+		serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?,
+	)
+	.await?;
 	evscode::open_folder(task0_path.to_str().unwrap(), false).await;
 	Ok(())
 }
@@ -75,7 +85,12 @@ async fn inner_sprint(manifest: &Path) -> R<()> {
 			let taski_name = format!("{}/{}", i + 1, tasks.len());
 			let details = fetch_task(task, &taski_name, &sess).await?;
 			let root = design_task_name(contest_dir.as_ref(), Some(&details)).await?;
-			init_task(root.as_ref(), Some(sess.run(|_, _| async { sess.backend.task_url(&sess.session, &task) }).await?), Some(details)).await?;
+			init_task(
+				root.as_ref(),
+				Some(sess.run(|_, _| async { sess.backend.task_url(&sess.session, &task) }).await?),
+				Some(details),
+			)
+			.await?;
 		}
 	}
 	Ok(())
@@ -88,7 +103,13 @@ async fn fetch_task(task: &BoxedTask, name: &str, sess: &Session) -> R<TaskDetai
 
 async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 	let details = match sess
-		.run(|backend, sess| async move { Ok(backend.contests(sess).await?.into_iter().find(|details| backend.contest_url(&details.id) == url)) })
+		.run(|backend, sess| async move {
+			Ok(backend
+				.contests(sess)
+				.await?
+				.into_iter()
+				.find(|details| backend.contest_url(&details.id) == url))
+		})
 		.await?
 	{
 		Some(details) => details,
@@ -101,7 +122,10 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 	};
 	TELEMETRY.init_countdown.spark();
 	let _status = crate::STATUS.push("Waiting");
-	let (progress, on_cancel) = evscode::Progress::new().title(format!("Waiting for {}", details.title)).cancellable().show();
+	let (progress, on_cancel) = evscode::Progress::new()
+		.title(format!("Waiting for {}", details.title))
+		.cancellable()
+		.show();
 	let mut on_cancel = on_cancel.boxed().fuse();
 	spawn_login_suggestion(site, sess);
 	loop {
@@ -110,7 +134,10 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 			Ok(left) => left,
 			Err(_) => break,
 		};
-		progress.update_set(100.0 - 100.0 * left.as_millis() as f64 / total.as_millis() as f64, fmt_time_left(left));
+		progress.update_set(
+			100.0 - 100.0 * left.as_millis() as f64 / total.as_millis() as f64,
+			fmt_time_left(left),
+		);
 		let mut delay = Box::pin(sleep(min(left, Duration::from_secs(1))).fuse());
 		select! {
 			() = delay => (),
@@ -124,8 +151,11 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 
 /// Parse the manifest and removes it.
 async fn pop_manifest(path: &Path) -> R<Manifest> {
-	let manifest = serde_json::from_str(&fs::read_to_string(path).await?).wrap("malformed contest manifest")?;
-	fs::remove_file(path).await.map_err(|e| e.context("could not delete contest manifest after use"))?;
+	let manifest = serde_json::from_str(&fs::read_to_string(path).await?)
+		.wrap("malformed contest manifest")?;
+	fs::remove_file(path)
+		.await
+		.map_err(|e| e.context("could not delete contest manifest after use"))?;
 	Ok(manifest)
 }
 
@@ -139,7 +169,10 @@ async fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>
 		loop {
 			match backend.contest_tasks(sess, &contest).await {
 				Err(unijudge::Error::NotYetStarted) if wait_retries > 0 => {
-					let _status = crate::STATUS.push(format!("Waiting for contest start, {} left", plural(wait_retries, "retry", "retries")));
+					let _status = crate::STATUS.push(format!(
+						"Waiting for contest start, {} left",
+						plural(wait_retries, "retry", "retries")
+					));
 					wait_retries -= 1;
 					sleep(NOT_YET_STARTED_RETRY_DELAY).await;
 				},
@@ -155,8 +188,14 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 	let sess = sess.clone();
 	evscode::spawn(async move {
 		if !auth::has_any_saved(&site).await {
-			let message = format!("You are not logged in to {}, maybe do it now to save time when submitting?", site);
-			let dec = evscode::Message::new(&message).item("log-in".to_owned(), "Log in", false).show().await;
+			let message = format!(
+				"You are not logged in to {}, maybe do it now to save time when submitting?",
+				site
+			);
+			let dec = evscode::Message::new(&message)
+				.item("log-in".to_owned(), "Log in", false)
+				.show()
+				.await;
 			if let Some("log-in") = dec.as_ref().map(String::as_str) {
 				sess.force_login().await?;
 				evscode::Message::new::<()>("Logged in successfully").show().await;

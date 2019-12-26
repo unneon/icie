@@ -4,9 +4,13 @@ use crate::{
 use evscode::{E, R};
 use std::collections::HashMap;
 
-/// A list of files used as code templates. If you see "Edit in settings.json", click it, then add a new entry starting with "icie.template.list" and if you use autocomplete, VS Code should autofill the current config. Replace the path placeholder with a path to your template file or add more templates
+/// A list of files used as code templates. If you see "Edit in settings.json", click it, then add a
+/// new entry starting with "icie.template.list" and if you use autocomplete, VS Code should
+/// autofill the current config. Replace the path placeholder with a path to your template file or
+/// add more templates
 #[evscode::config]
-pub static LIST: evscode::Config<HashMap<String, String>> = vec![("C++".to_owned(), BUILTIN_TEMPLATE_PSEUDOPATH.to_owned())].into_iter().collect();
+pub static LIST: evscode::Config<HashMap<String, String>> =
+	vec![("C++".to_owned(), BUILTIN_TEMPLATE_PSEUDOPATH.to_owned())].into_iter().collect();
 
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]
 async fn instantiate() -> R<()> {
@@ -14,7 +18,11 @@ async fn instantiate() -> R<()> {
 	TELEMETRY.template_instantiate.spark();
 	let templates = LIST.get();
 	let template_id = evscode::QuickPick::new()
-		.items(templates.iter().map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())))
+		.items(
+			templates
+				.iter()
+				.map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())),
+		)
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
@@ -54,7 +62,11 @@ pub async fn load(path: &str) -> R<LoadedTemplate> {
 	} else {
 		TELEMETRY.template_load_builtin.spark();
 		Ok(LoadedTemplate {
-			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
+			suggested_filename: format!(
+				"{}.{}",
+				dir::SOLUTION_STEM.get(),
+				dir::CPP_EXTENSION.get()
+			),
 			code: format!("{}\n", builtin_template()?),
 		})
 	}

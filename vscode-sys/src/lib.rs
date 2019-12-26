@@ -102,7 +102,12 @@ impl<T: Thenability> Thenability for Option<T> {
 }
 impl<T: Thenability> Thenability for Vec<T> {
 	fn convert(x: JsValue) -> Self {
-		x.dyn_into::<js_sys::Array>().unwrap().values().into_iter().map(|val| T::convert(val.unwrap())).collect()
+		x.dyn_into::<js_sys::Array>()
+			.unwrap()
+			.values()
+			.into_iter()
+			.map(|val| T::convert(val.unwrap()))
+			.collect()
 	}
 }
 impl<T: Thenability> Thenability for Result<T, js_sys::Error> {
@@ -125,7 +130,6 @@ extern "C" {
 
 	pub type Uri;
 
-	/// VS Code [vscode.Uri.file](https://code.visualstudio.com/api/references/vscode-api#Uri.file)
 	#[wasm_bindgen(static_method_of = Uri)]
 	pub fn file(path: &str) -> Uri;
 
@@ -178,7 +182,6 @@ extern "C" {
 
 	pub type TextDocument;
 
-	/// VS Code [vscode.TextDocument.fileName](https://code.visualstudio.com/api/references/vscode-api#TextDocument.fileName)
 	#[wasm_bindgen(method, getter, js_name = fileName)]
 	pub fn file_name(this: &TextDocument) -> String;
 
@@ -187,11 +190,12 @@ extern "C" {
 
 	pub type TextEditor;
 
-	/// VS Code [vscode.TextEditor.edit](https://code.visualstudio.com/api/references/vscode-api#343)
 	#[wasm_bindgen(method)]
-	pub fn edit(this: &TextEditor, callback: &Closure<dyn FnMut(&TextEditorEdit)>) -> Thenable<bool>;
+	pub fn edit(
+		this: &TextEditor,
+		callback: &Closure<dyn FnMut(&TextEditorEdit)>,
+	) -> Thenable<bool>;
 
-	/// VS Code [vscode.TextEditor.document](https://code.visualstudio.com/api/references/vscode-api#TextEditor.document)
 	#[wasm_bindgen(method, getter)]
 	pub fn document(this: &TextEditor) -> TextDocument;
 
@@ -211,7 +215,6 @@ extern "C" {
 	#[wasm_bindgen(constructor)]
 	pub fn new(line: usize, character: usize) -> Position;
 
-	/// VS Code [vscode.Clipboard](https://code.visualstudio.com/api/references/vscode-api#Clipboard)
 	pub type Clipboard;
 
 	#[wasm_bindgen(method, js_name = writeText)]
@@ -274,7 +277,6 @@ pub struct ItemRet<T> {
 	pub id: T,
 }
 
-/// VS Code [vscode.TextEditorRevealType](https://code.visualstudio.com/api/references/vscode-api#TextEditorRevealType)
 #[repr(i32)]
 pub enum TextEditorRevealType {
 	AtTop = 3,
@@ -291,7 +293,6 @@ pub struct ProgressProgressValue<'a> {
 }
 wasm_abi_serde!(ProgressProgressValue<'_>);
 
-/// VS Code [vscode.commands](https://code.visualstudio.com/api/references/vscode-api#commands)
 pub mod commands {
 	use crate::Thenable;
 	use wasm_bindgen::prelude::*;
@@ -299,18 +300,15 @@ pub mod commands {
 	#[wasm_bindgen(module = vscode)]
 	extern "C" {
 
-		/// VS Code [vscode.commands.executeCommand](https://code.visualstudio.com/api/references/vscode-api#commands.executeCommand)
 		#[wasm_bindgen(js_namespace = commands, js_name = executeCommand, variadic)]
 		pub fn execute_command(command: &str, rest: js_sys::Array) -> Thenable<JsValue>;
 
-		/// VS Code [vscode.commands.registerCommand](https://code.visualstudio.com/api/references/vscode-api#commands.registerCommand)
 		#[wasm_bindgen(js_namespace = commands, js_name = registerCommand)]
 		pub fn register_command(command: &str, callback: &Closure<dyn FnMut()>);
 
 	}
 }
 
-/// VS Code [vscode.env](https://code.visualstudio.com/api/references/vscode-api#env)
 pub mod env {
 
 	use crate::{Clipboard, Thenable, Uri};
@@ -322,14 +320,12 @@ pub mod env {
 		#[wasm_bindgen(js_namespace = env, js_name = clipboard)]
 		pub static CLIPBOARD: Clipboard;
 
-		/// VS Code [vscode.env.openExternal](https://code.visualstudio.com/api/references/vscode-api#2157)
 		#[wasm_bindgen(js_namespace = env, js_name = openExternal)]
 		pub fn open_external(uri: &Uri) -> Thenable<bool>;
 
 	}
 }
 
-/// VS Code [vscode.window](https://code.visualstudio.com/api/references/vscode-api#window)
 pub mod window {
 
 	use crate::{StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, WebviewPanel};
@@ -340,7 +336,6 @@ pub mod window {
 	#[wasm_bindgen(module = vscode)]
 	extern "C" {
 
-		/// VS Code [vscode.window.activeTextEditor](https://code.visualstudio.com/api/references/vscode-api#window.activeTextEditor)
 		#[wasm_bindgen(js_namespace = window, js_name = activeTextEditor)]
 		pub static ACTIVE_TEXT_EDITOR: Option<TextEditor>;
 
@@ -358,31 +353,41 @@ pub mod window {
 			options: CreateWebviewPanelOptions,
 		) -> WebviewPanel;
 
-		/// VS Code [vscode.window.showErrorMessage](https://code.visualstudio.com/api/references/vscode-api#window.showErrorMessage)
 		#[wasm_bindgen(js_namespace = window, js_name = showErrorMessage, variadic)]
-		pub fn show_error_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
+		pub fn show_error_message(
+			message: &str,
+			options: &JsValue,
+			items: Vec<JsValue>,
+		) -> Thenable<JsValue>;
 
-		/// VS Code [vscode.window.showInformationMessage](https://code.visualstudio.com/api/references/vscode-api#window.showInformationMessage)
 		#[wasm_bindgen(js_namespace = window, js_name = showInformationMessage, variadic)]
-		pub fn show_information_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
+		pub fn show_information_message(
+			message: &str,
+			options: &JsValue,
+			items: Vec<JsValue>,
+		) -> Thenable<JsValue>;
 
-		/// VS Code [vscode.window.showInputBox](https://code.visualstudio.com/api/references/vscode-api#window.showInputBox)
 		#[wasm_bindgen(js_namespace = window, js_name = showInputBox)]
 		pub fn show_input_box(options: InputBoxOptions) -> Thenable<Option<String>>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showOpenDialog)]
 		pub fn show_open_dialog(options: OpenDialogOptions) -> Thenable<Option<Vec<String>>>;
 
-		/// VS Code [vscode.window.showQuickPick](https://code.visualstudio.com/api/references/vscode-api#2285)
 		#[wasm_bindgen(js_namespace = window, js_name = showQuickPick)]
-		pub fn show_quick_pick(items: &js_sys::Array, options: ShowQuickPickOptions) -> Thenable<JsValue>;
+		pub fn show_quick_pick(
+			items: &js_sys::Array,
+			options: ShowQuickPickOptions,
+		) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showTextDocument)]
 		pub fn show_text_document(document: &TextDocument) -> Thenable<TextEditor>;
 
-		/// VS Code [vscode.window.showWarningMessage](https://code.visualstudio.com/api/references/vscode-api#window.showWarningMessage)
 		#[wasm_bindgen(js_namespace = window, js_name = showWarningMessage, variadic)]
-		pub fn show_warning_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
+		pub fn show_warning_message(
+			message: &str,
+			options: &JsValue,
+			items: Vec<JsValue>,
+		) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = visibleTextEditors)]
 		pub static VISIBLE_TEXT_EDITORS: js_sys::Array;
@@ -481,8 +486,6 @@ pub mod window {
 		pub enable_command_uris: bool,
 		#[serde(rename = "enableScripts")]
 		pub enable_scripts: bool,
-		// TODO: localResourceRoots
-		// TODO: portMapping
 	}
 
 	#[derive(Serialize)]
@@ -494,14 +497,12 @@ pub mod window {
 	}
 	wasm_abi_serde!(CreateWebviewPanelShowOptions);
 
-	/// Options for [vscode.window.showErrorMessage](https://code.visualstudio.com/api/references/vscode-api#window.showErrorMessage), [vscode.window.showInformationMessage](https://code.visualstudio.com/api/references/vscode-api#window.showInformationMessage) and [vscode.window.showWarningMessage](https://code.visualstudio.com/api/references/vscode-api#window.showWarningMessage)
 	#[derive(Serialize)]
 	pub struct ShowMessageOptions {
 		pub modal: bool,
 	}
 	wasm_abi_serde!(ShowMessageOptions);
 
-	/// Options for [vscode.window.showQuickPick](https://code.visualstudio.com/api/references/vscode-api#2285)
 	#[derive(Serialize)]
 	pub struct ShowQuickPickOptions<'a> {
 		#[serde(rename = "canPickMany")]
@@ -525,7 +526,6 @@ pub mod window {
 		pub id: T,
 	}
 
-	/// Item for [vscode.window.showQuickPick](https://code.visualstudio.com/api/references/vscode-api#2285)
 	#[derive(Serialize)]
 	pub struct ShowQuickPickItem<'a, T> {
 		#[serde(rename = "alwaysShow")]
@@ -538,7 +538,6 @@ pub mod window {
 	}
 }
 
-/// VS Code [vscode.workspace](https://code.visualstudio.com/api/references/vscode-api#workspace)
 pub mod workspace {
 
 	use crate::{TextDocument, Thenable, Uri};
@@ -550,12 +549,12 @@ pub mod workspace {
 		#[wasm_bindgen(js_namespace = workspace, js_name = findFiles)]
 		pub fn find_files(include: &str) -> Thenable<Vec<Uri>>;
 
-		/// VS Code [vscode.workspace.getConfiguration](https://code.visualstudio.com/api/references/vscode-api#workspace)
 		#[wasm_bindgen(js_namespace = workspace, js_name = getConfiguration)]
 		pub fn get_configuration(id: &str) -> JsValue;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = openTextDocument)]
-		pub fn open_text_document(file_name: &str) -> Thenable<Result<TextDocument, js_sys::Error>>;
+		pub fn open_text_document(file_name: &str)
+		-> Thenable<Result<TextDocument, js_sys::Error>>;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = rootPath)]
 		pub static ROOT_PATH: JsValue;

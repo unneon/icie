@@ -79,12 +79,13 @@ impl ConfigEntry {
 
 /// [Activation event](https://code.visualstudio.com/api/references/activation-events) checked by VS Code even when the extension is not active.
 ///
-/// Set the [`Package::extra_activations`] field in [`evscode::plugin!`](../../evscode_codegen/macro.plugin.html) call to register the check.
+/// Set the [`Package::extra_activations`] field in
+/// [`evscode::plugin!`](../../evscode_codegen/macro.plugin.html) call to register the check.
 pub enum Activation<S: AsRef<str>> {
 	#[doc(hidden)]
 	OnCommand { command: Identifier },
-	/// Fires when a folder is opened and it contains at least one file that matched the given selector.
-	/// See [official documentation](https://code.visualstudio.com/api/references/activation-events#workspaceContains).
+	/// Fires when a folder is opened and it contains at least one file that matched the given
+	/// selector. See [official documentation](https://code.visualstudio.com/api/references/activation-events#workspaceContains).
 	WorkspaceContains {
 		/// Glob file pattern, like `**/.editorconfig`.
 		selector: S,
@@ -95,7 +96,9 @@ impl Activation<&'static str> {
 	pub fn own(&self) -> Activation<String> {
 		match self {
 			Activation::OnCommand { command } => Activation::OnCommand { command: *command },
-			Activation::WorkspaceContains { selector } => Activation::WorkspaceContains { selector: (*selector).to_owned() },
+			Activation::WorkspaceContains { selector } => {
+				Activation::WorkspaceContains { selector: (*selector).to_owned() }
+			},
 		}
 	}
 }
@@ -145,8 +148,9 @@ pub struct Package {
 	pub description: &'static str,
 	/// Up to 5 keywords to make it easier to find the extension.
 	pub keywords: &'static [&'static str],
-	/// Categories that describe your extension, out of the following list: `Programming Languages, Snippets, Linters, Themes, Debuggers, Formatters,
-	/// Keymaps, SCM Providers, Other, Extension Packs, Language Packs`
+	/// Categories that describe your extension, out of the following list: `Programming Languages,
+	/// Snippets, Linters, Themes, Debuggers, Formatters, Keymaps, SCM Providers, Other, Extension
+	/// Packs, Language Packs`
 	pub categories: &'static [&'static str],
 	/// [SPDX 2.0](https://spdx.org/licenses/) identifier of your extension's license.
 	pub license: &'static str,
@@ -171,6 +175,7 @@ pub struct Package {
 	/// Telemetry instrumentation key, set up in [Azure Apllication Insights](https://github.com/microsoft/vscode-extension-telemetry).
 	pub telemetry_key: &'static str,
 	/// List of filters that specify what can be logged.
-	/// An entry like `("html5ever", LevelFilter::Error)` means that only errors of level Error or higher will be visible in developer tools.
+	/// An entry like `("html5ever", LevelFilter::Error)` means that only errors of level Error or
+	/// higher will be visible in developer tools.
 	pub log_filters: &'static [(&'static str, log::LevelFilter)],
 }

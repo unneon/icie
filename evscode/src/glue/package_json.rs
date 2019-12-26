@@ -26,12 +26,18 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		main: "icie.js".to_owned(),
 		contributes: Contributes {
 			commands: SortedVec::new(
-				pkg.commands.iter().map(|command| ContributesCommands { command: command.id.to_string(), title: command.title.to_owned() }),
+				pkg.commands.iter().map(|command| ContributesCommands {
+					command: command.id.to_string(),
+					title: command.title.to_owned(),
+				}),
 				|cmd| cmd.command.clone(),
 			),
 			keybindings: SortedVec::new(
 				pkg.commands.iter().filter_map(|command| {
-					command.key.clone().map(|key| ContributesKeybindings { command: command.id.to_string(), key: key.to_owned() })
+					command.key.clone().map(|key| ContributesKeybindings {
+						command: command.id.to_string(),
+						key: key.to_owned(),
+					})
 				}),
 				|cmd| cmd.command.clone(),
 			),
@@ -49,10 +55,17 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 					.collect(),
 			},
 		},
-		activation_events: collect_activation_events(pkg).into_iter().map(|ev| ev.package_json_format()).collect(),
+		activation_events: collect_activation_events(pkg)
+			.into_iter()
+			.map(|ev| ev.package_json_format())
+			.collect(),
 		markdown: "github",
 		qna: "marketplace",
-		dependencies: pkg.node_dependencies.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
+		dependencies: pkg
+			.node_dependencies
+			.iter()
+			.map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+			.collect(),
 		icon: "icon.png",
 	}
 }

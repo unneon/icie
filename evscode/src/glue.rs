@@ -9,11 +9,17 @@ mod package_json;
 
 #[doc(hidden)]
 pub fn activate(ctx: &vscode_sys::ExtensionContext, pkg: Package) {
-	let logger = crate::logger::VSCodeLoger { blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect() };
+	let logger = crate::logger::VSCodeLoger {
+		blacklist: pkg.log_filters.iter().map(|(id, fil)| (*id, *fil)).collect(),
+	};
 	log::set_boxed_logger(Box::new(logger)).expect("evscode::execute failed to set logger");
 	log::set_max_level(LevelFilter::Trace);
 	std::panic::set_hook(Box::new(panic_hook));
-	let telemetry_reporter = vscode_extension_telemetry_sys::TelemetryReporter::new(pkg.identifier, pkg.version, pkg.telemetry_key);
+	let telemetry_reporter = vscode_extension_telemetry_sys::TelemetryReporter::new(
+		pkg.identifier,
+		pkg.version,
+		pkg.telemetry_key,
+	);
 	EXTENSION_CONTEXT.with(|ec| ec.replace(Some((*ctx).clone())));
 	EXTENSION_PATH.with(|ep| ep.replace(Some(ctx.get_extension_path())));
 	CONFIG_ENTRIES.with(|ce| ce.replace(Some(pkg.configuration.clone())));
@@ -49,7 +55,8 @@ pub async fn deactivate() {
 pub fn generate_package_json(path: &str, pkg: Package) {
 	let pkg = Box::leak(Box::new(pkg));
 	let package_json = package_json::construct_package_json(pkg);
-	node_sys::fs::write_file_sync(path, &serde_json::to_string_pretty(&package_json).unwrap()).unwrap();
+	node_sys::fs::write_file_sync(path, &serde_json::to_string_pretty(&package_json).unwrap())
+		.unwrap();
 }
 
 fn panic_hook(info: &PanicInfo) {
@@ -60,7 +67,9 @@ fn panic_hook(info: &PanicInfo) {
 	} else {
 		"???".to_owned()
 	};
-	let location = info.location().map_or("???".to_owned(), |location| format!("{}:{}:{}", location.file(), location.line(), location.column()));
+	let location = info.location().map_or("???".to_owned(), |location| {
+		format!("{}:{}:{}", location.file(), location.line(), location.column())
+	});
 	E::error(format!("ICIE panicked, {} at {}", payload, location)).emit();
 }
 

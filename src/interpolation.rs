@@ -80,7 +80,8 @@ impl FromStr for Case {
 			"case.kebab" => Ok(Case::Kebab),
 			"case.upper" => Ok(Case::Upper),
 			_ => Err(format!(
-				"unrecognized case type {:?}, choose one of: \"case.camel\", \"case.pascal\", \"case.snake\", \"case.kebab\", \"case.upper\"",
+				"unrecognized case type {:?}, choose one of: \"case.camel\", \"case.pascal\", \
+				 \"case.snake\", \"case.kebab\", \"case.upper\"",
 				s
 			)),
 		}
@@ -206,6 +207,8 @@ impl<V: VariableSet> evscode::Configurable for Interpolation<V> {
 	}
 
 	fn schema(default: Option<&Self>) -> serde_json::Value {
-		<String as evscode::Configurable>::schema(default.map(std::string::ToString::to_string).as_ref())
+		<String as evscode::Configurable>::schema(
+			default.map(std::string::ToString::to_string).as_ref(),
+		)
 	}
 }

@@ -1,7 +1,7 @@
 //! Tabs with custom interface built on HTML/CSS/JS.
 //!
-//! Consider using one of the [predefined webview patterns](../../goodies/index.html) or writing your own general pattern instead of using this
-//! directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
+//! Consider using one of the [predefined webview patterns](../../goodies/index.html) or writing
+//! your own general pattern instead of using this directly. See also the [official webview tutorial](https://code.visualstudio.com/api/extension-guides/webview).
 
 use crate::Column;
 use futures::{
@@ -53,15 +53,17 @@ impl<'a> Builder<'a> {
 
 	/// Do not destroy webview state when the tab stops to be visible.
 	/// According to VS Code API, this results in increased memory usage.
-	/// However, this flag is required if the webview keep an internal state that can't be reconstructed from HTML alone.
-	/// Also, not setting this flags results in a visible delay when opening the tab again.
+	/// However, this flag is required if the webview keep an internal state that can't be
+	/// reconstructed from HTML alone. Also, not setting this flags results in a visible delay when
+	/// opening the tab again.
 	pub fn retain_context_when_hidden(mut self) -> Self {
 		self.retain_context_when_hidden = true;
 		self
 	}
 
-	/// Add a path from which assets created with [`crate::asset`] or `vscode-resource://` scheme can be used.
-	/// If this function is not called at all, by default the extension install directory and the workspace directory are allowed.
+	/// Add a path from which assets created with [`crate::asset`] or `vscode-resource://` scheme
+	/// can be used. If this function is not called at all, by default the extension install
+	/// directory and the workspace directory are allowed.
 	pub fn local_resource_roots(mut self, uris: &'a [&'a str]) -> Self {
 		self.local_resource_roots = Some(uris);
 		self
@@ -72,9 +74,15 @@ impl<'a> Builder<'a> {
 		let panel = vscode_sys::window::create_webview_panel(
 			self.view_type,
 			self.title,
-			vscode_sys::window::CreateWebviewPanelShowOptions { preserve_focus: self.preserve_focus, view_column: self.view_column.as_enum_id() },
+			vscode_sys::window::CreateWebviewPanelShowOptions {
+				preserve_focus: self.preserve_focus,
+				view_column: self.view_column.as_enum_id(),
+			},
 			vscode_sys::window::CreateWebviewPanelOptions {
-				general: vscode_sys::window::WebviewOptions { enable_scripts: self.enable_scripts, enable_command_uris: self.enable_command_uris },
+				general: vscode_sys::window::WebviewOptions {
+					enable_scripts: self.enable_scripts,
+					enable_command_uris: self.enable_command_uris,
+				},
 				panel: vscode_sys::window::WebviewPanelOptions {
 					enable_find_widget: self.enable_find_widget,
 					retain_context_when_hidden: self.retain_context_when_hidden,
@@ -95,7 +103,12 @@ pub struct Webview {
 impl Webview {
 	/// Create a new builder to configure the webview.
 	/// View type is a panel type identifier.
-	pub fn new<'a>(view_type: &'a str, title: &'a str, view_column: impl Into<Column>) -> Builder<'a> {
+	pub fn new<'a>(
+		view_type: &'a str,
+		title: &'a str,
+		view_column: impl Into<Column>,
+	) -> Builder<'a>
+	{
 		Builder {
 			view_type,
 			title,
@@ -120,7 +133,8 @@ impl Deref for Webview {
 
 /// A cloneable reference to a webview.
 ///
-/// Remains valid and usable even after the webview is dropped and destroyed, although various methods will naturally return errors.
+/// Remains valid and usable even after the webview is dropped and destroyed, although various
+/// methods will naturally return errors.
 pub struct WebviewRef {
 	pub(crate) panel: vscode_sys::WebviewPanel,
 }
@@ -134,7 +148,8 @@ impl WebviewRef {
 	/// Send a message which can be [received by the JS inside the webview](https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-an-extension-to-a-webview).
 	///
 	/// The messages are not guaranteed to arrive if the webview is not ["live"](https://code.visualstudio.com/api/references/vscode-api#1637) yet.
-	/// To circumvent this horrible behaviour, whenever you call this method on a fresh webview, you must add script that sends a "I'm ready!" message and wait for it before calling.
+	/// To circumvent this horrible behaviour, whenever you call this method on a fresh webview, you
+	/// must add script that sends a "I'm ready!" message and wait for it before calling.
 	pub async fn post_message(&self, msg: impl Serialize) -> bool {
 		self.panel.webview().post_message(JsValue::from_serde(&msg).unwrap()).await
 	}

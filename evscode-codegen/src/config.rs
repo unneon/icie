@@ -2,7 +2,9 @@ use crate::util::{invoke_list::InvocationList, ProcError};
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
 use std::iter;
-use syn::{parse2, parse_macro_input, spanned::Spanned, GenericArgument, ItemStatic, LitStr, PathArguments, Type};
+use syn::{
+	parse2, parse_macro_input, spanned::Spanned, GenericArgument, ItemStatic, LitStr, PathArguments, Type
+};
 
 pub static CONFIG_INVOKELIST: InvocationList = InvocationList::new("Config");
 
@@ -50,16 +52,26 @@ fn transform(item: &ItemStatic) -> Result<TokenStream, ProcError> {
 
 fn extract_inner_type(item: &ItemStatic) -> Result<&Type, ProcError> {
 	match &*item.ty {
-		Type::Path(path) => path.path.segments.iter().nth(1).and_then(|segment| match &segment.arguments {
-			PathArguments::AngleBracketed(args) => args.args.iter().next().and_then(|arg| match arg {
-				GenericArgument::Type(ty) => Some(ty),
+		Type::Path(path) => {
+			path.path.segments.iter().nth(1).and_then(|segment| match &segment.arguments {
+				PathArguments::AngleBracketed(args) => {
+					args.args.iter().next().and_then(|arg| match arg {
+						GenericArgument::Type(ty) => Some(ty),
+						_ => None,
+					})
+				},
 				_ => None,
-			}),
-			_ => None,
-		}),
+			})
+		},
 		_ => None,
 	}
-	.ok_or_else(|| ProcError::new(Diagnostic::spanned(item.ty.span().unwrap(), Level::Error, "expected type `evscode::Config<...>`")))
+	.ok_or_else(|| {
+		ProcError::new(Diagnostic::spanned(
+			item.ty.span().unwrap(),
+			Level::Error,
+			"expected type `evscode::Config<...>`",
+		))
+	})
 }
 
 fn extract_description(item: &ItemStatic) -> Result<String, ProcError> {
@@ -79,7 +91,11 @@ fn extract_description(item: &ItemStatic) -> Result<String, ProcError> {
 			})
 		})
 		.ok_or_else(|| {
-			ProcError::new(Diagnostic::spanned(item.span().unwrap(), Level::Error, "configuration entries must have an attached doc comment"))
+			ProcError::new(Diagnostic::spanned(
+				item.span().unwrap(),
+				Level::Error,
+				"configuration entries must have an attached doc comment",
+			))
 		})?;
 	Ok(value)
 }

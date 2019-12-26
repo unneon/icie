@@ -7,11 +7,13 @@
 //! static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 //! ```
 //! The entry will be automatically added to the extension manifest and registered for updates.
-//! To read the values, first call [`Config::get`] to get an [`std::sync::Arc`] with the current value.
-//! The [`Config`] will receive configuration updates and return up-to-date values, but the returned pointer will not.
+//! To read the values, first call [`Config::get`] to get an [`std::sync::Arc`] with the current
+//! value. The [`Config`] will receive configuration updates and return up-to-date values, but the
+//! returned pointer will not.
 //!
-//! The system supports all types that implement the [`Configurable`](trait.Configurable.html) trait.
-//! If the conversion provided via the [`Marshal`](../marshal/trait.Marshal.html) trait fails, the default value will be used.
+//! The system supports all types that implement the [`Configurable`](trait.Configurable.html)
+//! trait. If the conversion provided via the [`Marshal`](../marshal/trait.Marshal.html) trait
+//! fails, the default value will be used.
 
 use crate::{marshal::Marshal, meta::Identifier};
 use std::collections::HashMap;
@@ -40,8 +42,9 @@ macro_rules! optobject {
 
 /// Wrapper object for an automatically updated configuration entry.
 ///
-/// To get the current value, call the [`Config::get`] method which will return an [`std::sync::Arc`].
-/// Do not store the Arc for extended periods of time, so that your extension is responsive to configuration updates.
+/// To get the current value, call the [`Config::get`] method which will return an
+/// [`std::sync::Arc`]. Do not store the Arc for extended periods of time, so that your extension is
+/// responsive to configuration updates.
 #[derive(Debug)]
 pub struct Config<T: Configurable> {
 	id: Identifier,
@@ -68,8 +71,8 @@ impl<T: Configurable> Config<T> {
 
 /// A trait that allows a type to be used as a configuration values.
 ///
-/// This trait can be [automatically derived](../../evscode_codegen/derive.Configurable.html) for enums that hold no data.
-/// ```ignore
+/// This trait can be [automatically derived](../../evscode_codegen/derive.Configurable.html) for
+/// enums that hold no data. ```ignore
 /// #[derive(evscode::Configurable)]
 /// enum AnimalBackend {
 ///     #[evscode(name = "Doggo")]
@@ -78,7 +81,10 @@ impl<T: Configurable> Config<T> {
 ///     Cat,
 /// }
 /// ```
-/// There does not exist a simple way to implement it for any custom types, because the VS Code [documentation of config API](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) is lacking.
+/// There does not exist a simple way to implement it for any custom types, because the VS Code
+/// [documentation of config API][1] is lacking.
+///
+/// [1]: (https://code.visualstudio.com/api/references/contribution-points#contributes.configuration)
 pub trait Configurable: Marshal+Clone {
 	#[doc(hidden)]
 	fn to_json(&self) -> serde_json::Value;
@@ -135,11 +141,15 @@ impl<T: Configurable> Configurable for Option<T> {
 	}
 }
 /// This implementation is not editable in VS Code setting UI.
-/// I am not sure why, because VS Code has builtin configuration entries that have the same manifest entry, but are editable.
-/// Naturally, the [documentation](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) of this behaviour does not exist.
-impl<T: Configurable, S: std::hash::BuildHasher+Default+Clone> Configurable for HashMap<String, T, S> {
+/// I am not sure why, because VS Code has builtin configuration entries that have the same manifest
+/// entry, but are editable. Naturally, the [documentation](https://code.visualstudio.com/api/references/contribution-points#contributes.configuration) of this behaviour does not exist.
+impl<T: Configurable, S: std::hash::BuildHasher+Default+Clone> Configurable
+	for HashMap<String, T, S>
+{
 	fn to_json(&self) -> serde_json::Value {
-		serde_json::Value::Object(self.iter().map(|(key, value)| (key.clone(), value.to_json())).collect())
+		serde_json::Value::Object(
+			self.iter().map(|(key, value)| (key.clone(), value.to_json())).collect(),
+		)
 	}
 
 	fn schema(default: Option<&Self>) -> serde_json::Value {

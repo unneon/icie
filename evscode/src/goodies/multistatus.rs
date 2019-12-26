@@ -7,22 +7,22 @@
 //!     static ref STATUS: evscode::MultiStatus = evscode::MultiStatus::new("EEE ");
 //! }
 //! ```
-//! Then, to set the status use the [`StackedStatus::push`] function and save the returned guard for the duration of the operation.
-//! ```
+//! Then, to set the status use the [`StackedStatus::push`] function and save the returned guard for
+//! the duration of the operation. ```
 //! # let STATUS = evscode::StackedStatus::new("EEE ");
 //! # fn compile() {}
 //! # fn parse_compilation_errors() {}
 //! let _status = STATUS.push("Building"); // "EEE Building"
 //! compile();
 //! {
-//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
-//!     parse_compilation_errors();
+//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing
+//! compilation errors"     parse_compilation_errors();
 //! }
 //! // "EEE Building"
 //! // (disappears)
 //! ```
-//!
-//! If multiple [`StackedStatus::push`] operations are active simultaneously, the messages will be separated with a comma.
+//! If multiple [`StackedStatus::push`] operations are active simultaneously, the messages will be
+//! separated with a comma.
 
 use std::sync::{Mutex, MutexGuard};
 
@@ -37,7 +37,8 @@ impl MultiStatus {
 		MultiStatus { prefix, stacks: Mutex::new(Vec::new()) }
 	}
 
-	/// Set the current thread status message and return a guard object that will control its lifetime
+	/// Set the current thread status message and return a guard object that will control its
+	/// lifetime
 	pub fn push(&self, msg: impl AsRef<str>) -> Guard {
 		let msg = msg.as_ref().to_owned();
 		let mut lck = self.obtain_lock();
@@ -48,7 +49,11 @@ impl MultiStatus {
 
 	fn update(&self, mut words: MutexGuard<Vec<String>>) {
 		words.sort();
-		let msg = if !words.is_empty() { Some(format!("{} {}", self.prefix, words.join(", "))) } else { None };
+		let msg = if !words.is_empty() {
+			Some(format!("{} {}", self.prefix, words.join(", ")))
+		} else {
+			None
+		};
 		crate::stdlib::status(msg.as_ref().map(String::as_str));
 	}
 

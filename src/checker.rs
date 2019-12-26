@@ -5,7 +5,10 @@ use async_trait::async_trait;
 use evscode::R;
 use std::{fmt, time::Duration};
 
-/// The maximum time a checker executable can run before getting killed, specified in milliseconds. Killing will cause the test to be classified as failed. Leaving this empty(which denotes no limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting system resources.
+/// The maximum time a checker executable can run before getting killed, specified in milliseconds.
+/// Killing will cause the test to be classified as failed. Leaving this empty(which denotes no
+/// limit) is not recommended, because this will cause stuck processes to run indefinitely, wasting
+/// system resources.
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
@@ -83,7 +86,11 @@ impl Checker for ExecChecker {
 		let input_file = Tempfile::new("input.in", input).await?;
 		let desired_file = Tempfile::new("desired.out", desired).await?;
 		let out_file = Tempfile::new("output.out", out).await?;
-		let args = [input_file.path().to_str().unwrap(), out_file.path().to_str().unwrap(), desired_file.path().to_str().unwrap()];
+		let args = [
+			input_file.path().to_str().unwrap(),
+			out_file.path().to_str().unwrap(),
+			desired_file.path().to_str().unwrap(),
+		];
 		let run = self.executable.run("", &args, &self.environment).await?;
 		Ok(run.success())
 	}

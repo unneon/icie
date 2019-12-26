@@ -30,8 +30,9 @@ pub fn command(params: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Create a strongly-typed and automatically updated [config](../evscode/config/index.html) entry.
 ///
-/// Compatible with any type that implements [`evscode::Configurable`](../evscode/config/Configurable.trait).
-/// Can be used at any point in global scope, and the entry id will be created based on the module path and variable name.
+/// Compatible with any type that implements
+/// [`evscode::Configurable`](../evscode/config/Configurable.trait). Can be used at any point in
+/// global scope, and the entry id will be created based on the module path and variable name.
 /// The description will be extracted from the doc comment.
 /// ```ignore
 /// /// Fooification time limit, expressed in milliseconds
@@ -60,9 +61,9 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 
 /// Specify all of the plugin metadata.
 ///
-/// See [`evscode::meta::Package`](../evscode/meta/struct.Package.html) for a description and types of all available options.
-/// This macro will generate a main function and should only be invoked once, from the main.rs file.
-/// ```ignore
+/// See [`evscode::meta::Package`](../evscode/meta/struct.Package.html) for a description and types
+/// of all available options. This macro will generate a main function and should only be invoked
+/// once, from the main.rs file. ```ignore
 /// evscode::plugin! {
 ///     name: "Example Evscode Extension",
 ///     publisher: "", // fill in your Marketplace publisher username.

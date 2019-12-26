@@ -12,11 +12,22 @@ async fn spawn() -> R<()> {
 pub struct Internal;
 pub struct External;
 
-pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: &Path, command: impl IntoIterator<Item=A>) -> R<()> {
+pub fn debugger<A: AsRef<str>>(
+	app: impl AsRef<str>,
+	test: &Path,
+	command: impl IntoIterator<Item=A>,
+) -> R<()>
+{
 	let test = util::without_extension(
-		&test.as_ref().strip_prefix(&Path::from_native(evscode::workspace_root()?)).wrap("found test outside of test directory")?,
+		&test
+			.as_ref()
+			.strip_prefix(&Path::from_native(evscode::workspace_root()?))
+			.wrap("found test outside of test directory")?,
 	);
-	External::command(Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())), Some(command))
+	External::command(
+		Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())),
+		Some(command),
+	)
 }
 
 pub fn install<A: AsRef<str>>(name: impl AsRef<str>, command: impl IntoIterator<Item=A>) -> R<()> {
@@ -32,12 +43,18 @@ impl Internal {
 		Ok(())
 	}
 
-	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(title: T, command: Option<I>) -> R<()> {
+	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(
+		title: T,
+		command: Option<I>,
+	) -> R<()>
+	{
 		Internal::raw(title, command.map(bash_escape_command).unwrap_or_default())
 	}
 }
 
-/// The external terminal emulator that should be used on your system. Is set to `x-terminal-emulator`, a common alias for the default terminal emulator on many Linux systems. The command will be called like `x-terminal-emulator --title 'ICIE Thingy' -e 'bash'`.
+/// The external terminal emulator that should be used on your system. Is set to
+/// `x-terminal-emulator`, a common alias for the default terminal emulator on many Linux systems.
+/// The command will be called like `x-terminal-emulator --title 'ICIE Thingy' -e 'bash'`.
 #[evscode::config]
 static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
 
@@ -46,9 +63,14 @@ static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
 static EXTERNAL_CUSTOM_TITLE: evscode::Config<bool> = true;
 
 impl External {
-	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<&str>, command: Option<I>) -> R<()> {
+	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(
+		title: Option<&str>,
+		command: Option<I>,
+	) -> R<()>
+	{
 		let title = title.map(str::to_owned);
-		let command = command.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
+		let command = command
+			.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
 		evscode::spawn(async move {
 			let program = Executable::new_name(EXTERNAL_COMMAND.get());
 			let mut args = Vec::new();

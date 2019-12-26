@@ -19,7 +19,14 @@ const CLANG: Service = Service {
 	tutorial_url_windows: Some("https://github.com/pustaczek/icie/blob/master/docs/WINDOWS.md"),
 };
 
-pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen: Codegen, custom_flags: &[&str]) -> R<Status> {
+pub async fn compile(
+	sources: &[&Path],
+	out: &Path,
+	standard: Standard,
+	codegen: Codegen,
+	custom_flags: &[&str],
+) -> R<Status>
+{
 	let clang = CLANG.find_executable().await?;
 	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();
@@ -40,8 +47,12 @@ pub async fn compile(sources: &[&Path], out: &Path, standard: Standard, codegen:
 		let severity = &cap[4];
 		let message = cap[5].to_owned();
 		let path = Path::from_native(cap[1].to_owned());
-		(if severity == "error" || severity == "fatal error" { &mut errors } else { &mut warnings })
-			.push(Message { message, location: Some(Location { path, line, column }) });
+		(if severity == "error" || severity == "fatal error" {
+			&mut errors
+		} else {
+			&mut warnings
+		})
+		.push(Message { message, location: Some(Location { path, line, column }) });
 	}
 	for cap in (&LINK_RE as &Regex).captures_iter(&run.stderr) {
 		let message = cap[1].to_owned();
@@ -65,13 +76,17 @@ fn flag_standard(standard: Standard) -> &'static str {
 }
 pub fn flags_codegen(codegen: Codegen) -> &'static [&'static str] {
 	match codegen {
-		Codegen::Debug => &["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"] as &'static [&'static str],
+		Codegen::Debug => {
+			&["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"]
+				as &'static [&'static str]
+		},
 		Codegen::Release => &["-Ofast"],
 		Codegen::Profile => &["-g", "-O2", "-fno-inline-functions"],
 	}
 }
 
 lazy_static! {
-	static ref ERROR_RE: Regex = Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap();
+	static ref ERROR_RE: Regex =
+		Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap();
 	static ref LINK_RE: Regex = Regex::new(".*(undefined reference to .*)").unwrap();
 }

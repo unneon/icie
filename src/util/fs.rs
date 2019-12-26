@@ -8,20 +8,40 @@ use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 pub async fn read_dir(path: &Path) -> R<Vec<Path>> {
 	let (tx, rx) = make_callback2();
-	node_sys::fs::readdir(path.to_str().unwrap(), node_sys::fs::ReaddirOptions { encoding: Some("utf8"), with_file_types: None }, tx);
-	Ok(rx.await?.dyn_into::<js_sys::Array>().unwrap().values().into_iter().map(|file| path.join(file.unwrap().as_string().unwrap())).collect())
+	node_sys::fs::readdir(
+		path.to_str().unwrap(),
+		node_sys::fs::ReaddirOptions { encoding: Some("utf8"), with_file_types: None },
+		tx,
+	);
+	Ok(rx
+		.await?
+		.dyn_into::<js_sys::Array>()
+		.unwrap()
+		.values()
+		.into_iter()
+		.map(|file| path.join(file.unwrap().as_string().unwrap()))
+		.collect())
 }
 
 pub async fn read_to_string(path: &Path) -> R<String> {
 	let (tx, rx) = make_callback2();
-	node_sys::fs::read_file(path.to_str().unwrap(), node_sys::fs::ReadFileOptions { encoding: Some("utf-8"), flag: "r" }, tx);
+	node_sys::fs::read_file(
+		path.to_str().unwrap(),
+		node_sys::fs::ReadFileOptions { encoding: Some("utf-8"), flag: "r" },
+		tx,
+	);
 	Ok(rx.await?.as_string().unwrap())
 }
 
 pub async fn write(path: &Path, content: impl AsRef<[u8]>) -> R<()> {
 	let (tx, rx) = make_callback1();
 	let js_buffer = node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(content.as_ref()));
-	node_sys::fs::write_file(path.to_str().unwrap(), js_buffer, node_sys::fs::WriteFileOptions { encoding: None, mode: None, flag: None }, tx);
+	node_sys::fs::write_file(
+		path.to_str().unwrap(),
+		js_buffer,
+		node_sys::fs::WriteFileOptions { encoding: None, mode: None, flag: None },
+		tx,
+	);
 	rx.await?;
 	Ok(())
 }
@@ -46,8 +66,8 @@ pub async fn create_dir(path: &Path) -> R<()> {
 }
 
 pub async fn create_dir_all(path: &Path) -> R<()> {
-	// This routine must be implemented manually because {recursive:true} is only supported on Node 12.
-	// TODO: Does not check if path actually is a directory.
+	// This routine must be implemented manually because {recursive:true} is only supported on Node
+	// 12. TODO: Does not check if path actually is a directory.
 	if !fs::exists(path).await? {
 		fs::create_dir_all_boxed(&path.parent()).await?;
 		fs::create_dir(path).await?;

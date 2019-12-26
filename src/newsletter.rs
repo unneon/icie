@@ -14,7 +14,8 @@ pub async fn check() -> R<()> {
 		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 		if let Some(()) = choice {
 			TELEMETRY.newsletter_changelog.spark();
-			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
+			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md")
+				.await?;
 		}
 	}
 	Ok(())
@@ -25,8 +26,11 @@ struct Update {
 	features: &'static str,
 }
 
-const LAST_IMPORTANT_UPDATE: Update =
-	Update { version: "0.6.2", features: "CodeChef support, reopening statements with Alt+8, shortcuts to contest/task websites" };
+const LAST_IMPORTANT_UPDATE: Update = Update {
+	version: "0.6.2",
+	features: "CodeChef support, reopening statements with Alt+8, shortcuts to contest/task \
+	           websites",
+};
 
 const LAST_ACKNOWLEDGED_VERSION: evscode::State<String> =
 	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);

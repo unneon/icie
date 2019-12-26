@@ -23,11 +23,15 @@ impl HideBehaviour {
 	}
 }
 
-/// This controls when to hide passing tests in test view by collapsing them into a thin color line. Even if this is not set, any failing tests will still be visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+/// This controls when to hide passing tests in test view by collapsing them into a thin color line.
+/// Even if this is not set, any failing tests will still be visible if the
+/// icie.test.view.scrollToFirstFailed option is enabled(as is by default).
 #[evscode::config]
 static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-/// This controls when to hide passing tests in test view by not displaying them at all. Even if this is not set, any failing tests will still be visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+/// This controls when to hide passing tests in test view by not displaying them at all. Even if
+/// this is not set, any failing tests will still be visible if the
+/// icie.test.view.scrollToFirstFailed option is enabled(as is by default).
 #[evscode::config]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
@@ -84,7 +88,8 @@ async fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 		"#,
 		status = match test.outcome.verdict {
 			Verdict::Accepted { .. } => "status-passed",
-			Verdict::WrongAnswer | Verdict::RuntimeError | Verdict::TimeLimitExceeded => "status-failed",
+			Verdict::WrongAnswer | Verdict::RuntimeError | Verdict::TimeLimitExceeded =>
+				"status-failed",
 			Verdict::IgnoredNoOut => "status-ignore",
 		},
 		verdict = match test.outcome.verdict {
@@ -110,12 +115,15 @@ async fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(render_cell("input", &attrs, &actions, None, &data, None, folded).await)
 }
 
-/// If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration will be displayed. Set to 0 to always display the timings, or to a large value to never display the timings.
+/// If a solution takes longer to execute than the specified number of milliseconds, a note with the
+/// execution duration will be displayed. Set to 0 to always display the timings, or to a large
+/// value to never display the timings.
 #[evscode::config]
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
 async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	let note_time = if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get()) || test.outcome.verdict == Verdict::TimeLimitExceeded
+	let note_time = if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get())
+		|| test.outcome.verdict == Verdict::TimeLimitExceeded
 	{
 		let ms = test.outcome.time.as_millis();
 		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
@@ -127,7 +135,10 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 		Verdict::RuntimeError => Some("RE"),
 		Verdict::TimeLimitExceeded => Some("TLE"),
 	};
-	let notes = vec![note_time.as_ref().map(|s| s.as_str()), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
+	let notes = vec![note_time.as_ref().map(|s| s.as_str()), note_verdict]
+		.into_iter()
+		.filter_map(|o| o)
+		.collect::<Vec<_>>();
 	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
 	let attrs = [("data-raw", test.outcome.out.as_str())];
 	let actions = [
@@ -152,7 +163,10 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
 	let data = fs::read_to_string(&test.out_path).await.unwrap_or_default();
 	let attrs = [("data-raw", data.as_str())];
-	let actions = [(test.outcome.verdict != Verdict::IgnoredNoOut && !HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
+	let actions = [
+		(test.outcome.verdict != Verdict::IgnoredNoOut && !HIDE_COPY.get(), ACTION_COPY),
+		(true, ACTION_EDIT),
+	];
 	Ok(render_cell("desired", &attrs, &actions, None, &data, None, folded).await)
 }
 
@@ -163,12 +177,18 @@ struct Action {
 }
 const ACTION_COPY: Action = Action { onclick: "action_copy()", icon: "file_copy", hint: "Copy" };
 const ACTION_EDIT: Action = Action { onclick: "action_edit()", icon: "edit", hint: "Edit" };
-const ACTION_GDB: Action = Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
-const ACTION_RR: Action = Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
-const ACTION_SET_ALT: Action = Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
-const ACTION_DEL_ALT: Action = Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
+const ACTION_GDB: Action =
+	Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
+const ACTION_RR: Action =
+	Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
+const ACTION_SET_ALT: Action =
+	Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
+const ACTION_DEL_ALT: Action =
+	Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
 
-/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test cell and press Ctrl+C; if nothing else is selected, the cell contents will be copied automatically.
+/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test
+/// cell and press Ctrl+C; if nothing else is selected, the cell contents will be copied
+/// automatically.
 #[evscode::config]
 static HIDE_COPY: evscode::Config<bool> = false;
 
@@ -180,7 +200,8 @@ async fn render_cell(
 	stdout: &str,
 	note: Option<&str>,
 	folded: bool,
-) -> String {
+) -> String
+{
 	if !folded {
 		render_cell_raw(class, attrs, actions, stderr, stdout, note).await
 	} else {
@@ -191,7 +212,9 @@ async fn render_cell(
 
 const MIN_CELL_LINES: i64 = 2;
 
-/// The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be clipped. The full test case can be seen by scrolling. Leave empty to denote no limit.
+/// The maximum height of a test case, expressed in pixels. If the test case would take up more than
+/// that, it will be clipped. The full test case can be seen by scrolling. Leave empty to denote no
+/// limit.
 #[evscode::config]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
@@ -202,26 +225,47 @@ async fn render_cell_raw(
 	stderr: Option<&str>,
 	stdout: &str,
 	note: Option<&str>,
-) -> String {
+) -> String
+{
 	let actions = actions
 		.iter()
 		.filter_map(|(active, action)| if *active { Some(action) } else { None })
-		.map(|action| format!("<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>", action.onclick, action.hint, action.icon))
+		.map(|action| {
+			format!(
+				"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
+				action.onclick, action.hint, action.icon
+			)
+		})
 		.collect::<Vec<_>>();
-	let actions =
-		format!("<div class=\"actions {}\">{}</div>", if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" }, actions.join("\n"));
-	let note = note.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
+	let actions = format!(
+		"<div class=\"actions {}\">{}</div>",
+		if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" },
+		actions.join("\n")
+	);
+	let note = note
+		.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
 	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
-	let stderr = stderr.as_ref().map_or(String::new(), |stderr| format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())));
+	let stderr = stderr.as_ref().map_or(String::new(), |stderr| {
+		format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim()))
+	});
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
 	let max_test_height = MAX_TEST_HEIGHT.get();
-	let max_test_height =
-		if let Some(max_test_height) = max_test_height { format!("style=\"max-height: {}px;\"", max_test_height) } else { String::new() };
+	let max_test_height = if let Some(max_test_height) = max_test_height {
+		format!("style=\"max-height: {}px;\"", max_test_height)
+	} else {
+		String::new()
+	};
 	let mut attr_html = String::new();
 	for (k, v) in attrs {
 		attr_html += &format!(" {}=\"{}\"", k, html_escape(v));
 	}
-	let data = format!("<div class=\"data\" {}>{}{}{}</div>", max_test_height, stderr, html_escape_spaced(stdout.trim()), newline_fill);
+	let data = format!(
+		"<div class=\"data\" {}>{}{}{}</div>",
+		max_test_height,
+		stderr,
+		html_escape_spaced(stdout.trim()),
+		newline_fill
+	);
 	format!("<td class=\"cell {}\" {}>{}{}{}</td>", class, attr_html, actions, note, data)
 }
 
@@ -232,7 +276,14 @@ fn html_escape(s: &str) -> String {
 	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
 }
 fn html_escape_spaced(s: &str) -> String {
-	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;"), ('\n', "<br/>")])
+	translate(s, &[
+		('&', "&amp;"),
+		('<', "&lt;"),
+		('>', "&gt;"),
+		('"', "&quot;"),
+		('\'', "&#39;"),
+		('\n', "<br/>"),
+	])
 }
 fn translate(s: &str, table: &[(char, &str)]) -> String {
 	let mut buf = String::new();

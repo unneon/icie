@@ -36,7 +36,14 @@ impl Outcome {
 	}
 }
 
-pub async fn simple_test(exec: &Executable, input: &str, desired: Option<&str>, alternative: Option<&str>, task: &Task) -> R<Outcome> {
+pub async fn simple_test(
+	exec: &Executable,
+	input: &str,
+	desired: Option<&str>,
+	alternative: Option<&str>,
+	task: &Task,
+) -> R<Outcome>
+{
 	let run = exec.run(input, &[], &task.environment).await?;
 	let verdict = match run.exit_kind {
 		ExitKind::Normal => {

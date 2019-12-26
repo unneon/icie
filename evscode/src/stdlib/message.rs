@@ -44,26 +44,46 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 	}
 
 	/// Make message modal.
-	/// Instead of displaying the message in the bottom right corner, VS Code will display it as a popup and block the rest of the editor until user
-	/// responds. Probably only use this for messages which require urgent user interaction.
+	/// Instead of displaying the message in the bottom right corner, VS Code will display it as a
+	/// popup and block the rest of the editor until user responds. Probably only use this for
+	/// messages which require urgent user interaction.
 	pub fn modal(mut self) -> Self {
 		self.modal = true;
 		self
 	}
 
 	/// Add action buttons to the message.
-	pub fn items<A2: IntoIterator<Item=Action<T>>>(self, items: A2) -> Builder<T, Chain<A, A2::IntoIter>> {
-		Builder { message: self.message, kind: self.kind, modal: self.modal, items: self.items.chain(items.into_iter()) }
-	}
-
-	/// Add an action button to the message.
-	/// See [`Action`] for the meaning of the arguments.
-	pub fn item(self, id: T, title: &str, is_close_affordance: bool) -> Builder<T, Chain<A, Once<Action<T>>>> {
+	pub fn items<A2: IntoIterator<Item=Action<T>>>(
+		self,
+		items: A2,
+	) -> Builder<T, Chain<A, A2::IntoIter>>
+	{
 		Builder {
 			message: self.message,
 			kind: self.kind,
 			modal: self.modal,
-			items: self.items.chain(std::iter::once(Action { id, title: title.to_owned(), is_close_affordance })),
+			items: self.items.chain(items.into_iter()),
+		}
+	}
+
+	/// Add an action button to the message.
+	/// See [`Action`] for the meaning of the arguments.
+	pub fn item(
+		self,
+		id: T,
+		title: &str,
+		is_close_affordance: bool,
+	) -> Builder<T, Chain<A, Once<Action<T>>>>
+	{
+		Builder {
+			message: self.message,
+			kind: self.kind,
+			modal: self.modal,
+			items: self.items.chain(std::iter::once(Action {
+				id,
+				title: title.to_owned(),
+				is_close_affordance,
+			})),
 		}
 	}
 
@@ -76,7 +96,9 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 	/// Display the message, and only then return a future with the result.
 	/// Returns the id of the selected action, if any.
 	pub fn show_eager(self) -> impl Future<Output=Option<T>>+'static {
-		let options = JsValue::from_serde(&vscode_sys::window::ShowMessageOptions { modal: self.modal }).unwrap();
+		let options =
+			JsValue::from_serde(&vscode_sys::window::ShowMessageOptions { modal: self.modal })
+				.unwrap();
 		let items: Vec<_> = self
 			.items
 			.map(|item| {
@@ -109,6 +131,11 @@ pub struct Message {
 impl Message {
 	/// Create a new builder to configure the message.
 	pub fn new<T>(message: &str) -> Builder<T, Empty<Action<T>>> {
-		Builder { message: message.to_owned(), kind: vscode_sys::window::show_information_message, modal: false, items: std::iter::empty() }
+		Builder {
+			message: message.to_owned(),
+			kind: vscode_sys::window::show_information_message,
+			modal: false,
+			items: std::iter::empty(),
+		}
 	}
 }

@@ -18,7 +18,8 @@ impl<'a> Builder<'a> {
 	}
 
 	/// Replace displayed characters with password placeholder characters.
-	/// Consider also using [`Builder::ignore_focus_out`] because users might need to pull a password from their password manager.
+	/// Consider also using [`Builder::ignore_focus_out`] because users might need to pull a
+	/// password from their password manager.
 	pub fn password(mut self) -> Self {
 		self.password = true;
 		self
@@ -44,7 +45,8 @@ impl<'a> Builder<'a> {
 	}
 
 	/// Set which part of the default value will be selected by default.
-	/// The indices are 0-based and closed-open(e.g. `.value("Hello, world!").value_selection(2, 6)` will select `llo,`.
+	/// The indices are 0-based and closed-open(e.g. `.value("Hello, world!").value_selection(2, 6)`
+	/// will select `llo,`.
 	pub fn value_selection(mut self, l: usize, r: usize) -> Self {
 		self.value_selection = Some((l, r));
 		self
@@ -74,6 +76,13 @@ pub struct InputBox {
 impl InputBox {
 	/// Create a new builder to configure the input box.
 	pub fn new() -> Builder<'static> {
-		Builder { ignore_focus_out: false, password: false, placeholder: None, prompt: None, value: None, value_selection: None }
+		Builder {
+			ignore_focus_out: false,
+			password: false,
+			placeholder: None,
+			prompt: None,
+			value: None,
+			value_selection: None,
+		}
 	}
 }

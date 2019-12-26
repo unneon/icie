@@ -52,6 +52,7 @@ impl Param for Option<String> {
 }
 impl Param for String {
 	fn convert(mnv: Option<MetaNameValue>, key: &'static str) -> R<Self> {
-		<Option<String> as Param>::convert(mnv, key)?.ok_or_else(|| E::new(Span::call_site(), format!("parameter `{}` is required", key)))
+		<Option<String> as Param>::convert(mnv, key)?
+			.ok_or_else(|| E::new(Span::call_site(), format!("parameter `{}` is required", key)))
 	}
 }

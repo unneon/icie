@@ -15,9 +15,18 @@ pub struct Builder<'a> {
 	force_new: bool,
 }
 
-/// Open a text file in an editor, or focuses an existing one if it exists. Uses the builder pattern.
+/// Open a text file in an editor, or focuses an existing one if it exists. Uses the builder
+/// pattern.
 pub fn open_editor(path: &str) -> Builder {
-	Builder { path, cursor: None, selection: None, view_column: None, preserve_focus: false, preview: None, force_new: false }
+	Builder {
+		path,
+		cursor: None,
+		selection: None,
+		view_column: None,
+		preserve_focus: false,
+		preview: None,
+		force_new: false,
+	}
 }
 
 impl<'a> Builder<'a> {
@@ -79,7 +88,10 @@ impl<'a> Builder<'a> {
 		if let Some(cursor) = self.cursor {
 			let pos = vscode_sys::Position::new(cursor.line, cursor.column);
 			editor.set_selection(vscode_sys::Selection::new(&pos, &pos));
-			editor.reveal_range(&vscode_sys::Range::new(&pos, &pos), vscode_sys::TextEditorRevealType::InCenter);
+			editor.reveal_range(
+				&vscode_sys::Range::new(&pos, &pos),
+				vscode_sys::TextEditorRevealType::InCenter,
+			);
 		}
 		Ok(())
 	}

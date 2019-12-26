@@ -13,11 +13,31 @@ struct Credentials {
 pub async fn get_force_ask(site: &str) -> R<(String, String)> {
 	TELEMETRY.auth_ask.spark();
 	let message = format!("Username at {}", site);
-	let username = evscode::InputBox::new().prompt(&message).ignore_focus_out().show().await.ok_or_else(E::cancel)?;
+	let username = evscode::InputBox::new()
+		.prompt(&message)
+		.ignore_focus_out()
+		.show()
+		.await
+		.ok_or_else(E::cancel)?;
 	let message = format!("Password for {} at {}", username, site);
-	let password = evscode::InputBox::new().prompt(&message).password().ignore_focus_out().show().await.ok_or_else(E::cancel)?;
+	let password = evscode::InputBox::new()
+		.prompt(&message)
+		.password()
+		.ignore_focus_out()
+		.show()
+		.await
+		.ok_or_else(E::cancel)?;
 	let kr = Keyring::new("credentials", site);
-	if !kr.set(&serde_json::to_string(&Credentials { username: username.clone(), password: password.clone() }).unwrap()).await {
+	if !kr
+		.set(
+			&serde_json::to_string(&Credentials {
+				username: username.clone(),
+				password: password.clone(),
+			})
+			.unwrap(),
+		)
+		.await
+	{
 		E::error("failed to save password to a secure keyring, so it will not be remembered")
 			.warning()
 			.action_if(is_installed("kwalletd5").await?, "How to fix (KWallet)", help_fix_kwallet())
@@ -46,7 +66,8 @@ pub async fn save_cache(site: &str, value: &str) {
 }
 
 pub async fn has_any_saved(site: &str) -> bool {
-	Keyring::new("session", site).get().await.is_some() || Keyring::new("credentials", site).get().await.is_some()
+	Keyring::new("session", site).get().await.is_some()
+		|| Keyring::new("credentials", site).get().await.is_some()
 }
 
 #[evscode::command(title = "ICIE Password reset")]
@@ -66,7 +87,8 @@ async fn reset() -> R<()> {
 }
 
 async fn help_fix_kwallet() -> R<()> {
-	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482").await
+	evscode::open_external("https://github.com/pustaczek/icie/issues/14#issuecomment-516982482")
+		.await
 }
 
 struct Keyring {

@@ -84,7 +84,10 @@ impl fmt::Display for Path {
 }
 
 impl serde::Serialize for Path {
-	fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+	fn serialize<S>(
+		&self,
+		serializer: S,
+	) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
 	where
 		S: Serializer,
 	{
@@ -93,9 +96,7 @@ impl serde::Serialize for Path {
 }
 impl<'de> serde::Deserialize<'de> for Path {
 	fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-	where
-		D: Deserializer<'de>,
-	{
+	where D: Deserializer<'de> {
 		Ok(Path::from_native(<String as serde::Deserialize>::deserialize(deserializer)?))
 	}
 }

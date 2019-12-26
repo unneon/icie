@@ -9,7 +9,11 @@ pub async fn scan_and_order(test_dir: &str) -> Vec<Path> {
 }
 
 async fn scan(test_dir: &str) -> Vec<Path> {
-	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir)).await.into_iter().map(|uri| Path::from_native(uri.fs_path())).collect()
+	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir))
+		.await
+		.into_iter()
+		.map(|uri| Path::from_native(uri.fs_path()))
+		.collect()
 }
 
 fn order(tests: &mut Vec<Path>) {

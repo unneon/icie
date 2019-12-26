@@ -53,22 +53,28 @@ impl Executable {
 		for arg in args {
 			js_args.push(&JsValue::from_str(arg));
 		}
-		let input_buffer = node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
+		let input_buffer =
+			node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
 		let cwd = evscode::workspace_root().ok().map(Path::from_native);
-		let kid = node_sys::child_process::spawn(&self.command, js_args, node_sys::child_process::Options {
-			cwd: cwd.as_ref().map(|p| p.to_str().unwrap()),
-			env: None,
-			argv0: None,
-			stdio: Some([Stdio::Pipe, Stdio::Pipe, Stdio::Pipe]),
-			uid: None,
-			gid: None,
-			shell: None,
-			windows_verbatim_arguments: None,
-			windows_hide: None,
-		});
+		let kid = node_sys::child_process::spawn(
+			&self.command,
+			js_args,
+			node_sys::child_process::Options {
+				cwd: cwd.as_ref().map(|p| p.to_str().unwrap()),
+				env: None,
+				argv0: None,
+				stdio: Some([Stdio::Pipe, Stdio::Pipe, Stdio::Pipe]),
+				uid: None,
+				gid: None,
+				shell: None,
+				windows_verbatim_arguments: None,
+				windows_hide: None,
+			},
+		);
 		let t1 = node_hrtime();
-		// This is not the proper way to check whether an error has happened, but doing otherwise would be ugly.
-		// Blame Node for not making a proper asynchronous spawn or throwing an exception.
+		// This is not the proper way to check whether an error has happened, but doing otherwise
+		// would be ugly. Blame Node for not making a proper asynchronous spawn or throwing an
+		// exception.
 		if kid.stdin().is_none() {
 			let (tx, rx) = oneshot::channel();
 			kid.on_2("error", &Closure::once_into_js(|err: js_sys::Error| tx.send(err).unwrap()));
@@ -91,8 +97,10 @@ impl Executable {
 				kid.kill(9);
 			}
 		});
-		let ((exit_code, t2), stdout, stderr) = join3(drive_exec, capture_stdout, capture_stderr).await;
-		let exit_kind = if timed_out.load(SeqCst) { ExitKind::TimeLimitExceeded } else { ExitKind::Normal };
+		let ((exit_code, t2), stdout, stderr) =
+			join3(drive_exec, capture_stdout, capture_stderr).await;
+		let exit_kind =
+			if timed_out.load(SeqCst) { ExitKind::TimeLimitExceeded } else { ExitKind::Normal };
 		let stdout = String::from_utf8_lossy(&stdout).into_owned();
 		let stderr = String::from_utf8_lossy(&stderr).into_owned();
 		Ok(Run { stdout, stderr, exit_code, exit_kind, time: t2 - t1 })
@@ -104,7 +112,9 @@ async fn wait_process(kid: &node_sys::child_process::ChildProcess) -> Option<i32
 	let mut tx = Some(tx);
 	kid.on_2(
 		"exit",
-		&Closure::once_into_js(move |code: JsValue, _signal: JsValue| tx.take().unwrap().send(code.as_f64().map(|code| code as i32)).unwrap()),
+		&Closure::once_into_js(move |code: JsValue, _signal: JsValue| {
+			tx.take().unwrap().send(code.as_f64().map(|code| code as i32)).unwrap()
+		}),
 	);
 	rx.await.unwrap()
 }
@@ -133,7 +143,12 @@ async fn capture_node_stream(readable: node_sys::stream::Readable) -> Vec<u8> {
 	buf
 }
 
-async fn soft_timeout<X>(task: impl Future<Output=X>, timeout: Option<Duration>, on_timeout: impl FnOnce()) -> X {
+async fn soft_timeout<X>(
+	task: impl Future<Output=X>,
+	timeout: Option<Duration>,
+	on_timeout: impl FnOnce(),
+) -> X
+{
 	let mut task = Box::pin(task).fuse();
 	let mut timeout = if let Some(timeout) = timeout {
 		Box::pin(sleep(timeout)) as Pin<Box<dyn Future<Output=()>>>

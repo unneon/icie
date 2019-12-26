@@ -66,11 +66,9 @@ pub fn send_usage() {
 			.cloned()
 			.chain((&[("session_duration", get_session_duration())]).iter().cloned())
 			.chain(BACKENDS.iter().map(|backend| (backend.telemetry_id, backend.counter.get())))
-			.chain(
-				evscode::meta::config_entries()
-					.iter()
-					.map(|config_entry| (config_entry.telemetry_id.as_str(), config_entry.telemetry_config_delta())),
-			),
+			.chain(evscode::meta::config_entries().iter().map(|config_entry| {
+				(config_entry.telemetry_id.as_str(), config_entry.telemetry_config_delta())
+			})),
 	);
 }
 

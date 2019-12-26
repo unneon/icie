@@ -6,7 +6,8 @@ use wasm_bindgen::{prelude::*, JsCast};
 /// Trait responsible for converting values between Rust and JavaScript.
 pub trait Marshal: Sized {
 	/// Convert a Rust value to a JavaScript value.
-	/// This conversion must not fail - if it can, consider using Rust's type system to enforce that condition.
+	/// This conversion must not fail - if it can, consider using Rust's type system to enforce that
+	/// condition.
 	fn to_js(&self) -> JsValue;
 	/// Convert a JavaScript value to a Rust value.
 	fn from_js(raw: JsValue) -> Result<Self, String>;
@@ -76,7 +77,11 @@ impl<T: Marshal> Marshal for Vec<T> {
 
 	fn from_js(raw: JsValue) -> Result<Self, String> {
 		match raw.dyn_into::<js_sys::Array>() {
-			Ok(raw) => Ok(raw.values().into_iter().map(|raw| T::from_js(raw.unwrap())).collect::<Result<_, _>>()?),
+			Ok(raw) => Ok(raw
+				.values()
+				.into_iter()
+				.map(|raw| T::from_js(raw.unwrap()))
+				.collect::<Result<_, _>>()?),
 			Err(raw) => Err(type_error2("array", &raw)),
 		}
 	}
@@ -96,8 +101,14 @@ impl<T: Marshal, S: std::hash::BuildHasher+Default> Marshal for HashMap<String, 
 			.values()
 			.into_iter()
 			.map(|kv| {
-				let kv: Vec<_> =
-					kv.expect("object iteration failed").dyn_into::<js_sys::Array>().unwrap().values().into_iter().map(Result::unwrap).collect();
+				let kv: Vec<_> = kv
+					.expect("object iteration failed")
+					.dyn_into::<js_sys::Array>()
+					.unwrap()
+					.values()
+					.into_iter()
+					.map(Result::unwrap)
+					.collect();
 				match kv.as_slice() {
 					[key, value] => {
 						let key = key.as_string().unwrap();

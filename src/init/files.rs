@@ -4,7 +4,12 @@ use crate::{
 use evscode::{error::ResultExt, R};
 use unijudge::{Example, Statement};
 
-pub async fn init_manifest(root: &Path, url: &Option<String>, statement: Option<Statement>) -> R<()> {
+pub async fn init_manifest(
+	root: &Path,
+	url: &Option<String>,
+	statement: Option<Statement>,
+) -> R<()>
+{
 	let manifest = crate::manifest::Manifest { task_url: url.clone(), statement };
 	manifest.save(root).await?;
 	Ok(())
@@ -19,7 +24,8 @@ pub async fn init_template(root: &Path) -> R<()> {
 			.iter()
 			.find(|(id, _)| **id == *req_id)
 			.wrap(format!(
-				"template '{}' does not exist; go to the settings(Ctrl+,), and either change the template(icie.init.solutionTemplate) or add a template with this \
+				"template '{}' does not exist; go to the settings(Ctrl+,), and either change the \
+				 template(icie.init.solutionTemplate) or add a template with this \
 				 name(icie.template.list)",
 				req_id
 			))?
