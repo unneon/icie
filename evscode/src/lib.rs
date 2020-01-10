@@ -1,7 +1,7 @@
 //! Evscode is a Rust framework for writing WebAssembly-based Visual Studio Code extensions.
 //! More information is included in CONTRIBUTING.md file.
 
-#![feature(const_fn, try_trait, vec_remove_item)]
+#![feature(const_fn, try_trait)]
 #![allow(clippy::new_ret_no_self)]
 #![deny(missing_docs)]
 
