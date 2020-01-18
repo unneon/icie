@@ -102,12 +102,6 @@ async fn find_compiler() -> R<Compiler> {
 			for mingw in mingw_locations {
 				let mingw = Path::from_native(mingw.to_owned());
 				let location = mingw.join("bin").join("g++.exe");
-				log::debug!(
-					"CHECKING MINGW LOCATION\n\nmingw = {:?}\nlocation = {:?}\nexists = {:?}",
-					mingw,
-					location,
-					fs::exists(&location).await?
-				);
 				if fs::exists(&location).await? {
 					return Ok(Compiler {
 						executable: Executable::new(location),
