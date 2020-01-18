@@ -19,6 +19,8 @@ const CLANG: Service = Service {
 	tutorial_url_windows: None,
 };
 
+// Searching for MinGW is more complex than searching for Linux/macOS executables, so this is just
+// to display a nice error message with a tutorial link.
 const MINGW: Service = Service {
 	human_name: "MinGW",
 	exec_linuxmac: None,
@@ -52,6 +54,10 @@ pub async fn compile(
 		.executable
 		.run("", &args, &Environment {
 			time_limit: None,
+			// Windows g++ relies on some DLLs that are not in PATH. Since adding stuff to path
+			// would have to be done by the user, it's better to just jest CWD to MinGW binaries
+			// directory. This does not have to be done for compiled executables, because we add the
+			// -static flag when compiling on Windows.
 			cwd: compiler.mingw_path.map(|mingw| mingw.join("bin")),
 		})
 		.await?;
@@ -94,8 +100,13 @@ async fn find_compiler() -> R<Compiler> {
 		},
 		OS::Windows => {
 			let mingw_custom_path = WINDOWS_MINGW_PATH.get();
+			// Various MinGW installers install this in various paths. CodeBlocks installs it in
+			// "C:\Program Files (x64)\CodeBlocks\MinGW", but it's version does not work anyway so
+			// there is no point in supporting it. mingw-builds try to install it in user directory
+			// be default, but that's irritating to find so the tutorial asks them to install it in
+			// "C:\MinGW" (which mingw-builds changes to "C:\MinGW\mingw32").
 			let mingw_locations = if mingw_custom_path.is_empty() {
-				vec!["C:\\MinGW", "C:\\MinGW\\mingw32"]
+				vec!["C:\\MinGW\\mingw32", "C:\\MinGW"]
 			} else {
 				vec![mingw_custom_path.as_str()]
 			};
@@ -135,6 +146,8 @@ pub fn flags_codegen(codegen: Codegen) -> &'static [&'static str] {
 
 fn os_flags() -> &'static [&'static str] {
 	match OS::query() {
+		// Sanitizers don't work because -lubsan is not found. There does not seem to be a fix.
+		// Static linking makes it possible to avoid adding MinGW DLLs to PATH.
 		Ok(OS::Windows) => &["-fno-sanitize=all", "-static"],
 		_ => &[],
 	}
