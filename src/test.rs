@@ -41,7 +41,7 @@ pub async fn run(main_source: &Option<Path>) -> R<Vec<TestRun>> {
 	let solution = build::build(main_source, Codegen::Debug, false).await?;
 	let task = Task {
 		checker: crate::checker::get_checker().await?,
-		environment: Environment { time_limit: time_limit() },
+		environment: Environment { time_limit: time_limit(), cwd: None },
 	};
 	let test_dir_name = dir::TESTS_DIRECTORY.get();
 	let test_dir = dir::tests()?;

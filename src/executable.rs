@@ -32,6 +32,7 @@ impl Run {
 #[derive(Debug)]
 pub struct Environment {
 	pub time_limit: Option<Duration>,
+	pub cwd: Option<Path>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +56,10 @@ impl Executable {
 		}
 		let input_buffer =
 			node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
-		let cwd = evscode::workspace_root().ok().map(Path::from_native);
+		let cwd = environment
+			.cwd
+			.clone()
+			.or_else(|| evscode::workspace_root().ok().map(Path::from_native));
 		let kid = node_sys::child_process::spawn(
 			&self.command,
 			js_args,

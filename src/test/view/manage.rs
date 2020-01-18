@@ -96,7 +96,8 @@ impl Behaviour for TestView {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
 								let brut = build(brut, Codegen::Release, false).await?;
-								let environment = Environment { time_limit: time_limit() };
+								let environment =
+									Environment { time_limit: time_limit(), cwd: None };
 								let run = brut.run(&input, &[], &environment).await?;
 								drop(_status);
 								if run.success() {

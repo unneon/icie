@@ -52,7 +52,7 @@ impl Behaviour for Discover {
 		let gen = build(dir::gen()?, Codegen::Release, false).await?;
 		let task = Task {
 			checker: get_checker().await?,
-			environment: Environment { time_limit: time_limit() },
+			environment: Environment { time_limit: time_limit(), cwd: None },
 		};
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(

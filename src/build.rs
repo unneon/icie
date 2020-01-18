@@ -1,4 +1,4 @@
-pub mod clang;
+mod clang;
 
 use crate::{
 	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path}
@@ -51,6 +51,11 @@ static ADDITIONAL_CPP_FLAGS_RELEASE: evscode::Config<String> = "";
 /// profile-independent custom flags.
 #[evscode::config]
 static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
+
+/// Custom path of your MinGW installation. If not set, ICIE will try, in order, "C:\MinGW" and
+/// "C:\MinGW\mingw32".
+#[evscode::config]
+static WINDOWS_MINGW_PATH: evscode::Config<String> = "";
 
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
 async fn manual() -> evscode::R<()> {

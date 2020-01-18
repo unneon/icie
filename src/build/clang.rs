@@ -1,5 +1,5 @@
 use crate::{
-	build::{Codegen, Location, Message, Standard, Status}, executable::{Environment, Executable}, service::Service, util
+	build::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, util, util::{fs, OS}
 };
 use evscode::R;
 use lazy_static::lazy_static;
@@ -9,13 +9,23 @@ use util::path::Path;
 const CLANG: Service = Service {
 	human_name: "Clang",
 	exec_linuxmac: Some("clang++"),
-	exec_windows: Some("clang++.exe"),
+	exec_windows: None,
 	package_apt: Some("clang"),
 	// On macOS, Clang is supposed to be installed along with some part of Xcode.
 	// Also trying to run the command will display a dialog asking the user to install it.
 	// In this very specific situation, macOS seems pretty nice.
 	package_brew: None,
 	package_pacman: Some("clang"),
+	tutorial_url_windows: None,
+};
+
+const MINGW: Service = Service {
+	human_name: "MinGW",
+	exec_linuxmac: None,
+	exec_windows: None,
+	package_apt: None,
+	package_brew: None,
+	package_pacman: None,
 	tutorial_url_windows: Some("https://github.com/pustaczek/icie/blob/master/docs/WINDOWS.md"),
 };
 
@@ -27,17 +37,24 @@ pub async fn compile(
 	custom_flags: &[&str],
 ) -> R<Status>
 {
-	let clang = CLANG.find_executable().await?;
+	let compiler = find_compiler().await?;
 	let executable = Executable::new(out.to_owned());
 	let mut args = Vec::new();
 	args.push(flag_standard(standard));
 	args.extend(&["-Wall", "-Wextra", "-Wconversion", "-Wshadow", "-Wno-sign-conversion"]);
 	args.extend(flags_codegen(codegen));
+	args.extend(os_flags());
 	args.extend(custom_flags);
 	args.extend(sources.iter().map(|p| p.to_str().unwrap()));
 	args.push("-o");
 	args.push(&executable.command);
-	let run = clang.run("", &args, &Environment { time_limit: None }).await?;
+	let run = compiler
+		.executable
+		.run("", &args, &Environment {
+			time_limit: None,
+			cwd: compiler.mingw_path.map(|mingw| mingw.join("bin")),
+		})
+		.await?;
 	let success = run.success();
 	let mut errors = Vec::new();
 	let mut warnings = Vec::new();
@@ -65,6 +82,44 @@ pub async fn compile(
 	Ok(Status { success, executable, errors, warnings, stderr })
 }
 
+struct Compiler {
+	executable: Executable,
+	mingw_path: Option<Path>,
+}
+
+async fn find_compiler() -> R<Compiler> {
+	match OS::query()? {
+		OS::Linux | OS::MacOS => {
+			Ok(Compiler { executable: CLANG.find_executable().await?, mingw_path: None })
+		},
+		OS::Windows => {
+			let mingw_custom_path = WINDOWS_MINGW_PATH.get();
+			let mingw_locations = if mingw_custom_path.is_empty() {
+				vec!["C:\\MinGW", "C:\\MinGW\\mingw32"]
+			} else {
+				vec![mingw_custom_path.as_str()]
+			};
+			for mingw in mingw_locations {
+				let mingw = Path::from_native(mingw.to_owned());
+				let location = mingw.join("bin").join("g++.exe");
+				log::debug!(
+					"CHECKING MINGW LOCATION\n\nmingw = {:?}\nlocation = {:?}\nexists = {:?}",
+					mingw,
+					location,
+					fs::exists(&location).await?
+				);
+				if fs::exists(&location).await? {
+					return Ok(Compiler {
+						executable: Executable::new(location),
+						mingw_path: Some(mingw),
+					});
+				}
+			}
+			Err(MINGW.not_installed().await?)
+		},
+	}
+}
+
 fn flag_standard(standard: Standard) -> &'static str {
 	match standard {
 		Standard::Cpp03 => "-std=c++03",
@@ -78,10 +133,16 @@ pub fn flags_codegen(codegen: Codegen) -> &'static [&'static str] {
 	match codegen {
 		Codegen::Debug => {
 			&["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"]
-				as &'static [&'static str]
 		},
 		Codegen::Release => &["-Ofast"],
 		Codegen::Profile => &["-g", "-O2", "-fno-inline-functions"],
+	}
+}
+
+fn os_flags() -> &'static [&'static str] {
+	match OS::query() {
+		Ok(OS::Windows) => &["-fno-sanitize=all", "-static"],
+		_ => &[],
 	}
 }
 

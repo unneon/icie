@@ -19,7 +19,8 @@ pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 		bx
 	} else {
 		TELEMETRY.checker_exists.spark();
-		let environment = Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis) };
+		let environment =
+			Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis), cwd: None };
 		let executable = build(checker, Codegen::Release, false).await?;
 		Box::new(ExecChecker { executable, environment })
 	})

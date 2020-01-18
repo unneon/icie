@@ -85,7 +85,7 @@ impl External {
 				args.push("-e");
 				args.push(&command);
 			}
-			let run = program.run("", &args, &Environment { time_limit: None }).await?;
+			let run = program.run("", &args, &Environment { time_limit: None, cwd: None }).await?;
 			if run.success() {
 				Ok(())
 			} else {

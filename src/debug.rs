@@ -42,7 +42,7 @@ pub async fn rr(in_path: Path, source: Option<Path>) -> R<()> {
 	let input = fs::read_to_string(in_path.as_ref()).await?;
 	let exec_path = build::exec_path(source)?;
 	let args = ["record", exec_path.to_str().unwrap()];
-	let environment = Environment { time_limit: time_limit() };
+	let environment = Environment { time_limit: time_limit(), cwd: None };
 	let record_out = rr_exec.run(&input, &args, &environment).await?;
 	if record_out.stderr.contains("/proc/sys/kernel/perf_event_paranoid") {
 		return Err(E::error(
