@@ -8,7 +8,7 @@ function action_save() {
 
 window.addEventListener('message', event => {
 	let message = event.data;
-	if (message.tag === 'discovery_row') {
+	if (message.tag === 'row') {
 		let current = document.getElementById('current');
 		let log_body = document.getElementById('log-body');
 		current.children[0].textContent = message.number + 1;

@@ -95,11 +95,13 @@ impl Behaviour for Discover {
 	}
 }
 
+#[derive(Debug)]
 pub enum Event {
 	Row(Row),
 	Add,
 }
 
+#[derive(Debug)]
 pub struct Row {
 	pub number: usize,
 	pub outcome: Outcome,

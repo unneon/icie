@@ -312,6 +312,7 @@ pub struct Cancellation;
 ///
 /// It implements [`std::ops::Try`], which makes it possible to use ? operator in functions
 /// returning [`R`].
+#[derive(Debug)]
 pub struct Cancellable<T>(pub Option<T>);
 
 /// Return a stream yielding values from this stream, unless the other future yields any value.
