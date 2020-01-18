@@ -140,9 +140,7 @@ pub mod fs {
 
 		pub type Stats;
 
-		/// Node.js [fs.existsSync](https://nodejs.org/api/fs.html#fs_fs_existssync_path)
-		#[wasm_bindgen(js_name = existsSync)]
-		pub fn exists_sync(path: &str) -> bool;
+		pub fn access(path: &str, callback: JsValue);
 
 		pub fn mkdir(path: &str, options: MkdirOptions, callback: JsValue);
 

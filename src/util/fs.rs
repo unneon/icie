@@ -80,7 +80,9 @@ fn create_dir_all_boxed<'a>(path: &'a Path) -> Pin<Box<dyn Future<Output=R<()>>+
 }
 
 pub async fn exists(path: &Path) -> R<bool> {
-	Ok(node_sys::fs::exists_sync(path.to_str().unwrap()))
+	let (tx, rx) = make_callback1();
+	node_sys::fs::access(path.to_str().unwrap(), tx);
+	Ok(rx.await.is_ok())
 }
 
 pub struct Metadata {
