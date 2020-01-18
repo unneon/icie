@@ -49,7 +49,7 @@ impl Path {
 	}
 
 	pub fn strip_prefix(&self, to: &Path) -> Result<Path, std::path::StripPrefixError> {
-		Ok(Path { buf: node_sys::path::relative(&self.buf, &to.buf) })
+		Ok(Path { buf: node_sys::path::relative(&to.buf, &self.buf) })
 	}
 
 	pub fn to_owned(&self) -> Path {
