@@ -262,6 +262,7 @@ pub trait Backend: Send+Sync+'static {
 		code: &str,
 	) -> Result<String>;
 	fn task_url(&self, session: &Self::Session, task: &Self::Task) -> Result<String>;
+	fn submission_url(&self, session: &Self::Session, task: &Self::Task, id: &str) -> String;
 	fn contest_id(&self, contest: &Self::Contest) -> String;
 	fn contest_site_prefix(&self) -> &'static str;
 	async fn contest_tasks(

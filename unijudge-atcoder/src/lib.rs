@@ -322,6 +322,10 @@ impl unijudge::Backend for AtCoder {
 		Ok(format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task))
 	}
 
+	fn submission_url(&self, _sess: &Self::Session, task: &Self::Task, id: &str) -> String {
+		format!("{}/submissions/{}", self.contest_url(&task.contest), id)
+	}
+
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		contest.clone()
 	}

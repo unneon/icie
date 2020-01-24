@@ -259,6 +259,12 @@ impl unijudge::Backend for SPOJ {
 		Ok(format!("https://www.spoj.com/problems/{}/", task))
 	}
 
+	fn submission_url(&self, _sess: &Self::Session, task: &Self::Task, _id: &str) -> String {
+		// SPOJ has no submission page, so let's just show the general task status. It also shows
+		// the global status when submitting, so let's do that as well.
+		format!("https://www.spoj.com/status/{}/", task)
+	}
+
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		*contest
 	}

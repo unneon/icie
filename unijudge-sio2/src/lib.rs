@@ -344,6 +344,10 @@ impl unijudge::Backend for Sio2 {
 		Ok(self.task_submissions(session, task).await?[0].id.to_string())
 	}
 
+	fn submission_url(&self, sess: &Self::Session, task: &Self::Task, id: &str) -> String {
+		format!("{}/c{}/s/{}/", sess.site, task.contest, id)
+	}
+
 	fn task_url(&self, sess: &Self::Session, task: &Self::Task) -> Result<String> {
 		Ok(format!("{}/c/{}/p/{}/", sess.site, task.contest, task.task))
 	}

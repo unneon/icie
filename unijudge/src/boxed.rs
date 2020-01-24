@@ -116,6 +116,10 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.task_urlx(session.0.deref(), task.0.deref())
 	}
 
+	fn submission_url(&self, session: &Self::Session, task: &Self::Task, id: &str) -> String {
+		self.submission_urlx(session.0.deref(), task.0.deref(), id)
+	}
+
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		self.contest_idx(contest.0.deref())
 	}
@@ -202,6 +206,7 @@ pub trait DynamicBackend: Send+Sync {
 		code: &str,
 	) -> Result<String>;
 	fn task_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<String>;
+	fn submission_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug, id: &str) -> String;
 	fn contest_idx(&self, contest: &dyn AnyDebug) -> String;
 	fn contest_site_prefixx(&self) -> &'static str;
 	async fn contest_tasksx(
@@ -345,6 +350,15 @@ where
 			self,
 			ujcast::<T::Session>(session),
 			ujcast::<T::Task>(task),
+		)
+	}
+
+	fn submission_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug, id: &str) -> String {
+		<T as crate::Backend>::submission_url(
+			self,
+			ujcast::<T::Session>(session),
+			ujcast::<T::Task>(task),
+			id,
 		)
 	}
 

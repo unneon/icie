@@ -333,6 +333,10 @@ impl unijudge::Backend for Codeforces {
 		Ok(self.xtask_url(task)?.into_string())
 	}
 
+	fn submission_url(&self, _sess: &Self::Session, task: &Self::Task, id: &str) -> String {
+		format!("{}/submission/{}", self.contest_url(&task.contest), id)
+	}
+
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		match &contest.source {
 			Source::Contest => contest.id.clone(),

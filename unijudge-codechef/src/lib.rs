@@ -331,6 +331,10 @@ impl unijudge::Backend for CodeChef {
 		))
 	}
 
+	fn submission_url(&self, _session: &Self::Session, _task: &Self::Task, id: &str) -> String {
+		format!("https://www.codechef.com/submit/complete/{}", id)
+	}
+
 	fn contest_id(&self, contest: &Self::Contest) -> String {
 		contest.as_virt_symbol().to_owned()
 	}
