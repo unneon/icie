@@ -4,7 +4,7 @@
 
 Firstly, the build system was only tested on Linux. Using Windows Subsystem for Linux or MacOS should also work, but who knows. The built extension is cross-platform no matter where you're compiling.
 
-You will need a recent nightly build of the Rust programming language. The recommended installation method is [rustup](https://rustup.rs/). Make sure to select the nightly toolchain during installation. If you already have installed stable Rust via rustup or you have an outdated version, see [official documentation on updating and managing toolchains](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html).
+You will need a recent nightly build of the Rust programming language. The recommended installation method is [rustup](https://rustup.rs/). Make sure to select the nightly toolchain during installation. If you already have installed stable Rust via rustup or you have an outdated version, see [official documentation on updating and managing toolchains](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html). The project really requires a recent version, so be sure to run `rustup update` before compiling.
 
 After that, install two tool sets required for WebAssembly development with `cargo install wasm-bindgen-cli wasm-pack`.
 Yet another tool is wasm-opt, which can be installed on recent Ubuntus with `sudo apt install binaryen` or compiled from [sources](https://github.com/WebAssembly/binaryen)(clone, cmake . && make && sudo make install).

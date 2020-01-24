@@ -1,10 +1,10 @@
 # ICIE [![](https://img.shields.io/azure-devops/build/pustaczek/7b7eb991-b079-479b-8716-8248c968eaf8/1?logo=azure-pipelines)](https://dev.azure.com/pustaczek/ICIE/_build?definitionId=1) [![](https://img.shields.io/visual-studio-marketplace/i/pustaczek.icie.svg?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/license/pustaczek/icie.svg?logo=github)](https://github.com/pustaczek/icie/blob/master/LICENSE)
 
-ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Linux, with support for [Codeforces](https://codeforces.com), [AtCoder](https://atcoder.jp), ~~[CodeChef](https://www.codechef.com/)~~ and [SPOJ](https://www.spoj.com).
+ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming. It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status. Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties. Currently, it works on Windows, Linux and macOS, with support for [Codeforces](https://codeforces.com), [AtCoder](https://atcoder.jp), ~~[CodeChef](https://www.codechef.com/)~~ and [SPOJ](https://www.spoj.com).
 
 ## Quick start
 
-- Start Linux, launch [Visual Studio Code](https://code.visualstudio.com/), go to Extensions, search for ICIE and click Install.
+- Launch [Visual Studio Code](https://code.visualstudio.com/), go to Extensions, search for ICIE and click Install.
 - **To participate in a contest**, press <kbd>Alt</kbd><kbd>F9</kbd> before it starts and select it from the list.
 - Use <kbd>Alt</kbd><kbd>F12</kbd> to automatically build, run example tests and submit if tests pass.
 - Use <kbd>Alt</kbd><kbd>Backspace</kbd> to quickly switch between tasks.
@@ -43,4 +43,4 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 
 ## Development & Building from source
 
-The instructions can be found in [CONTRIBUTING.md](https://github.com/pustaczek/icie/blob/master/CONTRIBUTING.md). The project is still in development, the Rust language does not have an official VS Code API, and there is a custom build system, but nevertheless I have tried to make it as streamlined as possible.
+The instructions can be found in [CONTRIBUTING.md](https://github.com/pustaczek/icie/blob/master/CONTRIBUTING.md). The project is still in development, the Rust language does not have an official VS Code API, there is a custom build system, it uses WebAssembly which is still in heavy development, and it also patches the compiler output with regexes to remove some type checks, but nevertheless I have tried to make it as streamlined as possible.
