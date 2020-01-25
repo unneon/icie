@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, Codegen}, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, util::{fs, Tempfile}
+	build::{build, Codegen}, dir, executable::{Environment, Executable}, util::{fs, Tempfile}
 };
 use async_trait::async_trait;
 use evscode::R;
@@ -18,7 +18,6 @@ pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 		let bx: Box<dyn Checker+Send+Sync> = Box::new(FreeWhitespaceChecker);
 		bx
 	} else {
-		TELEMETRY.checker_exists.spark();
 		let environment =
 			Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis), cwd: None };
 		let executable = build(checker, Codegen::Release, false).await?;

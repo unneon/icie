@@ -1,5 +1,5 @@
 use crate::{
-	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::{self, TELEMETRY}, util::{self, fs, node_hrtime, path::Path}
+	dir, init, manifest::Manifest, net::{interpret_url, require_task}, telemetry::TELEMETRY, util::{self, fs, path::Path}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -9,7 +9,6 @@ use unijudge::{Backend, Resource, Statement};
 pub async fn activate() -> R<()> {
 	log::info!("icie.launch.@activate");
 	let _status = crate::STATUS.push("Launching");
-	*telemetry::START_TIME.lock().unwrap() = Some(node_hrtime());
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;
 	init::contest::check_for_manifest().await?;
@@ -17,7 +16,9 @@ pub async fn activate() -> R<()> {
 }
 
 pub async fn deactivate() -> R<()> {
-	telemetry::send_usage();
+	// Deactivate does not really seem to work at all? Issue [47881][1] suggest that also most JS
+	// APIs break when this happens.
+	// [1]: https://github.com/Microsoft/vscode/issues/47881
 	Ok(())
 }
 

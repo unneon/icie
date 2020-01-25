@@ -75,7 +75,7 @@ async fn inner_sprint(manifest: &Path) -> R<()> {
 	let manifest = pop_manifest(manifest).await?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
 	let url = require_contest(url)?;
-	let sess = Session::connect(&url.domain, backend.backend).await?;
+	let sess = Session::connect(&url.domain, backend).await?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let task_dir = Path::from_native(evscode::workspace_root()?);

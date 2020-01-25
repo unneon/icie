@@ -105,7 +105,6 @@ impl Keyring {
 		match JsFuture::from(keytar_sys::get_password("ICIE", &entry)).await {
 			Ok(val) => val.as_string(),
 			Err(e) => {
-				TELEMETRY.auth_keyring_error.spark();
 				log::error!("keyring errored, details: {:#?}", e);
 				None
 			},
@@ -117,7 +116,6 @@ impl Keyring {
 		match JsFuture::from(keytar_sys::set_password("ICIE", &entry, value)).await {
 			Ok(_) => true,
 			Err(e) => {
-				TELEMETRY.auth_keyring_error.spark();
 				log::error!("keyring errored, details: {:#?}", e);
 				false
 			},
@@ -129,7 +127,6 @@ impl Keyring {
 		match JsFuture::from(keytar_sys::delete_password("ICIE", &entry)).await {
 			Ok(_) => {},
 			Err(e) => {
-				TELEMETRY.auth_keyring_error.spark();
 				log::error!("keyring errored, details: {:#?}", e);
 			},
 		}

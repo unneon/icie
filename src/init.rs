@@ -38,8 +38,7 @@ async fn scan() -> R<()> {
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	let (sess, contest, backend) = &contests[pick.parse::<usize>().unwrap()];
-	backend.counter.spark();
+	let (sess, contest, _) = &contests[pick.parse::<usize>().unwrap()];
 	TELEMETRY.init_scan_ok.spark();
 	contest::sprint(sess.clone(), &contest.id, Some(&contest.title)).await?;
 	Ok(())
@@ -65,7 +64,7 @@ async fn url() -> R<()> {
 		},
 		InitCommand::Contest { url, backend } => {
 			TELEMETRY.init_url_contest.spark();
-			let sess = net::Session::connect(&url.domain, backend.backend).await?;
+			let sess = net::Session::connect(&url.domain, backend).await?;
 			let Resource::Contest(contest) = url.resource;
 			drop(_status);
 			contest::sprint(Arc::new(sess), &contest, None).await?;
@@ -131,7 +130,7 @@ fn url_to_command(url: Option<&String>) -> R<InitCommand> {
 
 async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) -> R<TaskDetails> {
 	let Resource::Task(task) = &url.resource;
-	let sess = net::Session::connect(&url.domain, backend.backend).await?;
+	let sess = net::Session::connect(&url.domain, backend).await?;
 	let meta = {
 		let _status = crate::STATUS.push("Fetching task");
 		sess.run(|backend, sess| backend.task_details(sess, &task)).await?

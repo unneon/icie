@@ -16,6 +16,8 @@ pub async fn check() -> R<()> {
 			TELEMETRY.newsletter_changelog.spark();
 			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md")
 				.await?;
+		} else {
+			TELEMETRY.newsletter_dismiss.spark();
 		}
 	}
 	Ok(())

@@ -1,106 +1,18 @@
-use crate::{net::BACKENDS, util::node_hrtime};
-use std::{
-	sync::{
-		atomic::{AtomicU64, Ordering}, Mutex
-	}, time::Duration
-};
-
-pub fn send_usage() {
-	evscode::telemetry(
-		"usage",
-		&[],
-		(&[
-			("auth_ask", TELEMETRY.auth_ask.get()),
-			("auth_keyring_error", TELEMETRY.auth_keyring_error.get()),
-			("auth_reset", TELEMETRY.auth_reset.get()),
-			("build_all", TELEMETRY.build_all.get()),
-			("build_manual", TELEMETRY.build_manual.get()),
-			("checker_exists", TELEMETRY.checker_exists.get()),
-			("debug_gdb", TELEMETRY.debug_gdb.get()),
-			("debug_rr", TELEMETRY.debug_rr.get()),
-			("discover_start", TELEMETRY.discover_start.get()),
-			("error_unijudge", TELEMETRY.error_unijudge.get()),
-			("init_countdown", TELEMETRY.init_countdown.get()),
-			("init_countdown_ok", TELEMETRY.init_countdown_ok.get()),
-			("init_scan", TELEMETRY.init_scan.get()),
-			("init_scan_ok", TELEMETRY.init_scan_ok.get()),
-			("init_url", TELEMETRY.init_url.get()),
-			("init_url_contest", TELEMETRY.init_url_contest.get()),
-			("init_url_existing", TELEMETRY.init_url_existing.get()),
-			("init_url_task", TELEMETRY.init_url_task.get()),
-			("launch_nearby", TELEMETRY.launch_nearby.get()),
-			("launch_web_contest", TELEMETRY.launch_web_contest.get()),
-			("launch_web_task", TELEMETRY.launch_web_task.get()),
-			("net_connect", TELEMETRY.net_connect.get()),
-			("newsletter_show", TELEMETRY.newsletter_show.get()),
-			("newsletter_changelog", TELEMETRY.newsletter_changelog.get()),
-			("newsletter_dismiss", TELEMETRY.newsletter_dismiss.get()),
-			("paste_qistruct", TELEMETRY.paste_qistruct.get()),
-			("paste_quick", TELEMETRY.paste_quick.get()),
-			("paste_quick_ok", TELEMETRY.paste_quick_ok.get()),
-			("statement", TELEMETRY.statement.get()),
-			("statement_html", TELEMETRY.statement_html.get()),
-			("statement_pdf", TELEMETRY.statement_pdf.get()),
-			("submit_f12", TELEMETRY.submit_f12.get()),
-			("submit_send", TELEMETRY.submit_send.get()),
-			("submit_nolang", TELEMETRY.submit_nolang.get()),
-			("submit_notask", TELEMETRY.submit_notask.get()),
-			("submit_notest", TELEMETRY.submit_notest.get()),
-			("submit_failtest", TELEMETRY.submit_failtest.get()),
-			("template_instantiate", TELEMETRY.template_instantiate.get()),
-			("template_load", TELEMETRY.template_load.get()),
-			("template_load_builtin", TELEMETRY.template_load_builtin.get()),
-			("template_load_custom", TELEMETRY.template_load_custom.get()),
-			("term_install", TELEMETRY.term_install.get()),
-			("test_add", TELEMETRY.test_add.get()),
-			("test_alt0", TELEMETRY.test_alt0.get()),
-			("test_alternative_add", TELEMETRY.test_alternative_add.get()),
-			("test_alternative_delete", TELEMETRY.test_alternative_delete.get()),
-			("test_current", TELEMETRY.test_current.get()),
-			("test_edit", TELEMETRY.test_edit.get()),
-			("test_eval", TELEMETRY.test_eval.get()),
-			("test_input", TELEMETRY.test_input.get()),
-			("test_run", TELEMETRY.test_run.get()),
-		] as &[(&str, f64)])
-			.iter()
-			.cloned()
-			.chain((&[("session_duration", get_session_duration())]).iter().cloned())
-			.chain(BACKENDS.iter().map(|backend| (backend.telemetry_id, backend.counter.get())))
-			.chain(evscode::meta::config_entries().iter().map(|config_entry| {
-				(config_entry.telemetry_id.as_str(), config_entry.telemetry_config_delta())
-			})),
-	);
-}
-
 pub struct Counter {
-	val: AtomicU64,
+	id: &'static str,
 }
 impl Counter {
 	pub fn spark(&self) {
-		self.val.fetch_add(1, Ordering::SeqCst);
+		evscode::telemetry(self.id, &[], &[])
 	}
 
-	pub const fn new() -> Counter {
-		Counter { val: AtomicU64::new(0) }
+	pub const fn new(id: &'static str) -> Counter {
+		Counter { id }
 	}
-
-	fn get(&self) -> f64 {
-		self.val.load(Ordering::SeqCst) as f64
-	}
-}
-
-lazy_static::lazy_static! {
-	pub static ref START_TIME: Mutex<Option<Duration>> = Mutex::new(None);
-}
-
-fn get_session_duration() -> f64 {
-	let t = node_hrtime();
-	(t - START_TIME.lock().unwrap().unwrap_or(t)).as_secs_f64()
 }
 
 pub struct Events {
 	pub auth_ask: Counter,
-	pub auth_keyring_error: Counter,
 	pub auth_reset: Counter,
 	pub build_all: Counter,
 	pub build_manual: Counter,
@@ -108,7 +20,6 @@ pub struct Events {
 	pub debug_gdb: Counter,
 	pub debug_rr: Counter,
 	pub discover_start: Counter,
-	pub error_unijudge: Counter,
 	pub init_countdown: Counter,
 	pub init_countdown_ok: Counter,
 	pub init_scan: Counter,
@@ -120,7 +31,6 @@ pub struct Events {
 	pub launch_nearby: Counter,
 	pub launch_web_contest: Counter,
 	pub launch_web_task: Counter,
-	pub net_connect: Counter,
 	pub newsletter_show: Counter,
 	pub newsletter_changelog: Counter,
 	pub newsletter_dismiss: Counter,
@@ -153,55 +63,52 @@ pub struct Events {
 }
 
 pub static TELEMETRY: Events = Events {
-	auth_ask: Counter::new(),
-	auth_keyring_error: Counter::new(),
-	auth_reset: Counter::new(),
-	build_all: Counter::new(),
-	build_manual: Counter::new(),
-	checker_exists: Counter::new(),
-	debug_gdb: Counter::new(),
-	debug_rr: Counter::new(),
-	discover_start: Counter::new(),
-	error_unijudge: Counter::new(),
-	init_countdown: Counter::new(),
-	init_countdown_ok: Counter::new(),
-	init_scan: Counter::new(),
-	init_scan_ok: Counter::new(),
-	init_url: Counter::new(),
-	init_url_contest: Counter::new(),
-	init_url_existing: Counter::new(),
-	init_url_task: Counter::new(),
-	launch_nearby: Counter::new(),
-	launch_web_contest: Counter::new(),
-	launch_web_task: Counter::new(),
-	net_connect: Counter::new(),
-	newsletter_show: Counter::new(),
-	newsletter_changelog: Counter::new(),
-	newsletter_dismiss: Counter::new(),
-	paste_qistruct: Counter::new(),
-	paste_quick: Counter::new(),
-	paste_quick_ok: Counter::new(),
-	statement: Counter::new(),
-	statement_html: Counter::new(),
-	statement_pdf: Counter::new(),
-	submit_f12: Counter::new(),
-	submit_send: Counter::new(),
-	submit_nolang: Counter::new(),
-	submit_notask: Counter::new(),
-	submit_notest: Counter::new(),
-	submit_failtest: Counter::new(),
-	template_instantiate: Counter::new(),
-	template_load: Counter::new(),
-	template_load_builtin: Counter::new(),
-	template_load_custom: Counter::new(),
-	term_install: Counter::new(),
-	test_add: Counter::new(),
-	test_alt0: Counter::new(),
-	test_alternative_add: Counter::new(),
-	test_alternative_delete: Counter::new(),
-	test_current: Counter::new(),
-	test_edit: Counter::new(),
-	test_eval: Counter::new(),
-	test_input: Counter::new(),
-	test_run: Counter::new(),
+	auth_ask: Counter::new("action.auth_ask"),
+	auth_reset: Counter::new("action.auth_reset"),
+	build_all: Counter::new("action.build_all"),
+	build_manual: Counter::new("action.build_manual"),
+	checker_exists: Counter::new("action.checker_exists"),
+	debug_gdb: Counter::new("action.debug_gdb"),
+	debug_rr: Counter::new("action.debug_rr"),
+	discover_start: Counter::new("action.discover_start"),
+	init_countdown: Counter::new("action.init_countdown"),
+	init_countdown_ok: Counter::new("action.init_countdown_ok"),
+	init_scan: Counter::new("action.init_scan"),
+	init_scan_ok: Counter::new("action.init_scan_ok"),
+	init_url: Counter::new("action.init_url"),
+	init_url_contest: Counter::new("action.init_url_contest"),
+	init_url_existing: Counter::new("action.init_url_existing"),
+	init_url_task: Counter::new("action.init_url_task"),
+	launch_nearby: Counter::new("action.launch_nearby"),
+	launch_web_contest: Counter::new("action.launch_web_contest"),
+	launch_web_task: Counter::new("action.launch_web_task"),
+	newsletter_show: Counter::new("action.newsletter_show"),
+	newsletter_changelog: Counter::new("action.newsletter_changelog"),
+	newsletter_dismiss: Counter::new("action.newsletter_dismiss"),
+	paste_qistruct: Counter::new("action.paste_qistruct"),
+	paste_quick: Counter::new("action.paste_quick"),
+	paste_quick_ok: Counter::new("action.paste_quick_ok"),
+	statement: Counter::new("action.statement"),
+	statement_html: Counter::new("action.statement_html"),
+	statement_pdf: Counter::new("action.statement_pdf"),
+	submit_f12: Counter::new("action.submit_f12"),
+	submit_send: Counter::new("action.submit_send"),
+	submit_nolang: Counter::new("action.submit_nolang"),
+	submit_notask: Counter::new("action.submit_notask"),
+	submit_notest: Counter::new("action.submit_notests"),
+	submit_failtest: Counter::new("action.submit_failtest"),
+	template_instantiate: Counter::new("action.template_instantiate"),
+	template_load: Counter::new("action.template_load"),
+	template_load_builtin: Counter::new("action.template_load_builtin"),
+	template_load_custom: Counter::new("action.template_load_custom"),
+	term_install: Counter::new("action.term_install"),
+	test_add: Counter::new("action.test_add"),
+	test_alt0: Counter::new("action.test_alt0"),
+	test_alternative_add: Counter::new("action.test_alternative_add"),
+	test_alternative_delete: Counter::new("action.test_alternative_delete"),
+	test_current: Counter::new("action.test_current"),
+	test_edit: Counter::new("action.test_edit"),
+	test_eval: Counter::new("action.test_eval"),
+	test_input: Counter::new("action.test_input"),
+	test_run: Counter::new("action.test_run"),
 };

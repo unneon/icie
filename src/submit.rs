@@ -44,7 +44,7 @@ async fn send_passed() -> R<()> {
 	let (url, backend) = net::interpret_url(url)?;
 	let url = require_task::<BoxedContest, BoxedTask>(url)?;
 	let Resource::Task(task) = url.resource;
-	let sess = net::Session::connect(&url.domain, backend.backend).await?;
+	let sess = net::Session::connect(&url.domain, backend).await?;
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|backend, sess| backend.task_languages(sess, &task)).await?
