@@ -1,3 +1,17 @@
+## 0.7
+
+- Added **Windows and macOS support**
+- Added support for Codeforces training group tasks
+- Added progress bar when scanning for contests
+- Added link to submission details in tracking notification
+- Added extension icon and customized background colors
+- Added displaying package manager name in install suggestions
+- Added support for installing packages with Arch's Pacman
+- Fixed the newsletter to appear less often
+- Fixed errors when dealing with some rare Codeforces verdicts
+- Fixed SIO2 backend not checking if logged in when submitting
+- Fixed telemetry to follow the intended usage patterns
+
 ## 0.6.4
 
 - Added focusing test view when adding new tests with <kbd>Alt</kbd><kbd>-</kbd>
