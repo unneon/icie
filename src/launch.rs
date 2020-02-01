@@ -7,7 +7,6 @@ use serde::Serialize;
 use unijudge::{Backend, Resource, Statement};
 
 pub async fn activate() -> R<()> {
-	log::info!("icie.launch.@activate");
 	let _status = crate::STATUS.push("Launching");
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;

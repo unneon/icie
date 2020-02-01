@@ -1,5 +1,5 @@
 use crate::{
-	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, plural, sleep}
+	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
 };
 use evscode::{E, R};
 use std::time::Duration;
@@ -84,11 +84,6 @@ async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: 
 		let submission = match submissions.into_iter().find(|subm| subm.id == id) {
 			Some(submission) => submission,
 			None if not_seen_retry_limit > 0 => {
-				log::debug!(
-					"submission {} not found on status page, {} left",
-					id,
-					plural(not_seen_retry_limit, "retry", "retries")
-				);
 				let _status = crate::STATUS.push("Retrying...");
 				not_seen_retry_limit -= 1;
 				sleep(TRACK_NOT_SEEN_RETRY_DELAY).await;
