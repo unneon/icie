@@ -135,10 +135,8 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 		Verdict::RuntimeError => Some("RE"),
 		Verdict::TimeLimitExceeded => Some("TLE"),
 	};
-	let notes = vec![note_time.as_ref().map(|s| s.as_str()), note_verdict]
-		.into_iter()
-		.filter_map(|o| o)
-		.collect::<Vec<_>>();
+	let notes =
+		vec![note_time.as_deref(), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
 	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
 	let attrs = [("data-raw", test.outcome.out.as_str())];
 	let actions = [
@@ -154,7 +152,7 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 		&actions,
 		Some(test.outcome.stderr.as_str()),
 		&test.outcome.out,
-		note.as_ref().map(|note| note.as_str()),
+		note.as_deref(),
 		folded,
 	)
 	.await)

@@ -57,7 +57,7 @@ impl Builder {
 				while let Some(update) = rx.next().await {
 					progress.report(vscode_sys::ProgressProgressValue {
 						increment: update.0,
-						message: update.1.as_ref().map(String::as_str),
+						message: update.1.as_deref(),
 					})
 				}
 				Ok(JsValue::undefined())
@@ -67,7 +67,7 @@ impl Builder {
 			vscode_sys::window::ProgressOptions {
 				cancellable: self.cancellable,
 				location: self.location,
-				title: self.title.as_ref().map(String::as_str),
+				title: self.title.as_deref(),
 			},
 			Closure::once_into_js(progress_loop),
 		);

@@ -24,7 +24,7 @@ pub struct Action {
 }
 
 /// Indication of how serious the error is.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Severity {
 	/// Abort the operation, display an error message, provide a link to GitHub issues.
 	Error,
@@ -266,7 +266,7 @@ impl E {
 				})
 				.collect::<Vec<_>>();
 			let mut msg = crate::Message::new(&message).error().items(items);
-			if let Severity::Warning = self.severity {
+			if self.severity == Severity::Warning {
 				msg = msg.warning();
 			}
 			let promise = msg.show_eager();

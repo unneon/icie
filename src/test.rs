@@ -97,15 +97,10 @@ fn run_thread(ins: Vec<Path>, task: Task, solution: Executable) -> impl Stream<I
 				} else {
 					None
 				};
-				let outcome = simple_test(
-					&solution,
-					&input,
-					output.as_ref().map(String::as_str),
-					alt.as_ref().map(|p| p.as_str()),
-					&task,
-				)
-				.await
-				.map_err(|e| e.context("failed to run test"))?;
+				let outcome =
+					simple_test(&solution, &input, output.as_deref(), alt.as_deref(), &task)
+						.await
+						.map_err(|e| e.context("failed to run test"))?;
 				let run = TestRun { in_path, out_path, outcome };
 				if tx.send(Ok(run)).await.is_err() {
 					break;

@@ -54,7 +54,7 @@ impl MultiStatus {
 		} else {
 			None
 		};
-		crate::stdlib::status(msg.as_ref().map(String::as_str));
+		crate::stdlib::status(msg.as_deref());
 	}
 
 	fn obtain_lock(&self) -> MutexGuard<Vec<String>> {

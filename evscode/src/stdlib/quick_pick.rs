@@ -114,8 +114,8 @@ impl<'a, T: Serialize+for<'d> Deserialize<'d>, I: Iterator<Item=Item<T>>> Builde
 		for item in self.items {
 			items.push(
 				&JsValue::from_serde(&vscode_sys::window::ShowQuickPickItem {
-					detail: item.detail.as_ref().map(String::as_str),
-					description: item.description.as_ref().map(String::as_str),
+					detail: item.detail.as_deref(),
+					description: item.description.as_deref(),
 					always_show: item.always_show,
 					label: &item.label,
 					id: item.id,

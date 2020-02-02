@@ -196,7 +196,7 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 				.item("log-in".to_owned(), "Log in", false)
 				.show()
 				.await;
-			if let Some("log-in") = dec.as_ref().map(String::as_str) {
+			if dec.as_deref() == Some("log-in") {
 				sess.force_login().await?;
 				evscode::Message::new::<()>("Logged in successfully").show().await;
 			}

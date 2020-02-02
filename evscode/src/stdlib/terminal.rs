@@ -74,7 +74,7 @@ impl Builder {
 			cwd: self.cwd.as_ref().map(|p| p.to_str().unwrap()),
 			env: self.env.map(|env| env.into_iter().collect()),
 			hide_from_user: Some(false),
-			name: self.name.as_ref().map(String::as_str),
+			name: self.name.as_deref(),
 			shell_args: self.shell_args,
 			shell_path: self.shell_path.as_ref().map(|p| p.to_str().unwrap()),
 			strict_env: Some(self.strict_env),

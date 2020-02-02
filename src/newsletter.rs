@@ -3,7 +3,7 @@ use evscode::R;
 
 pub async fn check() -> R<()> {
 	let last = LAST_ACKNOWLEDGED_VERSION.get()?;
-	if last.as_ref().map(String::as_ref) != Some(LAST_IMPORTANT_UPDATE.version) {
+	if last.as_deref() != Some(LAST_IMPORTANT_UPDATE.version) {
 		TELEMETRY.newsletter_show.spark();
 		let message = format!(
 			"Hey, ICIE {} has some cool new features, like: {}; check them out!",
@@ -12,7 +12,7 @@ pub async fn check() -> R<()> {
 		let choice = evscode::Message::new(&message).item((), "See changelog", false).show().await;
 		let acknowledge = LAST_IMPORTANT_UPDATE.version.to_owned();
 		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
-		if let Some(()) = choice {
+		if choice.is_some() {
 			TELEMETRY.newsletter_changelog.spark();
 			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md")
 				.await?;
