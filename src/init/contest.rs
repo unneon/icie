@@ -192,11 +192,8 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 				"You are not logged in to {}, maybe do it now to save time when submitting?",
 				site
 			);
-			let dec = evscode::Message::new(&message)
-				.item("log-in".to_owned(), "Log in", false)
-				.show()
-				.await;
-			if dec.as_deref() == Some("log-in") {
+			let dec = evscode::Message::new(&message).item((), "Log in", false).show().await;
+			if dec.is_some() {
 				sess.force_login().await?;
 				evscode::Message::new::<()>("Logged in successfully").show().await;
 			}

@@ -255,16 +255,9 @@ impl E {
 					""
 				}
 			);
-			let items = self
-				.actions
-				.iter()
-				.enumerate()
-				.map(|(i, action)| crate::message::Action {
-					id: i.to_string(),
-					title: action.title.clone(),
-					is_close_affordance: false,
-				})
-				.collect::<Vec<_>>();
+			let items = self.actions.iter().enumerate().map(|(id, action)| {
+				crate::message::Action { id, title: &action.title, is_close_affordance: false }
+			});
 			let mut msg = crate::Message::new(&message).error().items(items);
 			if self.severity == Severity::Warning {
 				msg = msg.warning();
@@ -273,8 +266,7 @@ impl E {
 			crate::spawn(async move {
 				let choice = promise.await;
 				if let Some(choice) = choice {
-					let i: usize = choice.parse().unwrap();
-					let action = self.actions.into_iter().nth(i).unwrap();
+					let action = self.actions.into_iter().nth(choice).unwrap();
 					action.trigger.await?;
 				}
 				Ok(())

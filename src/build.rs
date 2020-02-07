@@ -175,12 +175,7 @@ async fn show_warnings(warnings: Vec<Message>) -> R<()> {
 			warnings.len(),
 			if warnings.len() == 1 { "" } else { "s" }
 		);
-		if evscode::Message::new(&message)
-			.warning()
-			.item("show".to_owned(), "Show", false)
-			.show()
-			.await
-			.is_none()
+		if evscode::Message::new(&message).warning().item((), "Show", false).show().await.is_none()
 		{
 			return Ok(());
 		}
@@ -194,7 +189,7 @@ async fn show_warnings(warnings: Vec<Message>) -> R<()> {
 		}
 		let msg = evscode::Message::new(&warning.message).warning();
 		let choice = if i + 1 != warnings.len() {
-			msg.item("next".to_owned(), "Next", false).show().await
+			msg.item((), "Next", false).show().await
 		} else {
 			msg.show().await
 		};

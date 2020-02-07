@@ -6,16 +6,16 @@
 
 use serde::{Deserialize, Serialize};
 use std::{
-	future::Future, iter::{Chain, Empty, Once}
+	future::Future, iter::{Chain, Empty, Once}, marker::PhantomData, pin::Pin, task::{Context, Poll}
 };
 use wasm_bindgen::JsValue;
 
 /// Action button that will appear on a message.
-pub struct Action<T> {
+pub struct Action<'a, T> {
 	/// Identifier that will be returned if the action in selected.
 	pub id: T,
 	/// Title of the button.
-	pub title: String,
+	pub title: &'a str,
 	/// Whether the action will be selected as default if the message is closed.
 	/// There can be only one item with this equal to `true`.
 	/// This option only works for modal messages and is otherwise ignored.
@@ -24,13 +24,15 @@ pub struct Action<T> {
 
 /// Builder for configuring messages. Use [`Message::new`] to create.
 #[must_use]
-pub struct Builder<T, A: Iterator<Item=Action<T>>> {
-	message: String,
+pub struct Builder<'a, T, A: Iterator<Item=Action<'a, T>>> {
+	message: &'a str,
 	kind: fn(&str, &JsValue, Vec<JsValue>) -> vscode_sys::Thenable<JsValue>,
 	modal: bool,
 	items: A,
 }
-impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<T, A> {
+impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a, T>>>
+	Builder<'a, T, A>
+{
 	/// Use a orange warning icon
 	pub fn warning(mut self) -> Self {
 		self.kind = vscode_sys::window::show_warning_message;
@@ -53,10 +55,10 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 	}
 
 	/// Add action buttons to the message.
-	pub fn items<A2: IntoIterator<Item=Action<T>>>(
+	pub fn items<A2: IntoIterator<Item=Action<'a, T>>>(
 		self,
 		items: A2,
-	) -> Builder<T, Chain<A, A2::IntoIter>>
+	) -> Builder<'a, T, Chain<A, A2::IntoIter>>
 	{
 		Builder {
 			message: self.message,
@@ -71,19 +73,15 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 	pub fn item(
 		self,
 		id: T,
-		title: &str,
+		title: &'a str,
 		is_close_affordance: bool,
-	) -> Builder<T, Chain<A, Once<Action<T>>>>
+	) -> Builder<'a, T, Chain<A, Once<Action<'a, T>>>>
 	{
 		Builder {
 			message: self.message,
 			kind: self.kind,
 			modal: self.modal,
-			items: self.items.chain(std::iter::once(Action {
-				id,
-				title: title.to_owned(),
-				is_close_affordance,
-			})),
+			items: self.items.chain(std::iter::once(Action { id, title, is_close_affordance })),
 		}
 	}
 
@@ -95,7 +93,7 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 
 	/// Display the message, and only then return a future with the result.
 	/// Returns the id of the selected action, if any.
-	pub fn show_eager(self) -> impl Future<Output=Option<T>>+'static {
+	pub fn show_eager(self) -> ShownMessage<T> {
 		let options =
 			JsValue::from_serde(&vscode_sys::window::ShowMessageOptions { modal: self.modal })
 				.unwrap();
@@ -111,13 +109,7 @@ impl<T: Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<T>>> Builder<
 			})
 			.collect();
 		let promise = (self.kind)(&self.message, &options, items);
-		async move {
-			let resp: Result<vscode_sys::ItemRet<T>, _> = promise.await.into_serde();
-			match resp {
-				Ok(resp) => Some(resp.id),
-				Err(_) => None,
-			}
-		}
+		ShownMessage(promise, PhantomData)
 	}
 }
 
@@ -130,12 +122,30 @@ pub struct Message {
 
 impl Message {
 	/// Create a new builder to configure the message.
-	pub fn new<T>(message: &str) -> Builder<T, Empty<Action<T>>> {
+	pub fn new<'a, T>(message: &'a str) -> Builder<'a, T, Empty<Action<'a, T>>> {
 		Builder {
-			message: message.to_owned(),
+			message,
 			kind: vscode_sys::window::show_information_message,
 			modal: false,
 			items: std::iter::empty(),
 		}
+	}
+}
+
+/// A future returned after displaying a message eagerly. See [`Message::show`] and
+/// [`Message::show_eager`].
+pub struct ShownMessage<T>(vscode_sys::Thenable<JsValue>, PhantomData<T>);
+
+impl<T: for<'d> Deserialize<'d>+Unpin> Future for ShownMessage<T> {
+	type Output = Option<T>;
+
+	fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+		Pin::new(&mut self.get_mut().0).poll(cx).map(|ret| {
+			let resp: Result<vscode_sys::ItemRet<T>, _> = ret.into_serde();
+			match resp {
+				Ok(resp) => Some(resp.id),
+				Err(_) => None,
+			}
+		})
 	}
 }
