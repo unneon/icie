@@ -1,3 +1,7 @@
+## 0.7.1
+
+- Added more logging to help diagnose a Codeforces login issue
+
 ## 0.7
 
 - Added **Windows and macOS support**
