@@ -200,7 +200,7 @@ impl URL<(), ()> {
 }
 
 #[async_trait(?Send)]
-pub trait Backend: Send+Sync+'static {
+pub trait Backend: Debug+Send+Sync+'static {
 	type CachedAuth: Debug+Send+Sync+'static;
 	type Contest: Debug+Send+Sync+'static;
 	type Session: Debug+Send+Sync+'static;

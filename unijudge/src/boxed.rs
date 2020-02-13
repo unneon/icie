@@ -168,7 +168,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 }
 
 #[async_trait(?Send)]
-pub trait DynamicBackend: Send+Sync {
+pub trait DynamicBackend: Debug+Send+Sync {
 	fn accepted_domainsx(&self) -> &'static [&'static str];
 	fn deconstruct_resourcex(&self, domain: &str, segments: &[&str]) -> Result<BoxedResource>;
 	fn connectx(&self, client: Client, domain: &str) -> BoxedSession;

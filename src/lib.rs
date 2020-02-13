@@ -57,7 +57,6 @@ evscode::plugin! {
 	log_filters: &[
 		("cookie_store", log::LevelFilter::Info),
 		("html5ever", log::LevelFilter::Info),
-		("reqwest", log::LevelFilter::Info),
 		("selectors", log::LevelFilter::Info),
 	],
 }

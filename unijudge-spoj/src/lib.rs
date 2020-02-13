@@ -7,6 +7,7 @@ use unijudge::{
 	}, url::Url, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
+#[derive(Debug)]
 pub struct SPOJ;
 
 #[async_trait(?Send)]

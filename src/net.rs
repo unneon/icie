@@ -1,5 +1,6 @@
 use crate::{auth, util::sleep};
 use evscode::{error::ResultExt, E, R};
+use log::debug;
 use std::{fmt, future::Future, pin::Pin, time::Duration};
 use unijudge::{
 	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Resource, URL
@@ -24,6 +25,7 @@ pub struct Session {
 	site: String,
 }
 
+#[derive(Debug)]
 pub struct BackendMeta {
 	pub backend: &'static dyn DynamicBackend,
 	pub cpp: &'static str,
@@ -42,35 +44,52 @@ impl BackendMeta {
 }
 
 pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
-	Ok(BACKENDS
+	debug!("icie.net.interpret_url, url = {:?}", url);
+	let backend = BACKENDS
 		.iter()
 		.filter_map(|backend| match backend.backend.deconstruct_url(url) {
 			Ok(Some(url)) => Some(Ok((url, backend))),
 			Ok(None) => None,
 			Err(e) => Some(Err(e)),
 		})
-		.next()
+		.next();
+	debug!("icie.net.interpret_url, backend = {:?}", url);
+	Ok(backend
 		.wrap(format!("not yet supporting contests/tasks on site {}", url))?
 		.map_err(from_unijudge_error)?)
 }
 
 impl Session {
 	pub async fn connect(domain: &str, backend: &'static BackendMeta) -> R<Session> {
+		debug!("icie.net.Session.connect, domain = {:?}, backend = {:?}", domain, backend);
 		evscode::telemetry("connect", &[("backend", backend.telemetry_id)], &[]);
 		let backend = backend.backend;
 		let client = Client::new(USER_AGENT).map_err(from_unijudge_error)?;
 		let session = backend.connect(client, domain);
 		let site = format!("https://{}", domain);
+		debug!("icie.net.Session.connect, connected successfully");
 		if let Some(auth) = auth::get_if_cached(&site).await {
+			debug!("icie.net.Session.connect, found cached auth");
 			if let Ok(auth) = backend.auth_deserialize(&auth) {
+				debug!("icie.net.Session.connect, cached auth has valid format");
 				match backend.auth_restore(&session, &auth).await {
 					Err(unijudge::Error::WrongData)
 					| Err(unijudge::Error::WrongCredentials)
-					| Err(unijudge::Error::AccessDenied) => Ok(()),
+					| Err(unijudge::Error::AccessDenied) => {
+						debug!("icie.net.Session.connect, backend refused to use cached auth");
+						Ok(())
+					},
 					Err(e) => Err(from_unijudge_error(e)),
-					Ok(()) => Ok(()),
+					Ok(()) => {
+						debug!("icie.net.Session.connect, cached auth used successfully");
+						Ok(())
+					},
 				}?;
+			} else {
+				debug!("icie.net.Session.connect, cached auth has invalid format");
 			}
+		} else {
+			debug!("icie.net.Session.connect, did not find cached auth");
 		}
 		Ok(Session { backend, session, site })
 	}
@@ -80,14 +99,17 @@ impl Session {
 		mut f: impl FnMut(&'static dyn DynamicBackend, &'f BoxedSession) -> F+'f,
 	) -> R<Y>
 	{
+		debug!("icie.net.Session.run starting a new operation");
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		loop {
 			match f(self.backend, &self.session).await {
 				Ok(y) => break Ok(y),
 				Err(e @ unijudge::Error::WrongCredentials)
 				| Err(e @ unijudge::Error::AccessDenied) => {
+					debug!("icie.net.Session.run access was denied, e = {:?}", e);
 					self.maybe_error_show(e);
 					let (username, password) = auth::get_cached_or_ask(&self.site).await?;
+					debug!("icie.net.Session.run logging in");
 					self.login(&username, &password).await?
 				},
 				Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => {
@@ -99,23 +121,29 @@ impl Session {
 	}
 
 	pub async fn login(&self, username: &str, password: &str) -> R<()> {
+		debug!("icie.net.Session.login logging in");
 		let _status = crate::STATUS.push("Logging in");
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		match self.backend.auth_login(&self.session, &username, &password).await {
 			Ok(()) => {
+				debug!("icie.net.Session.login logged in successfully");
 				if let Some(cache) =
 					self.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)?
 				{
+					debug!("icie.net.Session.login caching auth data");
 					auth::save_cache(
 						&self.site,
 						&self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?,
 					)
 					.await;
+				} else {
+					debug!("icie.net.Session.login failed to prepare auth cache data");
 				}
 			},
 			Err(e @ unijudge::Error::WrongData)
 			| Err(e @ unijudge::Error::WrongCredentials)
 			| Err(e @ unijudge::Error::AccessDenied) => {
+				debug!("icie.net.Session.login login was not successful");
 				self.maybe_error_show(e);
 				self.force_login_boxed().await?;
 			},
@@ -146,6 +174,10 @@ impl Session {
 	}
 
 	async fn wait_for_retry(&self, retries_left: &mut usize, e: unijudge::reqwest::Error) {
+		debug!(
+			"icie.net.Session.wait_for_retry network failure, retries_left = {:?}",
+			retries_left
+		);
 		assert!(*retries_left > 0);
 		let _status = crate::STATUS.push("Waiting to retry");
 		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
@@ -196,7 +228,8 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 			evscode::E {
 				severity: evscode::error::Severity::Error,
 				reasons: vec![format!(
-					"unexpected HTML structure ({:?} at {:?})",
+					"[PLEASE REPORT THIS](https://github.com/pustaczek/icie/issues), unexpected \
+					 HTML structure ({:?} at {:?})",
 					e.reason, e.operations
 				)],
 				details: Vec::new(),

@@ -9,6 +9,7 @@ use unijudge::{
 	}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
+#[derive(Debug)]
 pub struct Sio2;
 
 #[derive(Debug)]

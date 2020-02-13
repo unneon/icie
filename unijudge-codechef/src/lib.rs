@@ -7,6 +7,7 @@ use unijudge::{
 	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{StatusCode, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
+#[derive(Debug)]
 pub struct CodeChef;
 
 #[derive(Debug, Clone)]

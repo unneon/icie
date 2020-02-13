@@ -5,6 +5,7 @@ use unijudge::{
 	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
+#[derive(Debug)]
 pub struct AtCoder;
 
 #[derive(Debug)]
