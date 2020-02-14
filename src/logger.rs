@@ -1,4 +1,6 @@
-use evscode::{error::ResultExt, goodies::DevToolsLogger, R};
+use evscode::{
+	error::{ResultExt, Severity}, goodies::DevToolsLogger, E, R
+};
 use log::{LevelFilter, Metadata, Record};
 
 pub fn initialize() -> R<()> {
@@ -6,6 +8,15 @@ pub fn initialize() -> R<()> {
 		.wrap("logging system initialization failed")?;
 	log::set_max_level(LevelFilter::Trace);
 	Ok(())
+}
+
+pub async fn on_error(error: E) {
+	error.backtrace.0.set_name("ICIEError");
+	error.backtrace.0.set_message(&error.human_detailed());
+	if error.severity == Severity::Error {
+		evscode::telemetry_exception(&error, &[], &[]);
+	}
+	error.emit();
 }
 
 const LOG_LEVELS: &[(&str, LevelFilter)] = &[

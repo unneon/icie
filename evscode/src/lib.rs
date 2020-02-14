@@ -15,6 +15,7 @@ pub mod marshal;
 pub mod meta;
 pub mod stdlib;
 
+use crate::glue::PACKAGE;
 pub use config::{Config, Configurable};
 pub use error::{E, R};
 pub use evscode_codegen::{command, config, plugin, *};
@@ -27,7 +28,9 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output=T>+'a>>;
 pub fn spawn(f: impl Future<Output=R<()>>+'static) {
 	wasm_bindgen_futures::spawn_local(async move {
 		if let Err(e) = f.await {
-			e.emit();
+			if let Some(on_error) = &PACKAGE.get().unwrap().on_error {
+				on_error(e).await;
+			}
 		}
 	});
 }

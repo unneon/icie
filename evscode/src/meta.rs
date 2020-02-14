@@ -1,6 +1,6 @@
 //! Extension metadata types.
 
-use crate::{config::ErasedConfig, BoxFuture, R};
+use crate::{config::ErasedConfig, BoxFuture, E, R};
 use std::fmt::{self, Write};
 
 /// Returns a vector with metadata on all configuration entries in the plugin.
@@ -131,6 +131,9 @@ pub struct Gallery {
 /// A future that executes a non-Send operation only once, but is Send.
 pub type LazyOnceFuture = dyn (FnOnce() -> BoxFuture<'static, R<()>>)+Send+Sync;
 
+/// A lazy future that executes a non-Send operation, but is Send.
+pub type ErrorCatcher = dyn (Fn(E) -> BoxFuture<'static, ()>)+Send+Sync;
+
 /// Extension metadata.
 ///
 /// See [official documentation](https://code.visualstudio.com/api/references/extension-manifest) for detailed information.
@@ -166,6 +169,8 @@ pub struct Package {
 	pub on_activate: Option<Box<LazyOnceFuture>>,
 	/// Function intended to run when the extension is deactivated.
 	pub on_deactivate: Option<Box<LazyOnceFuture>>,
+	/// Function intended to run when an error is returned from an action handler.
+	pub on_error: Option<Box<ErrorCatcher>>,
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],

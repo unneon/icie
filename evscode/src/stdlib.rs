@@ -144,12 +144,50 @@ pub fn telemetry<'a>(
 	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
 )
 {
+	let js_properties = get_telemetry_properties(properties);
+	let js_measurements = get_telemetry_measurements(measurements);
+	TELEMETRY_REPORTER.with(|reporter| {
+		reporter.borrow().as_ref().unwrap().send_telemetry_event(
+			event_name,
+			&js_properties,
+			&js_measurements,
+		);
+	});
+}
+
+/// Sends a telemetry exception through [vscode-extension-telemetry](https://github.com/microsoft/vscode-extension-telemetry).
+pub fn telemetry_exception<'a>(
+	error: &E,
+	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
+	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+)
+{
+	let js_properties = get_telemetry_properties(properties);
+	let js_measurements = get_telemetry_measurements(measurements);
+	TELEMETRY_REPORTER.with(|reporter| {
+		reporter.borrow().as_ref().unwrap().send_telemetry_exception(
+			&error.backtrace.0,
+			&js_properties,
+			&js_measurements,
+		)
+	})
+}
+
+fn get_telemetry_properties<'a>(
+	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
+) -> js_sys::Object {
 	let js_properties = js_sys::Object::new();
 	for property in properties {
 		let (key, value) = property.borrow();
 		js_sys::Reflect::set(&js_properties, &JsValue::from_str(*key), &JsValue::from_str(*value))
 			.unwrap();
 	}
+	js_properties
+}
+
+fn get_telemetry_measurements<'a>(
+	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+) -> js_sys::Object {
 	let js_measurements = js_sys::Object::new();
 	for measurement in measurements {
 		let (key, value) = measurement.borrow();
@@ -160,13 +198,7 @@ pub fn telemetry<'a>(
 		)
 		.unwrap();
 	}
-	TELEMETRY_REPORTER.with(|reporter| {
-		reporter.borrow().as_ref().unwrap().send_telemetry_event(
-			event_name,
-			&js_properties,
-			&js_measurements,
-		);
-	});
+	js_measurements
 }
 
 thread_local! {

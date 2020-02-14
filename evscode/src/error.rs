@@ -39,7 +39,7 @@ pub enum Severity {
 
 #[derive(Debug)]
 /// A captured WASM backtrace.
-pub struct Backtrace(js_sys::Error);
+pub struct Backtrace(pub js_sys::Error);
 
 impl Backtrace {
 	/// Capture a backtrace in WASM.
@@ -131,6 +131,19 @@ impl E {
 		for (i, reason) in self.reasons.iter().enumerate().rev() {
 			buf += reason;
 			if i != 0 {
+				buf += "; ";
+			}
+		}
+		buf
+	}
+
+	/// A human-facing representation of the error, but including internal error messages that are
+	/// usually hidden.
+	pub fn human_detailed(&self) -> String {
+		let mut buf = String::new();
+		for (i, reason) in self.reasons.iter().rev().chain(self.details.iter().rev()).enumerate() {
+			buf += reason;
+			if i != self.reasons.len() + self.details.len() - 1 {
 				buf += "; ";
 			}
 		}
