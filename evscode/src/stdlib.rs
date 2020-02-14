@@ -95,8 +95,8 @@ pub fn workspace_root() -> R<String> {
 }
 
 /// Get the path to the root directory of the extension installation.
-pub fn extension_root() -> String {
-	crate::glue::EXTENSION_PATH.with(|ep| ep.borrow().as_ref().unwrap().clone())
+pub fn extension_root() -> &'static str {
+	crate::glue::EXTENSION_PATH.get().unwrap()
 }
 
 /// Get the path to the currently edited file.

@@ -55,13 +55,8 @@ impl<T: Marshal+Send+serde::Serialize> State<T> {
 			Scope::Global => vscode_sys::ExtensionContext::global_state,
 			Scope::Workspace => vscode_sys::ExtensionContext::workspace_state,
 		};
-		crate::glue::EXTENSION_CONTEXT.with(|ctx| {
-			getter(
-				ctx.borrow()
-					.as_ref()
-					.expect("evscode.glue.EXTENSION_CONTEXT")
-					.unchecked_ref::<vscode_sys::ExtensionContext>(),
-			)
+		crate::glue::EXTENSION_CONTEXT.with(|ext_ctx| {
+			getter(ext_ctx.get().unwrap().unchecked_ref::<vscode_sys::ExtensionContext>())
 		})
 	}
 }

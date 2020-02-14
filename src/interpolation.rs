@@ -11,7 +11,7 @@ pub trait VariableSet: FromStr<Err=String>+Clone+fmt::Display {
 	fn expand(&self, map: &Self::Map) -> Option<String>;
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Case {
 	None,
 	Camel,  // camelCase
@@ -88,13 +88,13 @@ impl FromStr for Case {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Segment<V: VariableSet> {
 	Literal(String),
 	Substitution { variable: V, case: Case },
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Interpolation<V: VariableSet> {
 	segments: Vec<Segment<V>>,
 }

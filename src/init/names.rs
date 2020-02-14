@@ -59,7 +59,7 @@ pub async fn design_contest_name(
 	strategy.query(&directory, &codename).await
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Variable {
 	TaskId,
 	TaskTitle,
@@ -78,7 +78,7 @@ pub struct Mapping {
 
 macro_rules! constrain_variable {
 	($name:ident, $($matching:ident)|*) => {
-		#[derive(Clone, PartialEq, Eq)]
+		#[derive(Clone, Debug, PartialEq, Eq)]
 		pub struct $name(Variable);
 		impl crate::interpolation::VariableSet for $name {
 			type Map = Mapping;

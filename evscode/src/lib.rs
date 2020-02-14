@@ -9,7 +9,6 @@ pub mod config;
 pub mod error;
 mod glue;
 pub mod goodies;
-mod logger;
 #[doc(hidden)]
 pub mod macros;
 pub mod marshal;

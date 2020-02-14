@@ -4,8 +4,8 @@ use crate::{config::ErasedConfig, BoxFuture, R};
 use std::fmt::{self, Write};
 
 /// Returns a vector with metadata on all configuration entries in the plugin.
-pub fn config_entries() -> Vec<ConfigEntry> {
-	crate::glue::CONFIG_ENTRIES.with(|ce| ce.borrow().as_ref().unwrap().clone())
+pub fn config_entries() -> &'static [ConfigEntry] {
+	crate::glue::CONFIG_ENTRIES.get().unwrap()
 }
 
 #[doc(hidden)]
@@ -128,6 +128,9 @@ pub struct Gallery {
 	pub theme: GalleryTheme,
 }
 
+/// A future that executes a non-Send operation only once, but is Send.
+pub type LazyOnceFuture = dyn (FnOnce() -> BoxFuture<'static, R<()>>)+Send+Sync;
+
 /// Extension metadata.
 ///
 /// See [official documentation](https://code.visualstudio.com/api/references/extension-manifest) for detailed information.
@@ -160,9 +163,9 @@ pub struct Package {
 	pub gallery: Gallery,
 	/// Function intended to run when the extension is activated.
 	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
-	pub on_activate: Option<BoxFuture<'static, R<()>>>,
+	pub on_activate: Option<Box<LazyOnceFuture>>,
 	/// Function intended to run when the extension is deactivated.
-	pub on_deactivate: Option<BoxFuture<'static, R<()>>>,
+	pub on_deactivate: Option<Box<LazyOnceFuture>>,
 	/// Additional [`Activation`] events that will activate your extension.
 	/// Evscode will automatically add events related to the commands in your extension.
 	pub extra_activations: &'static [Activation<&'static str>],
@@ -174,8 +177,4 @@ pub struct Package {
 	pub node_dependencies: &'static [(&'static str, &'static str)],
 	/// Telemetry instrumentation key, set up in [Azure Apllication Insights](https://github.com/microsoft/vscode-extension-telemetry).
 	pub telemetry_key: &'static str,
-	/// List of filters that specify what can be logged.
-	/// An entry like `("html5ever", LevelFilter::Error)` means that only errors of level Error or
-	/// higher will be visible in developer tools.
-	pub log_filters: &'static [(&'static str, log::LevelFilter)],
 }

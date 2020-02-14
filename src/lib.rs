@@ -12,6 +12,7 @@ mod executable;
 mod init;
 mod interpolation;
 mod launch;
+mod logger;
 mod manifest;
 mod net;
 mod newsletter;
@@ -41,8 +42,8 @@ evscode::plugin! {
 		color: "#6d0759",
 		theme: evscode::meta::GalleryTheme::Dark,
 	},
-	on_activate: Some(Box::pin(launch::activate())),
-	on_deactivate: Some(Box::pin(launch::deactivate())),
+	on_activate: Some(Box::new(|| Box::pin(launch::activate()))),
+	on_deactivate: Some(Box::new(|| Box::pin(launch::deactivate()))),
 	extra_activations: &[
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie" },
 		evscode::meta::Activation::WorkspaceContains { selector: ".icie-contest" },
@@ -54,9 +55,4 @@ evscode::plugin! {
 		("vscode-extension-telemetry", "0.1.2")
 	],
 	telemetry_key: "d131172a-874d-4c0a-b02f-dbf4c951de3c",
-	log_filters: &[
-		("cookie_store", log::LevelFilter::Info),
-		("html5ever", log::LevelFilter::Info),
-		("selectors", log::LevelFilter::Info),
-	],
 }
