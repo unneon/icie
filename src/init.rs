@@ -1,5 +1,5 @@
 use crate::{
-	interpolation::Interpolation, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
+	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -156,74 +156,4 @@ async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) 
 pub async fn help_init() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
 		.await
-}
-
-/// Default project directory name. This key uses special syntax to allow using dynamic content,
-/// like task names. Variable contest.title is not available in this context. See example list:
-///
-/// {task.symbol case.upper}-{task.name case.kebab} -> A-diverse-strings (default)
-/// {site.short}/{contest.id case.kebab}/{task.symbol case.upper}-{task.name case.kebab} ->
-/// cf/1144/A-diverse-strings {task.symbol case.upper}-{{ -> A-{
-///
-/// {task.symbol} -> A
-/// {task.name} -> Diverse Strings
-/// {contest.id} -> 1144
-/// {contest.title} -> Codeforces Round #550 (Div. 3)
-/// {site.short} -> cf
-///
-/// {task.name} -> Diverse Strings
-/// {task.name case.camel} -> diverseStrings
-/// {task.name case.pascal} -> DiverseStrings
-/// {task.name case.snake} -> diverse_strings
-/// {task.name case.kebab} -> diverse-strings
-/// {task.name case.upper} -> DIVERSE_STRINGS
-#[evscode::config]
-static PROJECT_NAME_TEMPLATE: evscode::Config<Interpolation<names::TaskVariable>> =
-	"{task.symbol case.upper}-{task.name case.kebab}".parse().unwrap();
-
-/// By default, when initializing a project, the project directory will be created in the directory
-/// determined by icie.dir.projectDirectory configuration entry, and the name will be chosen
-/// according to the icie.init.projectNameTemplate configuration entry. This option allows to
-/// instead specify the directory every time.
-#[evscode::config]
-static ASK_FOR_PATH: evscode::Config<PathDialog> = PathDialog::None;
-
-#[derive(Clone, Debug, PartialEq, Eq, evscode::Configurable)]
-enum PathDialog {
-	#[evscode(name = "No")]
-	None,
-	#[evscode(name = "With a VS Code input box")]
-	InputBox,
-	#[evscode(name = "With a system dialog")]
-	SystemDialog,
-}
-
-impl PathDialog {
-	async fn query(&self, directory: &Path, codename: &str) -> R<Path> {
-		let basic = directory.join(codename);
-		match self {
-			PathDialog::None => Ok(basic),
-			PathDialog::InputBox => Ok(Path::from_native(
-				evscode::InputBox::new()
-					.ignore_focus_out()
-					.prompt("New project directory")
-					.value(basic.to_str().unwrap())
-					.value_selection(
-						basic.to_str().unwrap().len() - codename.len(),
-						basic.to_str().unwrap().len(),
-					)
-					.show()
-					.await
-					.ok_or_else(E::cancel)?,
-			)),
-			PathDialog::SystemDialog => Ok(Path::from_native(
-				evscode::OpenDialog::new()
-					.directory()
-					.action_label("Init")
-					.show()
-					.await
-					.ok_or_else(E::cancel)?,
-			)),
-		}
-	}
 }

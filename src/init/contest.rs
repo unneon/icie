@@ -24,15 +24,11 @@ pub async fn sprint(
 ) -> R<()>
 {
 	let _status = crate::STATUS.push("Initializing");
-	let root_dir = design_contest_name(
-		sess.backend.contest_id(contest),
-		match contest_title {
-			Some(title) => title.to_owned(),
-			None => sess.run(|backend, sess| backend.contest_title(sess, contest)).await?,
-		},
-		sess.backend.name_short(),
-	)
-	.await?;
+	let contest_title = match contest_title {
+		Some(title) => title.to_owned(),
+		None => sess.run(|backend, sess| backend.contest_title(sess, contest)).await?,
+	};
+	let root_dir = design_contest_name(&contest_title).await?;
 	fs::create_dir_all(root_dir.as_ref()).await?;
 	let url_raw = sess.backend.contest_url(contest);
 	let (url, _) = interpret_url(&url_raw)?;

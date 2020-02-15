@@ -10,7 +10,6 @@ mod dir;
 mod discover;
 mod executable;
 mod init;
-mod interpolation;
 mod launch;
 mod logger;
 mod manifest;

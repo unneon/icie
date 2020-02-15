@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 use wasm_bindgen::{closure::Closure, JsValue};
 
 pub mod fs;
+pub mod letter_case;
 pub mod path;
 pub mod tempfile;
 
