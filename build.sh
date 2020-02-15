@@ -3,14 +3,10 @@
 # An utility function for printing build steps.
 # If last exit code was not 0, assumes the step was already ran.
 function X {
+	echo -e "⭐ \033[1;37m${@}\033[0m"
+	${@}
 	if [[ "${?}" != "0" ]] ; then
-		echo -e "💤 \033[1m${@}\033[0m"
-	else
-		echo -e "⭐ \033[1;37m${@}\033[0m"
-		${@}
-		if [[ "${?}" != "0" ]] ; then
-			exit 1
-		fi
+		exit 1
 	fi
 }
 
