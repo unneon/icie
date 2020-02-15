@@ -24,7 +24,7 @@ pub use types::*;
 pub use webview::Webview;
 
 use crate::{error::ResultExt, E, R};
-use std::{borrow::Borrow, cell::RefCell};
+use std::cell::RefCell;
 use wasm_bindgen::{closure::Closure, JsValue};
 
 /// Save all modified files in the workspace.
@@ -139,9 +139,9 @@ thread_local! {
 
 /// Sends a telemetry event through [vscode-extension-telemetry](https://github.com/microsoft/vscode-extension-telemetry).
 pub fn telemetry<'a>(
-	event_name: &'a str,
-	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
-	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+	event_name: &str,
+	properties: impl IntoIterator<Item=&'a (&'a str, &'a str)>,
+	measurements: impl IntoIterator<Item=&'a (&'a str, f64)>,
 )
 {
 	let js_properties = get_telemetry_properties(properties);
@@ -158,8 +158,8 @@ pub fn telemetry<'a>(
 /// Sends a telemetry exception through [vscode-extension-telemetry](https://github.com/microsoft/vscode-extension-telemetry).
 pub fn telemetry_exception<'a>(
 	error: &E,
-	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
-	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+	properties: impl IntoIterator<Item=&'a (&'a str, &'a str)>,
+	measurements: impl IntoIterator<Item=&'a (&'a str, f64)>,
 )
 {
 	let js_properties = get_telemetry_properties(properties);
@@ -174,29 +174,23 @@ pub fn telemetry_exception<'a>(
 }
 
 fn get_telemetry_properties<'a>(
-	properties: impl IntoIterator<Item=impl Borrow<(&'a str, &'a str)>>,
+	properties: impl IntoIterator<Item=&'a (&'a str, &'a str)>,
 ) -> js_sys::Object {
 	let js_properties = js_sys::Object::new();
-	for property in properties {
-		let (key, value) = property.borrow();
-		js_sys::Reflect::set(&js_properties, &JsValue::from_str(*key), &JsValue::from_str(*value))
+	for (key, value) in properties {
+		js_sys::Reflect::set(&js_properties, &JsValue::from_str(key), &JsValue::from_str(value))
 			.unwrap();
 	}
 	js_properties
 }
 
 fn get_telemetry_measurements<'a>(
-	measurements: impl IntoIterator<Item=impl Borrow<(&'a str, f64)>>,
+	measurements: impl IntoIterator<Item=&'a (&'a str, f64)>,
 ) -> js_sys::Object {
 	let js_measurements = js_sys::Object::new();
-	for measurement in measurements {
-		let (key, value) = measurement.borrow();
-		js_sys::Reflect::set(
-			&js_measurements,
-			&JsValue::from_str(*key),
-			&JsValue::from_f64(*value),
-		)
-		.unwrap();
+	for (key, value) in measurements {
+		js_sys::Reflect::set(&js_measurements, &JsValue::from_str(key), &JsValue::from_f64(*value))
+			.unwrap();
 	}
 	js_measurements
 }
