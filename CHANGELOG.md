@@ -1,3 +1,9 @@
+## 0.7.2
+
+- Fixed AtCoder 'unrecognized login outcome' errors, and possibly the same error in Codeforces
+- Fixed AtCoder ongoing contest support, by fixing selecting ◉ dots as a part of AtCoder contest titles
+- Removed way too customizable contest/task directory naming
+
 ## 0.7.1
 
 - Added more logging to help diagnose a Codeforces login issue
