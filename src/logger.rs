@@ -1,5 +1,5 @@
 use evscode::{
-	error::{ResultExt, Severity}, goodies::{dev_tools_logger, DevToolsLogger}, E, R
+	error::ResultExt, goodies::{dev_tools_logger, DevToolsLogger}, E, R
 };
 use log::{LevelFilter, Metadata, Record};
 use once_cell::sync::Lazy;
@@ -23,11 +23,6 @@ pub fn initialize() -> R<()> {
 pub async fn on_error(error: E) {
 	error.backtrace.0.set_name("ICIEError");
 	error.backtrace.0.set_message(&error.human_detailed());
-	if error.severity == Severity::Error {
-		let log_history =
-			LOG_HISTORY.lock().unwrap().iter().map(String::as_str).collect::<Vec<_>>().join("\n");
-		evscode::telemetry_exception(&error, &[("log_history", log_history.as_str())], &[]);
-	}
 	error.emit();
 }
 
