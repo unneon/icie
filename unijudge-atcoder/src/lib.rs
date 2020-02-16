@@ -73,7 +73,7 @@ impl unijudge::Backend for AtCoder {
 		{
 			Ok(resp) => resp,
 			// this is the worst way to indicate wrong password I have heard of
-			Err(ref e) if e.to_string().contains("Infinite redirect loop") => {
+			Err(ref e) if e.to_string().contains("redirect loop") => {
 				return Err(Error::WrongCredentials);
 			},
 			Err(e) => return Err(Error::NetworkFailure(e)),

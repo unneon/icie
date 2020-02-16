@@ -1441,7 +1441,7 @@ dependencies = [
 [[package]]
 name = "reqwest"
 version = "0.10.0-alpha.1"
-source = "git+https://github.com/pustaczek/reqwest?branch=icie#c9de8115ee7a760d91c422b33f8e8345e0f9af62"
+source = "git+https://github.com/pustaczek/reqwest?branch=icie#ba89572743bbcaba62df6d5d471769c8044bbc9f"
 dependencies = [
  "base64 0.11.0",
  "bytes",
