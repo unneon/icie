@@ -423,7 +423,7 @@ impl unijudge::Backend for AtCoder {
 							href[href.rfind('/').ok_or("no '/' in /contests/{}")? + 1..].to_owned(),
 						)
 					})?;
-					let title = row.find_nth("td", 1)?.text().string();
+					let title = row.find_nth("td", 1)?.find("a")?.text().string();
 					let start = row.find_nth("td", 0)?.find("a")?.attr("href")?.map(|href| {
 						let japan_standard_time = FixedOffset::east(9 * 3600);
 						japan_standard_time.datetime_from_str(
