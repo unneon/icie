@@ -5,6 +5,7 @@ pub mod input_box;
 pub mod message;
 pub mod open_dialog;
 pub mod open_editor;
+pub mod output_channel;
 pub mod progress;
 pub mod quick_pick;
 pub mod state;

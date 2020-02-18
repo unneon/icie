@@ -147,6 +147,17 @@ extern "C" {
 	#[wasm_bindgen(method, getter, js_name = globalState)]
 	pub fn global_state(this: &ExtensionContext) -> Memento;
 
+	pub type OutputChannel;
+
+	#[wasm_bindgen(method)]
+	pub fn append(this: &OutputChannel, value: &str);
+
+	#[wasm_bindgen(method)]
+	pub fn clear(this: &OutputChannel);
+
+	#[wasm_bindgen(method)]
+	pub fn show(this: &OutputChannel, preserve_focus: bool);
+
 	#[wasm_bindgen(method, getter, js_name = workspaceState)]
 	pub fn workspace_state(this: &ExtensionContext) -> Memento;
 
@@ -328,7 +339,9 @@ pub mod env {
 
 pub mod window {
 
-	use crate::{StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, WebviewPanel};
+	use crate::{
+		OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, WebviewPanel
+	};
 	use serde::{Serialize, Serializer};
 	use std::collections::HashMap;
 	use wasm_bindgen::prelude::*;
@@ -338,6 +351,9 @@ pub mod window {
 
 		#[wasm_bindgen(js_namespace = window, js_name = activeTextEditor)]
 		pub static ACTIVE_TEXT_EDITOR: Option<TextEditor>;
+
+		#[wasm_bindgen(js_namespace = window, js_name = createOutputChannel)]
+		pub fn create_output_channel(name: &str) -> OutputChannel;
 
 		#[wasm_bindgen(js_namespace = window, js_name = createStatusBarItem)]
 		pub fn create_status_bar_item() -> StatusBarItem;

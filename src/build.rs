@@ -3,19 +3,14 @@ mod clang;
 use crate::{
 	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path}
 };
-use evscode::{error::ResultExt, Position, R};
+use evscode::{error::ResultExt, stdlib::output_channel::OutputChannel, Position, R};
+use once_cell::sync::Lazy;
 
 /// When a compilation error appears, the cursor will automatically move to the file and location
 /// which caused the error. Regardless of this setting, an error message containing error details
 /// will be shown.
 #[evscode::config]
 static AUTO_MOVE_TO_ERROR: vscode::Config<bool> = true;
-
-/// When a compilation warning appears, the cursor will automatically move to the file and location
-/// which caused the warning. If this is not set, a warning message will be shown with a "Show"
-/// button which will move the cursor to the location of the warning.
-#[evscode::config]
-static AUTO_MOVE_TO_WARNING: evscode::Config<bool> = true;
 
 /// An extension used to denote executable files. For example, if this entry is set to "xyz",
 /// compiling a source file called main.cpp will create an executable called main.xyz.
@@ -132,6 +127,13 @@ pub async fn build(
 		.collect::<Vec<_>>();
 	let sources = [source];
 	let status = compile(&sources, out.as_ref(), standard, codegen, &flags).await?;
+	if !status.stderr.is_empty() {
+		OUTPUT_CHANNEL.with(|output| {
+			output.clear();
+			output.append(&status.stderr);
+			output.show(true);
+		});
+	}
 	if !status.success {
 		if let Some(error) = status.errors.first() {
 			if let Some(location) = &error.location {
@@ -149,12 +151,12 @@ pub async fn build(
 			Err(evscode::E::error("unrecognized compilation error").extended(status.stderr))
 		}
 	} else {
-		if !status.warnings.is_empty() {
-			let warnings = status.warnings;
-			evscode::spawn(show_warnings(warnings));
-		}
 		Ok(status.executable)
 	}
+}
+
+thread_local! {
+	static OUTPUT_CHANNEL: Lazy<OutputChannel> = Lazy::new(|| OutputChannel::new("ICIE Build"));
 }
 
 async fn should_cache(source: &Path, out: &Path) -> R<bool> {
@@ -166,38 +168,6 @@ pub fn exec_path(source: impl util::MaybePath) -> evscode::R<Path> {
 	let workspace_source = dir::solution()?;
 	let source = source.as_option_path().unwrap_or(&workspace_source);
 	Ok(source.with_extension(&*EXECUTABLE_EXTENSION.get()))
-}
-
-async fn show_warnings(warnings: Vec<Message>) -> R<()> {
-	if !AUTO_MOVE_TO_WARNING.get() {
-		let message = format!(
-			"{} compilation warning{}",
-			warnings.len(),
-			if warnings.len() == 1 { "" } else { "s" }
-		);
-		if evscode::Message::new(&message).warning().item((), "Show", false).show().await.is_none()
-		{
-			return Ok(());
-		}
-	}
-	for (i, warning) in warnings.iter().enumerate() {
-		if let Some(location) = &warning.location {
-			evscode::open_editor(location.path.to_str().unwrap())
-				.cursor(Position { line: location.line - 1, column: location.column - 1 })
-				.open()
-				.await?;
-		}
-		let msg = evscode::Message::new(&warning.message).warning();
-		let choice = if i + 1 != warnings.len() {
-			msg.item((), "Next", false).show().await
-		} else {
-			msg.show().await
-		};
-		if choice.is_none() {
-			break;
-		}
-	}
-	Ok(())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, evscode::Configurable)]
