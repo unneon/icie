@@ -1,5 +1,5 @@
 use crate::{telemetry::TELEMETRY, util::is_installed};
-use evscode::{E, R};
+use evscode::{error::Severity, E, R};
 use wasm_bindgen_futures::JsFuture;
 
 // TODO: check how errors work w/o libsecret/gnome-keyring
@@ -39,7 +39,7 @@ pub async fn get_force_ask(site: &str) -> R<(String, String)> {
 		.await
 	{
 		E::error("failed to save password to a secure keyring, so it will not be remembered")
-			.warning()
+			.severity(Severity::Warning)
 			.action_if(is_installed("kwalletd5").await?, "How to fix (KWallet)", help_fix_kwallet())
 			.emit();
 	}

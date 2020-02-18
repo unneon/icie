@@ -1,7 +1,7 @@
 use crate::{
 	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
 };
-use evscode::{E, R};
+use evscode::{error::Severity, E, R};
 use log::debug;
 use std::time::Duration;
 use unijudge::{
@@ -15,14 +15,14 @@ async fn send() -> R<()> {
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None).await?;
 	if report.iter().any(|test| !test.success()) {
 		TELEMETRY.submit_failtest.spark();
-		return Err(E::error("some tests failed, submit aborted").workflow_error());
+		return Err(E::error("some tests failed, submit aborted").severity(Severity::Workflow));
 	}
 	if report.is_empty() {
 		TELEMETRY.submit_notest.spark();
 		return Err(E::error("no tests available, add some to check if your solution is correct")
 			.action("Add test (Alt+-)", test::input())
 			.action("Submit anyway", send_passed())
-			.workflow_error());
+			.severity(Severity::Workflow));
 	}
 	drop(_status);
 	send_passed().await

@@ -26,15 +26,20 @@ pub struct Action {
 /// Indication of how serious the error is.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Severity {
-	/// Abort the operation, display an error message, provide a link to GitHub issues.
+	/// Must 100% be a bug. Auto-report the error, show an error message including a link to GitHub
+	/// issues, and possibly strongly urge the user to report this.
+	Bug,
+	/// May be an error caused by the user, or some far consequence of a bug. Auto-report the
+	/// error, show an error message including a link to GitHub issues,
 	Error,
-	/// Abort the operation, do not display an error message or provide a link to GitHub issues.
-	Cancel,
-	/// Do not abort the operation, display a warning message, but do provide a link to GitHub
-	/// issues. Do not use the `?` operator to avoid aborting the operation.
+	/// Like the [`Severity::Error`] variant, but when the error will not interrupt the requested
+	/// operation. Auto-report the error, show a warning message including a link to GitHub issues.
 	Warning,
-	/// Abort the operation, display an error message, do not provide a link to GitHub issues.
+	/// A typical error that occurs under normal plugin usage. Show an error message.
 	Workflow,
+	/// User requested to cancel an ongoing operation, for example but clicking a 'Cancel' button
+	/// or closing an input window. Do nothing.
+	Cancel,
 }
 
 #[derive(Debug)]
@@ -78,9 +83,14 @@ pub struct E {
 impl E {
 	/// Create an error from a user-facing string, capturing a backtrace.
 	pub fn error(s: impl AsRef<str>) -> E {
+		E::empty().context(s)
+	}
+
+	/// Create an error with no message.
+	pub fn empty() -> E {
 		E {
 			severity: Severity::Error,
-			reasons: vec![s.as_ref().to_owned()],
+			reasons: Vec::new(),
 			details: Vec::new(),
 			actions: Vec::new(),
 			backtrace: Backtrace::new(),
@@ -104,14 +114,7 @@ impl E {
 	/// Convert an error reference implementing [`std::error::Error`] to an Evscode error. See
 	/// [`E::from_std`] method for details.
 	pub fn from_std_ref<E2: std::error::Error+?Sized>(native: &E2) -> E {
-		let mut e = E {
-			severity: Severity::Error,
-			reasons: Vec::new(),
-			details: Vec::new(),
-			actions: Vec::new(),
-			backtrace: Backtrace::new(),
-			extended: Vec::new(),
-		};
+		let mut e = E::empty();
 		e.reasons.push(format!("{}", native));
 		let mut v: Option<&(dyn std::error::Error)> = native.source();
 		while let Some(native) = v {
@@ -211,18 +214,10 @@ impl E {
 		self
 	}
 
-	/// Mark the error as something common in extension's workflow, that does not need to be put on
-	/// project's issue tracker. This will remove the "report issue?" suffix, which may irritate
-	/// users in when the error is common.
-	pub fn workflow_error(mut self) -> Self {
-		self.severity = Severity::Workflow;
-		self
-	}
-
-	/// Mark the error as a warning that does not break the ongoing operation.
-	/// This will change the icon on the error message to a warning sign.
-	pub fn warning(mut self) -> Self {
-		self.severity = Severity::Warning;
+	/// Set the severity of an error. This will affect how the error is displayed, and whether it
+	/// will be auto-reported.
+	pub fn severity(mut self, severity: Severity) -> Self {
+		self.severity = severity;
 		self
 	}
 
@@ -231,10 +226,11 @@ impl E {
 	/// This is meant to be used e.g. for warnings.
 	pub fn emit(self) {
 		let should_show = match self.severity {
+			Severity::Bug => true,
 			Severity::Error => true,
-			Severity::Cancel => false,
 			Severity::Warning => true,
 			Severity::Workflow => true,
+			Severity::Cancel => false,
 		};
 		if should_show {
 			let mut log_msg = String::new();
@@ -254,10 +250,11 @@ impl E {
 				log::info!("{}", extended);
 			}
 			let should_suggest_report = match self.severity {
+				Severity::Bug => true,
 				Severity::Error => true,
-				Severity::Cancel => false,
 				Severity::Warning => true,
 				Severity::Workflow => false,
+				Severity::Cancel => false,
 			};
 			let message = format!(
 				"{}{}",
@@ -271,10 +268,14 @@ impl E {
 			let items = self.actions.iter().enumerate().map(|(id, action)| {
 				crate::message::Action { id, title: &action.title, is_close_affordance: false }
 			});
-			let mut msg = crate::Message::new(&message).error().items(items);
-			if self.severity == Severity::Warning {
-				msg = msg.warning();
-			}
+			let msg = crate::Message::new(&message).items(items);
+			let msg = match self.severity {
+				Severity::Bug => msg.error(),
+				Severity::Error => msg.error(),
+				Severity::Warning => msg.warning(),
+				Severity::Workflow => msg.error(),
+				Severity::Cancel => msg,
+			};
 			let promise = msg.show_eager();
 			crate::spawn(async move {
 				let choice = promise.await;
@@ -350,14 +351,7 @@ impl<T> Try for Cancellable<T> {
 
 impl From<Cancellation> for E {
 	fn from(_: Cancellation) -> Self {
-		E {
-			severity: Severity::Cancel,
-			reasons: Vec::new(),
-			details: Vec::new(),
-			actions: Vec::new(),
-			backtrace: Backtrace::new(),
-			extended: Vec::new(),
-		}
+		E::empty().severity(Severity::Cancel)
 	}
 }
 impl From<js_sys::Error> for E {

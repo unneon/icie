@@ -3,7 +3,9 @@ mod clang;
 use crate::{
 	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path}
 };
-use evscode::{error::ResultExt, stdlib::output_channel::OutputChannel, Position, R};
+use evscode::{
+	error::{ResultExt, Severity}, stdlib::output_channel::OutputChannel, Position, R
+};
 use once_cell::sync::Lazy;
 
 /// When a compilation error appears, the cursor will automatically move to the file and location
@@ -146,7 +148,7 @@ pub async fn build(
 			}
 			Err(evscode::E::error(error.message.clone())
 				.context("compilation error")
-				.workflow_error())
+				.severity(Severity::Workflow))
 		} else {
 			Err(evscode::E::error("unrecognized compilation error").extended(status.stderr))
 		}

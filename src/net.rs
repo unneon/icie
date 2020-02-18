@@ -1,5 +1,7 @@
 use crate::{auth, util::sleep};
-use evscode::{error::ResultExt, E, R};
+use evscode::{
+	error::{ResultExt, Severity}, E, R
+};
 use log::debug;
 use std::{fmt, future::Future, pin::Pin, time::Duration};
 use unijudge::{
@@ -183,7 +185,7 @@ impl Session {
 		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
 			from_unijudge_error(unijudge::Error::NetworkFailure(e))
 				.context(format!("retrying in {} seconds", NETWORK_ERROR_RETRY_DELAY.as_secs_f64()))
-				.warning()
+				.severity(Severity::Warning)
 				.emit();
 		}
 		*retries_left -= 1;
@@ -217,42 +219,38 @@ fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
 		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
 		unijudge::Error::RateLimit => E::from_std(e).reform("too frequent requests to site"),
 		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
-		unijudge::Error::NoTLS(e) => E::from_std(e).context("TLS initialization error"),
+		unijudge::Error::NoTLS(e) => {
+			E::from_std(e).context("TLS initialization error").severity(Severity::Bug)
+		},
 		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
-		unijudge::Error::StateCorruption => E::from_std(e).context("broken state"),
+		unijudge::Error::StateCorruption => {
+			E::from_std(e).context("broken state").severity(Severity::Bug)
+		},
 		unijudge::Error::UnexpectedHTML(e) => {
-			let mut extended = Vec::new();
-			if !e.snapshots.is_empty() {
-				extended.push(e.snapshots.last().unwrap().clone());
-			}
-			evscode::E {
-				severity: evscode::error::Severity::Error,
-				reasons: vec![format!(
-					"[PLEASE REPORT THIS](https://github.com/pustaczek/icie/issues), unexpected \
-					 HTML structure ({:?} at {:?})",
-					e.reason, e.operations
-				)],
-				details: Vec::new(),
-				actions: Vec::new(),
-				backtrace: evscode::error::Backtrace::new(),
-				extended,
-			}
+			E::error(format!("html query failed {:?}", e.operations))
+				.context(format!("{:?}", e.reason))
+				.context("unexpected HTML structure")
+				.severity(Severity::Bug)
+				.extended(e.snapshots.last().unwrap_or(&String::new()))
 		},
 		unijudge::Error::UnexpectedJSON { endpoint, resp_raw, inner } => {
 			let message = format!("unexpected JSON response at {}", endpoint);
-			let mut e = match inner {
-				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
-				None => E::error(message),
-			};
-			e.extended.push(resp_raw);
-			e
+			match inner {
+				Some(inner) => E::from_std_ref(inner.as_ref()),
+				None => E::empty(),
+			}
+			.context(message)
+			.severity(Severity::Bug)
+			.extended(resp_raw)
 		},
 		unijudge::Error::UnexpectedResponse { endpoint, message, resp_raw, inner } => {
 			let mut e = match inner {
-				Some(inner) => E::from_std_ref(inner.as_ref()).context(message),
-				None => E::error(message),
+				Some(inner) => E::from_std_ref(inner.as_ref()),
+				None => E::empty(),
 			}
-			.context(format!("unexpected site response at {}", endpoint));
+			.context(message)
+			.context(format!("unexpected site response at {}", endpoint))
+			.severity(Severity::Bug);
 			e.extended.push(resp_raw);
 			e
 		},

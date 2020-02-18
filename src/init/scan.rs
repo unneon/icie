@@ -1,5 +1,5 @@
 use crate::net::{self, BackendMeta, Session, BACKENDS};
-use evscode::R;
+use evscode::{error::Severity, R};
 use futures::future::join_all;
 use std::sync::Arc;
 use unijudge::{boxed::BoxedContestDetails, Backend};
@@ -39,7 +39,9 @@ pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'
 			contests.into_iter().map(move |contest| (sess.clone(), contest, backend)).collect()
 		},
 		Err(e) => {
-			e.context(format!("failed to fetch {} contests", domain)).warning().emit();
+			e.context(format!("failed to fetch {} contests", domain))
+				.severity(Severity::Warning)
+				.emit();
 			Vec::new()
 		},
 	})
