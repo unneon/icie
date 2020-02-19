@@ -104,31 +104,17 @@ impl Keyring {
 		let entry = format!("@{} {}", self.kind, self.site);
 		match JsFuture::from(keytar_sys::get_password("ICIE", &entry)).await {
 			Ok(val) => val.as_string(),
-			Err(e) => {
-				log::error!("keyring errored, details: {:#?}", e);
-				None
-			},
+			Err(_) => None,
 		}
 	}
 
 	async fn set(&self, value: &str) -> bool {
 		let entry = format!("@{} {}", self.kind, self.site);
-		match JsFuture::from(keytar_sys::set_password("ICIE", &entry, value)).await {
-			Ok(_) => true,
-			Err(e) => {
-				log::error!("keyring errored, details: {:#?}", e);
-				false
-			},
-		}
+		JsFuture::from(keytar_sys::set_password("ICIE", &entry, value)).await.is_ok()
 	}
 
 	async fn delete(&self) {
 		let entry = format!("@{} {}", self.kind, self.site);
-		match JsFuture::from(keytar_sys::delete_password("ICIE", &entry)).await {
-			Ok(_) => {},
-			Err(e) => {
-				log::error!("keyring errored, details: {:#?}", e);
-			},
-		}
+		let _ = JsFuture::from(keytar_sys::delete_password("ICIE", &entry)).await;
 	}
 }

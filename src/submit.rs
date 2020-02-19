@@ -2,7 +2,6 @@ use crate::{
 	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
 };
 use evscode::{error::Severity, E, R};
-use log::debug;
 use std::time::Duration;
 use unijudge::{
 	boxed::{BoxedContest, BoxedTask}, Backend, RejectionCause, Resource
@@ -44,24 +43,19 @@ async fn send_passed() -> R<()> {
 	})?;
 	let (url, backend) = net::interpret_url(url)?;
 	let url = require_task::<BoxedContest, BoxedTask>(url)?;
-	debug!("icie.submit.send_passed url = {:?}", url);
 	let Resource::Task(task) = url.resource;
 	let sess = net::Session::connect(&url.domain, backend).await?;
-	debug!("icie.submit.send_passed connected");
 	let langs = {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|backend, sess| backend.task_languages(sess, &task)).await?
 	};
-	debug!("icie.submit.send_passed queried languages");
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| {
 		TELEMETRY.submit_nolang.spark();
 		E::error(format!("not found language {:?}", backend.cpp))
 			.reform("this task does not seem to allow C++ solutions")
 			.extended(format!("{:#?}", langs))
 	})?;
-	debug!("icie.submit.send_passed found c++");
 	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, lang, &code)).await?;
-	debug!("icie.submit.send_passed received submit id");
 	drop(_status);
 	track(sess, &task, submit_id).await?;
 	Ok(())

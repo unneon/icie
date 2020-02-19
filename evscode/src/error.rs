@@ -225,6 +225,18 @@ impl E {
 		self
 	}
 
+	/// Checks whether this error should be automatically sent to error collection systems. See
+	/// [`Severity`] for details.
+	pub fn should_auto_report(&self) -> bool {
+		match self.severity {
+			Severity::Bug => true,
+			Severity::Error => true,
+			Severity::Warning => true,
+			Severity::Workflow => false,
+			Severity::Cancel => false,
+		}
+	}
+
 	/// Show the error to the end user.
 	/// Prefer to return this value from event handlers instead.
 	/// This is meant to be used e.g. for warnings.

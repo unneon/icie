@@ -1,17 +1,11 @@
-use evscode::{
-	error::ResultExt, goodies::{dev_tools_logger, DevToolsLogger}, E, R
-};
+use evscode::{error::ResultExt, goodies::DevToolsLogger, E, R};
 use log::{LevelFilter, Metadata, Record};
-use once_cell::sync::Lazy;
-use std::{collections::VecDeque, sync::Mutex};
 
 const LOG_LEVELS: &[(&str, LevelFilter)] = &[
 	("cookie_store", log::LevelFilter::Info),
 	("html5ever", log::LevelFilter::Info),
 	("selectors", log::LevelFilter::Info),
 ];
-
-const LOG_HISTORY_SIZE: usize = 256;
 
 pub fn initialize() -> R<()> {
 	log::set_boxed_logger(Box::new(Logger { dev_tools: DevToolsLogger }))
@@ -23,6 +17,13 @@ pub fn initialize() -> R<()> {
 pub async fn on_error(error: E) {
 	error.backtrace.0.set_name("ICIEError");
 	error.backtrace.0.set_message(&error.human_detailed());
+	if error.should_auto_report() {
+		evscode::telemetry_exception(
+			&error,
+			&[("severity", format!("{:?}", error.severity).as_str())],
+			&[],
+		);
+	}
 	error.emit();
 }
 
@@ -40,11 +41,6 @@ impl log::Log for Logger {
 	fn log(&self, record: &Record) {
 		if self.enabled(record.metadata()) {
 			self.dev_tools.log(record);
-			let mut log_history = LOG_HISTORY.lock().unwrap();
-			if log_history.len() == LOG_HISTORY_SIZE {
-				log_history.pop_front();
-			}
-			log_history.push_front(dev_tools_logger::format_message(record));
 		}
 	}
 
@@ -52,6 +48,3 @@ impl log::Log for Logger {
 		self.dev_tools.flush()
 	}
 }
-
-static LOG_HISTORY: Lazy<Mutex<VecDeque<String>>> =
-	Lazy::new(|| Mutex::new(VecDeque::with_capacity(LOG_HISTORY_SIZE)));

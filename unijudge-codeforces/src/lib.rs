@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, log::debug, reqwest::{
+	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
 	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
@@ -118,9 +118,7 @@ impl unijudge::Backend for Codeforces {
 		password: &str,
 	) -> Result<()>
 	{
-		debug!("unijudge_codeforces.Codeforces.auth_login");
 		let csrf = self.fetch_csrf(session).await?;
-		debug!("unijudge_codeforces.Codeforces.auth_login fetched csrf");
 		let resp = session
 			.client
 			.post("https://codeforces.com/enter".parse()?)
@@ -136,17 +134,11 @@ impl unijudge::Backend for Codeforces {
 			])
 			.send()
 			.await?;
-		debug!("unijudge_codeforces.Codeforces.auth_login resp.url() = {:?}", resp.url());
 		let doc = unijudge::debris::Document::new(resp.text().await?.as_str());
 		let login_succeeded = doc.find_all(".lang-chooser a").any(|v| {
 			v.attr("href").map(|href| href.string()).ok() == Some(format!("/profile/{}", username))
 		});
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
-		debug!(
-			"unijudge_codeforces.Codeforces.auth_login login_succeded = {:?}, \
-			 wrong_password_or_handle = {:?}",
-			login_succeeded, wrong_password_or_handle
-		);
 		if login_succeeded {
 			*session.username.lock().map_err(|_| Error::StateCorruption)? =
 				Some(username.to_owned());
@@ -216,11 +208,9 @@ impl unijudge::Backend for Codeforces {
 		task: &Self::Task,
 	) -> Result<Vec<Language>>
 	{
-		debug!("unijudge_codeforces.Codeforces.task_languages task = {:?}", task);
 		let url = self.task_contest_url(task)?.join("submit")?;
 		let resp = session.client.get(url).send().await?;
 		if resp.url().as_str() == "https://codeforces.com/" {
-			debug!("unijudge_codeforces.Codeforces.task_languages was redirected to home page");
 			return Err(Error::AccessDenied);
 		}
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
@@ -233,7 +223,6 @@ impl unijudge::Backend for Codeforces {
 				})
 			})
 			.collect::<Result<_>>()?;
-		debug!("unijudge_codeforces.Codeforces.task_languages languages = {:?}", languages);
 		Ok(languages)
 	}
 
@@ -243,7 +232,6 @@ impl unijudge::Backend for Codeforces {
 		task: &Self::Task,
 	) -> Result<Vec<Submission>>
 	{
-		debug!("unijudge_codeforces.Codeforces.task_submissions");
 		let url = match &task.contest.source {
 			Source::Contest | Source::Gym => self.task_contest_url(task)?.join("my")?,
 			Source::Problemset => {
@@ -255,7 +243,6 @@ impl unijudge::Backend for Codeforces {
 			},
 		};
 		let resp = session.client.get(url).send().await?;
-		debug!("unijudge_codeforces.Codeforces.task_submissions received submission list");
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		Ok(doc
 			.find_all("[data-submission-id]")
@@ -314,10 +301,6 @@ impl unijudge::Backend for Codeforces {
 		code: &str,
 	) -> Result<String>
 	{
-		debug!(
-			"unijudge_codeforces.Codeforces.task_submit task = {:?}, language = {:?}",
-			task, language
-		);
 		let url = self.task_contest_url(task)?.join("submit")?;
 		let resp1 = session.client.get(url.clone()).send().await?;
 		let referer = resp1.url().clone();
@@ -325,7 +308,6 @@ impl unijudge::Backend for Codeforces {
 			let doc = unijudge::debris::Document::new(&resp1.text().await?);
 			doc.find_first("[name=\"csrf_token\"]")?.attr("value")?.string()
 		};
-		debug!("unijudge_codeforces.Codeforces.task_submit fetched csrf");
 		let form = reqwest::multipart::Form::new()
 			.text("csrf_token", csrf.clone())
 			.text("ftaa", "")
@@ -345,7 +327,6 @@ impl unijudge::Backend for Codeforces {
 			.multipart(form)
 			.send()
 			.await?;
-		debug!("unijudge_codeforces.Codeforces.task_submit ");
 		Ok(self.task_submissions(session, task).await?[0].id.to_string())
 	}
 
@@ -518,7 +499,6 @@ impl Codeforces {
 	}
 
 	async fn fetch_csrf(&self, session: &Session) -> Result<String> {
-		debug!("unijudge_codeforces.Codeforces.fetch_csrf fetching csrf");
 		let resp = session.client.get("https://codeforces.com".parse()?).send().await?;
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
