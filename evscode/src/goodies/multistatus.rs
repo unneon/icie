@@ -20,7 +20,7 @@
 //! compile();
 //! {
 //!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
-//! 	parse_compilation_errors();
+//!     parse_compilation_errors();
 //! }
 //! // "EEE Building"
 //! // (disappears)
