@@ -16,8 +16,6 @@ stages:
       steps:
       - script: git clone --depth=1 --branch=1.39.1 https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
         displayName: Install dependencies (binaryen)
-      - script: rustup default nightly
-        displayName: Install Rust nightly
       - script: cargo install wasm-bindgen-cli wasm-pack
         displayName: Install WASM utilities
       - script: ./build.sh
@@ -26,16 +24,12 @@ stages:
       steps:
       - script: rustup component add rustfmt
         displayName: Install Rustfmt
-      - script: rustup default nightly
-        displayName: Install Rust nightly
       - script: cargo fmt --all -- --check
         displayName: Cargo Fmt
     - job: Lint
       steps:
       - script: rustup component add clippy
         displayName: Install Clippy
-      - script: rustup default nightly
-        displayName: Install Rust nightly
       - script: rustup target add wasm32-unknown-unknown
         displayName: Install Rust WASM target
       - script: cargo clippy --all --target=wasm32-unknown-unknown -- -D warnings
@@ -54,8 +48,6 @@ stages:
       steps:
       - script: git clone --depth=1 --branch=1.39.1 https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
         displayName: Install dependencies (binaryen)
-      - script: rustup default nightly
-        displayName: Install Rust nightly
       - script: cargo install wasm-bindgen-cli wasm-pack
         displayName: Install WASM utilities
       - script: sudo npm install -g vsce
