@@ -66,7 +66,7 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 			.iter()
 			.map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
 			.collect(),
-		icon: "icon.png",
+		icon: "assets/icon.png",
 	}
 }
 

@@ -84,7 +84,7 @@ cat "${dir_wasmpack}/icie.js" >> "${dir_vscode}/icie.js"
 sed -i 's/getObject(arg0) instanceof Window;/true;/mg' "${dir_vscode}/icie.js"
 
 # Copy resources to the target directory.
-cp "${dir_root}/README.md" "${dir_root}/CHANGELOG.md" "${dir_root}/icon.png" "${dir_vscode}/"
+cp "${dir_root}/README.md" "${dir_root}/CHANGELOG.md" "${dir_vscode}/"
 
 # Copy runtime assets to the target directory
 X rsync -r "${dir_root}/assets" "${dir_vscode}"
