@@ -4,9 +4,10 @@
 //! The passed string is the prefix added before specific status messages.
 //!
 //! ```
-//! lazy_static::lazy_static! {
-//!     static ref STATUS: evscode::MultiStatus = evscode::MultiStatus::new("EEE ");
-//! }
+//! use evscode::goodies::MultiStatus;
+//! use once_cell::sync::Lazy;
+//!
+//! static STATUS: Lazy<MultiStatus> = Lazy::new(|| MultiStatus::new("EEE "));
 //! ```
 //!
 //! Then, to set the status use the [`MultiStatus::push`] function and save the returned guard for

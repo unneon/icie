@@ -2,7 +2,7 @@ use crate::{
 	build::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, util, util::{fs, OS}
 };
 use evscode::R;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use util::path::Path;
 
@@ -153,8 +153,6 @@ fn os_flags() -> &'static [&'static str] {
 	}
 }
 
-lazy_static! {
-	static ref ERROR_RE: Regex =
-		Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap();
-	static ref LINK_RE: Regex = Regex::new(".*(undefined reference to .*)").unwrap();
-}
+static ERROR_RE: Lazy<Regex> =
+	Lazy::new(|| Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap());
+static LINK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(".*(undefined reference to .*)").unwrap());

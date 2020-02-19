@@ -165,7 +165,7 @@ pub struct Package {
 	/// Metadata about the display in VS Marketplace.
 	pub gallery: Gallery,
 	/// Function intended to run when the extension is activated.
-	/// Prefer to use [lazy_static](https://docs.rs/lazy_static) for initializing global state.
+	/// Prefer to use [once_cell](https://docs.rs/once_cell) for initializing global state.
 	pub on_activate: Option<Box<LazyOnceFuture>>,
 	/// Function intended to run when the extension is deactivated.
 	pub on_deactivate: Option<Box<LazyOnceFuture>>,

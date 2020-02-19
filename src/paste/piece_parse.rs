@@ -1,5 +1,6 @@
 use crate::paste::{logic::Piece, qpaste_doc_error};
 use evscode::{error::ResultExt, E, R};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::{collections::HashMap, time::SystemTime};
 
@@ -55,9 +56,7 @@ impl Headers<'_> {
 	}
 }
 
-lazy_static::lazy_static! {
-	static ref HEADER_REGEX: Regex = Regex::new("///\\s*(\\w+):\\s*(.*)").unwrap();
-}
+static HEADER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("///\\s*(\\w+):\\s*(.*)").unwrap());
 
 #[test]
 fn test_simple() {

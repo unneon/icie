@@ -8,11 +8,10 @@ use evscode::{
 	error::cancel_on, goodies::webview_collection::{Behaviour, Collection}, webview::{Disposer, Listener, WebviewMeta, WebviewRef}, E, R
 };
 use futures::{stream::select, Stream, StreamExt, TryStreamExt};
+use once_cell::sync::Lazy;
 use serde::{Serialize, Serializer};
 
-lazy_static::lazy_static! {
-	pub static ref WEBVIEW: Collection<Discover> = Collection::new(Discover);
-}
+pub static WEBVIEW: Lazy<Collection<Discover>> = Lazy::new(|| Collection::new(Discover));
 
 pub struct Discover;
 

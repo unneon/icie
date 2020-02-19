@@ -8,12 +8,10 @@ use evscode::{
 	error::cancel_on, goodies::webview_collection::{Behaviour, Collection}, stdlib::webview::{Disposer, Listener}, webview::{WebviewMeta, WebviewRef}, Webview, E, R
 };
 use futures::StreamExt;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-lazy_static! {
-	pub static ref COLLECTION: Collection<TestView> = Collection::new(TestView);
-}
+pub static COLLECTION: Lazy<Collection<TestView>> = Lazy::new(|| Collection::new(TestView));
 
 pub struct TestView;
 

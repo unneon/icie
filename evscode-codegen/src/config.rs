@@ -37,15 +37,15 @@ fn transform(item: &ItemStatic) -> Result<TokenStream, ProcError> {
 		}
 	});
 	Ok(TokenStream::from(quote! {
-		evscode::macros::lazy_static! {
-			#vis static ref #local_name: evscode::Config<#ty> = evscode::Config::placeholder(
+		#vis static #local_name: evscode::macros::Lazy<evscode::Config<#ty>> = evscode::macros::Lazy::new(||
+			evscode::Config::placeholder(
 				<#ty as From<_>>::from(#default),
 				evscode::meta::Identifier {
 					module_path: module_path!(),
 					local_name: stringify!(#local_name),
 				},
-			);
-		}
+			)
+		);
 		#machinery
 	}))
 }

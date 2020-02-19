@@ -2,6 +2,8 @@
 // This lint works badly in generic contexts, causing warnings inside #[async_trait] macros.
 #![allow(clippy::unit_arg)]
 
+use once_cell::sync::Lazy;
+
 mod auth;
 mod build;
 mod checker;
@@ -25,9 +27,8 @@ mod test;
 mod tutorial;
 mod util;
 
-lazy_static::lazy_static! {
-	pub static ref STATUS: evscode::goodies::MultiStatus = evscode::goodies::MultiStatus::new("❄️");
-}
+pub static STATUS: Lazy<evscode::goodies::MultiStatus> =
+	Lazy::new(|| evscode::goodies::MultiStatus::new("❄️"));
 
 evscode::plugin! {
 	name: "ICIE",

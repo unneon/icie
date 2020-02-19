@@ -5,11 +5,10 @@ use crate::{
 };
 use evscode::{error::ResultExt, E, R};
 use futures::lock::{Mutex, MutexGuard};
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
-lazy_static::lazy_static! {
-	pub static ref CACHED_LIBRARY: LibraryCache = LibraryCache::new();
-}
+pub static CACHED_LIBRARY: Lazy<LibraryCache> = Lazy::new(LibraryCache::new);
 
 // TODO: Refactor to Option<Path>
 /// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press
