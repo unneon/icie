@@ -154,7 +154,9 @@ impl E {
 	}
 
 	/// Add an additional message describing the error, which will be displayed in front of the
-	/// previous ones. ```
+	/// previous ones.
+	///
+	/// ```
 	/// # use evscode::E;
 	/// let e = E::error("DNS timed out")
 	///     .context("network failure")
@@ -171,7 +173,9 @@ impl E {
 
 	/// Add an additional message describing the error and mark all previous message as not meant
 	/// for the end user. This does not remove the lower-level messages, they will still be present
-	/// in developer tools' logs. ```
+	/// in developer tools' logs.
+	///
+	/// ```
 	/// # use evscode::E;
 	/// let e = E::error("entity not found").reform("file kitty.txt not found");
 	/// assert_eq!(e.human(), "file kitty.txt not found");

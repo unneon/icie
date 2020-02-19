@@ -18,9 +18,7 @@ pub struct Range {
 
 /// View column where a tab can appear.
 ///
-/// The values are from the [docs](1), and hopefully no one changes them.
-///
-/// [1]: https://code.visualstudio.com/api/references/vscode-api#ViewColumn
+/// The values are from the [docs](https://code.visualstudio.com/api/references/vscode-api#ViewColumn), and hopefully no one changes them.
 #[derive(Clone, Copy)]
 #[repr(i32)]
 pub enum Column {

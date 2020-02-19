@@ -16,6 +16,7 @@ mod util;
 /// The shortcut is optional and can be omitted.
 /// The macro also works on functions that return `()` instead of `evscode::R<()>`.
 /// Invoking this macro will automatically register the command within the VS Code event system.
+///
 /// ```ignore
 /// #[evscode::command(title = "Example Evscode Extension - Hello World", key = "ctrl+alt+5")]
 /// fn spawn() -> evscode::R<()> {
@@ -34,6 +35,7 @@ pub fn command(params: TokenStream, item: TokenStream) -> TokenStream {
 /// [`evscode::Configurable`](../evscode/config/Configurable.trait). Can be used at any point in
 /// global scope, and the entry id will be created based on the module path and variable name.
 /// The description will be extracted from the doc comment.
+///
 /// ```ignore
 /// /// Fooification time limit, expressed in milliseconds
 /// #[evscode::config]
@@ -63,7 +65,9 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 ///
 /// See [`evscode::meta::Package`](../evscode/meta/struct.Package.html) for a description and types
 /// of all available options. This macro will generate a main function and should only be invoked
-/// once, from the main.rs file. ```ignore
+/// once, from the main.rs file.
+///
+/// ```ignore
 /// evscode::plugin! {
 ///     name: "Example Evscode Extension",
 ///     publisher: "", // fill in your Marketplace publisher username.

@@ -132,8 +132,8 @@ impl Message {
 	}
 }
 
-/// A future returned after displaying a message eagerly. See [`Message::show`] and
-/// [`Message::show_eager`].
+/// A future returned after displaying a message eagerly. See [`Builder::show`] and
+/// [`Builder::show_eager`].
 pub struct ShownMessage<T>(vscode_sys::Thenable<JsValue>, PhantomData<T>);
 
 impl<T: for<'d> Deserialize<'d>+Unpin> Future for ShownMessage<T> {

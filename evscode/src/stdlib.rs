@@ -119,7 +119,7 @@ pub fn asset(name: &str) -> String {
 
 /// Set the status message on a global widget.
 ///
-/// This will interfere with other threads, use [`crate::StackedStatus`] instead.
+/// This will interfere with other threads, use [`crate::goodies::MultiStatus`] instead.
 pub fn status(msg: Option<&str>) {
 	STATUS.with(|status| {
 		let status = status.borrow();

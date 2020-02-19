@@ -2,26 +2,31 @@
 //!
 //! First, create the element in your main.rs file.
 //! The passed string is the prefix added before specific status messages.
+//!
 //! ```
 //! lazy_static::lazy_static! {
 //!     static ref STATUS: evscode::MultiStatus = evscode::MultiStatus::new("EEE ");
 //! }
 //! ```
-//! Then, to set the status use the [`StackedStatus::push`] function and save the returned guard for
-//! the duration of the operation. ```
+//!
+//! Then, to set the status use the [`MultiStatus::push`] function and save the returned guard for
+//! the duration of the operation.
+//!
+//! ```
 //! # let STATUS = evscode::StackedStatus::new("EEE ");
 //! # fn compile() {}
 //! # fn parse_compilation_errors() {}
 //! let _status = STATUS.push("Building"); // "EEE Building"
 //! compile();
 //! {
-//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing
-//! compilation errors"     parse_compilation_errors();
+//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
+//! 	parse_compilation_errors();
 //! }
 //! // "EEE Building"
 //! // (disappears)
 //! ```
-//! If multiple [`StackedStatus::push`] operations are active simultaneously, the messages will be
+//!
+//! If multiple [`MultiStatus::push`] operations are active simultaneously, the messages will be
 //! separated with a comma.
 
 use std::sync::{Mutex, MutexGuard};
