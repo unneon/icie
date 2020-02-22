@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		header::{ORIGIN, REFERER}, StatusCode, Url
-	}, ContestDetails, Error, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
+	}, ContestDetails, Error, ErrorCode, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -38,7 +38,7 @@ impl unijudge::Backend for AtCoder {
 				contest: (*contest).to_owned(),
 				task: (*task).to_owned(),
 			})),
-			_ => Err(Error::WrongTaskUrl),
+			_ => Err(ErrorCode::WrongTaskUrl.into()),
 		}
 	}
 
@@ -74,17 +74,17 @@ impl unijudge::Backend for AtCoder {
 			Ok(resp) => resp,
 			// this is the worst way to indicate wrong password I have heard of
 			Err(ref e) if e.to_string().contains("redirect loop") => {
-				return Err(Error::WrongCredentials);
+				return Err(ErrorCode::WrongCredentials.into());
 			},
-			Err(e) => return Err(Error::NetworkFailure(e)),
+			Err(e) => return Err(e.into()),
 		};
 		let doc = debris::Document::new(&resp.text().await?);
 		if doc.find("#main-container > div.row > div.alert.alert-success").is_ok() {
 			Ok(())
 		} else if doc.find("#main-container > div.row > div.alert.alert-danger").is_ok() {
-			Err(Error::WrongCredentials)
+			Err(ErrorCode::WrongCredentials.into())
 		} else {
-			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
+			Err(doc.error("unrecognized login outcome").into())
 		}
 	}
 
@@ -217,7 +217,7 @@ impl unijudge::Backend for AtCoder {
 		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse()?;
 		let resp = session.get(url).send().await?;
 		if resp.url().path() == "/login" {
-			return Err(Error::AccessDenied);
+			return Err(ErrorCode::AccessDenied.into());
 		}
 		let doc = debris::Document::new(&resp.text().await?);
 		let selection_id = format!("select-lang-{}", task.task);
@@ -350,11 +350,11 @@ impl unijudge::Backend for AtCoder {
 		if status == StatusCode::NOT_FOUND {
 			let alert = doc.find(".alert.alert-danger")?.text().string();
 			if alert.ends_with("Contest not found.") {
-				return Err(Error::WrongData);
+				return Err(ErrorCode::MalformedData.into());
 			} else if alert.ends_with("Permission denied.") {
-				return Err(Error::NotYetStarted);
+				return Err(ErrorCode::NotYetStarted.into());
 			} else {
-				return Err(Error::from(doc.error("unrecognized alert message")));
+				return Err(doc.error("unrecognized alert message").into());
 			}
 		}
 		doc.find("table")?

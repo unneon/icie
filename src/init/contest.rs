@@ -10,7 +10,7 @@ use std::{
 	cmp::min, sync::Arc, time::{Duration, SystemTime}
 };
 use unijudge::{
-	boxed::{BoxedContest, BoxedTask}, Backend, Resource, TaskDetails
+	boxed::{BoxedContest, BoxedTask}, Backend, ErrorCode, Resource, TaskDetails
 };
 
 /// Wait for the contest, set up the first task, save a contest manifest and switch to the
@@ -164,7 +164,7 @@ async fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>
 	sess.run(|backend, sess| async move {
 		loop {
 			match backend.contest_tasks(sess, &contest).await {
-				Err(unijudge::Error::NotYetStarted) if wait_retries > 0 => {
+				Err(e) if e.code == ErrorCode::NetworkFailure && wait_retries > 0 => {
 					let _status = crate::STATUS.push(format!(
 						"Waiting for contest start, {} left",
 						plural(wait_retries, "retry", "retries")

@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
-	}, Backend, ContestDetails, Error, Example, Language, Resource, Result, Statement, Submission, TaskDetails
+	}, Backend, ContestDetails, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
 
 #[derive(Debug)]
@@ -89,7 +89,7 @@ impl unijudge::Backend for Codeforces {
 			},
 			["gym", contest, "problem", task] => (Source::Gym, contest, task),
 			["problemset", "problem", contest, task] => (Source::Problemset, contest, task),
-			_ => return Err(Error::WrongTaskUrl),
+			_ => return Err(ErrorCode::WrongTaskUrl.into()),
 		};
 		Ok(Resource::Task(Task {
 			contest: Contest { source, id: (*contest).to_owned() },
@@ -102,7 +102,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = session.username.lock().map_err(|_| Error::StateCorruption)?.clone();
+		let username = session.username.lock()?.clone();
 		let jsessionid = session.client.cookie_get("JSESSIONID")?;
 		Ok(try { CachedAuth { jsessionid: jsessionid?, username: username? } })
 	}
@@ -140,18 +140,17 @@ impl unijudge::Backend for Codeforces {
 		});
 		let wrong_password_or_handle = doc.find_all(".for__password").count() == 1;
 		if login_succeeded {
-			*session.username.lock().map_err(|_| Error::StateCorruption)? =
-				Some(username.to_owned());
+			*session.username.lock()? = Some(username.to_owned());
 			Ok(())
 		} else if wrong_password_or_handle {
-			Err(Error::WrongCredentials)
+			Err(ErrorCode::WrongCredentials.into())
 		} else {
-			Err(Error::from(doc.error("unrecognized login outcome")))
+			Err(doc.error("unrecognized login outcome").into())
 		}
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(auth.username.clone());
+		*session.username.lock()? = Some(auth.username.clone());
 		session.client.cookie_set(auth.jsessionid.clone(), "https://codeforces.com")?;
 		Ok(())
 	}
@@ -211,7 +210,7 @@ impl unijudge::Backend for Codeforces {
 		let url = self.task_contest_url(task)?.join("submit")?;
 		let resp = session.client.get(url).send().await?;
 		if resp.url().as_str() == "https://codeforces.com/" {
-			return Err(Error::AccessDenied);
+			return Err(ErrorCode::AccessDenied.into());
 		}
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let languages = doc
@@ -442,7 +441,7 @@ impl Codeforces {
 		let url: Url = self.contest_url(contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		if *resp.url() != url {
-			return Err(Error::NotYetStarted);
+			return Err(ErrorCode::NotYetStarted.into());
 		}
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		doc.find(".problems")?
@@ -584,12 +583,7 @@ impl ExtractedStatement {
 			.await?
 			.into_iter()
 			.find(|t| t.symbol == backend.resolve_task_id(&task))
-			.ok_or_else(|| Error::UnexpectedResponse {
-				endpoint: "/{contests|gym|problemset}/{}",
-				message: "title not found in contest task list",
-				resp_raw: String::new(),
-				inner: None,
-			})?;
+			.ok_or(ErrorCode::AlienInvasion)?;
 		Ok(ExtractedStatement {
 			symbol: task.symbol,
 			title: task.title,
@@ -601,7 +595,8 @@ impl ExtractedStatement {
 
 impl Session {
 	fn req_user(&self) -> Result<String> {
-		self.username.lock().map_err(|_| Error::StateCorruption)?.clone().ok_or(Error::AccessDenied)
+		let username = self.username.lock()?.clone().ok_or(ErrorCode::AccessDenied)?;
+		Ok(username)
 	}
 }
 

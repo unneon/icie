@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use unijudge::{
 	debris::{self, Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		header::{HeaderValue, CONTENT_TYPE, REFERER}, multipart, Url
-	}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -57,7 +57,7 @@ impl unijudge::Backend for Sio2 {
 		let (contest, task) = match segments {
 			["c", contest, "p", task] => (contest, task),
 			["c", contest, "p", task, ..] => (contest, task),
-			_ => return Err(Error::WrongTaskUrl),
+			_ => return Err(ErrorCode::WrongTaskUrl.into()),
 		};
 		Ok(Resource::Task(Task { contest: (*contest).to_owned(), task: (*task).to_owned() }))
 	}
@@ -67,7 +67,7 @@ impl unijudge::Backend for Sio2 {
 	}
 
 	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = session.username.lock().map_err(|_| Error::StateCorruption)?.clone();
+		let username = session.username.lock()?.clone();
 		let sessionid = session.client.cookie_get("sessionid")?;
 		Ok(try { CachedAuth { username: username?, sessionid: sessionid? } })
 	}
@@ -106,18 +106,17 @@ impl unijudge::Backend for Sio2 {
 			.await?;
 		let doc2 = debris::Document::new(&resp2.text().await?);
 		if doc2.find("#username").is_ok() {
-			*session.username.lock().map_err(|_| Error::StateCorruption)? =
-				Some(username.to_owned());
+			*session.username.lock()? = Some(username.to_owned());
 			Ok(())
 		} else if doc2.find("form")?.find("div.form-group > div > div.alert.alert-danger").is_ok() {
-			Err(Error::WrongCredentials)
+			Err(ErrorCode::WrongCredentials.into())
 		} else {
-			Err(Error::UnexpectedHTML(doc2.error("unrecognized login outcome")))
+			Err(doc2.error("unrecognized login outcome").into())
 		}
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(auth.username.clone());
+		*session.username.lock()? = Some(auth.username.clone());
 		session.client.cookie_set(auth.sessionid.clone(), &session.site)?;
 		Ok(())
 	}
@@ -139,7 +138,7 @@ impl unijudge::Backend for Sio2 {
 		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		if resp.url() != &url {
-			return Err(Error::AccessDenied);
+			return Err(ErrorCode::AccessDenied.into());
 		}
 		let problems = debris::Document::new(&resp.text().await?)
 			.find(".main-content > div > table > tbody")?
@@ -149,7 +148,7 @@ impl unijudge::Backend for Sio2 {
 			.collect::<Result<Vec<_>>>()?;
 		let title = match problems.into_iter().find(|(id, _)| id == &task.task) {
 			Some((_, title)) => title,
-			None => return Err(Error::WrongData),
+			None => return Err(ErrorCode::MalformedData.into()),
 		};
 		let url2: Url = format!("{}/c/{}/p/{}/", session.site, task.contest, task.task).parse()?;
 		let resp2 = session.client.get(url2).send().await?;
@@ -203,7 +202,7 @@ impl unijudge::Backend for Sio2 {
 		let resp = session.client.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
 		if doc.find("#id_password").is_ok() {
-			return Err(Error::AccessDenied);
+			return Err(ErrorCode::AccessDenied.into());
 		}
 		Ok(doc
 			.find_all("#id_prog_lang > option")
@@ -299,7 +298,7 @@ impl unijudge::Backend for Sio2 {
 		let (problem_instance_id, csrf, is_admin) = {
 			let doc = debris::Document::new(&resp.text().await?);
 			if doc.find("#navbar-login").is_ok() {
-				return Err(Error::AccessDenied);
+				return Err(ErrorCode::AccessDenied.into());
 			}
 			let problem_instance_id = doc
 				.find("#id_problem_instance_id")?
@@ -320,7 +319,7 @@ impl unijudge::Backend for Sio2 {
 				.collect::<Result<Vec<_>>>()?
 				.into_iter()
 				.find(|(_, symbol)| *symbol == task.task)
-				.ok_or(Error::WrongData)?
+				.ok_or(ErrorCode::MalformedData)?
 				.0;
 			let csrf =
 				doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
@@ -402,7 +401,8 @@ impl unijudge::Backend for Sio2 {
 
 impl Session {
 	fn req_user(&self) -> Result<String> {
-		self.username.lock().map_err(|_| Error::StateCorruption)?.clone().ok_or(Error::AccessDenied)
+		let username = self.username.lock()?.clone().ok_or(ErrorCode::AccessDenied)?;
+		Ok(username)
 	}
 }
 

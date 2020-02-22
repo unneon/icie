@@ -361,6 +361,7 @@ dependencies = [
  "shellexpand",
  "vscode-extension-telemetry-sys",
  "vscode-sys",
+ "wasm-backtrace",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]
@@ -699,6 +700,7 @@ name = "icie"
 version = "0.7.2"
 dependencies = [
  "async-trait",
+ "debris",
  "evscode",
  "futures-preview",
  "itertools",
@@ -2028,6 +2030,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+ "wasm-backtrace",
 ]
 
 [[package]]
@@ -2144,6 +2147,13 @@ name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
+
+[[package]]
+name = "wasm-backtrace"
+version = "0.1.0"
+dependencies = [
+ "js-sys",
+]
 
 [[package]]
 name = "wasm-bindgen"

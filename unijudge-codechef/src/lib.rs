@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{multipart, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{multipart, Url}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl unijudge::Backend for CodeChef {
 				task: (*task).to_owned(),
 			})),
 			[contest] => Ok(Resource::Contest(Contest::Normal((*contest).to_owned()))),
-			_ => Err(Error::WrongTaskUrl),
+			_ => Err(ErrorCode::WrongTaskUrl.into()),
 		}
 	}
 
@@ -75,7 +75,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
-		let username = session.username.lock().map_err(|_| Error::StateCorruption)?.clone();
+		let username = session.username.lock()?.clone();
 		let c_sess = session.client.cookie_get_if(|c| c.starts_with("SESS"))?;
 		Ok(try { CachedAuth { username: username?, c_sess: c_sess? } })
 	}
@@ -124,12 +124,12 @@ impl unijudge::Backend for CodeChef {
 					None
 				}
 			} else if doc.html().contains("Sorry, unrecognized username or password.") {
-				return Err(Error::WrongCredentials);
+				return Err(ErrorCode::WrongCredentials.into());
 			} else {
-				return Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")));
+				return Err(doc.error("unrecognized login outcome").into());
 			}
 		};
-		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(username.to_owned());
+		*session.username.lock()? = Some(username.to_owned());
 		if let Some(other_sessions) = other_sessions {
 			self.disconnect_other_sessions(session, other_sessions).await?;
 		}
@@ -137,7 +137,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
-		*session.username.lock().map_err(|_| Error::StateCorruption)? = Some(auth.username.clone());
+		*session.username.lock()? = Some(auth.username.clone());
 		session.client.cookie_set(auth.c_sess.clone(), "https://www.codechef.com")?;
 		Ok(())
 	}
@@ -162,11 +162,8 @@ impl unijudge::Backend for CodeChef {
 			task.task
 		)
 		.parse()?;
-		let resp = json::from_resp::<api::Task>(
-			session.client.get(url.clone()).send().await?,
-			"/api/contests/{}/problems/{}",
-		)
-		.await?;
+		let resp =
+			json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
 		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
 		Ok(TaskDetails {
 			id: task.task.clone(),
@@ -190,7 +187,7 @@ impl unijudge::Backend for CodeChef {
 		let doc = Document::new(&resp.text().await?);
 		if let Ok(err_msg) = doc.find("#maintable .err-message") {
 			if err_msg.text().as_str().contains("register to make a submission") {
-				return Err(Error::AccessDenied);
+				return Err(ErrorCode::AccessDenied.into());
 			}
 		}
 		doc.find("#edit-language")?
@@ -235,7 +232,7 @@ impl unijudge::Backend for CodeChef {
 			// unnecessary. If I'll ever add a config option for network delays at least the most
 			// common case will be caught. I don't think I'll bother for other sites, since I only
 			// discovered this due to an error on my side.
-			return Err(Error::RateLimit);
+			return Err(ErrorCode::RateLimit.into());
 		}
 		// If the code was submitted as a team, but tracking is done after logout, this will return
 		// an empty list every time. But I don't think this is a common situation so let's just
@@ -312,12 +309,7 @@ impl unijudge::Backend for CodeChef {
 		let url_segs = resp.url().path_segments().map(|ps| ps.collect::<Vec<_>>());
 		match url_segs.as_deref() {
 			Some(["submit", "complete", submit_id]) => Ok((*submit_id).to_owned()),
-			_ => Err(Error::UnexpectedResponse {
-				endpoint: "/{}/submit/{}",
-				message: "submitting did not redirect to /submit/complete/{}",
-				resp_raw: resp.url().to_string(),
-				inner: None,
-			}),
+			_ => Err(ErrorCode::AlienInvasion.into()),
 		}
 	}
 
@@ -472,7 +464,6 @@ impl CodeChef {
 		contest: &Contest,
 	) -> Result<ContestDetailsEx>
 	{
-		let endpoint = "https://www.codechef.com/api/contests/{}";
 		let resp_raw = session
 			.client
 			.get(
@@ -483,7 +474,7 @@ impl CodeChef {
 			.await?
 			.text()
 			.await?;
-		let resp = json::from_str::<api::ContestTasks>(&resp_raw, endpoint)?;
+		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
 		if let Some(tasks) = resp.problems {
 			let mut tasks: Vec<_> = tasks
 				.into_iter()
@@ -504,7 +495,7 @@ impl CodeChef {
 				tasks: tasks.into_iter().map(|kv| kv.0).collect(),
 			})
 		} else if resp.time.current <= resp.time.start {
-			Err(Error::NotYetStarted)
+			Err(ErrorCode::NotYetStarted.into())
 		} else if !resp.user.username.is_empty() {
 			// If no tasks are present, that means CodeChef would present us with a "choose your
 			// division" screen. Fortunately, it also checks which division are you so we can just
@@ -515,11 +506,11 @@ impl CodeChef {
 				let contest = Contest::Normal(child.clone());
 				self.contest_details_ex_boxed(session, &contest).await
 			};
-			tasks.ok_or_else(|| Error::UnexpectedJSON { endpoint, resp_raw, inner: None })?
+			tasks.ok_or(ErrorCode::AlienInvasion)?
 		} else {
 			// If no username is present in the previous case, codechef assumes you're div2.
 			// This behaviour is unsatisfactory, so we require a login from the user.
-			Err(Error::AccessDenied)
+			Err(ErrorCode::AccessDenied.into())
 		}
 	}
 
@@ -589,7 +580,8 @@ impl CodeChef {
 }
 impl Session {
 	fn req_user(&self) -> Result<String> {
-		self.username.lock().map_err(|_| Error::StateCorruption)?.clone().ok_or(Error::AccessDenied)
+		let username = self.username.lock()?.clone().ok_or(ErrorCode::AccessDenied)?;
+		Ok(username)
 	}
 }
 impl Contest {

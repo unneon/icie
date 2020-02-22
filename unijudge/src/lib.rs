@@ -11,101 +11,19 @@ pub extern crate serde;
 pub extern crate url;
 
 pub mod boxed;
+mod error;
 pub mod http;
 pub mod json;
 #[macro_use]
 pub mod statement;
 
+pub use error::{Error, ErrorCode, Result};
+
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 use url::Url;
-
-#[derive(Debug)]
-pub enum Error {
-	WrongCredentials,
-	WrongData,
-	WrongTaskUrl,
-	AccessDenied,
-	NotYetStarted,
-	RateLimit,
-	NetworkFailure(reqwest::Error),
-	NoTLS(reqwest::Error),
-	URLParseFailure(url::ParseError),
-	StateCorruption,
-	UnexpectedHTML(debris::Error),
-	UnexpectedJSON {
-		endpoint: &'static str,
-		resp_raw: String,
-		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
-	},
-	UnexpectedResponse {
-		endpoint: &'static str,
-		message: &'static str,
-		resp_raw: String,
-		inner: Option<Box<dyn std::error::Error+Send+Sync+'static>>,
-	},
-}
-impl From<debris::Error> for Error {
-	fn from(e: debris::Error) -> Self {
-		Error::UnexpectedHTML(e)
-	}
-}
-impl From<reqwest::Error> for Error {
-	fn from(e: reqwest::Error) -> Self {
-		Error::NetworkFailure(e)
-	}
-}
-impl From<url::ParseError> for Error {
-	fn from(e: url::ParseError) -> Self {
-		Error::URLParseFailure(e)
-	}
-}
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			Error::WrongCredentials => f.write_str("wrong username or password"),
-			Error::WrongData => f.write_str("wrong data passed to site API"),
-			Error::WrongTaskUrl => f.write_str("wrong task URL format"),
-			Error::AccessDenied => f.write_str("access denied"),
-			Error::NotYetStarted => f.write_str("contest not yet started"),
-			Error::RateLimit => f.write_str("rate limited due to too frequent network operations"),
-			Error::NetworkFailure(_) => f.write_str("network failure"),
-			Error::NoTLS(_) => f.write_str("could not initialize TLS on this system"),
-			Error::URLParseFailure(_) => f.write_str("URL parse failure"),
-			Error::StateCorruption => f.write_str("network agent corrupted due to earlier panic"),
-			Error::UnexpectedHTML(_) => f.write_str("error when scrapping site API response"),
-			Error::UnexpectedJSON { .. } => f.write_str("error when parsing site JSON response"),
-			Error::UnexpectedResponse { .. } => f.write_str("error when parsing site response"),
-		}
-	}
-}
-impl std::error::Error for Error {
-	fn source(&self) -> Option<&(dyn std::error::Error+'static)> {
-		match self {
-			Error::WrongCredentials => None,
-			Error::WrongData => None,
-			Error::WrongTaskUrl => None,
-			Error::AccessDenied => None,
-			Error::NotYetStarted => None,
-			Error::RateLimit => None,
-			Error::NetworkFailure(e) => Some(e),
-			Error::NoTLS(e) => Some(e),
-			Error::URLParseFailure(e) => Some(e),
-			Error::StateCorruption => None,
-			Error::UnexpectedHTML(e) => Some(e),
-			Error::UnexpectedJSON { inner, .. } => {
-				inner.as_ref().map(|bx| bx.as_ref() as &dyn std::error::Error)
-			},
-			Error::UnexpectedResponse { inner, .. } => {
-				inner.as_ref().map(|bx| bx.as_ref() as &dyn std::error::Error)
-			},
-		}
-	}
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug)]
 pub struct Example {
@@ -213,11 +131,11 @@ pub trait Backend: Debug+Send+Sync+'static {
 	) -> Result<Resource<Self::Contest, Self::Task>>;
 	fn deconstruct_url(&self, url: &str) -> Result<Option<URL<Self::Contest, Self::Task>>> {
 		let url: Url = url.parse()?;
-		let domain = url.domain().ok_or(Error::WrongTaskUrl)?;
+		let domain = url.domain().ok_or(ErrorCode::WrongTaskUrl)?;
 		if self.accepted_domains().contains(&domain) {
 			let segments = url
 				.path_segments()
-				.ok_or(Error::WrongTaskUrl)?
+				.ok_or(ErrorCode::WrongTaskUrl)?
 				.filter(|s| !s.is_empty())
 				.collect::<Vec<_>>();
 			let resource = self.deconstruct_resource(domain, &segments)?;
@@ -295,8 +213,8 @@ fn from_base64<'d, D: Deserializer<'d>>(deserializer: D) -> std::result::Result<
 }
 
 pub fn deserialize_auth<'d, T: Deserialize<'d>>(data: &'d str) -> Result<T> {
-	serde_json::from_str(data).map_err(|_| Error::WrongData)
+	Ok(serde_json::from_str(data).map_err(|_| ErrorCode::MalformedData)?)
 }
 pub fn serialize_auth<T: Serialize>(auth: &T) -> Result<String> {
-	serde_json::to_string(auth).map_err(|_| Error::WrongData)
+	Ok(serde_json::to_string(auth).map_err(|_| ErrorCode::MalformedData)?)
 }

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use unijudge::{
 	self, debris::{self, Context, Find}, http::{Client, Cookie}, reqwest::{
 		header::{ORIGIN, REFERER}, multipart
-	}, url::Url, ContestDetails, Error, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
+	}, url::Url, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl unijudge::Backend for SPOJ {
 	{
 		match segments {
 			["problems", task] => Ok(Resource::Task((*task).to_owned())),
-			_ => Err(Error::WrongTaskUrl),
+			_ => Err(ErrorCode::WrongTaskUrl.into()),
 		}
 	}
 
@@ -70,11 +70,11 @@ impl unijudge::Backend for SPOJ {
 		let url = resp.url().clone();
 		let doc = debris::Document::new(&resp.text().await?);
 		if url.as_str() == "https://www.spoj.com/login/" {
-			Err(Error::WrongCredentials)
+			Err(ErrorCode::WrongCredentials.into())
 		} else if url.as_str() == "https://www.spoj.com/" {
 			Ok(())
 		} else {
-			Err(Error::UnexpectedHTML(doc.error("unrecognized login outcome")))
+			Err(doc.error("unrecognized login outcome").into())
 		}
 	}
 
@@ -238,7 +238,7 @@ impl unijudge::Backend for SPOJ {
 						multipart::Part::bytes(Vec::new())
 							.file_name("")
 							.mime_str("application/octet-stream")
-							.map_err(|_| Error::WrongData)?,
+							.map_err(|_| ErrorCode::MalformedData)?,
 					)
 					.text("file", code.to_owned())
 					.text("lang", language.id.to_owned())
@@ -251,7 +251,7 @@ impl unijudge::Backend for SPOJ {
 			.await?;
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		if doc.find("title")?.text().string().contains("Authorisation required") {
-			return Err(Error::AccessDenied);
+			return Err(ErrorCode::AccessDenied.into());
 		}
 		Ok(doc.find("#content > input")?.attr("value")?.string())
 	}
@@ -314,5 +314,5 @@ impl unijudge::Backend for SPOJ {
 }
 
 fn req_user(session: &Client) -> Result<String> {
-	Ok(session.cookie_get("autologin_login")?.ok_or(Error::AccessDenied)?.value().to_owned())
+	Ok(session.cookie_get("autologin_login")?.ok_or(ErrorCode::AccessDenied)?.value().to_owned())
 }

@@ -9,6 +9,7 @@ use futures::{
 	stream::{once, select}, Stream, StreamExt
 };
 use std::{fmt, future::Future, ops::Try, pin::Pin};
+use wasm_backtrace::Backtrace;
 
 /// Result type used for errors in Evscode. See [`E`] for details.
 pub type R<T> = Result<T, E>;
@@ -40,23 +41,6 @@ pub enum Severity {
 	/// User requested to cancel an ongoing operation, for example but clicking a 'Cancel' button
 	/// or closing an input window. Do nothing.
 	Cancel,
-}
-
-#[derive(Debug)]
-/// A captured WASM backtrace.
-pub struct Backtrace(pub js_sys::Error);
-
-impl Backtrace {
-	/// Capture a backtrace in WASM.
-	pub fn new() -> Backtrace {
-		Backtrace(js_sys::Error::new(""))
-	}
-}
-
-impl Default for Backtrace {
-	fn default() -> Backtrace {
-		Backtrace::new()
-	}
 }
 
 /// Error type used by Evscode.

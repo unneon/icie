@@ -2,9 +2,9 @@ use crate::{auth, util::sleep};
 use evscode::{
 	error::{ResultExt, Severity}, E, R
 };
-use std::{fmt, future::Future, pin::Pin, time::Duration};
+use std::{error::Error as StdError, fmt, future::Future, pin::Pin, time::Duration};
 use unijudge::{
-	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Resource, URL
+	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Error, ErrorCode, Resource, URL
 };
 
 const USER_AGENT: &str =
@@ -68,11 +68,13 @@ impl Session {
 		if let Some(auth) = auth::get_if_cached(&site).await {
 			if let Ok(auth) = backend.auth_deserialize(&auth) {
 				match backend.auth_restore(&session, &auth).await {
-					Err(unijudge::Error::WrongData)
-					| Err(unijudge::Error::WrongCredentials)
-					| Err(unijudge::Error::AccessDenied) => Ok(()),
-					Err(e) => Err(from_unijudge_error(e)),
 					Ok(()) => Ok(()),
+					Err(e) => match e.code {
+						ErrorCode::MalformedData
+						| ErrorCode::WrongCredentials
+						| ErrorCode::AccessDenied => Ok(()),
+						_ => Err(from_unijudge_error(e)),
+					},
 				}?;
 			}
 		}
@@ -88,16 +90,17 @@ impl Session {
 		loop {
 			match f(self.backend, &self.session).await {
 				Ok(y) => break Ok(y),
-				Err(e @ unijudge::Error::WrongCredentials)
-				| Err(e @ unijudge::Error::AccessDenied) => {
-					self.maybe_error_show(e);
-					let (username, password) = auth::get_cached_or_ask(&self.site).await?;
-					self.login(&username, &password).await?
+				Err(e) => match e.code {
+					ErrorCode::WrongCredentials | ErrorCode::AccessDenied => {
+						self.maybe_error_show(e);
+						let (username, password) = auth::get_cached_or_ask(&self.site).await?;
+						self.login(&username, &password).await?
+					},
+					ErrorCode::NetworkFailure if retries_left > 0 => {
+						self.wait_for_retry(&mut retries_left, e).await
+					},
+					_ => break Err(from_unijudge_error(e)),
 				},
-				Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => {
-					self.wait_for_retry(&mut retries_left, e).await
-				},
-				Err(e) => break Err(from_unijudge_error(e)),
 			}
 		}
 	}
@@ -117,16 +120,18 @@ impl Session {
 					.await;
 				}
 			},
-			Err(e @ unijudge::Error::WrongData)
-			| Err(e @ unijudge::Error::WrongCredentials)
-			| Err(e @ unijudge::Error::AccessDenied) => {
-				self.maybe_error_show(e);
-				self.force_login_boxed().await?;
+			Err(e) => match e.code {
+				ErrorCode::MalformedData
+				| ErrorCode::WrongCredentials
+				| ErrorCode::AccessDenied => {
+					self.maybe_error_show(e);
+					self.force_login_boxed().await?;
+				},
+				ErrorCode::NetworkFailure if retries_left > 0 => {
+					self.wait_for_retry(&mut retries_left, e).await
+				},
+				_ => return Err(from_unijudge_error(e)),
 			},
-			Err(unijudge::Error::NetworkFailure(e)) if retries_left > 0 => {
-				self.wait_for_retry(&mut retries_left, e).await
-			},
-			Err(e) => return Err(from_unijudge_error(e)),
 		}
 		Ok(())
 	}
@@ -141,7 +146,7 @@ impl Session {
 	}
 
 	fn maybe_error_show(&self, e: unijudge::Error) {
-		if let unijudge::Error::WrongCredentials = e {
+		if e.code == ErrorCode::WrongCredentials {
 			evscode::spawn(async {
 				evscode::Message::new::<()>("Wrong username or password").error().show().await;
 				Ok(())
@@ -149,11 +154,11 @@ impl Session {
 		}
 	}
 
-	async fn wait_for_retry(&self, retries_left: &mut usize, e: unijudge::reqwest::Error) {
+	async fn wait_for_retry(&self, retries_left: &mut usize, e: Error) {
 		assert!(*retries_left > 0);
 		let _status = crate::STATUS.push("Waiting to retry");
 		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
-			from_unijudge_error(unijudge::Error::NetworkFailure(e))
+			from_unijudge_error(e)
 				.context(format!("retrying in {} seconds", NETWORK_ERROR_RETRY_DELAY.as_secs_f64()))
 				.severity(Severity::Warning)
 				.emit();
@@ -180,49 +185,26 @@ pub fn require_contest<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<C,
 	}
 }
 
-fn from_unijudge_error(e: unijudge::Error) -> evscode::E {
-	match e {
-		unijudge::Error::WrongCredentials => E::from_std(e).reform("wrong username or password"),
-		unijudge::Error::WrongData => E::from_std(e).reform("wrong data passed to API"),
-		unijudge::Error::WrongTaskUrl => E::from_std(e).reform("wrong task URL format"),
-		unijudge::Error::AccessDenied => E::from_std(e).reform("access denied"),
-		unijudge::Error::NotYetStarted => E::from_std(e).reform("contest not yet started"),
-		unijudge::Error::RateLimit => E::from_std(e).reform("too frequent requests to site"),
-		unijudge::Error::NetworkFailure(e) => E::from_std(e).context("network error"),
-		unijudge::Error::NoTLS(e) => {
-			E::from_std(e).context("TLS initialization error").severity(Severity::Bug)
-		},
-		unijudge::Error::URLParseFailure(e) => E::from_std(e).context("URL parse error"),
-		unijudge::Error::StateCorruption => {
-			E::from_std(e).context("broken state").severity(Severity::Bug)
-		},
-		unijudge::Error::UnexpectedHTML(e) => {
-			E::error(format!("html query failed {:?}", e.operations))
-				.context(format!("{:?}", e.reason))
-				.context("unexpected HTML structure")
-				.severity(Severity::Bug)
-				.extended(e.snapshots.last().unwrap_or(&String::new()))
-		},
-		unijudge::Error::UnexpectedJSON { endpoint, resp_raw, inner } => {
-			let message = format!("unexpected JSON response at {}", endpoint);
-			match inner {
-				Some(inner) => E::from_std_ref(inner.as_ref()),
-				None => E::empty(),
-			}
-			.context(message)
-			.severity(Severity::Bug)
-			.extended(resp_raw)
-		},
-		unijudge::Error::UnexpectedResponse { endpoint, message, resp_raw, inner } => {
-			let mut e = match inner {
-				Some(inner) => E::from_std_ref(inner.as_ref()),
-				None => E::empty(),
-			}
-			.context(message)
-			.context(format!("unexpected site response at {}", endpoint))
-			.severity(Severity::Bug);
-			e.extended.push(resp_raw);
-			e
-		},
+fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
+	let severity = match uj_e.code {
+		ErrorCode::AccessDenied
+		| ErrorCode::MalformedURL
+		| ErrorCode::NetworkFailure
+		| ErrorCode::RateLimit
+		| ErrorCode::WrongTaskUrl => Severity::Error,
+		ErrorCode::AlienInvasion
+		| ErrorCode::MalformedData
+		| ErrorCode::NoTLS
+		| ErrorCode::StateCorruption => Severity::Bug,
+		ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
+	};
+	let mut e = E::from_std_ref(&uj_e);
+	e.severity = severity;
+	if let Some(cause) = uj_e.source() {
+		if let Some(cause) = cause.downcast_ref::<debris::Error>() {
+			e.extended = cause.snapshots.clone();
+		}
 	}
+	e.backtrace = uj_e.backtrace;
+	e
 }
