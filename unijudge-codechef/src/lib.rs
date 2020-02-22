@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{StatusCode, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{multipart, Url}, ContestDetails, Error, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -91,17 +91,19 @@ impl unijudge::Backend for CodeChef {
 		password: &str,
 	) -> Result<()>
 	{
-		let resp1 = session.client.get("https://www.codechef.com/".parse()?).send().await?;
-		let form_build_id = Document::new(&resp1.text().await?)
-			.find("#new-login-form [name=form_build_id]")?
-			.attr("value")?
-			.string();
+		session.client.cookies_clear()?;
+		let resp1 = session.client.get("https://www.codechef.com".parse()?).send().await?;
+		let doc = Document::new(&resp1.text().await?);
+		let form = doc.find("#new-login-form")?;
+		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
+		let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
 		let resp2 = session
 			.client
 			.post("https://www.codechef.com/".parse()?)
 			.form(&[
 				("name", username),
 				("pass", password),
+				("csrfToken", &csrf),
 				("form_build_id", &form_build_id),
 				("form_id", "new_login_form"),
 				("op", "Login"),
@@ -183,31 +185,18 @@ impl unijudge::Backend for CodeChef {
 		task: &Self::Task,
 	) -> Result<Vec<Language>>
 	{
-		// Querying languages doesn't require login, in contrast to most other sites.
-		let resp = json::from_resp::<api::Languages>(
-			session
-				.client
-				.get(
-					format!(
-						"https://www.codechef.com/api/ide/{}/languages/{}",
-						task.contest.as_virt_symbol(),
-						task.task
-					)
-					.parse()?,
-				)
-				.send()
-				.await?,
-			"/api/ide/{}/languages/{}",
-		)
-		.await?;
-		Ok(resp
-			.languages
-			.into_iter()
-			.map(|language| Language {
-				id: language.id,
-				name: format!("{}({})", language.full_name, language.version),
-			})
-			.collect())
+		let url = self.submit_url(task)?;
+		let resp = session.client.get(url).send().await?;
+		let doc = Document::new(&resp.text().await?);
+		if let Ok(err_msg) = doc.find("#maintable .err-message") {
+			if err_msg.text().as_str().contains("register to make a submission") {
+				return Err(Error::AccessDenied);
+			}
+		}
+		doc.find("#edit-language")?
+			.find_all("option")
+			.map(|opt| Ok(Language { id: opt.attr("value")?.parse()?, name: opt.text().string() }))
+			.collect()
 	}
 
 	async fn task_submissions(
@@ -294,33 +283,41 @@ impl unijudge::Backend for CodeChef {
 		code: &str,
 	) -> Result<String>
 	{
-		// This seems to work even if submitting as a team, although there are some mild problems
-		// with tracking.
+		let url = self.submit_url(&task)?;
+		let resp = session.client.get(url.clone()).send().await?;
+		let doc = Document::new(&resp.text().await?);
+		let form = doc.find("#problem-submission")?;
+		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
+		let form_token = form.find("[name=form_token]")?.attr("value")?.string();
 		let resp = session
 			.client
-			.post("https://www.codechef.com/api/ide/submit".parse()?)
-			.form(&[
-				("sourceCode", code),
-				("language", &language.id),
-				("problemCode", &task.task),
-				("contestCode", task.contest.as_virt_symbol()),
-			])
+			.post(url)
+			.multipart(
+				multipart::Form::new()
+					.text("form_build_id", form_build_id)
+					.text("form_token", form_token)
+					.text("form_id", "problem_submission")
+					.part(
+						"files[sourcefile]",
+						multipart::Part::text(code.to_owned())
+							.file_name("main.cpp")
+							.mime_str("text/x-c++src")?,
+					)
+					.text("language", language.id.clone())
+					.text("problem_code", task.task.clone())
+					.text("op", "Submit"),
+			)
 			.send()
 			.await?;
-		if resp.status() == StatusCode::FORBIDDEN {
-			return Err(Error::AccessDenied);
-		}
-		let endpoint = "/api/ide/submit";
-		let resp_raw = resp.text().await?;
-		let resp = json::from_str::<api::Submit>(&resp_raw, endpoint)?;
-		if resp.status == "OK" {
-			Ok(resp.upid.ok_or_else(|| Error::UnexpectedJSON {
-				endpoint,
-				resp_raw,
+		let url_segs = resp.url().path_segments().map(|ps| ps.collect::<Vec<_>>());
+		match url_segs.as_deref() {
+			Some(["submit", "complete", submit_id]) => Ok((*submit_id).to_owned()),
+			_ => Err(Error::UnexpectedResponse {
+				endpoint: "/{}/submit/{}",
+				message: "submitting did not redirect to /submit/complete/{}",
+				resp_raw: resp.url().to_string(),
 				inner: None,
-			})?)
-		} else {
-			Err(Error::RateLimit)
+			}),
 		}
 	}
 
@@ -354,7 +351,10 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	fn contest_url(&self, contest: &Self::Contest) -> String {
-		format!("https://www.codechef.com/{}", contest.as_virt_symbol())
+		match contest {
+			Contest::Normal(contest) => format!("https://www.codechef.com/{}", contest),
+			Contest::Practice => "https://www.codechef.com/problems/school".to_owned(),
+		}
 	}
 
 	async fn contest_title(
@@ -576,6 +576,16 @@ impl CodeChef {
 			),
 		}
 	}
+
+	fn submit_url(&self, task: &Task) -> Result<Url> {
+		let url = match &task.contest {
+			Contest::Normal(contest) => {
+				format!("https://www.codechef.com/{}/submit/{}", contest, task.task)
+			},
+			Contest::Practice => format!("https://www.codechef.com/submit/{}", task.task),
+		};
+		Ok(url.parse()?)
+	}
 }
 impl Session {
 	fn req_user(&self) -> Result<String> {
@@ -604,18 +614,6 @@ mod api {
 		/// Task statement in Markdown with HTML tags and MathJax $ tags.
 		/// Contains example tests.
 		pub body: String,
-	}
-
-	#[derive(Debug, Deserialize)]
-	pub struct Languages {
-		pub languages: Vec<Language>,
-	}
-
-	#[derive(Debug, Deserialize)]
-	pub struct Language {
-		pub id: String,
-		pub full_name: String,
-		pub version: String,
 	}
 
 	#[derive(Debug, Deserialize)]

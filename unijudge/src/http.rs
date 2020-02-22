@@ -47,6 +47,13 @@ impl Client {
 		Ok(Some(cookie))
 	}
 
+	pub fn cookies_clear(&self) -> Result<()> {
+		let mut cookies =
+			self.inner.cookies().unwrap().write().map_err(|_| Error::StateCorruption)?;
+		cookies.0.clear();
+		Ok(())
+	}
+
 	pub fn get(&self, url: Url) -> RequestBuilder {
 		self.inner.get(url)
 	}
