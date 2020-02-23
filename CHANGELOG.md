@@ -1,3 +1,11 @@
+## 0.7.3
+
+- **Added showing compilation output**
+- Added more friendly error messages
+- Added automated error reporting
+- **Fixed broken CodeChef submitting**, which happened due to website updates
+- Removed move-to-warning in favor of compilation output channel
+
 ## 0.7.2
 
 - Fixed AtCoder 'unrecognized login outcome' errors, and possibly the same error in Codeforces
