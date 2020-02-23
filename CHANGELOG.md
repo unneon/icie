@@ -10,7 +10,7 @@
 
 ## 0.7
 
-- Added **Windows and macOS support**
+- **Added Windows and macOS support**
 - Added support for Codeforces training group tasks
 - Added progress bar when scanning for contests
 - Added link to submission details in tracking notification
