@@ -1,0 +1,10 @@
+parameters:
+- name: version
+  default: 0.2.58
+
+steps:
+- script: >
+    wget https://github.com/rustwasm/wasm-bindgen/releases/download/${{parameters.version}}/wasm-bindgen-${{parameters.version}}-x86_64-unknown-linux-musl.tar.gz &&
+    tar xzf wasm-bindgen-${{parameters.version}}-x86_64-unknown-linux-musl.tar.gz &&
+    sudo cp wasm-bindgen-${{parameters.version}}-x86_64-unknown-linux-musl/wasm* /usr/local/bin
+  displayName: Install dependencies (wasm-bindgen)

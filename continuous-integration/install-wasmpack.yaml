@@ -1,0 +1,10 @@
+parameters:
+- name: version
+  default: 0.9.1
+
+steps:
+- script: >
+    wget https://github.com/rustwasm/wasm-pack/releases/download/v${{parameters.version}}/wasm-pack-v${{parameters.version}}-x86_64-unknown-linux-musl.tar.gz &&
+    tar xzf wasm-pack-v${{parameters.version}}-x86_64-unknown-linux-musl.tar.gz &&
+    sudo cp wasm-pack-v${{parameters.version}}-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin
+  displayName: Install dependencies (wasm-pack)

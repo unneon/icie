@@ -1,0 +1,10 @@
+parameters:
+- name: version
+  default: 1.39.1
+
+steps:
+- script: >
+    wget https://github.com/WebAssembly/binaryen/releases/download/${{parameters.version}}/binaryen-${{parameters.version}}-x86_64-linux.tar.gz &&
+    tar xzf binaryen-${{parameters.version}}-x86_64-linux.tar.gz &&
+    sudo cp binaryen-${{parameters.version}}/* /usr/local/bin
+  displayName: Install dependencies (binaryen)

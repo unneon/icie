@@ -1,7 +1,7 @@
-# caching is not supported yet, even though azure supports it as a beta
-# the only problem, it does not preserve executable bits which breaks build script and toolchain caching
-# the fix is implemented behind an env var which I do not know how to trigger
-# https://github.com/microsoft/azure-pipelines-tasks/issues/10841
+# Caching is not supported yet, even though Azure supports it. The only
+# problem, for whatever reason Rust does not use the cached target/ directory
+# and compiles everything anyway. Also, downloading the 1GB cache takes a good
+# minute by itself so it's not that important.
 
 trigger:
   branches:
@@ -14,10 +14,9 @@ stages:
     jobs:
     - job: Build
       steps:
-      - script: git clone --depth=1 --branch=1.39.1 https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
-        displayName: Install dependencies (binaryen)
-      - script: cargo install wasm-bindgen-cli wasm-pack
-        displayName: Install WASM utilities
+      - template: continuous-integration/install-binaryen.yaml
+      - template: continuous-integration/install-wasmbindgen.yaml
+      - template: continuous-integration/install-wasmpack.yaml
       - script: ./build.sh
         displayName: Build
     - job: Format
@@ -46,12 +45,11 @@ stages:
     - job: GitHub
       dependsOn: Verify
       steps:
-      - script: git clone --depth=1 --branch=1.39.1 https://github.com/WebAssembly/binaryen && cd binaryen && cmake . && make && sudo make install && cd ..
-        displayName: Install dependencies (binaryen)
-      - script: cargo install wasm-bindgen-cli wasm-pack
-        displayName: Install WASM utilities
+      - template: continuous-integration/install-binaryen.yaml
+      - template: continuous-integration/install-wasmbindgen.yaml
+      - template: continuous-integration/install-wasmpack.yaml
       - script: sudo npm install -g vsce
-        displayName: Install dependencies (npm)
+        displayName: Install dependencies (vsce)
       - script: BUILDSH_RELEASE=1 ./build.sh package
         displayName: Package extension
       - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n -2 > github-release-changelog-diff.md
