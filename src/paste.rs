@@ -115,9 +115,9 @@ impl logic::PasteContext for VscodePaste<'_> {
 	}
 }
 
-fn qpaste_doc_error(s: impl AsRef<str>) -> String {
-	format!(
-		"{}; see [quickpasting docs](https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md)",
-		s.as_ref()
-	)
+fn qpaste_doc_error(e: E) -> E {
+	e.action("How to use quickpasting?", async {
+		evscode::open_external("https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md")
+			.await
+	})
 }

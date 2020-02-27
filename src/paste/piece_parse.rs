@@ -12,7 +12,8 @@ impl Piece {
 			.map(|line| {
 				let m: regex::Captures = HEADER_REGEX
 					.captures(line)
-					.wrap(qpaste_doc_error("invalid header in qpaste piece"))?;
+					.wrap("invalid header in qpaste piece")
+					.map_err(qpaste_doc_error)?;
 				Ok((m[1].to_string(), m[2].to_string()))
 			})
 			.collect::<R<HashMap<_, _>>>()?;

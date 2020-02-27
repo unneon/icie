@@ -53,7 +53,7 @@ impl LibraryCache {
 		lib.directory = directory;
 		lib.pieces = new_pieces;
 		if lib.pieces.is_empty() {
-			return Err(E::error(qpaste_doc_error(
+			return Err(qpaste_doc_error(E::error(
 				"your competitive programming library is empty",
 			)));
 		}
@@ -86,7 +86,7 @@ impl LibraryCache {
 	async fn get_directory(&self) -> R<Path> {
 		let dir = PATH.get();
 		if dir.to_str().unwrap() == "" {
-			return Err(E::error(qpaste_doc_error("no competitive programming library found")));
+			return Err(qpaste_doc_error(E::error("no competitive programming library found")));
 		}
 		if !fs::exists(&dir).await? {
 			return Err(E::error(format!("directory {} does not exist", dir)));
