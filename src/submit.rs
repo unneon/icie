@@ -1,7 +1,8 @@
 use crate::{
-	dir, init::help_init, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
+	dir, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
 };
 use evscode::{error::Severity, E, R};
+use log::debug;
 use std::time::Duration;
 use unijudge::{
 	boxed::{BoxedContest, BoxedTask}, Backend, RejectionCause, Resource
@@ -9,14 +10,17 @@ use unijudge::{
 
 #[evscode::command(title = "ICIE Submit", key = "alt+f12")]
 async fn send() -> R<()> {
+	debug!("requesting submit");
 	let _status = crate::STATUS.push("Submitting");
 	TELEMETRY.submit_f12.spark();
 	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None).await?;
 	if report.iter().any(|test| !test.success()) {
+		debug!("submit aborted because of failing tests");
 		TELEMETRY.submit_failtest.spark();
 		return Err(E::error("some tests failed, submit aborted").severity(Severity::Workflow));
 	}
 	if report.is_empty() {
+		debug!("submit aborted because of missing tests");
 		TELEMETRY.submit_notest.spark();
 		return Err(E::error("no tests available, add some to check if your solution is correct")
 			.action("Add test (Alt+-)", test::input())
@@ -33,14 +37,7 @@ async fn send_passed() -> R<()> {
 	let code = dir::solution()?;
 	let code = fs::read_to_string(&code).await?;
 	let manifest = Manifest::load().await?;
-	let url = manifest.req_task_url().map_err(|e| {
-		TELEMETRY.submit_notask.spark();
-		e.context(
-			"submit aborted, either open a task/contest to be able to submit, or use Alt+0 to \
-			 only run tests",
-		)
-		.action("How to open tasks?", help_init())
-	})?;
+	let url = manifest.req_task_url()?;
 	let (url, backend) = net::interpret_url(url)?;
 	let url = require_task::<BoxedContest, BoxedTask>(url)?;
 	let Resource::Task(task) = url.resource;
@@ -49,10 +46,10 @@ async fn send_passed() -> R<()> {
 		let _status = crate::STATUS.push("Querying languages");
 		sess.run(|backend, sess| backend.task_languages(sess, &task)).await?
 	};
+	debug!("found {} supported languages", langs.len());
 	let lang = langs.iter().find(|lang| lang.name == backend.cpp).ok_or_else(|| {
-		TELEMETRY.submit_nolang.spark();
 		E::error(format!("not found language {:?}", backend.cpp))
-			.reform("this task does not seem to allow C++ solutions")
+			.context("this task does not seem to allow C++ solutions")
 			.extended(format!("{:#?}", langs))
 	})?;
 	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, lang, &code)).await?;

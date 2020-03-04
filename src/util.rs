@@ -290,6 +290,12 @@ pub fn workspace_root() -> R<String> {
 }
 
 pub fn suggest_init(e: E) -> E {
-	e.action("Open task/contest URL (Alt+F11)", crate::init::url())
+	e.action("Open URL (Alt+F11)", crate::init::url())
 		.action("Scan for contests (Alt+F9)", crate::init::scan())
+		.action("How to use ICIE?", help_init())
+}
+
+async fn help_init() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
+		.await
 }

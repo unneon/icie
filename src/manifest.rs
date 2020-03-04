@@ -1,4 +1,4 @@
-use crate::util::{fs, path::Path, workspace_root};
+use crate::util::{fs, path::Path, suggest_init, workspace_root};
 use evscode::{error::ResultExt, R};
 use serde::{Deserialize, Serialize};
 use unijudge::Statement;
@@ -24,24 +24,26 @@ impl Manifest {
 		let path = Path::from_native(workspace_root()?).join(".icie");
 		let s = fs::read_to_string(&path)
 			.await
-			.map_err(|e| e.context("project not created with Alt+F9 or Alt+F11"))?;
+			.map_err(|e| suggest_init(e.context("this folder has no task open")))?;
 		let manifest =
 			serde_json::from_str(&s).wrap(".icie is not a valid icie::manifest::Manifest")?;
 		Ok(manifest)
 	}
 
 	pub fn req_statement(&self) -> R<&Statement> {
-		self.statement.as_ref().wrap(
-			"could not find statement, make sure site supports it and task was opened with Alt+F9 \
-			 or Alt+F11",
-		)
+		Ok(self
+			.statement
+			.as_ref()
+			.wrap("this folder has no downloaded task description")
+			.map_err(suggest_init)?)
 	}
 
 	pub fn req_task_url(&self) -> R<&str> {
 		Ok(self
 			.task_url
 			.as_ref()
-			.wrap("could not find task url, make sure task was opened with Alt+F9 or Alt+F11")?
+			.wrap("this folder has no task URL set")
+			.map_err(suggest_init)?
 			.as_str())
 	}
 }

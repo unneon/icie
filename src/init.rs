@@ -147,8 +147,3 @@ async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) 
 	files::init_examples(root, examples).await?;
 	Ok(())
 }
-
-pub async fn help_init() -> R<()> {
-	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
-		.await
-}

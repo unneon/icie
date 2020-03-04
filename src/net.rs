@@ -53,9 +53,9 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 			Err(e) => Some(Err(e)),
 		})
 		.next();
-	Ok(backend
-		.wrap(format!("not yet supporting contests/tasks on site {}", url))?
-		.map_err(from_unijudge_error)?)
+	Ok(backend.wrap(format!("not yet supporting contests/tasks on site {}", url))?.map_err(
+		|e| from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url)),
+	)?)
 }
 
 impl Session {

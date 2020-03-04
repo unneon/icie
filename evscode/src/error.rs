@@ -52,9 +52,6 @@ pub struct E {
 	pub severity: Severity,
 	/// List of human-facing error messages, ordered from low-level to high-level.
 	pub reasons: Vec<String>,
-	/// List of error messages not meant for the end user, ordered from low-level to high level.
-	/// These messages will not be displayed in the UI.
-	pub details: Vec<String>,
 	/// List of actions available as buttons in the message, if displayed.
 	pub actions: Vec<Action>,
 	/// Stack trace from either where the error was converted to [`E`] or from a lower-level error.
@@ -75,7 +72,6 @@ impl E {
 		E {
 			severity: Severity::Error,
 			reasons: Vec::new(),
-			details: Vec::new(),
 			actions: Vec::new(),
 			backtrace: Backtrace::new(),
 			extended: Vec::new(),
@@ -128,9 +124,9 @@ impl E {
 	/// usually hidden.
 	pub fn human_detailed(&self) -> String {
 		let mut buf = String::new();
-		for (i, reason) in self.reasons.iter().rev().chain(self.details.iter().rev()).enumerate() {
+		for (i, reason) in self.reasons.iter().rev().enumerate() {
 			buf += reason;
-			if i != self.reasons.len() + self.details.len() - 1 {
+			if i != self.reasons.len() - 1 {
 				buf += "; ";
 			}
 		}
@@ -151,22 +147,6 @@ impl E {
 	///     );
 	/// ```
 	pub fn context(mut self, msg: impl AsRef<str>) -> Self {
-		self.reasons.push(msg.as_ref().to_owned());
-		self
-	}
-
-	/// Add an additional message describing the error and mark all previous message as not meant
-	/// for the end user. This does not remove the lower-level messages, they will still be present
-	/// in developer tools' logs.
-	///
-	/// ```
-	/// # use evscode::E;
-	/// let e = E::error("entity not found").reform("file kitty.txt not found");
-	/// assert_eq!(e.human(), "file kitty.txt not found");
-	/// ```
-	pub fn reform(mut self, msg: impl AsRef<str>) -> Self {
-		self.details.extend_from_slice(&self.reasons);
-		self.reasons.clear();
 		self.reasons.push(msg.as_ref().to_owned());
 		self
 	}
@@ -236,9 +216,6 @@ impl E {
 			let mut log_msg = String::new();
 			for reason in &self.reasons {
 				log_msg += &format!("{}\n", reason);
-			}
-			for detail in &self.details {
-				log_msg += &format!("{}\n", detail);
 			}
 			log_msg += &format!(
 				"\nContains {} extended log entries\n\n{:?}",
@@ -359,7 +336,6 @@ impl From<js_sys::Error> for E {
 		E {
 			severity: Severity::Error,
 			reasons: vec![String::from(e.message())],
-			details: Vec::new(),
 			actions: Vec::new(),
 			backtrace: Backtrace(e),
 			extended: Vec::new(),
