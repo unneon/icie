@@ -11,7 +11,7 @@ pub static SOLUTION_STEM: evscode::Config<String> = "main";
 /// example, if this is set to "brut", the source will be called "brut.cpp"(assuming
 /// icie.dir.cppExtension is set to "cpp").
 #[evscode::config]
-static BRUT_STEM: evscode::Config<String> = "brut";
+pub static BRUT_STEM: evscode::Config<String> = "brut";
 
 /// File stem of the test generator source file. This is a program that will generate a random test
 /// input and write it to stdout. Remember to initialize the random number generator with a
@@ -19,7 +19,7 @@ static BRUT_STEM: evscode::Config<String> = "brut";
 /// if this is set to "gen", the source will be called "gen.cpp"(assuming icie.dir.cppExtension is
 /// set to "cpp").
 #[evscode::config]
-static GEN_STEM: evscode::Config<String> = "gen";
+pub static GEN_STEM: evscode::Config<String> = "gen";
 
 /// File stem of the task checker source file. For tasks where there exist multiple correct answers,
 /// this is the program which will be called to check if a given answer is correct. If the source
@@ -31,7 +31,7 @@ static GEN_STEM: evscode::Config<String> = "gen";
 /// main). If the answer is not, is should return a non-zero exit code, e.g. by using `exit(1)`. A
 /// good way to do so is with assertions, like `assert(index[i] <= n);`.
 #[evscode::config]
-static CHECKER_STEM: evscode::Config<String> = "checker";
+pub static CHECKER_STEM: evscode::Config<String> = "checker";
 
 /// The file extension used for sources written in the C++ language.
 #[evscode::config]

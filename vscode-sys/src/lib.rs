@@ -281,6 +281,19 @@ extern "C" {
 
 	pub type Event;
 
+	pub type WorkspaceConfiguration;
+
+	#[wasm_bindgen(method)]
+	pub fn get(this: &WorkspaceConfiguration, section: &str) -> JsValue;
+
+	#[wasm_bindgen(method)]
+	pub fn update(
+		this: &WorkspaceConfiguration,
+		section: &str,
+		value: &JsValue,
+		configuration_target: ConfigurationTarget,
+	) -> Thenable<()>;
+
 }
 
 #[derive(Deserialize)]
@@ -296,6 +309,14 @@ pub enum TextEditorRevealType {
 	InCenterIfOutsideViewport = 2,
 }
 wasm_abi_enumi32!(TextEditorRevealType);
+
+#[repr(i32)]
+pub enum ConfigurationTarget {
+	Global = 1,
+	Workspace = 2,
+	WorkspaceFolder = 3,
+}
+wasm_abi_enumi32!(ConfigurationTarget);
 
 #[derive(Serialize)]
 pub struct ProgressProgressValue<'a> {
@@ -556,7 +577,7 @@ pub mod window {
 
 pub mod workspace {
 
-	use crate::{TextDocument, Thenable, Uri};
+	use crate::{TextDocument, Thenable, Uri, WorkspaceConfiguration};
 	use wasm_bindgen::prelude::*;
 
 	#[wasm_bindgen(module = vscode)]
@@ -566,7 +587,7 @@ pub mod workspace {
 		pub fn find_files(include: &str) -> Thenable<Vec<Uri>>;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = getConfiguration)]
-		pub fn get_configuration(id: &str) -> JsValue;
+		pub fn get_configuration(section: &str) -> WorkspaceConfiguration;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = openTextDocument)]
 		pub fn open_text_document(file_name: &str)

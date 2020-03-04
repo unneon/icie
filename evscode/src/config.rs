@@ -17,7 +17,6 @@
 
 use crate::{marshal::Marshal, meta::Identifier};
 use std::collections::HashMap;
-use wasm_bindgen::JsValue;
 
 macro_rules! optobject_impl {
 	($obj:ident, ) => {};
@@ -58,14 +57,19 @@ impl<T: Configurable> Config<T> {
 
 	/// Return a reference-counted pointer to the current configuration values.
 	pub fn get(&self) -> T {
-		let mut tree = vscode_sys::workspace::get_configuration(&self.id.extension_id());
-		for key in self.id.inner_path().split('.') {
-			tree = js_sys::Reflect::get(&tree, &JsValue::from_str(key)).unwrap();
-		}
-		match T::from_js(tree) {
+		let tree = vscode_sys::workspace::get_configuration(&self.id.extension_id());
+		let value = tree.get(&self.id.inner_path());
+		match T::from_js(value) {
 			Ok(value) => value,
 			Err(_) => self.default.clone(),
 		}
+	}
+
+	/// Update the configuratiob value in the global scope.
+	pub async fn update_global(&self, value: &T) {
+		let tree = vscode_sys::workspace::get_configuration(&self.id.extension_id());
+		let value = value.to_js();
+		tree.update(&self.id.inner_path(), &value, vscode_sys::ConfigurationTarget::Global).await;
 	}
 }
 

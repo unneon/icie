@@ -1,7 +1,7 @@
 use crate::{
-	dir, init::SOLUTION_TEMPLATE, util::{fs, path::Path}
+	dir, template, util::{fs, path::Path}
 };
-use evscode::{error::ResultExt, R};
+use evscode::R;
 use unijudge::{Example, Statement};
 
 pub async fn init_manifest(
@@ -18,20 +18,8 @@ pub async fn init_manifest(
 pub async fn init_template(root: &Path) -> R<()> {
 	let solution = root.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
 	if !fs::exists(&solution).await? {
-		let req_id = SOLUTION_TEMPLATE.get();
-		let list = crate::template::LIST.get();
-		let path = list
-			.iter()
-			.find(|(id, _)| **id == *req_id)
-			.wrap(format!(
-				"template '{}' does not exist; go to the settings(Ctrl+,), and either change the \
-				 template(icie.init.solutionTemplate) or add a template with this \
-				 name(icie.template.list)",
-				req_id
-			))?
-			.1;
-		let tpl = crate::template::load(&path).await?;
-		fs::write(&solution, tpl.code).await?;
+		let template = template::load_solution().await?;
+		fs::write(&solution, template.code).await?;
 	}
 	Ok(())
 }

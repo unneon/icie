@@ -21,14 +21,15 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>-</kbd> to add a new test
 - <kbd>Alt</kbd><kbd>t</kbd> to launch a terminal
 - <kbd>Alt</kbd><kbd>0</kbd> to run tests without submitting
-- <kbd>Alt</kbd><kbd>9</kbd> to run stress tests
+- <kbd>Alt</kbd><kbd>9</kbd> to run stress tests (test your solution on thousands of random tests)
 - <kbd>Alt</kbd><kbd>8</kbd> to reopen task statement
 - <kbd>Alt</kbd><kbd>i</kbd> to generate a simple struct and an input operator>>
 - <kbd>Alt</kbd><kbd>[</kbd> to automatically [copy-paste parts of your library](https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md)
 - <kbd>Alt</kbd><kbd>=</kbd> to create a new file from a template
 - <kbd>Alt</kbd><kbd>;</kbd> to manually compile a file
 - <kbd>Alt</kbd><kbd>\\</kbd> and <kbd>Alt</kbd><kbd>0</kbd> to run tests on currently open file instead of the solution
-- Use custom checker.cpp; see details in checker configuration entry
+- <kbd>Alt</kbd><kbd>+</kbd> and select "C++ Output Checker" to use custom code for checking output correctness
+- <kbd>Alt</kbd><kbd>+</kbd> and select something else to create more .cpp files from templates
 - <kbd>Ctrl</kbd><kbd>,</kbd> and select Extensions > ICIE to easily configure ICIE's behavior.
 - To alter settings only for the current task, use the "Workspace" tab in the settings view.
 

@@ -47,9 +47,8 @@ pub struct Events {
 	pub submit_notest: Counter,
 	pub submit_failtest: Counter,
 	pub template_instantiate: Counter,
-	pub template_load: Counter,
-	pub template_load_builtin: Counter,
-	pub template_load_custom: Counter,
+	pub template_solution: Counter,
+	pub template_solution_custom: Counter,
 	pub term_install: Counter,
 	pub test_add: Counter,
 	pub test_alt0: Counter,
@@ -60,6 +59,7 @@ pub struct Events {
 	pub test_eval: Counter,
 	pub test_input: Counter,
 	pub test_run: Counter,
+	pub v074_migrate_template: Counter,
 }
 
 pub static TELEMETRY: Events = Events {
@@ -98,9 +98,8 @@ pub static TELEMETRY: Events = Events {
 	submit_notest: Counter::new("action.submit_notests"),
 	submit_failtest: Counter::new("action.submit_failtest"),
 	template_instantiate: Counter::new("action.template_instantiate"),
-	template_load: Counter::new("action.template_load"),
-	template_load_builtin: Counter::new("action.template_load_builtin"),
-	template_load_custom: Counter::new("action.template_load_custom"),
+	template_solution: Counter::new("action.template_solution"),
+	template_solution_custom: Counter::new("action.template_solution_custom"),
 	term_install: Counter::new("action.term_install"),
 	test_add: Counter::new("action.test_add"),
 	test_alt0: Counter::new("action.test_alt0"),
@@ -111,4 +110,5 @@ pub static TELEMETRY: Events = Events {
 	test_eval: Counter::new("action.test_eval"),
 	test_input: Counter::new("action.test_input"),
 	test_run: Counter::new("action.test_run"),
+	v074_migrate_template: Counter::new("migrate.v074_template"),
 };

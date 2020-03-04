@@ -12,11 +12,6 @@ mod files;
 pub mod names;
 mod scan;
 
-/// The name of the code template used for initializing new projects. The list of code templates'
-/// names and paths can be found under the icie.template.list configuration entry.
-#[evscode::config]
-static SOLUTION_TEMPLATE: evscode::Config<String> = "C++";
-
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
 async fn scan() -> R<()> {
 	TELEMETRY.init_scan.spark();
