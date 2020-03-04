@@ -1,11 +1,11 @@
 use crate::{
-	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::path::Path
+	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::{path::Path, workspace_root}
 };
 use evscode::{error::ResultExt, E, R};
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
 async fn spawn() -> R<()> {
-	evscode::workspace_root()?;
+	workspace_root()?;
 	External::command::<Vec<String>, String>(None, None)
 }
 
@@ -21,7 +21,7 @@ pub fn debugger<A: AsRef<str>>(
 	let test = util::without_extension(
 		&test
 			.as_ref()
-			.strip_prefix(&Path::from_native(evscode::workspace_root()?))
+			.strip_prefix(&Path::from_native(workspace_root()?))
 			.wrap("found test outside of test directory")?,
 	);
 	External::command(

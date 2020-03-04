@@ -49,7 +49,7 @@ fn test_fmt_time() {
 
 pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
 	if let Some(path) = path.as_option_path() {
-		let file = match evscode::workspace_root() {
+		let file = match workspace_root() {
 			Ok(root) => path.strip_prefix(&Path::from_native(root)).unwrap(),
 			Err(_) => path.clone(),
 		};
@@ -283,4 +283,13 @@ impl OS {
 			},
 		}
 	}
+}
+
+pub fn workspace_root() -> R<String> {
+	evscode::workspace_root().map_err(suggest_init)
+}
+
+pub fn suggest_init(e: E) -> E {
+	e.action("Open task/contest URL (Alt+F11)", crate::init::url())
+		.action("Scan for contests (Alt+F9)", crate::init::scan())
 }

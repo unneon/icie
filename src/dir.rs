@@ -1,4 +1,4 @@
-use crate::util::path::Path;
+use crate::util::{path::Path, workspace_root};
 
 /// File stem of the mail source file. This is the optimal solution, which should be tested, sent to
 /// judging systems for scoring etc. For example, if this is set to "main", the source will be
@@ -55,31 +55,31 @@ static CUSTOM_TESTS_SUBDIRECTORY: evscode::Config<String> = "user";
 pub static PROJECT_DIRECTORY: evscode::Config<Path> = "~";
 
 pub fn solution() -> evscode::R<Path> {
-	Ok(Path::from_native(evscode::workspace_root()?)
+	Ok(Path::from_native(workspace_root()?)
 		.join(&*SOLUTION_STEM.get())
 		.with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn brut() -> evscode::R<Path> {
-	Ok(Path::from_native(evscode::workspace_root()?)
+	Ok(Path::from_native(workspace_root()?)
 		.join(&*BRUT_STEM.get())
 		.with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn gen() -> evscode::R<Path> {
-	Ok(Path::from_native(evscode::workspace_root()?)
+	Ok(Path::from_native(workspace_root()?)
 		.join(&*GEN_STEM.get())
 		.with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn checker() -> evscode::R<Path> {
-	Ok(Path::from_native(evscode::workspace_root()?)
+	Ok(Path::from_native(workspace_root()?)
 		.join(&*CHECKER_STEM.get())
 		.with_extension(&*CPP_EXTENSION.get()))
 }
 
 pub fn tests() -> evscode::R<Path> {
-	Ok(Path::from_native(evscode::workspace_root()?).join(&*TESTS_DIRECTORY.get()))
+	Ok(Path::from_native(workspace_root()?).join(&*TESTS_DIRECTORY.get()))
 }
 
 pub fn custom_tests() -> evscode::R<Path> {

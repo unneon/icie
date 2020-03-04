@@ -1,4 +1,4 @@
-use crate::util::{node_hrtime, path::Path, sleep};
+use crate::util::{node_hrtime, path::Path, sleep, workspace_root};
 use evscode::{E, R};
 use futures::{
 	channel::{mpsc, oneshot}, future::join3, FutureExt, StreamExt
@@ -56,10 +56,7 @@ impl Executable {
 		}
 		let input_buffer =
 			node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
-		let cwd = environment
-			.cwd
-			.clone()
-			.or_else(|| evscode::workspace_root().ok().map(Path::from_native));
+		let cwd = environment.cwd.clone().or_else(|| workspace_root().ok().map(Path::from_native));
 		let kid = node_sys::child_process::spawn(
 			&self.command,
 			js_args,

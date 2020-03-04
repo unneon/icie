@@ -1,5 +1,5 @@
 use crate::{
-	dir, init, logger, manifest::Manifest, net::{interpret_url, require_task}, telemetry::TELEMETRY, util::{self, fs, path::Path}
+	dir, init, logger, manifest::Manifest, net::{interpret_url, require_task}, telemetry::TELEMETRY, util::{self, fs, path::Path, workspace_root}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -97,7 +97,7 @@ async fn statement() -> R<()> {
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]
 async fn nearby() -> R<()> {
 	TELEMETRY.launch_nearby.spark();
-	let root = Path::from_native(evscode::workspace_root()?);
+	let root = Path::from_native(workspace_root()?);
 	let parent = root.parent();
 	let mut nearby = fs::read_dir(&parent)
 		.await?

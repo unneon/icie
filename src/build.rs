@@ -1,7 +1,7 @@
 mod clang;
 
 use crate::{
-	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path}
+	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path, suggest_init, workspace_root}
 };
 use evscode::{
 	error::{ResultExt, Severity}, stdlib::output_channel::OutputChannel, Position, R
@@ -58,7 +58,7 @@ static WINDOWS_MINGW_PATH: evscode::Config<String> = "";
 async fn manual() -> evscode::R<()> {
 	let _status = crate::STATUS.push("Manually building");
 	TELEMETRY.build_manual.spark();
-	let root = Path::from_native(evscode::workspace_root()?);
+	let root = Path::from_native(workspace_root()?);
 	let sources = fs::read_dir(root.as_ref()).await?.into_iter().filter(|path| {
 		ALLOWED_EXTENSIONS.iter().any(|ext| Some((*ext).to_owned()) == path.extension())
 	});
@@ -107,9 +107,16 @@ pub async fn build(
 	let source = source.unwrap_or(&workspace_source);
 	if !fs::exists(source).await? {
 		let pretty_source = source
-			.strip_prefix(Path::from_native(evscode::workspace_root()?).as_ref())
+			.strip_prefix(Path::from_native(workspace_root()?).as_ref())
 			.wrap("tried to build source outside of project directory")?;
-		return Err(evscode::E::error(format!("source `{}` does not exist", pretty_source)));
+		let error =
+			evscode::E::error(format!("source {} does not exist at {}", pretty_source, source));
+		let error = if source == &dir::solution()? {
+			suggest_init(error)
+		} else {
+			error.action("Create from template (Alt++)", crate::template::instantiate())
+		};
+		return Err(error);
 	}
 	evscode::save_all().await?;
 	let out = source.with_extension(&*EXECUTABLE_EXTENSION.get());

@@ -1,5 +1,5 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, path::Path, OS}
+	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, path::Path, workspace_root, OS}
 };
 use evscode::{E, R};
 use log::debug;
@@ -27,7 +27,7 @@ pub static LIST: evscode::Config<HashMap<String, String>> = vec![
 .collect();
 
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]
-async fn instantiate() -> R<()> {
+pub async fn instantiate() -> R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
 	TELEMETRY.template_instantiate.spark();
 	let templates = LIST.get();
@@ -51,7 +51,7 @@ async fn instantiate() -> R<()> {
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	let path = Path::from_native(evscode::workspace_root()?).join(filename);
+	let path = Path::from_native(workspace_root()?).join(filename);
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}

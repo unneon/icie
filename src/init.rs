@@ -1,5 +1,5 @@
 use crate::{
-	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
+	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path, workspace_root}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -13,7 +13,7 @@ pub mod names;
 mod scan;
 
 #[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
-async fn scan() -> R<()> {
+pub async fn scan() -> R<()> {
 	TELEMETRY.init_scan.spark();
 	let mut contests = scan::fetch_contests().await;
 	contests.sort_by_key(|contest| contest.1.start);
@@ -40,7 +40,7 @@ async fn scan() -> R<()> {
 }
 
 #[evscode::command(title = "ICIE Init URL", key = "alt+f11")]
-async fn url() -> R<()> {
+pub async fn url() -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	TELEMETRY.init_url.spark();
 	let raw_url = ask_url().await?;
@@ -83,7 +83,7 @@ async fn url_existing() -> R<()> {
 		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
 		None => None,
 	};
-	let root = Path::from_native(evscode::workspace_root()?);
+	let root = Path::from_native(workspace_root()?);
 	init_task(root.as_ref(), raw_url, meta).await?;
 	Ok(())
 }

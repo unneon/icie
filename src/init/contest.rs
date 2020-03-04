@@ -1,7 +1,7 @@
 use crate::{
 	auth, init::{
 		init_task, names::{design_contest_name, design_task_name}
-	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now}
+	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now, workspace_root}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
@@ -55,7 +55,7 @@ pub async fn sprint(
 
 /// Check if a contest manifest exists, and if it does, start the rest of the contest setup.
 pub async fn check_for_manifest() -> R<()> {
-	if let Ok(workspace) = evscode::workspace_root() {
+	if let Ok(workspace) = workspace_root() {
 		let workspace = Path::from_native(workspace);
 		let manifest = workspace.join(".icie-contest");
 		if fs::exists(manifest.as_ref()).await? {
@@ -74,7 +74,7 @@ async fn inner_sprint(manifest: &Path) -> R<()> {
 	let sess = Session::connect(&url.domain, backend).await?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
-	let task_dir = Path::from_native(evscode::workspace_root()?);
+	let task_dir = Path::from_native(workspace_root()?);
 	let contest_dir = task_dir.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {

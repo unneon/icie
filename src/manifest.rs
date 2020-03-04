@@ -1,4 +1,4 @@
-use crate::util::{fs, path::Path};
+use crate::util::{fs, path::Path, workspace_root};
 use evscode::{error::ResultExt, R};
 use serde::{Deserialize, Serialize};
 use unijudge::Statement;
@@ -21,7 +21,7 @@ impl Manifest {
 	}
 
 	pub async fn load() -> R<Manifest> {
-		let path = Path::from_native(evscode::workspace_root()?).join(".icie");
+		let path = Path::from_native(workspace_root()?).join(".icie");
 		let s = fs::read_to_string(&path)
 			.await
 			.map_err(|e| e.context("project not created with Alt+F9 or Alt+F11"))?;
