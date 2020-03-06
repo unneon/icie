@@ -55,13 +55,10 @@ impl unijudge::Backend for Codeforces {
 	type Task = Task;
 
 	fn accepted_domains(&self) -> &'static [&'static str] {
-		&[
-			"codeforces.com",
-			// This domain always just 301 redirects to codeforces.com, so it only needs to be
-			// marked as accepted. deconstruct_url will pass the parsed domain to
-			// deconstruct_resource, which ignores it.
-			"codeforces.ml",
-		]
+		// TODO: There are alternative Codeforces domains such as codeforces.ml, and people
+		// may use them. However, it's not worth it because we would need to distuingish
+		// main and side domains in the rest of the code.
+		&["codeforces.com"]
 	}
 
 	fn deconstruct_resource(
