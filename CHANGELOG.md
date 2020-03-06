@@ -1,3 +1,10 @@
+## 0.7.4
+
+- Added a simpler way to customize your C++ template file
+- Added builtin code templates for slow solutions, input generators and checkers
+- Added many new action buttons for learning how to use ICIE
+- Added better error messages
+
 ## 0.7.3
 
 - **Added showing compilation output**
