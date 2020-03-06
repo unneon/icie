@@ -1,6 +1,6 @@
 parameters:
 - name: version
-  default: 0.2.58
+  default: 0.2.59
 
 steps:
 - script: >
