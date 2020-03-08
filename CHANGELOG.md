@@ -1,3 +1,7 @@
+## 0.7.5
+
+- Fixed logging too much
+
 ## 0.7.4
 
 - Added a simpler way to customize your C++ template file
