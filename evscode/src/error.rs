@@ -217,15 +217,8 @@ impl E {
 			for reason in &self.reasons {
 				log_msg += &format!("{}\n", reason);
 			}
-			log_msg += &format!(
-				"\nContains {} extended log entries\n\n{:?}",
-				self.extended.len(),
-				self.backtrace
-			);
+			log_msg += &format!("\n{:?}", self.backtrace);
 			log::error!("{}", log_msg);
-			for extended in &self.extended {
-				log::info!("{}", extended);
-			}
 			let should_suggest_report = match self.severity {
 				Severity::Bug => true,
 				Severity::Error => true,
