@@ -246,7 +246,7 @@ impl unijudge::Backend for SPOJ {
 					.text("submit", "Submit!"),
 			)
 			.header(ORIGIN, "https://www.spoj.com")
-			.header(REFERER, "https://www.spoj.com/submit/TEST/")
+			.header(REFERER, format!("https://www.spoj.com/submit/{}/", task))
 			.send()
 			.await?;
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
