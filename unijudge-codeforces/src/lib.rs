@@ -529,8 +529,8 @@ impl ExtractedStatement {
 				.zip(doc.find_all(".sample-test .output"))
 				.map(|(input, output)| {
 					Ok(unijudge::Example {
-						input: input.child(1)?.text_br().string(),
-						output: output.child(1)?.text_br().string(),
+						input: input.child(1)?.text_multiline().string(),
+						output: output.child(1)?.text_multiline().string(),
 					})
 				})
 				.collect::<Result<_>>()?,

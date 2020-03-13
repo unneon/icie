@@ -208,12 +208,7 @@ impl unijudge::Backend for SPOJ {
 									cause: None,
 									test: None,
 								})
-								.map_err(|_| {
-									Err::<Verdict, String>(format!(
-										"unrecognized SPOJ verdict {:?}",
-										part
-									))
-								}),
+								.map_err(|_| format!("unrecognized SPOJ verdict {:?}", part)),
 						}
 					})?,
 				})

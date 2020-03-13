@@ -261,7 +261,7 @@ dependencies = [
 [[package]]
 name = "debris"
 version = "0.1.0"
-source = "git+https://github.com/pustaczek/debris#ae823f744d19db96174438b54ea08fccc0d5e1e6"
+source = "git+https://github.com/pustaczek/debris#cf7f4c5e19071b8db2db8843a55c1cafd6bce1ed"
 dependencies = [
  "backtrace",
  "scraper",
