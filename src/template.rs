@@ -138,7 +138,7 @@ async fn try_migrate_v074_template() -> R<Option<Path>> {
 	Ok(None)
 }
 
-fn generate_default_solution() -> R<String> {
+pub fn generate_default_solution() -> R<String> {
 	generate(
 		r#"// 💖 Hi, thanks for using ICIE! 💖
 // 🔧 To use a custom code template, set it in Settings (Ctrl+,) in "Icie.Template.Solution" entry 🔧

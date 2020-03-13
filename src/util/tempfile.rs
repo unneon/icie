@@ -7,10 +7,10 @@ pub struct Tempfile {
 }
 
 impl Tempfile {
-	pub async fn new(uniq_name: &str, data: impl AsRef<[u8]>) -> R<Tempfile> {
+	pub async fn new(uniq_name: &str, extension: &str, data: impl AsRef<[u8]>) -> R<Tempfile> {
 		let id = time_now().duration_since(UNIX_EPOCH).unwrap().as_micros() % 1_000_000;
-		let path =
-			Path::from_native(node_sys::os::tmpdir()).join(format!("icie_{}_{}", uniq_name, id));
+		let path = Path::from_native(node_sys::os::tmpdir())
+			.join(format!("icie_{}_{}{}", uniq_name, id, extension));
 		fs::write(&path, data.as_ref()).await?;
 		Ok(Tempfile { path })
 	}

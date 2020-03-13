@@ -1,10 +1,10 @@
 mod clang;
 
 use crate::{
-	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, util::{self, fs, path::Path, suggest_init, workspace_root}
+	build::clang::compile, dir, executable::Executable, telemetry::TELEMETRY, template, util::{self, fs, path::Path, suggest_init, workspace_root, Tempfile}
 };
 use evscode::{
-	error::{ResultExt, Severity}, stdlib::output_channel::OutputChannel, Position, R
+	error::{ResultExt, Severity}, state::Scope, stdlib::output_channel::OutputChannel, Position, State, R
 };
 use once_cell::sync::Lazy;
 
@@ -160,8 +160,42 @@ pub async fn build(
 			Err(evscode::E::error("unrecognized compilation error").extended(status.stderr))
 		}
 	} else {
+		COMPILER_INSTALL_CONFIRMED.set(&true).await;
 		Ok(status.executable)
 	}
+}
+
+static COMPILER_INSTALL_CONFIRMED: State<bool> =
+	State::new("icie.build.compiler_install_confirmed", Scope::Global);
+
+pub async fn check_and_suggest_compiler_install() -> R<()> {
+	let already_checked = COMPILER_INSTALL_CONFIRMED.get()? != Some(true);
+	if already_checked {
+		let message =
+			"You have not compiled anything yet, should ICIE check if a C++ compiler is installed?";
+		let should_check = evscode::Message::new(message)
+			.item((), "Check", false)
+			.warning()
+			.show()
+			.await
+			.is_some();
+		if should_check {
+			dummy_compiler_run().await?;
+			COMPILER_INSTALL_CONFIRMED.set(&true).await;
+			evscode::Message::new::<()>("Compiling C++ was tested and it works. Good luck!")
+				.show()
+				.await;
+		}
+	}
+	Ok(())
+}
+
+async fn dummy_compiler_run() -> R<()> {
+	let code = template::generate_default_solution()?;
+	let code_file = Tempfile::new("compilerinstallcheck", ".cpp", code).await?;
+	let executable = build(code_file.path(), Codegen::Debug, true).await?;
+	fs::remove_file(&Path::from_native(executable.command)).await?;
+	Ok(())
 }
 
 thread_local! {

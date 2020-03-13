@@ -124,6 +124,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		.show();
 	let mut on_cancel = on_cancel.boxed().fuse();
 	spawn_login_suggestion(site, sess);
+	spawn_compiler_install_suggestion();
 	loop {
 		let now = time_now();
 		let left = match deadline.duration_since(now) {
@@ -188,7 +189,8 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 				"You are not logged in to {}, maybe do it now to save time when submitting?",
 				site
 			);
-			let dec = evscode::Message::new(&message).item((), "Log in", false).show().await;
+			let dec =
+				evscode::Message::new(&message).item((), "Log in", false).warning().show().await;
 			if dec.is_some() {
 				sess.force_login().await?;
 				evscode::Message::new::<()>("Logged in successfully").show().await;
@@ -196,6 +198,10 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 		}
 		Ok(())
 	});
+}
+
+fn spawn_compiler_install_suggestion() {
+	evscode::spawn(crate::build::check_and_suggest_compiler_install());
 }
 
 /// Contains information about the contest necessary to start waiting for it to start.

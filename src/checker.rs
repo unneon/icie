@@ -83,9 +83,9 @@ pub struct ExecChecker {
 #[async_trait(?Send)]
 impl Checker for ExecChecker {
 	async fn judge(&self, input: &str, desired: &str, out: &str) -> R<bool> {
-		let input_file = Tempfile::new("input.in", input).await?;
-		let desired_file = Tempfile::new("desired.out", desired).await?;
-		let out_file = Tempfile::new("output.out", out).await?;
+		let input_file = Tempfile::new("input", ".in", input).await?;
+		let desired_file = Tempfile::new("desired", ".out", desired).await?;
+		let out_file = Tempfile::new("output", ".out", out).await?;
 		let args = [
 			input_file.path().to_str().unwrap(),
 			out_file.path().to_str().unwrap(),
