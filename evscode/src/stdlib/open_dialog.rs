@@ -61,7 +61,7 @@ impl Builder {
 			open_label: self.action_label,
 		})
 		.await
-		.map(|chosen| chosen.into_iter().next().unwrap())
+		.map(|chosen| chosen.into_iter().next().unwrap().fs_path())
 	}
 }
 

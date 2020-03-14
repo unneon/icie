@@ -361,7 +361,7 @@ pub mod env {
 pub mod window {
 
 	use crate::{
-		OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, WebviewPanel
+		OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel
 	};
 	use serde::{Serialize, Serializer};
 	use std::collections::HashMap;
@@ -408,7 +408,7 @@ pub mod window {
 		pub fn show_input_box(options: InputBoxOptions) -> Thenable<Option<String>>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showOpenDialog)]
-		pub fn show_open_dialog(options: OpenDialogOptions) -> Thenable<Option<Vec<String>>>;
+		pub fn show_open_dialog(options: OpenDialogOptions) -> Thenable<Option<Vec<Uri>>>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showQuickPick)]
 		pub fn show_quick_pick(

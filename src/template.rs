@@ -61,6 +61,19 @@ pub async fn instantiate() -> R<()> {
 	Ok(())
 }
 
+#[evscode::command(title = "ICIE Template configure")]
+async fn configure() -> R<()> {
+	TELEMETRY.template_configure.spark();
+	let path = evscode::OpenDialog::new()
+		.action_label("Configure C++ template")
+		.show()
+		.await
+		.ok_or_else(E::cancel)?;
+	SOLUTION.update_global(&path).await;
+	evscode::Message::new::<()>("C++ template configured successfully").show().await;
+	Ok(())
+}
+
 pub struct LoadedTemplate {
 	pub suggested_filename: String,
 	pub code: String,
@@ -85,8 +98,9 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 	let template = match path {
 		Some(path) => {
 			TELEMETRY.template_solution_custom.spark();
-			// TODO: Check if solution file exists.
-			load_additional(&path).await?
+			load_additional(&path)
+				.await
+				.map_err(|e| e.action("Configure C++ template", configure()))?
 		},
 		None => LoadedTemplate {
 			suggested_filename: format!(
@@ -141,7 +155,7 @@ async fn try_migrate_v074_template() -> R<Option<Path>> {
 pub fn generate_default_solution() -> R<String> {
 	generate(
 		r#"// 💖 Hi, thanks for using ICIE! 💖
-// 🔧 To use a custom code template, set it in Settings (Ctrl+,) in "Icie.Template.Solution" entry 🔧
+// 🔧 To use a custom code template, press Ctrl+Shift+P and select "ICIE Template configure" from the list 🔧
 // 📝 If you spot any bugs or miss any features, create an issue at https://github.com/pustaczek/icie/issues 📝
 "#,
 		false,
