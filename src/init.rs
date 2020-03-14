@@ -76,7 +76,8 @@ async fn url_existing() -> R<()> {
 	let url = match url_to_command(raw_url.as_ref())? {
 		InitCommand::Task(task) => task,
 		InitCommand::Contest { .. } => {
-			return Err(E::error("it is forbidden to init a contest in an existing directory"));
+			return Err(E::error("it is forbidden to init a contest in an existing directory")
+				.action("Open in new (Alt+F11)", url()));
 		},
 	};
 	let meta = match url {
