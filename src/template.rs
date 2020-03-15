@@ -32,11 +32,10 @@ pub async fn instantiate() -> R<()> {
 	TELEMETRY.template_instantiate.spark();
 	let templates = LIST.get();
 	let template_id = evscode::QuickPick::new()
-		.items(
-			templates
-				.iter()
-				.map(|(name, _path)| evscode::quick_pick::Item::new(name.clone(), name.clone())),
-		)
+		.items(templates.iter().map(|(name, path)| {
+			evscode::quick_pick::Item::new(name.clone(), name.clone())
+				.description(additional_suggested_filename(&path))
+		}))
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
@@ -115,28 +114,32 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 }
 
 pub async fn load_additional(path: &str) -> R<LoadedTemplate> {
+	let suggested_filename = additional_suggested_filename(path);
 	let template = if path == PSEUDOPATH_SLOW_SOLUTION {
-		LoadedTemplate {
-			suggested_filename: format!("{}.{}", dir::BRUT_STEM.get(), dir::CPP_EXTENSION.get()),
-			code: generate_brut_solution()?,
-		}
+		LoadedTemplate { suggested_filename, code: generate_brut_solution()? }
 	} else if path == PSEUDOPATH_INPUT_GENERATOR {
-		LoadedTemplate {
-			suggested_filename: format!("{}.{}", dir::GEN_STEM.get(), dir::CPP_EXTENSION.get()),
-			code: generate_default_ingen()?,
-		}
+		LoadedTemplate { suggested_filename, code: generate_default_ingen()? }
 	} else if path == PSEUDOPATH_OUTPUT_CHECKER {
-		LoadedTemplate {
-			suggested_filename: format!("{}.{}", dir::CHECKER_STEM.get(), dir::CPP_EXTENSION.get()),
-			code: generate_default_checker()?,
-		}
+		LoadedTemplate { suggested_filename, code: generate_default_checker()? }
 	} else {
 		let path = util::expand_path(path);
-		let suggested_filename = path.file_name();
 		let code = fs::read_to_string(&path).await?;
 		LoadedTemplate { suggested_filename, code }
 	};
 	Ok(template)
+}
+
+fn additional_suggested_filename(path: &str) -> String {
+	if path == PSEUDOPATH_SLOW_SOLUTION {
+		format!("{}.{}", dir::BRUT_STEM.get(), dir::CPP_EXTENSION.get())
+	} else if path == PSEUDOPATH_INPUT_GENERATOR {
+		format!("{}.{}", dir::GEN_STEM.get(), dir::CPP_EXTENSION.get())
+	} else if path == PSEUDOPATH_OUTPUT_CHECKER {
+		format!("{}.{}", dir::CHECKER_STEM.get(), dir::CPP_EXTENSION.get())
+	} else {
+		let path = util::expand_path(path);
+		path.file_name()
+	}
 }
 
 async fn try_migrate_v074_template() -> R<Option<Path>> {
