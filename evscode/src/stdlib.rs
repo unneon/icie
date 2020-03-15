@@ -61,7 +61,13 @@ pub async fn open_folder(path: &str, in_new_window: bool) {
 pub async fn open_external(url: &str) -> R<()> {
 	let uri = vscode_sys::Uri::parse(url, true);
 	let success = vscode_sys::env::open_external(&uri).await;
-	if success { Ok(()) } else { Err(E::error(format!("could not open external URL {}", url))) }
+	if success {
+		Ok(())
+	} else {
+		let url = url.to_owned();
+		Err(E::error(format!("could not open a link in browser {}", url))
+			.action("Try again", async move { open_external(&url).await }))
+	}
 }
 
 /// Get the text present in the editor of a given path.
