@@ -53,9 +53,12 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 			Err(e) => Some(Err(e)),
 		})
 		.next();
-	Ok(backend.wrap(format!("not yet supporting contests/tasks on site {}", url))?.map_err(
-		|e| from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url)),
-	)?)
+	Ok(backend
+		.wrap(format!("not yet supporting contests/tasks on site {}", url))
+		.map_err(|e| e.action("Help with URLs", help_urls()))?
+		.map_err(|e| {
+			from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url))
+		})?)
 }
 
 impl Session {
@@ -205,6 +208,14 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 			e.extended = cause.snapshots.clone();
 		}
 	}
+	if uj_e.code == ErrorCode::MalformedURL || uj_e.code == ErrorCode::WrongTaskUrl {
+		e = e.action("Help with URLs", help_urls());
+	}
 	e.backtrace = uj_e.backtrace;
 	e
+}
+
+async fn help_urls() -> R<()> {
+	evscode::open_external("https://github.com/pustaczek/icie/blob/master/docs/URLS.md").await?;
+	Ok(())
 }
