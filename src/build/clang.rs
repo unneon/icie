@@ -1,5 +1,5 @@
 use crate::{
-	build::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, util, util::{fs, OS}
+	build::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, util, util::{fs, OS}
 };
 use evscode::R;
 use once_cell::sync::Lazy;
@@ -16,6 +16,8 @@ const CLANG: Service = Service {
 	// In this very specific situation, macOS seems pretty nice.
 	package_brew: None,
 	package_pacman: Some("clang"),
+	telemetry_install: &TELEMETRY.clang_install,
+	telemetry_not_installed: &TELEMETRY.clang_not_installed,
 	tutorial_url_windows: None,
 };
 
@@ -28,6 +30,8 @@ const MINGW: Service = Service {
 	package_apt: None,
 	package_brew: None,
 	package_pacman: None,
+	telemetry_install: &TELEMETRY.mingw_install,
+	telemetry_not_installed: &TELEMETRY.mingw_not_installed,
 	tutorial_url_windows: Some("https://github.com/pustaczek/icie/blob/master/docs/WINDOWS.md"),
 };
 

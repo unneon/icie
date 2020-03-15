@@ -10,6 +10,8 @@ pub const GDB: Service = Service {
 	package_apt: Some("gdb"),
 	package_brew: Some("gdb"),
 	package_pacman: Some("gdb"),
+	telemetry_install: &TELEMETRY.gdb_install,
+	telemetry_not_installed: &TELEMETRY.gdb_not_installed,
 	tutorial_url_windows: None,
 };
 
@@ -20,6 +22,8 @@ pub const RR: Service = Service {
 	package_apt: Some("rr"),
 	package_brew: None,
 	package_pacman: None,
+	telemetry_install: &TELEMETRY.rr_install,
+	telemetry_not_installed: &TELEMETRY.rr_not_installed,
 	tutorial_url_windows: None,
 };
 
