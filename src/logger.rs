@@ -13,6 +13,12 @@ const LOG_LEVELS: &[(&str, LevelFilter)] = &[
 
 const LOG_HISTORY_SIZE: usize = 2048;
 
+/// Whether internal application logs should be written to the Developer Console. Too see them, open
+/// Help > Toggle Developer Tools, select the Console tab at the top and look for messages beginning
+/// with [pustaczek.icie] tag.
+#[evscode::config]
+static ENABLED: evscode::Config<bool> = false;
+
 static LOGGER: Lazy<Logger> = Lazy::new(|| Logger {
 	dev_tools: DevToolsLogger,
 	log_history: Mutex::new(VecDeque::with_capacity(LOG_HISTORY_SIZE)),
@@ -57,7 +63,9 @@ impl log::Log for Logger {
 
 	fn log(&self, record: &Record) {
 		if self.enabled(record.metadata()) {
-			self.dev_tools.log(record);
+			if ENABLED.get() {
+				self.dev_tools.log(record);
+			}
 			let mut log_history = self.log_history.lock().unwrap();
 			if log_history.len() == LOG_HISTORY_SIZE {
 				log_history.pop_front();
