@@ -1,5 +1,5 @@
 use crate::{
-	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path, workspace_root}
+	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -68,27 +68,6 @@ pub async fn url() -> R<()> {
 	Ok(())
 }
 
-#[evscode::command(title = "ICIE Init URL (current directory)")]
-async fn url_existing() -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
-	TELEMETRY.init_url_existing.spark();
-	let raw_url = ask_url().await?;
-	let url = match url_to_command(raw_url.as_ref())? {
-		InitCommand::Task(task) => task,
-		InitCommand::Contest { .. } => {
-			return Err(E::error("it is forbidden to init a contest in an existing directory")
-				.action("Open in new (Alt+F11)", url()));
-		},
-	};
-	let meta = match url {
-		Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
-		None => None,
-	};
-	let root = Path::from_native(workspace_root()?);
-	init_task(root.as_ref(), raw_url, meta).await?;
-	Ok(())
-}
-
 async fn ask_url() -> R<Option<String>> {
 	Ok(evscode::InputBox::new()
 		.prompt("Enter task/contest URL or leave empty")
@@ -100,7 +79,6 @@ async fn ask_url() -> R<Option<String>> {
 		.ok_or_else(E::cancel)?)
 }
 
-#[allow(unused)]
 enum InitCommand {
 	Task(Option<(BoxedTaskURL, &'static BackendMeta)>),
 	Contest { url: BoxedContestURL, backend: &'static BackendMeta },
