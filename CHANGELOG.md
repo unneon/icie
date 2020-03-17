@@ -1,3 +1,15 @@
+## 0.7.6
+
+- Added an even simpler, interactive way to customize your C++ template file
+- Added checking whether C++ compiler is installed before contests
+- Added link to URL documentation when encountering malformed or unknown URLs
+- Added retry button for failing to open a website in an external browser
+- Added displaying suggested filenames during template instantation
+- Added more elegant 'website could not be analyzed' errors
+- Added config switch to enable logging, now off by default
+- Fixed hardcoding problem id at SPOJ, which could've possibly caused submit failures
+- Removed opening tasks in an existing directory
+
 ## 0.7.5
 
 - Fixed logging too much
