@@ -133,6 +133,7 @@ where [MetaNameValue; N]: array_init::IsArray<Item=MetaNameValue> {
 	if meta_list.nested.len() != N {
 		return None;
 	}
+	// TODO: Drop array_init dependency once Rust #69985 is merged.
 	array_init::from_iter::<[MetaNameValue; N], _>(
 		meta_list
 			.nested
