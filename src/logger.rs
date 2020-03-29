@@ -66,11 +66,16 @@ impl log::Log for Logger {
 			if ENABLED.get() {
 				self.dev_tools.log(record);
 			}
-			let mut log_history = self.log_history.lock().unwrap();
-			if log_history.len() == LOG_HISTORY_SIZE {
-				log_history.pop_front();
+			let message = dev_tools_logger::format_message(record);
+			// Extended error messages should not be stored in history, as they may contain
+			// sensitive data.
+			if !message.contains(evscode::error::EXTENDED_PREFIX) {
+				let mut log_history = self.log_history.lock().unwrap();
+				if log_history.len() == LOG_HISTORY_SIZE {
+					log_history.pop_front();
+				}
+				log_history.push_back(message);
 			}
-			log_history.push_back(dev_tools_logger::format_message(record));
 		}
 	}
 

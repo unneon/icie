@@ -61,6 +61,10 @@ pub struct E {
 	pub extended: Vec<String>,
 }
 
+/// String prefix that will be prepended to every log message which contains extended data. This is
+/// used for detecting whether e.g. data can be safely sent to telemetry systems.
+pub const EXTENDED_PREFIX: &str = "----EVSCODE.ERROR.EXTENDED----\n\n";
+
 impl E {
 	/// Create an error from a user-facing string, capturing a backtrace.
 	pub fn error(s: impl AsRef<str>) -> E {
@@ -219,6 +223,9 @@ impl E {
 			}
 			log_msg += &format!("\n{:?}", self.backtrace);
 			log::error!("{}", log_msg);
+			for extended in &self.extended {
+				log::error!("{}{}", EXTENDED_PREFIX, extended);
+			}
 			let should_suggest_report = match self.severity {
 				Severity::Bug => true,
 				Severity::Error => true,
