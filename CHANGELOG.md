@@ -1,3 +1,7 @@
+## 0.7.7
+
+- Fixed some 'website could not be analyzed' errors when submitting on CodeChef. The problems were caused by trying to submit to contests that ended, but now ICIE will try to determine whether to submit to practice or to a contest.
+
 ## 0.7.6
 
 - Added an even simpler, interactive way to customize your C++ template file
