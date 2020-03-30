@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, reqwest::{multipart, Url}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{Context, Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{multipart, Url}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -156,14 +156,7 @@ impl unijudge::Backend for CodeChef {
 		task: &Self::Task,
 	) -> Result<TaskDetails>
 	{
-		let url: Url = format!(
-			"https://www.codechef.com/api/contests/{}/problems/{}",
-			task.contest.as_virt_symbol(),
-			task.task
-		)
-		.parse()?;
-		let resp =
-			json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
+		let resp = self.api_task(task, session).await?;
 		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
 		Ok(TaskDetails {
 			id: task.task.clone(),
@@ -172,7 +165,7 @@ impl unijudge::Backend for CodeChef {
 			site_short: "codechef".to_owned(),
 			examples: None,
 			statement,
-			url: url.to_string(),
+			url: self.task_url(session, task)?,
 		})
 	}
 
@@ -182,7 +175,7 @@ impl unijudge::Backend for CodeChef {
 		task: &Self::Task,
 	) -> Result<Vec<Language>>
 	{
-		let url = self.submit_url(task)?;
+		let url = self.active_submit_url(task, session).await?;
 		let resp = session.client.get(url).send().await?;
 		let doc = Document::new(&resp.text().await?);
 		if let Ok(err_msg) = doc.find("#maintable .err-message") {
@@ -206,26 +199,8 @@ impl unijudge::Backend for CodeChef {
 		// sites and would require refactoring unijudge. However, using it would possible make
 		// things faster and also get rid of the insanity that is querying all these submission
 		// lists.
-		let doc = Document::new(
-			&session
-				.client
-				.get(
-					format!(
-						"https://www.codechef.com/{}status/{},{}",
-						match &task.contest {
-							Contest::Practice => String::new(),
-							Contest::Normal(contest) => format!("{}/", contest),
-						},
-						task.task,
-						session.req_user()?
-					)
-					.parse()?,
-				)
-				.send()
-				.await?
-				.text()
-				.await?,
-		);
+		let url = self.active_submission_url(task, session).await?;
+		let doc = Document::new(&session.client.get(url).send().await?.text().await?);
 		if doc.find("#recaptcha-content").is_ok() {
 			// This could possibly also happen in the other endpoints.
 			// But CodeChef is nice and liberal with the number of requests, so even this is
@@ -280,7 +255,7 @@ impl unijudge::Backend for CodeChef {
 		code: &str,
 	) -> Result<String>
 	{
-		let url = self.submit_url(&task)?;
+		let url = self.active_submit_url(task, session).await?;
 		let resp = session.client.get(url.clone()).send().await?;
 		let doc = Document::new(&resp.text().await?);
 		let form = doc.find("#problem-submission")?;
@@ -568,14 +543,64 @@ impl CodeChef {
 		}
 	}
 
-	fn submit_url(&self, task: &Task) -> Result<Url> {
-		let url = match &task.contest {
-			Contest::Normal(contest) => {
-				format!("https://www.codechef.com/{}/submit/{}", contest, task.task)
-			},
-			Contest::Practice => format!("https://www.codechef.com/submit/{}", task.task),
-		};
+	async fn api_task(&self, task: &Task, session: &Session) -> Result<api::Task> {
+		let url: Url = format!(
+			"https://www.codechef.com/api/contests/{}/problems/{}",
+			task.contest.as_virt_symbol(),
+			task.task
+		)
+		.parse()?;
+		let resp =
+			json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
+		Ok(resp)
+	}
+
+	/// Queries "active" submit URL. In CodeChef, the submit URL parameters can be different from
+	/// the task URL parameters for various reasons, e.g. after a contest ends, or when submitting a
+	/// problem from a different division. This function performs an additional HTTP request to take
+	/// this into account.
+	async fn active_submit_url(&self, task: &Task, session: &Session) -> Result<Url> {
+		let task = self.activate_task(task, session).await?;
+		let url = format!("https://www.codechef.com/{}submit/{}", task.contest.prefix(), task.task);
 		Ok(url.parse()?)
+	}
+
+	/// See [`CodeChef::active_submit_url`], but for submission list URLs.
+	async fn active_submission_url(&self, task: &Task, session: &Session) -> Result<Url> {
+		let task = self.activate_task(task, session).await?;
+		let url = format!(
+			"https://www.codechef.com/{}status/{},{}",
+			task.contest.prefix(),
+			task.task,
+			session.req_user()?
+		);
+		Ok(url.parse()?)
+	}
+
+	async fn activate_task(&self, task: &Task, session: &Session) -> Result<Task> {
+		let active_contest = match &task.contest {
+			Contest::Normal(contest) => {
+				debug!("confirming submit target");
+				let details = self.api_task(task, session).await?;
+				if session.req_user().err().map(|e| e.code) == Some(ErrorCode::AccessDenied)
+					|| details.user.username != session.req_user()?
+				{
+					debug!("failed to cofirm submit target, requesting login");
+					return Err(ErrorCode::AccessDenied.into());
+				} else if details.time.current <= details.time.end_date {
+					debug!("submit target confirmed to canonical url");
+					Contest::Normal(contest.clone())
+				} else if details.time.practice_submission_allowed {
+					debug!("submit target confirmed to practice url");
+					Contest::Practice
+				} else {
+					error!("failed to confirm submit target, falling back to canonical");
+					Contest::Normal(contest.clone())
+				}
+			},
+			Contest::Practice => Contest::Practice,
+		};
+		Ok(Task { contest: active_contest, task: task.task.clone() })
 	}
 }
 impl Session {
@@ -591,6 +616,13 @@ impl Contest {
 			Contest::Practice => "PRACTICE",
 		}
 	}
+
+	fn prefix(&self) -> String {
+		match self {
+			Contest::Normal(name) => format!("{}/", name),
+			Contest::Practice => String::new(),
+		}
+	}
 }
 
 mod api {
@@ -601,11 +633,25 @@ mod api {
 	use std::{collections::HashMap, fmt, hash::Hash};
 
 	#[derive(Debug, Deserialize)]
+	pub struct TaskTime {
+		pub end_date: u64,
+		pub current: u64,
+		pub practice_submission_allowed: bool,
+	}
+
+	#[derive(Debug, Deserialize)]
+	pub struct TaskUser {
+		pub username: String,
+	}
+
+	#[derive(Debug, Deserialize)]
 	pub struct Task {
 		pub problem_name: String,
 		/// Task statement in Markdown with HTML tags and MathJax $ tags.
 		/// Contains example tests.
 		pub body: String,
+		pub time: TaskTime,
+		pub user: TaskUser,
 	}
 
 	#[derive(Debug, Deserialize)]
