@@ -12,16 +12,16 @@ pub struct Manifest {
 }
 
 impl Manifest {
-	pub async fn save(&self, root: &Path) -> R<()> {
-		fs::create_dir_all(&root.parent()).await?;
+	pub async fn save(&self, workspace: &Path) -> R<()> {
+		fs::create_dir_all(&workspace.parent()).await?;
 		let written = serde_json::to_string(self).wrap("failed to serialize the manifest")?;
-		let path = root.join(".icie");
+		let path = workspace.join(".icie");
 		fs::write(&path, written).await?;
 		Ok(())
 	}
 
 	pub async fn load() -> R<Manifest> {
-		let path = Path::from_native(workspace_root()?).join(".icie");
+		let path = workspace_root()?.join(".icie");
 		let s = fs::read_to_string(&path)
 			.await
 			.map_err(|e| suggest_init(e.context("this folder has no task open")))?;

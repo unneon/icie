@@ -42,7 +42,7 @@ pub struct Executable {
 
 impl Executable {
 	pub fn new(path: Path) -> Executable {
-		Executable { command: path.to_str().unwrap().to_owned() }
+		Executable { command: path.into_string() }
 	}
 
 	pub fn new_name(command: String) -> Executable {
@@ -56,12 +56,12 @@ impl Executable {
 		}
 		let input_buffer =
 			node_sys::buffer::Buffer::from(js_sys::Uint8Array::from(input.as_bytes()));
-		let cwd = environment.cwd.clone().or_else(|| workspace_root().ok().map(Path::from_native));
+		let cwd = environment.cwd.clone().or_else(|| workspace_root().ok());
 		let kid = node_sys::child_process::spawn(
 			&self.command,
 			js_args,
 			node_sys::child_process::Options {
-				cwd: cwd.as_ref().map(|p| p.to_str().unwrap()),
+				cwd: cwd.as_ref().map(Path::as_str),
 				env: None,
 				argv0: None,
 				stdio: Some([Stdio::Pipe, Stdio::Pipe, Stdio::Pipe]),

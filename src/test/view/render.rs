@@ -100,7 +100,7 @@ async fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 			Verdict::TimeLimitExceeded => "verdict-time-limit-exceeded",
 			Verdict::IgnoredNoOut => "verdict-ignored",
 		},
-		path_in = html_escape(test.in_path.to_str().unwrap()),
+		path_in = html_escape(test.in_path.as_str()),
 		raw_out = html_escape(&test.outcome.out),
 		input = render_in_cell(test, folded).await?,
 		output = render_out_cell(test, folded).await?,

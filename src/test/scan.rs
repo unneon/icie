@@ -21,8 +21,8 @@ fn order(tests: &mut Vec<Path>) {
 }
 
 fn comp_by_test_number(lhs: &Path, rhs: &Path) -> Ordering {
-	let lgroups = lhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
-	let rgroups = rhs.to_str().unwrap().chars().group_by(|c| c.is_numeric());
+	let lgroups = lhs.as_str().chars().group_by(|c| c.is_numeric());
+	let rgroups = rhs.as_str().chars().group_by(|c| c.is_numeric());
 	for ((isdig, lgrp), (_, rgrp)) in lgroups.into_iter().zip(rgroups.into_iter()) {
 		let grp_compr = if isdig {
 			let lnum: i64 = lgrp.collect::<String>().parse().unwrap();
@@ -35,5 +35,5 @@ fn comp_by_test_number(lhs: &Path, rhs: &Path) -> Ordering {
 			return grp_compr;
 		}
 	}
-	lhs.to_str().unwrap().len().cmp(&rhs.to_str().unwrap().len())
+	lhs.as_str().len().cmp(&rhs.as_str().len())
 }

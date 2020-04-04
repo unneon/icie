@@ -90,7 +90,7 @@ async fn qistruct() -> R<()> {
 async fn query_context(library: &Library) -> R<VscodePaste<'_>> {
 	let solution = dir::solution()?;
 	let text = evscode::query_document_text(&solution).await?;
-	let context = VscodePaste { solution: solution.to_str().unwrap().to_owned(), text, library };
+	let context = VscodePaste { solution: solution.into_string(), text, library };
 	Ok(context)
 }
 

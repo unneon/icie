@@ -21,13 +21,10 @@ pub fn debugger<A: AsRef<str>>(
 	let test = util::without_extension(
 		&test
 			.as_ref()
-			.strip_prefix(&Path::from_native(workspace_root()?))
+			.strip_prefix(&workspace_root()?)
 			.wrap("found test outside of test directory")?,
 	);
-	External::command(
-		Some(&format!("{} - {} - ICIE", test.to_str().unwrap(), app.as_ref())),
-		Some(command),
-	)
+	External::command(Some(&format!("{} - {} - ICIE", test.as_str(), app.as_ref())), Some(command))
 }
 
 pub fn install<A: AsRef<str>>(name: impl AsRef<str>, command: impl IntoIterator<Item=A>) -> R<()> {

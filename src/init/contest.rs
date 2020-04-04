@@ -49,14 +49,13 @@ pub async fn sprint(
 		serde_json::to_string(&manifest).wrap("serialization of contest manifest failed")?,
 	)
 	.await?;
-	evscode::open_folder(task0_path.to_str().unwrap(), false).await;
+	evscode::open_folder(task0_path.as_str(), false).await;
 	Ok(())
 }
 
 /// Check if a contest manifest exists, and if it does, start the rest of the contest setup.
 pub async fn check_for_manifest() -> R<()> {
 	if let Ok(workspace) = workspace_root() {
-		let workspace = Path::from_native(workspace);
 		let manifest = workspace.join(".icie-contest");
 		if fs::exists(manifest.as_ref()).await? {
 			inner_sprint(manifest.as_ref()).await?;
@@ -74,15 +73,15 @@ async fn inner_sprint(manifest: &Path) -> R<()> {
 	let sess = Session::connect(&url.domain, backend).await?;
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
-	let task_dir = Path::from_native(workspace_root()?);
+	let task_dir = workspace_root()?;
 	let contest_dir = task_dir.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {
 			let taski_name = format!("{}/{}", i + 1, tasks.len());
 			let details = fetch_task(task, &taski_name, &sess).await?;
-			let root = design_task_name(contest_dir.as_ref(), Some(&details)).await?;
+			let workspace = design_task_name(contest_dir.as_ref(), Some(&details)).await?;
 			init_task(
-				root.as_ref(),
+				&workspace,
 				Some(sess.run(|_, _| async { sess.backend.task_url(&sess.session, &task) }).await?),
 				Some(details),
 			)
@@ -201,7 +200,7 @@ fn spawn_login_suggestion(site: &str, sess: &Arc<Session>) {
 }
 
 fn spawn_compiler_install_suggestion() {
-	evscode::spawn(crate::build::check_and_suggest_compiler_install());
+	evscode::spawn(crate::build::suggest_to_install_compiler());
 }
 
 /// Contains information about the contest necessary to start waiting for it to start.

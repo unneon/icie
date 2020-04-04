@@ -50,7 +50,7 @@ pub async fn instantiate() -> R<()> {
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	let path = Path::from_native(workspace_root()?).join(filename);
+	let path = workspace_root()?.join(filename);
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}

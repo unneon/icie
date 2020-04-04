@@ -9,6 +9,7 @@ pub mod letter_case;
 pub mod path;
 pub mod tempfile;
 
+use crate::dir;
 pub use tempfile::Tempfile;
 
 pub fn fmt_time_short(t: &Duration) -> String {
@@ -47,21 +48,20 @@ fn test_fmt_time() {
 	assert_eq!(fmt_time_short(&Duration::from_millis(42)), "0.042s");
 }
 
-pub fn fmt_verb(verb: &'static str, path: impl MaybePath) -> String {
-	if let Some(path) = path.as_option_path() {
-		let file = match workspace_root() {
-			Ok(root) => path.strip_prefix(&Path::from_native(root)).unwrap(),
-			Err(_) => path.clone(),
-		};
-		format!("{} {}", verb, file)
-	} else {
-		String::from(verb)
+pub fn fmt_verb(verb: &'static str, source: &SourceTarget) -> String {
+	match source {
+		SourceTarget::Custom(source) => format!("{} {}", verb, fmt_source_path(source)),
+		SourceTarget::Main => verb.to_owned(),
 	}
 }
 
-pub async fn active_tab() -> R<Option<Path>> {
+pub async fn active_tab() -> R<SourceTarget> {
 	let source = Path::from_native(evscode::active_editor_file().await.ok_or_else(E::cancel)?);
-	Ok(if source != crate::dir::solution()? { Some(source) } else { None })
+	Ok(if source != crate::dir::solution()? {
+		SourceTarget::Custom(source)
+	} else {
+		SourceTarget::Main
+	})
 }
 
 pub fn bash_escape(raw: &str) -> String {
@@ -231,27 +231,18 @@ pub fn node_hrtime() -> Duration {
 	}
 }
 
-pub trait MaybePath {
-	fn as_option_path(&self) -> Option<&Path>;
+#[derive(Clone, Eq, Hash, PartialEq)]
+pub enum SourceTarget {
+	Main,
+	Custom(Path),
 }
-impl<'a> MaybePath for Option<&'a Path> {
-	fn as_option_path(&self) -> Option<&Path> {
-		*self
-	}
-}
-impl MaybePath for Path {
-	fn as_option_path(&self) -> Option<&Path> {
-		Some(&self)
-	}
-}
-impl MaybePath for Option<Path> {
-	fn as_option_path(&self) -> Option<&Path> {
-		self.as_ref()
-	}
-}
-impl<'a, T: MaybePath> MaybePath for &'a T {
-	fn as_option_path(&self) -> Option<&Path> {
-		(*self).as_option_path()
+
+impl SourceTarget {
+	pub fn into_path(self) -> R<Path> {
+		match self {
+			SourceTarget::Main => dir::solution(),
+			SourceTarget::Custom(source) => Ok(source),
+		}
 	}
 }
 
@@ -285,8 +276,9 @@ impl OS {
 	}
 }
 
-pub fn workspace_root() -> R<String> {
-	evscode::workspace_root().map_err(suggest_init)
+pub fn workspace_root() -> R<Path> {
+	let buf = evscode::workspace_root().map_err(suggest_init)?;
+	Ok(Path::from_native(buf))
 }
 
 pub fn suggest_init(e: E) -> E {
@@ -298,4 +290,13 @@ pub fn suggest_init(e: E) -> E {
 async fn help_init() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
 		.await
+}
+
+pub fn fmt_source_path(source: &Path) -> String {
+	match workspace_root() {
+		Ok(workspace) => {
+			source.strip_prefix(&workspace).unwrap_or_else(|_| source.clone()).into_string()
+		},
+		Err(_) => source.as_str().to_owned(),
+	}
 }

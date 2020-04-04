@@ -1,5 +1,5 @@
 use crate::{
-	net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
+	dir::PROJECT_DIRECTORY, net::{self, BackendMeta}, telemetry::TELEMETRY, util::{fs, path::Path}
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -51,11 +51,11 @@ pub async fn url() -> R<()> {
 				Some((url, backend)) => Some(fetch_task_details(url, backend).await?),
 				None => None,
 			};
-			let root = crate::dir::PROJECT_DIRECTORY.get();
-			let root = names::design_task_name(root.as_ref(), meta.as_ref()).await?;
-			fs::create_dir_all(root.as_ref()).await?;
-			init_task(root.as_ref(), raw_url, meta).await?;
-			evscode::open_folder(root.to_str().unwrap(), false).await;
+			let projects_dir = PROJECT_DIRECTORY.get();
+			let workspace = names::design_task_name(projects_dir.as_ref(), meta.as_ref()).await?;
+			fs::create_dir_all(&workspace).await?;
+			init_task(&workspace, raw_url, meta).await?;
+			evscode::open_folder(workspace.as_str(), false).await;
 		},
 		InitCommand::Contest { url, backend } => {
 			TELEMETRY.init_url_contest.spark();
@@ -112,17 +112,17 @@ async fn fetch_task_details(url: BoxedTaskURL, backend: &'static BackendMeta) ->
 	Ok(meta)
 }
 
-async fn init_task(root: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+async fn init_task(workspace: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
-	fs::create_dir_all(root).await?;
+	fs::create_dir_all(workspace).await?;
 	let examples = meta
 		.as_ref()
 		.and_then(|meta| meta.examples.as_ref())
 		.map(|examples| examples.as_slice())
 		.unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
-	files::init_manifest(root, &url, statement).await?;
-	files::init_template(root).await?;
-	files::init_examples(root, examples).await?;
+	files::init_manifest(workspace, &url, statement).await?;
+	files::init_template(workspace).await?;
+	files::init_examples(workspace, examples).await?;
 	Ok(())
 }

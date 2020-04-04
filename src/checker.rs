@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, Codegen}, dir, executable::{Environment, Executable}, util::{fs, Tempfile}
+	build::{build, Codegen}, dir, executable::{Environment, Executable}, util::{fs, SourceTarget, Tempfile}
 };
 use async_trait::async_trait;
 use evscode::R;
@@ -20,7 +20,7 @@ pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 	} else {
 		let environment =
 			Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis), cwd: None };
-		let executable = build(checker, Codegen::Release, false).await?;
+		let executable = build(&SourceTarget::Custom(checker), Codegen::Release, false).await?;
 		Box::new(ExecChecker { executable, environment })
 	})
 }
@@ -86,11 +86,8 @@ impl Checker for ExecChecker {
 		let input_file = Tempfile::new("input", ".in", input).await?;
 		let desired_file = Tempfile::new("desired", ".out", desired).await?;
 		let out_file = Tempfile::new("output", ".out", out).await?;
-		let args = [
-			input_file.path().to_str().unwrap(),
-			out_file.path().to_str().unwrap(),
-			desired_file.path().to_str().unwrap(),
-		];
+		let args =
+			[input_file.path().as_str(), out_file.path().as_str(), desired_file.path().as_str()];
 		let run = self.executable.run("", &args, &self.environment).await?;
 		Ok(run.success())
 	}

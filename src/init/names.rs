@@ -4,14 +4,14 @@ use crate::{
 use evscode::{E, R};
 use unijudge::TaskDetails;
 
-pub async fn design_task_name(root: &Path, meta: Option<&TaskDetails>) -> R<Path> {
+pub async fn design_task_name(projects: &Path, meta: Option<&TaskDetails>) -> R<Path> {
 	Ok(match meta {
-		Some(meta) => root.join(&format!(
+		Some(meta) => projects.join(&format!(
 			"{}-{}",
 			Case::Upper.apply(&meta.id),
 			Case::Kebab.apply(&meta.title)
 		)),
-		None => query(root).await?,
+		None => query(projects).await?,
 	})
 }
 
@@ -24,8 +24,8 @@ async fn query(basic: &Path) -> R<Path> {
 		evscode::InputBox::new()
 			.ignore_focus_out()
 			.prompt("New project directory")
-			.value(basic.to_str().unwrap())
-			.value_selection(basic.to_str().unwrap().len(), basic.to_str().unwrap().len())
+			.value(basic.as_str())
+			.value_selection(basic.as_str().len(), basic.as_str().len())
 			.show()
 			.await
 			.ok_or_else(E::cancel)?,

@@ -1,5 +1,5 @@
 use crate::{
-	dir, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep}
+	dir, manifest::Manifest, net::{self, require_task}, telemetry::TELEMETRY, test, util::{fs, sleep, SourceTarget}
 };
 use evscode::{error::Severity, E, R};
 use log::debug;
@@ -13,7 +13,7 @@ async fn send() -> R<()> {
 	debug!("requesting submit");
 	let _status = crate::STATUS.push("Submitting");
 	TELEMETRY.submit_f12.spark();
-	let (_, report) = crate::test::view::manage::COLLECTION.get_force(None).await?;
+	let (_, report) = crate::test::view::manage::COLLECTION.get_force(SourceTarget::Main).await?;
 	if report.iter().any(|test| !test.success()) {
 		debug!("submit aborted because of failing tests");
 		TELEMETRY.submit_failtest.spark();

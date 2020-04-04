@@ -5,7 +5,7 @@ pub mod view;
 use crate::{
 	build::{self, Codegen}, checker::Checker, dir, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{
 		judge::{simple_test, Outcome}, scan::scan_and_order
-	}, util, util::{fs, path::Path}
+	}, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::{error::ResultExt, webview::WebviewRef, R};
 use futures::{SinkExt, Stream, StreamExt};
@@ -35,10 +35,10 @@ pub struct Task {
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
-pub async fn run(main_source: &Option<Path>) -> R<Vec<TestRun>> {
+pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
 	TELEMETRY.test_run.spark();
-	let solution = build::build(main_source, Codegen::Debug, false).await?;
+	let solution = build::build(&source, Codegen::Debug, false).await?;
 	let task = Task {
 		checker: crate::checker::get_checker().await?,
 		environment: Environment { time_limit: time_limit(), cwd: None },
@@ -48,7 +48,7 @@ pub async fn run(main_source: &Option<Path>) -> R<Vec<TestRun>> {
 	let ins = scan_and_order(&test_dir_name).await;
 	let mut runs = Vec::new();
 	let test_count = ins.len();
-	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &main_source)).show().0;
+	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &source)).show().0;
 	let mut worker = run_thread(ins, task, solution);
 	for _ in 0..test_count {
 		let run = worker.next().await.wrap("did not ran all tests due to an internal panic")??;
@@ -121,7 +121,7 @@ fn run_thread(ins: Vec<Path>, task: Task, solution: Executable) -> impl Stream<I
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 async fn view() -> R<()> {
 	TELEMETRY.test_alt0.spark();
-	view::manage::COLLECTION.get_force(None).await?;
+	view::manage::COLLECTION.get_force(SourceTarget::Main).await?;
 	Ok(())
 }
 
@@ -151,7 +151,7 @@ pub async fn input() -> evscode::R<()> {
 	let view = if let Some(view) = view::manage::COLLECTION.find_active().await {
 		view
 	} else {
-		view::manage::COLLECTION.get_lazy(None).await?
+		view::manage::COLLECTION.get_lazy(SourceTarget::Main).await?
 	};
 	// FIXME: Despite this reveal, VS Code does not focus the webview hard enough for a .focus() in
 	// the JS code to work.

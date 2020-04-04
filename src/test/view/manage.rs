@@ -1,7 +1,7 @@
 use crate::{
 	build::{build, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{fmt_verb, fs, path::Path}
+	}, util::{fmt_verb, fs, path::Path, SourceTarget}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -17,7 +17,7 @@ pub struct TestView;
 
 #[async_trait(?Send)]
 impl Behaviour for TestView {
-	type K = Option<Path>;
+	type K = SourceTarget;
 	type V = Vec<TestRun>;
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
@@ -29,7 +29,7 @@ impl Behaviour for TestView {
 	}
 
 	async fn compute(&self, source: Self::K) -> R<Self::V> {
-		run(&source).await
+		run(source.clone()).await
 	}
 
 	async fn update(&self, _: Self::K, report: &Self::V, webview: WebviewRef) -> R<()> {
@@ -93,7 +93,9 @@ impl Behaviour for TestView {
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let brut = build(brut, Codegen::Release, false).await?;
+								let brut =
+									build(&SourceTarget::Custom(brut), Codegen::Release, false)
+										.await?;
 								let environment =
 									Environment { time_limit: time_limit(), cwd: None };
 								let run = brut.run(&input, &[], &environment).await?;

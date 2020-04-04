@@ -22,8 +22,12 @@ impl Path {
 		&self
 	}
 
-	pub fn to_str(&self) -> Option<&str> {
-		Some(&self.buf)
+	pub fn as_str(&self) -> &str {
+		&self.buf
+	}
+
+	pub fn into_string(self) -> String {
+		self.buf
 	}
 
 	pub fn extension(&self) -> Option<String> {
@@ -111,7 +115,7 @@ impl ops::Deref for Path {
 
 impl Marshal for Path {
 	fn to_js(&self) -> JsValue {
-		JsValue::from_str(self.to_str().unwrap())
+		JsValue::from_str(self.as_str())
 	}
 
 	fn from_js(raw: JsValue) -> Result<Self, String> {
@@ -121,10 +125,10 @@ impl Marshal for Path {
 
 impl Configurable for Path {
 	fn to_json(&self) -> serde_json::Value {
-		self.to_str().unwrap().into()
+		self.as_str().into()
 	}
 
 	fn schema(default: Option<&Self>) -> serde_json::Value {
-		<String as Configurable>::schema(default.map(|p| p.to_str().unwrap().to_owned()).as_ref())
+		<String as Configurable>::schema(default.map(|p| p.as_str().to_owned()).as_ref())
 	}
 }

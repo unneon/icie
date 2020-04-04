@@ -1,5 +1,5 @@
 use crate::{
-	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test::time_limit, util, util::{fs, path::Path}
+	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test::time_limit, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::{E, R};
 
@@ -27,25 +27,25 @@ pub const RR: Service = Service {
 	tutorial_url_windows: None,
 };
 
-pub async fn gdb(in_path: Path, source: Option<Path>) -> R<()> {
+pub async fn gdb(in_path: Path, source: SourceTarget) -> R<()> {
 	TELEMETRY.debug_gdb.spark();
 	let gdb = GDB.find_command().await?;
 	term::debugger("GDB", in_path.as_ref(), &[
 		&gdb,
 		"-q",
-		build::exec_path(source)?.to_str().unwrap(),
+		build::executable_path(source)?.as_str(),
 		"-ex",
-		&format!("set args < {}", util::bash_escape(in_path.to_str().unwrap())),
+		&format!("set args < {}", util::bash_escape(in_path.as_str())),
 	])
 }
 
-pub async fn rr(in_path: Path, source: Option<Path>) -> R<()> {
+pub async fn rr(in_path: Path, source: SourceTarget) -> R<()> {
 	TELEMETRY.debug_rr.spark();
 	let rr = RR.find_command().await?;
 	let rr_exec = Executable::new_name(rr.clone());
 	let input = fs::read_to_string(in_path.as_ref()).await?;
-	let exec_path = build::exec_path(source)?;
-	let args = ["record", exec_path.to_str().unwrap()];
+	let exec_path = build::executable_path(source)?;
+	let args = ["record", exec_path.as_str()];
 	let environment = Environment { time_limit: time_limit(), cwd: None };
 	let record_out = rr_exec.run(&input, &args, &environment).await?;
 	if record_out.stderr.contains("/proc/sys/kernel/perf_event_paranoid") {

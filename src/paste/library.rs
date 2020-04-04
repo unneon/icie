@@ -42,9 +42,7 @@ impl LibraryCache {
 			let id = crate::util::without_extension(&path)
 				.strip_prefix(&directory)
 				.wrap("piece outside the piece collection directory")?
-				.to_str()
-				.unwrap()
-				.to_owned();
+				.into_string();
 			if path.extension() == Some("cpp".to_owned()) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces).await?;
 				new_pieces.insert(id, piece);
@@ -85,7 +83,7 @@ impl LibraryCache {
 
 	async fn get_directory(&self) -> R<Path> {
 		let dir = PATH.get();
-		if dir.to_str().unwrap() == "" {
+		if dir.as_str() == "" {
 			return Err(qpaste_doc_error(E::error("no competitive programming library found")));
 		}
 		if !fs::exists(&dir).await? {
