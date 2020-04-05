@@ -68,7 +68,7 @@ impl unijudge::Backend for Codeforces {
 	) -> Result<Resource<Self::Contest, Self::Task>>
 	{
 		let (source, contest, task) = match segments {
-			["contest", contest] => {
+			["contest", contest] | ["contests", contest] => {
 				return Ok(Resource::Contest(Contest {
 					source: Source::Contest,
 					id: (*contest).to_owned(),

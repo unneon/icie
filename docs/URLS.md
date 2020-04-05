@@ -5,6 +5,7 @@ If you want to train on an old task or a contest, you need to press <kbd>Alt</kb
 In case you have had bad luck and gotten a 'website link was not a valid URL' or 'website link was not recognized' error, here are some examples of good task/contest URLs to help you out:
 
 - https://codeforces.com/contest/1294
+- https://codeforces.com/contests/1294
 - https://codeforces.com/contest/1294/problem/A
 - https://codeforces.com/gym/102397
 - https://codeforces.com/gym/102397/problem/A
