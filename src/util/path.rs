@@ -18,10 +18,6 @@ impl Path {
 		Path { buf }
 	}
 
-	pub fn as_ref(&self) -> &Path {
-		&self
-	}
-
 	pub fn as_str(&self) -> &str {
 		&self.buf
 	}

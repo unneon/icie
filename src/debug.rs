@@ -27,10 +27,10 @@ pub const RR: Service = Service {
 	tutorial_url_windows: None,
 };
 
-pub async fn gdb(in_path: Path, source: SourceTarget) -> R<()> {
+pub async fn gdb(in_path: &Path, source: SourceTarget) -> R<()> {
 	TELEMETRY.debug_gdb.spark();
 	let gdb = GDB.find_command().await?;
-	term::debugger("GDB", in_path.as_ref(), &[
+	term::debugger("GDB", in_path, &[
 		&gdb,
 		"-q",
 		build::executable_path(source)?.as_str(),
@@ -39,11 +39,11 @@ pub async fn gdb(in_path: Path, source: SourceTarget) -> R<()> {
 	])
 }
 
-pub async fn rr(in_path: Path, source: SourceTarget) -> R<()> {
+pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
 	TELEMETRY.debug_rr.spark();
 	let rr = RR.find_command().await?;
 	let rr_exec = Executable::new_name(rr.clone());
-	let input = fs::read_to_string(in_path.as_ref()).await?;
+	let input = fs::read_to_string(in_path).await?;
 	let exec_path = build::executable_path(source)?;
 	let args = ["record", exec_path.as_str()];
 	let environment = Environment { time_limit: time_limit(), cwd: None };
@@ -55,7 +55,7 @@ pub async fn rr(in_path: Path, source: SourceTarget) -> R<()> {
 		)
 		.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid()));
 	}
-	term::debugger("RR", in_path.as_ref(), &[&rr, "replay", "--", "-q"])
+	term::debugger("RR", in_path, &[&rr, "replay", "--", "-q"])
 }
 
 async fn configure_kernel_perf_event_paranoid() -> R<()> {

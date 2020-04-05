@@ -135,7 +135,7 @@ pub async fn build(source: &SourceTarget, codegen: Codegen, force_rebuild: bool)
 	evscode::save_all().await?;
 	check_source_exists(&source).await?;
 	let output_path = source.with_extension(&*EXECUTABLE_EXTENSION.get());
-	if !force_rebuild && should_cache(&source, output_path.as_ref()).await? {
+	if !force_rebuild && should_cache(&source, &output_path).await? {
 		return Ok(Executable::new(output_path));
 	}
 	let sources = [&source];
@@ -217,7 +217,7 @@ async fn try_move_cursor_to_error(error: &Message) -> R<()> {
 	Ok(())
 }
 
-pub async fn suggest_to_install_compiler() -> R<()> {
+pub async fn suggest_install_compiler() -> R<()> {
 	let already_checked = COMPILER_INSTALL_CONFIRMED.get()? != Some(true);
 	if already_checked {
 		let message =

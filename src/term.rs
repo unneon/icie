@@ -19,10 +19,7 @@ pub fn debugger<A: AsRef<str>>(
 ) -> R<()>
 {
 	let test = util::without_extension(
-		&test
-			.as_ref()
-			.strip_prefix(&workspace_root()?)
-			.wrap("found test outside of test directory")?,
+		&test.strip_prefix(&workspace_root()?).wrap("found test outside of test directory")?,
 	);
 	External::command(Some(&format!("{} - {} - ICIE", test.as_str(), app.as_ref())), Some(command))
 }

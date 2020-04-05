@@ -2,9 +2,24 @@ use crate::{
 	dir, template, util::{fs, path::Path}
 };
 use evscode::R;
-use unijudge::{Example, Statement};
+use unijudge::{Example, Statement, TaskDetails};
 
-pub async fn init_manifest(
+pub async fn init_task(workspace: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+	let _status = crate::STATUS.push("Initializing");
+	fs::create_dir_all(workspace).await?;
+	let examples = meta
+		.as_ref()
+		.and_then(|meta| meta.examples.as_ref())
+		.map(|examples| examples.as_slice())
+		.unwrap_or(&[]);
+	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
+	create_manifest(workspace, &url, statement).await?;
+	create_template(workspace).await?;
+	create_examples(workspace, examples).await?;
+	Ok(())
+}
+
+async fn create_manifest(
 	workspace: &Path,
 	url: &Option<String>,
 	statement: Option<Statement>,
@@ -15,7 +30,7 @@ pub async fn init_manifest(
 	Ok(())
 }
 
-pub async fn init_template(workspace: &Path) -> R<()> {
+async fn create_template(workspace: &Path) -> R<()> {
 	let solution =
 		workspace.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
 	if !fs::exists(&solution).await? {
@@ -25,7 +40,7 @@ pub async fn init_template(workspace: &Path) -> R<()> {
 	Ok(())
 }
 
-pub async fn init_examples(workspace: &Path, examples: &[Example]) -> R<()> {
+async fn create_examples(workspace: &Path, examples: &[Example]) -> R<()> {
 	let examples_dir = workspace.join("tests").join("example");
 	fs::create_dir_all(&examples_dir).await?;
 	for (i, test) in examples.iter().enumerate() {

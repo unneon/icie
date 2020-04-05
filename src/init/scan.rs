@@ -1,49 +1,70 @@
-use crate::net::{self, BackendMeta, Session, BACKENDS};
+use crate::{
+	net::{BackendMeta, Session, BACKENDS}, util::join_all_with_progress
+};
 use evscode::{error::Severity, R};
-use futures::future::join_all;
 use std::sync::Arc;
 use unijudge::{boxed::BoxedContestDetails, Backend};
 
-pub async fn fetch_contests() -> Vec<(Arc<net::Session>, BoxedContestDetails, &'static BackendMeta)>
-{
-	let (progress, _) = evscode::Progress::new().title("ICIE Scan").show();
-	let domains = BACKENDS
+pub struct ContestMeta {
+	pub sess: Arc<Session>,
+	pub details: BoxedContestDetails,
+	pub backend: &'static BackendMeta,
+}
+
+type ContestList = (Arc<Session>, Vec<BoxedContestDetails>, &'static BackendMeta);
+
+pub async fn fetch_contests() -> Vec<ContestMeta> {
+	let domains = collect_contest_domains();
+	let contest_lists = fetch_contest_lists(&domains).await;
+	collect_contests(contest_lists)
+}
+
+fn collect_contest_domains() -> Vec<(&'static str, &'static BackendMeta)> {
+	BACKENDS
 		.iter()
 		.filter(|backend| backend.backend.supports_contests())
 		.flat_map(|backend| {
 			backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend))
 		})
-		.collect::<Vec<_>>();
-	let progress_inc = 100. / (domains.len() as f64);
-	join_all(domains.iter().map(|(domain, backend)| {
-		let progress = &progress;
-		async move {
-			(
-				domain,
-				try {
-					let _status = crate::STATUS.push(format!("Connecting {}", domain));
-					let sess = Arc::new(Session::connect(domain, backend).await?);
-					drop(_status);
-					let _status = crate::STATUS.push(format!("Fetching {}", domain));
-					let contests = sess.run(|backend, sess| backend.contests(sess)).await?;
-					progress.increment(progress_inc);
-					(sess, contests, *backend)
-				},
-			)
-		}
-	}))
+		.collect()
+}
+
+async fn fetch_contest_lists(domains: &[(&str, &'static BackendMeta)]) -> Vec<R<ContestList>> {
+	join_all_with_progress(
+		"ICIE Scan",
+		domains.iter().copied().map(|(domain, backend)| async move {
+			let sess = connect_to(domain, backend).await?;
+			let contests = fetch_domain_contests(domain, &sess).await?;
+			Ok((sess, contests, backend))
+		}),
+	)
 	.await
-	.into_iter()
-	.flat_map(|(domain, resp): (_, R<_>)| match resp {
-		Ok((sess, contests, backend)) => {
-			contests.into_iter().map(move |contest| (sess.clone(), contest, backend)).collect()
-		},
-		Err(e) => {
-			e.context(format!("failed to fetch {} contests", domain))
-				.severity(Severity::Warning)
-				.emit();
-			Vec::new()
-		},
-	})
-	.collect()
+}
+
+async fn connect_to(domain: &str, backend: &'static BackendMeta) -> R<Arc<Session>> {
+	let _status = crate::STATUS.push(format!("Connecting {}", domain));
+	let session = Session::connect(domain, backend).await?;
+	Ok(Arc::new(session))
+}
+
+async fn fetch_domain_contests(domain: &str, sess: &Session) -> R<Vec<BoxedContestDetails>> {
+	let _status = crate::STATUS.push(format!("Fetching {}", domain));
+	let contests = sess.run(|backend, sess| backend.contests(sess)).await?;
+	Ok(contests)
+}
+
+fn collect_contests(contest_lists: Vec<R<ContestList>>) -> Vec<ContestMeta> {
+	contest_lists
+		.into_iter()
+		.flat_map(|resp| match resp {
+			Ok((sess, contests, backend)) => contests
+				.into_iter()
+				.map(move |details| ContestMeta { sess: sess.clone(), details, backend })
+				.collect(),
+			Err(e) => {
+				e.severity(Severity::Warning).emit();
+				Vec::new()
+			},
+		})
+		.collect()
 }

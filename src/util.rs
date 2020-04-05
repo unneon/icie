@@ -1,16 +1,16 @@
-use crate::util::path::Path;
+use crate::{dir, util::path::Path};
 use evscode::{error::ResultExt, Position, E, R};
-use futures::channel::oneshot;
-use std::time::{Duration, SystemTime};
+use futures::{channel::oneshot, future::join_all};
+use std::{
+	future::Future, sync::Arc, time::{Duration, SystemTime}
+};
+pub use tempfile::Tempfile;
 use wasm_bindgen::{closure::Closure, JsValue};
 
 pub mod fs;
 pub mod letter_case;
 pub mod path;
 pub mod tempfile;
-
-use crate::dir;
-pub use tempfile::Tempfile;
 
 pub fn fmt_time_short(t: &Duration) -> String {
 	let s = t.as_secs();
@@ -202,7 +202,6 @@ pub fn expand_path(path: &str) -> Path {
 }
 
 pub fn without_extension(path: &Path) -> Path {
-	let path = path.as_ref();
 	path.parent().join(path.file_stem())
 }
 
@@ -299,4 +298,26 @@ pub fn fmt_source_path(source: &Path) -> String {
 		},
 		Err(_) => source.as_str().to_owned(),
 	}
+}
+
+pub fn join_all_with_progress<I>(
+	title: &str,
+	i: I,
+) -> impl Future<Output=Vec<<<I as IntoIterator>::Item as Future>::Output>>
+where
+	I: IntoIterator,
+	<I as IntoIterator>::Item: Future,
+{
+	let (progress, _) = evscode::Progress::new().title(title).show();
+	let progress = Arc::new(progress);
+	let objects: Vec<_> = i.into_iter().collect();
+	let increment = 100. / (objects.len() as f64);
+	join_all(objects.into_iter().map(move |fut| {
+		let progress = Arc::clone(&progress);
+		async move {
+			let result = fut.await;
+			progress.increment(increment);
+			result
+		}
+	}))
 }

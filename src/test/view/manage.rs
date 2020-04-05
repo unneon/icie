@@ -55,11 +55,11 @@ impl Behaviour for TestView {
 			match note {
 				Note::TriggerRR { in_path } => {
 					let source = source.clone();
-					evscode::spawn(rr(in_path, source));
+					evscode::spawn(async move { rr(&in_path, source).await });
 				},
 				Note::TriggerGDB { in_path } => {
 					let source = source.clone();
-					evscode::spawn(gdb(in_path, source));
+					evscode::spawn(async move { gdb(&in_path, source).await });
 				},
 				Note::NewTest { input, desired } => {
 					evscode::spawn(async move { add_test(&input, &desired).await })
