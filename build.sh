@@ -60,6 +60,11 @@ else
 	wasmopt_profile="-g -O0"
 fi
 
+if [[ "${1}" == "check" ]] ; then
+	X cargo check --target=wasm32-unknown-unknown
+	exit 0
+fi
+
 # Set up necessary directories.
 mkdir -p "${dir_root}/" "${dir_vscode}/" "${dir_build}/" "${dir_wasmpack}/" "${dir_genpackagejson}/"
 
