@@ -37,22 +37,14 @@ use wasm_bindgen::{closure::Closure, JsValue};
 ///
 /// [1]: https://github.com/microsoft/vscode/blob/c467419e0e3023668b8f031d3be768b79eeb1eb7/src/vs/workbench/api/browser/mainThreadWorkspace.ts#L207-L211
 pub async fn save_all() -> R<()> {
-	if vscode_sys::workspace::save_all(false).await {
-		Ok(())
-	} else {
-		Err(E::error("could not save all files"))
-	}
+	if vscode_sys::workspace::save_all(false).await { Ok(()) } else { Err(E::error("could not save all files")) }
 }
 
 /// Open a folder in a new or existing VS Code window.
 pub async fn open_folder(path: &str, in_new_window: bool) {
 	let uri = vscode_sys::Uri::file(path);
 	let in_new_window = JsValue::from_bool(in_new_window);
-	vscode_sys::commands::execute_command(
-		"vscode.openFolder",
-		js_sys::Array::of2(&uri, &in_new_window),
-	)
-	.await;
+	vscode_sys::commands::execute_command("vscode.openFolder", js_sys::Array::of2(&uri, &in_new_window)).await;
 }
 
 /// Open an external item(e.g. http/https/mailto URL), using the default system application.
@@ -81,9 +73,7 @@ pub async fn query_document_text(path: &str) -> R<String> {
 /// The indices in the (row, column) tuple are 0-based.
 pub async fn edit_paste(path: &str, text: &str, position: (usize, usize)) -> R<()> {
 	let text = text.to_owned();
-	let doc = vscode_sys::workspace::open_text_document(path)
-		.await
-		.expect("unwrap in evscode.edit_paste");
+	let doc = vscode_sys::workspace::open_text_document(path).await.expect("unwrap in evscode.edit_paste");
 	let edi = vscode_sys::window::show_text_document(&doc).await;
 	let suc = edi
 		.edit(&Closure::wrap(Box::new(move |edit_builder: &vscode_sys::TextEditorEdit| {
@@ -96,9 +86,7 @@ pub async fn edit_paste(path: &str, text: &str, position: (usize, usize)) -> R<(
 /// Get the path to workspace folder.
 /// Returns an error if no folder is opened.
 pub fn workspace_root() -> R<String> {
-	Ok(vscode_sys::workspace::ROOT_PATH
-		.as_string()
-		.wrap("this operation requires a folder to be open")?)
+	Ok(vscode_sys::workspace::ROOT_PATH.as_string().wrap("this operation requires a folder to be open")?)
 }
 
 /// Get the path to the root directory of the extension installation.
@@ -154,11 +142,7 @@ pub fn telemetry<'a>(
 	let js_properties = get_telemetry_properties(properties);
 	let js_measurements = get_telemetry_measurements(measurements);
 	TELEMETRY_REPORTER.with(|reporter| {
-		reporter.borrow().as_ref().unwrap().send_telemetry_event(
-			event_name,
-			&js_properties,
-			&js_measurements,
-		);
+		reporter.borrow().as_ref().unwrap().send_telemetry_event(event_name, &js_properties, &js_measurements);
 	});
 }
 
@@ -180,24 +164,18 @@ pub fn telemetry_exception<'a>(
 	})
 }
 
-fn get_telemetry_properties<'a>(
-	properties: impl IntoIterator<Item=&'a (&'a str, &'a str)>,
-) -> js_sys::Object {
+fn get_telemetry_properties<'a>(properties: impl IntoIterator<Item=&'a (&'a str, &'a str)>) -> js_sys::Object {
 	let js_properties = js_sys::Object::new();
 	for (key, value) in properties {
-		js_sys::Reflect::set(&js_properties, &JsValue::from_str(key), &JsValue::from_str(value))
-			.unwrap();
+		js_sys::Reflect::set(&js_properties, &JsValue::from_str(key), &JsValue::from_str(value)).unwrap();
 	}
 	js_properties
 }
 
-fn get_telemetry_measurements<'a>(
-	measurements: impl IntoIterator<Item=&'a (&'a str, f64)>,
-) -> js_sys::Object {
+fn get_telemetry_measurements<'a>(measurements: impl IntoIterator<Item=&'a (&'a str, f64)>) -> js_sys::Object {
 	let js_measurements = js_sys::Object::new();
 	for (key, value) in measurements {
-		js_sys::Reflect::set(&js_measurements, &JsValue::from_str(key), &JsValue::from_f64(*value))
-			.unwrap();
+		js_sys::Reflect::set(&js_measurements, &JsValue::from_str(key), &JsValue::from_f64(*value)).unwrap();
 	}
 	js_measurements
 }

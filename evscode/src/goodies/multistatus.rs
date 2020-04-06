@@ -1,7 +1,7 @@
 //! Status bar element that supports adding items to a single status object.
 //!
-//! First, create the element in your main.rs file.
-//! The passed string is the prefix added before specific status messages.
+//! First, create the element in your main.rs file. The passed string is the prefix added before specific status
+//! messages.
 //!
 //! ```
 //! use evscode::goodies::MultiStatus;
@@ -10,8 +10,8 @@
 //! static STATUS: Lazy<MultiStatus> = Lazy::new(|| MultiStatus::new("EEE "));
 //! ```
 //!
-//! Then, to set the status use the [`MultiStatus::push`] function and save the returned guard for
-//! the duration of the operation.
+//! Then, to set the status use the [`MultiStatus::push`] function and save the returned guard for the duration of the
+//! operation.
 //!
 //! ```
 //! # let STATUS = evscode::StackedStatus::new("EEE ");
@@ -27,8 +27,7 @@
 //! // (disappears)
 //! ```
 //!
-//! If multiple [`MultiStatus::push`] operations are active simultaneously, the messages will be
-//! separated with a comma.
+//! If multiple [`MultiStatus::push`] operations are active simultaneously, the messages will be separated with a comma.
 
 use std::sync::{Mutex, MutexGuard};
 
@@ -55,11 +54,7 @@ impl MultiStatus {
 
 	fn update(&self, mut words: MutexGuard<Vec<String>>) {
 		words.sort();
-		let msg = if !words.is_empty() {
-			Some(format!("{} {}", self.prefix, words.join(", ")))
-		} else {
-			None
-		};
+		let msg = if !words.is_empty() { Some(format!("{} {}", self.prefix, words.join(", "))) } else { None };
 		crate::stdlib::status(msg.as_deref());
 	}
 

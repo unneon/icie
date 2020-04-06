@@ -21,13 +21,7 @@ pub trait Behaviour: Send+Sync {
 	/// Update a webview with given computation results.
 	async fn update(&self, key: Self::K, value: &Self::V, webview: WebviewRef) -> R<()>;
 	/// Return a worker function which will handle the messages received from the webview.
-	async fn manage(
-		&self,
-		key: Self::K,
-		webview: WebviewRef,
-		listener: Listener,
-		disposer: Disposer,
-	) -> R<()>;
+	async fn manage(&self, key: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()>;
 }
 
 /// State of the webview collection.
@@ -113,11 +107,9 @@ impl<T: Behaviour> Collection<T> {
 
 	async fn make_new(&'static self, key: &T::K) -> R<(Webview, T::V)> {
 		let value = self.computation.compute(key.clone()).await?;
-		let WebviewMeta { webview, listener, disposer } =
-			self.computation.create_empty(key.clone())?;
+		let WebviewMeta { webview, listener, disposer } = self.computation.create_empty(key.clone())?;
 		self.computation.update(key.clone(), &value, webview.deref().clone()).await?;
-		let worker =
-			self.computation.manage(key.clone(), webview.deref().clone(), listener, disposer);
+		let worker = self.computation.manage(key.clone(), webview.deref().clone(), listener, disposer);
 		let key = key.clone();
 		let handle = webview.clone();
 		crate::spawn(async move {
@@ -134,12 +126,7 @@ impl<T: Behaviour> Collection<T> {
 		Ok((webview, value))
 	}
 
-	fn update_old<'a>(
-		&'static self,
-		key: &'a T::K,
-		webview: &'a Webview,
-	) -> impl Future<Output=R<T::V>>+'a
-	{
+	fn update_old<'a>(&'static self, key: &'a T::K, webview: &'a Webview) -> impl Future<Output=R<T::V>>+'a {
 		async move {
 			let value = self.computation.compute(key.clone()).await?;
 			self.computation.update(key.clone(), &value, webview.deref().clone()).await?;

@@ -12,12 +12,7 @@ async fn spawn() -> R<()> {
 pub struct Internal;
 pub struct External;
 
-pub fn debugger<A: AsRef<str>>(
-	app: impl AsRef<str>,
-	test: &Path,
-	command: impl IntoIterator<Item=A>,
-) -> R<()>
-{
+pub fn debugger<A: AsRef<str>>(app: impl AsRef<str>, test: &Path, command: impl IntoIterator<Item=A>) -> R<()> {
 	let test = test.without_extension().fmt_workspace();
 	External::command(Some(&format!("{} - {} - ICIE", test.as_str(), app.as_ref())), Some(command))
 }
@@ -35,11 +30,7 @@ impl Internal {
 		Ok(())
 	}
 
-	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(
-		title: T,
-		command: Option<I>,
-	) -> R<()>
-	{
+	fn command<T: AsRef<str>, I: IntoIterator<Item=A>, A: AsRef<str>>(title: T, command: Option<I>) -> R<()> {
 		Internal::raw(title, command.map(bash_escape_command).unwrap_or_default())
 	}
 }
@@ -55,14 +46,9 @@ static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
 static EXTERNAL_CUSTOM_TITLE: evscode::Config<bool> = true;
 
 impl External {
-	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(
-		title: Option<&str>,
-		command: Option<I>,
-	) -> R<()>
-	{
+	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<&str>, command: Option<I>) -> R<()> {
 		let title = title.map(str::to_owned);
-		let command = command
-			.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
+		let command = command.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
 		evscode::spawn(async move {
 			let program = Executable::new_name(EXTERNAL_COMMAND.get());
 			let mut args = Vec::new();

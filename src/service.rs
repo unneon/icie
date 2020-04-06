@@ -21,9 +21,7 @@ impl Service {
 	}
 
 	pub async fn find_command(&'static self) -> R<String> {
-		let command = self
-			.get_exec()
-			.wrap(format!("{} is not supported on your platform", self.human_name))?;
+		let command = self.get_exec().wrap(format!("{} is not supported on your platform", self.human_name))?;
 		if !is_installed(command).await? {
 			return Err(self.not_installed().await?);
 		}

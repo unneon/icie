@@ -102,12 +102,7 @@ impl<T: Thenability> Thenability for Option<T> {
 }
 impl<T: Thenability> Thenability for Vec<T> {
 	fn convert(x: JsValue) -> Self {
-		x.dyn_into::<js_sys::Array>()
-			.unwrap()
-			.values()
-			.into_iter()
-			.map(|val| T::convert(val.unwrap()))
-			.collect()
+		x.dyn_into::<js_sys::Array>().unwrap().values().into_iter().map(|val| T::convert(val.unwrap())).collect()
 	}
 }
 impl<T: Thenability> Thenability for Result<T, js_sys::Error> {
@@ -202,10 +197,7 @@ extern "C" {
 	pub type TextEditor;
 
 	#[wasm_bindgen(method)]
-	pub fn edit(
-		this: &TextEditor,
-		callback: &Closure<dyn FnMut(&TextEditorEdit)>,
-	) -> Thenable<bool>;
+	pub fn edit(this: &TextEditor, callback: &Closure<dyn FnMut(&TextEditorEdit)>) -> Thenable<bool>;
 
 	#[wasm_bindgen(method, getter)]
 	pub fn document(this: &TextEditor) -> TextDocument;
@@ -360,9 +352,7 @@ pub mod env {
 
 pub mod window {
 
-	use crate::{
-		OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel
-	};
+	use crate::{OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel};
 	use serde::{Serialize, Serializer};
 	use std::collections::HashMap;
 	use wasm_bindgen::prelude::*;
@@ -391,18 +381,10 @@ pub mod window {
 		) -> WebviewPanel;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showErrorMessage, variadic)]
-		pub fn show_error_message(
-			message: &str,
-			options: &JsValue,
-			items: Vec<JsValue>,
-		) -> Thenable<JsValue>;
+		pub fn show_error_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showInformationMessage, variadic)]
-		pub fn show_information_message(
-			message: &str,
-			options: &JsValue,
-			items: Vec<JsValue>,
-		) -> Thenable<JsValue>;
+		pub fn show_information_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showInputBox)]
 		pub fn show_input_box(options: InputBoxOptions) -> Thenable<Option<String>>;
@@ -411,20 +393,13 @@ pub mod window {
 		pub fn show_open_dialog(options: OpenDialogOptions) -> Thenable<Option<Vec<Uri>>>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showQuickPick)]
-		pub fn show_quick_pick(
-			items: &js_sys::Array,
-			options: ShowQuickPickOptions,
-		) -> Thenable<JsValue>;
+		pub fn show_quick_pick(items: &js_sys::Array, options: ShowQuickPickOptions) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showTextDocument)]
 		pub fn show_text_document(document: &TextDocument) -> Thenable<TextEditor>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = showWarningMessage, variadic)]
-		pub fn show_warning_message(
-			message: &str,
-			options: &JsValue,
-			items: Vec<JsValue>,
-		) -> Thenable<JsValue>;
+		pub fn show_warning_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
 		#[wasm_bindgen(js_namespace = window, js_name = visibleTextEditors)]
 		pub static VISIBLE_TEXT_EDITORS: js_sys::Array;
@@ -590,8 +565,7 @@ pub mod workspace {
 		pub fn get_configuration(section: &str) -> WorkspaceConfiguration;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = openTextDocument)]
-		pub fn open_text_document(file_name: &str)
-		-> Thenable<Result<TextDocument, js_sys::Error>>;
+		pub fn open_text_document(file_name: &str) -> Thenable<Result<TextDocument, js_sys::Error>>;
 
 		#[wasm_bindgen(js_namespace = workspace, js_name = rootPath)]
 		pub static ROOT_PATH: JsValue;

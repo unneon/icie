@@ -7,11 +7,8 @@ use unijudge::{Example, Statement, TaskDetails};
 pub async fn init_task(workspace: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
 	let _status = crate::STATUS.push("Initializing");
 	fs::create_dir_all(workspace).await?;
-	let examples = meta
-		.as_ref()
-		.and_then(|meta| meta.examples.as_ref())
-		.map(|examples| examples.as_slice())
-		.unwrap_or(&[]);
+	let examples =
+		meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);
 	let statement = meta.as_ref().and_then(|meta| meta.statement.clone());
 	create_manifest(workspace, &url, statement).await?;
 	create_template(workspace).await?;
@@ -19,20 +16,14 @@ pub async fn init_task(workspace: &Path, url: Option<String>, meta: Option<TaskD
 	Ok(())
 }
 
-async fn create_manifest(
-	workspace: &Path,
-	url: &Option<String>,
-	statement: Option<Statement>,
-) -> R<()>
-{
+async fn create_manifest(workspace: &Path, url: &Option<String>, statement: Option<Statement>) -> R<()> {
 	let manifest = crate::manifest::Manifest { task_url: url.clone(), statement };
 	manifest.save(workspace).await?;
 	Ok(())
 }
 
 async fn create_template(workspace: &Path) -> R<()> {
-	let solution =
-		workspace.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
+	let solution = workspace.join(format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()));
 	if !fs::exists(&solution).await? {
 		let template = template::load_solution().await?;
 		fs::write(&solution, template.code).await?;

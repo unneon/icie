@@ -95,13 +95,8 @@ impl fmt::Display for Path {
 }
 
 impl serde::Serialize for Path {
-	fn serialize<S>(
-		&self,
-		serializer: S,
-	) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
-	where
-		S: Serializer,
-	{
+	fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+	where S: Serializer {
 		self.buf.serialize(serializer)
 	}
 }

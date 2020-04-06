@@ -22,10 +22,7 @@ impl Behaviour for TestView {
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
 		let title = fmt_verb("ICIE Test View", &source);
-		Ok(Webview::new("icie.test.view", &title, 2)
-			.enable_scripts()
-			.retain_context_when_hidden()
-			.create())
+		Ok(Webview::new("icie.test.view", &title, 2).enable_scripts().retain_context_when_hidden().create())
 	}
 
 	async fn compute(&self, source: Self::K) -> R<Self::V> {
@@ -41,14 +38,7 @@ impl Behaviour for TestView {
 		Ok(())
 	}
 
-	async fn manage(
-		&self,
-		source: Self::K,
-		webview: WebviewRef,
-		listener: Listener,
-		disposer: Disposer,
-	) -> R<()>
-	{
+	async fn manage(&self, source: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let mut stream = cancel_on(listener, disposer);
 		while let Some(note) = stream.next().await {
 			let note: Note = note?.into_serde().unwrap();
@@ -61,9 +51,7 @@ impl Behaviour for TestView {
 					let source = source.clone();
 					evscode::spawn(async move { gdb(&in_path, source).await });
 				},
-				Note::NewTest { input, desired } => {
-					evscode::spawn(async move { add_test(&input, &desired).await })
-				},
+				Note::NewTest { input, desired } => evscode::spawn(async move { add_test(&input, &desired).await }),
 				Note::SetAlt { in_path, out } => evscode::spawn(async move {
 					TELEMETRY.test_alternative_add.spark();
 					let in_alt_path = in_path.with_extension("alt.out");
@@ -93,11 +81,8 @@ impl Behaviour for TestView {
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let brut =
-									build(&SourceTarget::Custom(brut), Codegen::Release, false)
-										.await?;
-								let environment =
-									Environment { time_limit: time_limit(), cwd: None };
+								let brut = build(&SourceTarget::Custom(brut), Codegen::Release, false).await?;
+								let environment = Environment { time_limit: time_limit(), cwd: None };
 								let run = brut.run(&input, &[], &environment).await?;
 								drop(_status);
 								if run.success() {

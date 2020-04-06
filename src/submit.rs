@@ -64,13 +64,8 @@ const TRACK_NOT_SEEN_RETRY_DELAY: Duration = Duration::from_secs(5);
 
 async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: String) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
-	let submission_url = sess
-		.run(|backend, sess| futures::future::ok(backend.submission_url(sess, &url, &id)))
-		.await?;
-	let progress = evscode::Progress::new()
-		.title(format!("Tracking submit [#{}]({})", id, submission_url))
-		.show()
-		.0;
+	let submission_url = sess.run(|backend, sess| futures::future::ok(backend.submission_url(sess, &url, &id))).await?;
+	let progress = evscode::Progress::new().title(format!("Tracking submit [#{}]({})", id, submission_url)).show().0;
 	let mut last_verdict = None;
 	let mut not_seen_retry_limit = TRACK_NOT_SEEN_RETRY_LIMIT;
 	let verdict = loop {

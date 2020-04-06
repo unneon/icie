@@ -91,29 +91,17 @@ fn extract_enum_variants(item: &ItemEnum) -> Result<Vec<EnumVariant>, ProcError>
 		.collect()
 }
 
-fn find_attribute<'a>(
-	ident: &'static str,
-	attrs: &'a [Attribute],
-	span: Span,
-) -> Result<&'a Attribute, ProcError>
-{
+fn find_attribute<'a>(ident: &'static str, attrs: &'a [Attribute], span: Span) -> Result<&'a Attribute, ProcError> {
 	attrs.iter().find(|attr| attr.path.is_ident(ident)).ok_or_else(|| {
-		ProcError::new(Diagnostic::spanned(
-			span,
-			Level::Error,
-			format!("requires `{}` attribute", ident),
-		))
+		ProcError::new(Diagnostic::spanned(span, Level::Error, format!("requires `{}` attribute", ident)))
 	})
 }
 
 fn parse_attribute(attr: &Attribute) -> Result<LitStr, ProcError> {
-	let name =
-		parse_meta_name_value_list::<1>(attr).and_then(|[meta_name_value]| match &meta_name_value
-			.lit
-		{
-			Lit::Str(name) if meta_name_value.path.is_ident("name") => Some(name.clone()),
-			_ => None,
-		});
+	let name = parse_meta_name_value_list::<1>(attr).and_then(|[meta_name_value]| match &meta_name_value.lit {
+		Lit::Str(name) if meta_name_value.path.is_ident("name") => Some(name.clone()),
+		_ => None,
+	});
 	name.ok_or_else(|| {
 		ProcError::new(Diagnostic::spanned(
 			attr.span().unwrap(),

@@ -11,9 +11,9 @@ use std::time::Duration;
 
 pub use data::{Outcome, Task, TestRun, Verdict};
 
-/// The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified
-/// in milliseconds. Leaving this empty(which denotes no limit) is not recommended, because this
-/// will cause stuck processes to run indefinitely, wasting system resources.
+/// The maximum time an executable can run before getting a Time Limit Exceeded verdict, specified in milliseconds.
+/// Leaving this empty(which denotes no limit) is not recommended, because this will cause stuck processes to run
+/// indefinitely, wasting system resources.
 #[evscode::config]
 static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
@@ -29,8 +29,7 @@ pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 		let input = fs::read_to_string(&input_path).await?;
 		let output = load_test_output(input_path, "out").await?;
 		let output_alt = load_test_output(input_path, "alt.out").await?;
-		let outcome =
-			simple_test(&solution, &input, output.as_deref(), output_alt.as_deref(), &task).await?;
+		let outcome = simple_test(&solution, &input, output.as_deref(), output_alt.as_deref(), &task).await?;
 		let output_path = input_path.with_extension("out");
 		let run = TestRun { in_path: input_path.clone(), out_path: output_path, outcome };
 		update_test_progress(&run, inputs.len(), &progress)?;

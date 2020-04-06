@@ -13,9 +13,8 @@ const LOG_LEVELS: &[(&str, LevelFilter)] = &[
 
 const LOG_HISTORY_SIZE: usize = 2048;
 
-/// Whether internal application logs should be written to the Developer Console. Too see them, open
-/// Help > Toggle Developer Tools, select the Console tab at the top and look for messages beginning
-/// with [pustaczek.icie] tag.
+/// Whether internal application logs should be written to the Developer Console. Too see them, open Help > Toggle
+/// Developer Tools, select the Console tab at the top and look for messages beginning with a pustaczek.icie tag.
 #[evscode::config]
 static ENABLED: evscode::Config<bool> = false;
 
@@ -39,10 +38,7 @@ pub async fn on_error(error: E) {
 		let log_history = log_history.join("\n");
 		evscode::telemetry_exception(
 			&error,
-			&[
-				("severity", format!("{:?}", error.severity).as_str()),
-				("log_history", &log_history),
-			],
+			&[("severity", format!("{:?}", error.severity).as_str()), ("log_history", &log_history)],
 			&[],
 		);
 	}
@@ -56,9 +52,7 @@ struct Logger {
 
 impl log::Log for Logger {
 	fn enabled(&self, metadata: &Metadata) -> bool {
-		LOG_LEVELS.iter().all(|(source, filter)| {
-			metadata.level() <= *filter || !metadata.target().starts_with(source)
-		})
+		LOG_LEVELS.iter().all(|(source, filter)| metadata.level() <= *filter || !metadata.target().starts_with(source))
 	}
 
 	fn log(&self, record: &Record) {

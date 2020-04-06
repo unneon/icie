@@ -30,16 +30,13 @@ impl Library {
 		for (id, piece) in &self.pieces {
 			if let Some(parent) = &piece.parent {
 				if !self.pieces.contains_key(parent) {
-					return Err(E::error(format!(
-						"parent of {:?} is {:?}, which does not exist",
-						id,
-						Some(parent)
-					))
-					.context("malformed library"));
+					return Err(E::error(format!("parent of {:?} is {:?}, which does not exist", id, Some(parent)))
+						.context("malformed library"));
 				}
 				if self.pieces[parent].parent.is_some() {
-					return Err(E::error("doubly nested library pieces are not supported yet")
-						.context("malformed library"));
+					return Err(
+						E::error("doubly nested library pieces are not supported yet").context("malformed library")
+					);
 				}
 			}
 			for dep in &piece.dependencies {
@@ -51,9 +48,7 @@ impl Library {
 		let (dg, t1, _) = self.build_dependency_graph();
 		let og = self.build_ordering_graph(&dg, &t1);
 		if og.toposort().is_none() {
-			return Err(
-				E::error("dependency/parenting cycle detected").context("malformed library")
-			);
+			return Err(E::error("dependency/parenting cycle detected").context("malformed library"));
 		}
 		Ok(())
 	}
@@ -76,8 +71,7 @@ impl Library {
 
 	/// Builds a graph where every piece has outgoings edges to all of its' dependencies.
 	fn build_dependency_graph(&self) -> (Graph, HashMap<&str, usize>, Vec<&str>) {
-		let t1: HashMap<&str, usize> =
-			self.pieces.iter().enumerate().map(|(v, (id, _))| (id.as_str(), v)).collect();
+		let t1: HashMap<&str, usize> = self.pieces.iter().enumerate().map(|(v, (id, _))| (id.as_str(), v)).collect();
 		let mut t2 = t1.iter().collect::<Vec<_>>();
 		t2.sort_by_key(|(_, v)| **v);
 		let t2 = t2.into_iter().map(|(id, _)| *id).collect();
@@ -280,10 +274,7 @@ mod tests {
 	async fn dependency_order() {
 		let lib = example_library();
 		let orders = paste_iter(&lib, "dfs").await;
-		assert!(
-			(orders[0] == "dummyf" && orders[1] == "graph")
-				|| (orders[0] == "graph" && orders[1] == "dummyf")
-		);
+		assert!((orders[0] == "dummyf" && orders[1] == "graph") || (orders[0] == "graph" && orders[1] == "dummyf"));
 		assert_eq!(orders[2], "dfs-impl");
 		assert_eq!(orders[3], "dfs");
 		assert_eq!(orders.len(), 4);
@@ -402,10 +393,7 @@ int main() {
 			modified: SystemTime::now(),
 		});
 		lib1.pieces.insert("lca".to_owned(), mock_piece("lca", &["graph"], Some("graph")));
-		lib1.pieces.insert(
-			"dominator".to_owned(),
-			mock_piece("dominator", &["graph", "lca"], Some("graph")),
-		);
+		lib1.pieces.insert("dominator".to_owned(), mock_piece("dominator", &["graph", "lca"], Some("graph")));
 		let mut lib2 = Library::new_empty();
 		lib2.pieces.insert("graph".to_owned(), lib1.pieces.get("graph").unwrap().clone());
 		lib2.pieces.insert("dominator".to_owned(), lib1.pieces.get("dominator").unwrap().clone());
@@ -445,11 +433,7 @@ struct Graph {
 				.split('\n')
 				.enumerate()
 				.map(|(i, row)| {
-					if i == line {
-						format!("{}{}{}", &row[..column], snippet, &row[column..])
-					} else {
-						row.to_owned()
-					}
+					if i == line { format!("{}{}{}", &row[..column], snippet, &row[column..]) } else { row.to_owned() }
 				})
 				.collect::<Vec<_>>()
 				.join("\n");
@@ -497,14 +481,8 @@ struct Graph {
 		let mut lib = Library::new_empty();
 		lib.pieces.insert("dummyf".to_owned(), mock_piece("dummyf", &[], None));
 		lib.pieces.insert("graph".to_owned(), mock_piece("graph", &[], None));
-		lib.pieces.insert(
-			"dfs".to_owned(),
-			mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")),
-		);
-		lib.pieces.insert(
-			"dfs-impl".to_owned(),
-			mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")),
-		);
+		lib.pieces.insert("dfs".to_owned(), mock_piece("dfs", &["graph", "dfs-impl", "dummyf"], Some("graph")));
+		lib.pieces.insert("dfs-impl".to_owned(), mock_piece("dfs-impl", &["graph", "dummyf"], Some("graph")));
 		lib.verify().unwrap();
 		lib
 	}

@@ -39,20 +39,15 @@ async fn quick() -> R<()> {
 async fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
 	TELEMETRY.paste_qistruct.spark();
-	let name = evscode::InputBox::new()
-		.prompt("Qistruct name")
-		.placeholder("Person")
-		.show()
-		.await
-		.ok_or_else(E::cancel)?;
+	let name =
+		evscode::InputBox::new().prompt("Qistruct name").placeholder("Person").show().await.ok_or_else(E::cancel)?;
 	let mut members = Vec::new();
 	loop {
 		let prompt = format!("Qistruct member {}", members.len() + 1);
-		let member =
-			match evscode::InputBox::new().prompt(&prompt).placeholder("int age").show().await {
-				Some(member) => member,
-				None => break,
-			};
+		let member = match evscode::InputBox::new().prompt(&prompt).placeholder("int age").show().await {
+			Some(member) => member,
+			None => break,
+		};
 		if member.trim().is_empty() {
 			break;
 		}
@@ -117,7 +112,6 @@ impl logic::PasteContext for VscodePaste<'_> {
 
 fn qpaste_doc_error(e: E) -> E {
 	e.action("How to use quickpasting?", async {
-		evscode::open_external("https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md")
-			.await
+		evscode::open_external("https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md").await
 	})
 }

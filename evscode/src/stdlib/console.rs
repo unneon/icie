@@ -1,7 +1,7 @@
 //! Developer tools console logging facilities
 
-/// Log a message with a given level.
-/// Escape % characters with %% sequence, because advanced logging support is not ready yet.
+/// Log a message with a given level. Escape % characters with %% sequence, because advanced logging support is not
+/// ready yet.
 pub fn log(level: Level, message: &str) {
 	let function = match level {
 		Level::Error => node_sys::console::error,

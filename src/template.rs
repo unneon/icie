@@ -33,8 +33,7 @@ pub async fn instantiate() -> R<()> {
 	let templates = LIST.get();
 	let template_id = evscode::QuickPick::new()
 		.items(templates.iter().map(|(name, path)| {
-			evscode::quick_pick::Item::new(name.clone(), name.clone())
-				.description(additional_suggested_filename(&path))
+			evscode::quick_pick::Item::new(name.clone(), name.clone()).description(additional_suggested_filename(&path))
 		}))
 		.show()
 		.await
@@ -63,11 +62,7 @@ pub async fn instantiate() -> R<()> {
 #[evscode::command(title = "ICIE Template configure")]
 async fn configure() -> R<()> {
 	TELEMETRY.template_configure.spark();
-	let path = evscode::OpenDialog::new()
-		.action_label("Configure C++ template")
-		.show()
-		.await
-		.ok_or_else(E::cancel)?;
+	let path = evscode::OpenDialog::new().action_label("Configure C++ template").show().await.ok_or_else(E::cancel)?;
 	SOLUTION.update_global(&path).await;
 	evscode::Message::new::<()>("C++ template configured successfully").show().await;
 	Ok(())
@@ -79,10 +74,8 @@ pub struct LoadedTemplate {
 }
 
 const PSEUDOPATH_SLOW_SOLUTION: &str = "(replace this with a path to your slow solution template)";
-const PSEUDOPATH_INPUT_GENERATOR: &str =
-	"(replace this with a path to your input generator template)";
-const PSEUDOPATH_OUTPUT_CHECKER: &str =
-	"(replace this with a path to your output checker template)";
+const PSEUDOPATH_INPUT_GENERATOR: &str = "(replace this with a path to your input generator template)";
+const PSEUDOPATH_OUTPUT_CHECKER: &str = "(replace this with a path to your output checker template)";
 
 pub async fn load_solution() -> R<LoadedTemplate> {
 	TELEMETRY.template_solution.spark();
@@ -97,16 +90,10 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 	let template = match path {
 		Some(path) => {
 			TELEMETRY.template_solution_custom.spark();
-			load_additional(&path)
-				.await
-				.map_err(|e| e.action("Configure C++ template", configure()))?
+			load_additional(&path).await.map_err(|e| e.action("Configure C++ template", configure()))?
 		},
 		None => LoadedTemplate {
-			suggested_filename: format!(
-				"{}.{}",
-				dir::SOLUTION_STEM.get(),
-				dir::CPP_EXTENSION.get()
-			),
+			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
 			code: generate_default_solution()?,
 		},
 	};
@@ -212,9 +199,7 @@ fn generate_default_checker() -> R<String> {
 fn generate(prelude: &str, main_args: bool, main_prelude: &str) -> R<String> {
 	let includes = match OS::query()? {
 		OS::Linux => "#include <bits/stdc++.h>",
-		OS::Windows | OS::MacOS => {
-			"#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <random>"
-		},
+		OS::Windows | OS::MacOS => "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <random>",
 	};
 	let main_args = if main_args { "int argc, char* argv[]" } else { "" };
 	Ok(format!(

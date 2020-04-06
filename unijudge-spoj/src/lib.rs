@@ -21,12 +21,7 @@ impl unijudge::Backend for SPOJ {
 		&["www.spoj.com"]
 	}
 
-	fn deconstruct_resource(
-		&self,
-		_domain: &str,
-		segments: &[&str],
-	) -> Result<Resource<Self::Contest, Self::Task>>
-	{
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		match segments {
 			["problems", task] => Ok(Resource::Task((*task).to_owned())),
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
@@ -48,23 +43,12 @@ impl unijudge::Backend for SPOJ {
 		unijudge::deserialize_auth(data)
 	}
 
-	async fn auth_login(
-		&self,
-		session: &Self::Session,
-		username: &str,
-		password: &str,
-	) -> Result<()>
-	{
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		let resp = session
 			.post("https://www.spoj.com/login/".parse()?)
 			.header(ORIGIN, "https://www.spoj.com")
 			.header(REFERER, "https://www.spoj.com/")
-			.form(&[
-				("next_raw", "/"),
-				("autologin", "1"),
-				("login_user", username),
-				("password", password),
-			])
+			.form(&[("next_raw", "/"), ("autologin", "1"), ("login_user", username), ("password", password)])
 			.send()
 			.await?;
 		let url = resp.url().clone();
@@ -94,12 +78,7 @@ impl unijudge::Backend for SPOJ {
 		None
 	}
 
-	async fn task_details(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<TaskDetails>
-	{
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse()?;
 		let resp = session.get(url.clone()).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
@@ -107,9 +86,7 @@ impl unijudge::Backend for SPOJ {
 		let mut statement = unijudge::statement::Rewrite::start(doc);
 		statement.fix_hide(|v| {
 			if let unijudge::scraper::Node::Element(v) = v.value() {
-				v.id().map_or(false, |id| {
-					["problem-name", "problem-tags", "problem-body"].contains(&id)
-				})
+				v.id().map_or(false, |id| ["problem-name", "problem-tags", "problem-body"].contains(&id))
 			} else {
 				false
 			}
@@ -138,28 +115,16 @@ impl unijudge::Backend for SPOJ {
 		})
 	}
 
-	async fn task_languages(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<Vec<Language>>
-	{
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse()?;
 		let resp = session.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
 		doc.find_all("#lang > option")
-			.map(|node| {
-				Ok(Language { id: node.attr("value")?.string(), name: node.text().string() })
-			})
+			.map(|node| Ok(Language { id: node.attr("value")?.string(), name: node.text().string() }))
 			.collect::<Result<_>>()
 	}
 
-	async fn task_submissions(
-		&self,
-		session: &Self::Session,
-		_task: &Self::Task,
-	) -> Result<Vec<Submission>>
-	{
+	async fn task_submissions(&self, session: &Self::Session, _task: &Self::Task) -> Result<Vec<Submission>> {
 		let user = req_user(session)?;
 		let url: Url = format!("https://www.spoj.com/status/{}/", user).parse()?;
 		let resp = session.get(url).send().await?;
@@ -173,41 +138,29 @@ impl unijudge::Backend for SPOJ {
 						let part = &text[..text.find('\n').unwrap_or_else(|| text.len())];
 						match part {
 							"accepted" => Ok(Verdict::Accepted),
-							"wrong answer" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::WrongAnswer),
-								test: None,
-							}),
-							"time limit exceeded" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::TimeLimitExceeded),
-								test: None,
-							}),
-							"compilation error" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::CompilationError),
-								test: None,
-							}),
+							"wrong answer" => {
+								Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None })
+							},
+							"time limit exceeded" => {
+								Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })
+							},
+							"compilation error" => {
+								Ok(Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None })
+							},
 							"runtime error    (SIGFPE)"
 							| "runtime error    (SIGSEGV)"
 							| "runtime error    (SIGABRT)"
-							| "runtime error    (NZEC)" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::RuntimeError),
-								test: None,
-							}),
-							"internal error" => Ok(Verdict::Rejected {
-								cause: Some(RejectionCause::SystemError),
-								test: None,
-							}),
+							| "runtime error    (NZEC)" => Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None }),
+							"internal error" => {
+								Ok(Verdict::Rejected { cause: Some(RejectionCause::SystemError), test: None })
+							},
 							"waiting.." => Ok(Verdict::Pending { test: None }),
 							"compiling.." => Ok(Verdict::Pending { test: None }),
 							"running judge.." => Ok(Verdict::Pending { test: None }),
 							"running.." => Ok(Verdict::Pending { test: None }),
 							_ => part
 								.parse::<f64>()
-								.map(|score| Verdict::Scored {
-									score,
-									max: None,
-									cause: None,
-									test: None,
-								})
+								.map(|score| Verdict::Scored { score, max: None, cause: None, test: None })
 								.map_err(|_| format!("unrecognized SPOJ verdict {:?}", part)),
 						}
 					})?,
@@ -269,12 +222,7 @@ impl unijudge::Backend for SPOJ {
 		unimplemented!()
 	}
 
-	async fn contest_tasks(
-		&self,
-		_session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<Vec<Self::Task>>
-	{
+	async fn contest_tasks(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		*contest
 	}
 
@@ -282,20 +230,11 @@ impl unijudge::Backend for SPOJ {
 		*contest
 	}
 
-	async fn contest_title(
-		&self,
-		_session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<String>
-	{
+	async fn contest_title(&self, _session: &Self::Session, contest: &Self::Contest) -> Result<String> {
 		*contest
 	}
 
-	async fn contests(
-		&self,
-		_session: &Self::Session,
-	) -> Result<Vec<ContestDetails<Self::Contest>>>
-	{
+	async fn contests(&self, _session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		Ok(Vec::new())
 	}
 

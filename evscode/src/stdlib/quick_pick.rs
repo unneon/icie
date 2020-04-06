@@ -93,11 +93,7 @@ impl<'a, T: Serialize+for<'d> Deserialize<'d>, I: Iterator<Item=Item<T>>> Builde
 	}
 
 	/// Add items to the selection.
-	pub fn items<I2: IntoIterator<Item=Item<T>>>(
-		self,
-		items: I2,
-	) -> Builder<'a, T, Chain<I, I2::IntoIter>>
-	{
+	pub fn items<I2: IntoIterator<Item=Item<T>>>(self, items: I2) -> Builder<'a, T, Chain<I, I2::IntoIter>> {
 		Builder {
 			ignore_focus_out: self.ignore_focus_out,
 			match_on_description: self.match_on_description,

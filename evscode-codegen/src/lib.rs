@@ -13,9 +13,8 @@ mod util;
 
 /// Register the function as a callable command with the given title and [keyboard shortcut](https://code.visualstudio.com/docs/getstarted/keybindings#_accepted-keys).
 ///
-/// The shortcut is optional and can be omitted.
-/// The macro also works on functions that return `()` instead of `evscode::R<()>`.
-/// Invoking this macro will automatically register the command within the VS Code event system.
+/// The shortcut is optional and can be omitted. The macro also works on functions that return `()` instead of
+/// `evscode::R<()>`. Invoking this macro will automatically register the command within the VS Code event system.
 ///
 /// ```ignore
 /// #[evscode::command(title = "Example Evscode Extension - Hello World", key = "ctrl+alt+5")]
@@ -31,10 +30,9 @@ pub fn command(params: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Create a strongly-typed and automatically updated [config](../evscode/config/index.html) entry.
 ///
-/// Compatible with any type that implements
-/// [`evscode::Configurable`](../evscode/config/Configurable.trait). Can be used at any point in
-/// global scope, and the entry id will be created based on the module path and variable name.
-/// The description will be extracted from the doc comment.
+/// Compatible with any type that implements [`evscode::Configurable`](../evscode/config/Configurable.trait). Can be
+/// used at any point in global scope, and the entry id will be created based on the module path and variable name. The
+/// description will be extracted from the doc comment.
 ///
 /// ```ignore
 /// /// Fooification time limit, expressed in milliseconds
@@ -63,9 +61,8 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 
 /// Specify all of the plugin metadata.
 ///
-/// See [`evscode::meta::Package`](../evscode/meta/struct.Package.html) for a description and types
-/// of all available options. This macro will generate a main function and should only be invoked
-/// once, from the main.rs file.
+/// See [`evscode::meta::Package`](../evscode/meta/struct.Package.html) for a description and types of all available
+/// options. This macro will generate a main function and should only be invoked once, from the main.rs file.
 ///
 /// ```ignore
 /// evscode::plugin! {

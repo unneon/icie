@@ -77,11 +77,7 @@ impl<T: Marshal> Marshal for Vec<T> {
 
 	fn from_js(raw: JsValue) -> Result<Self, String> {
 		match raw.dyn_into::<js_sys::Array>() {
-			Ok(raw) => Ok(raw
-				.values()
-				.into_iter()
-				.map(|raw| T::from_js(raw.unwrap()))
-				.collect::<Result<_, _>>()?),
+			Ok(raw) => Ok(raw.values().into_iter().map(|raw| T::from_js(raw.unwrap())).collect::<Result<_, _>>()?),
 			Err(raw) => Err(type_error2("array", &raw)),
 		}
 	}

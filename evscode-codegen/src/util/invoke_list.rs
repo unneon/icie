@@ -12,11 +12,7 @@ impl InvocationList {
 		InvocationList { id, counter: AtomicU64::new(1) }
 	}
 
-	pub fn base_definitions(
-		&self,
-		payload_type: proc_macro2::TokenStream,
-	) -> proc_macro2::TokenStream
-	{
+	pub fn base_definitions(&self, payload_type: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
 		let marker = self.marker_struct();
 		quote! {
 			struct #marker<T>(std::marker::PhantomData<T>);

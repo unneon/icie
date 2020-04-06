@@ -11,8 +11,8 @@ use std::collections::HashMap;
 pub static CACHED_LIBRARY: Lazy<LibraryCache> = Lazy::new(LibraryCache::new);
 
 // TODO: Refactor to Option<Path>
-/// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press
-/// Alt+[ with this not set to see how to set up this functionality.
+/// Path to your competitive programming library for use with the Alt+[ quickpasting feature. Press Alt+[ with this not
+/// set to see how to set up this functionality.
 #[evscode::config]
 static PATH: evscode::Config<Path> = "";
 
@@ -23,10 +23,7 @@ pub struct LibraryCache {
 impl LibraryCache {
 	pub fn new() -> LibraryCache {
 		LibraryCache {
-			lock: Mutex::new(Library {
-				directory: Path::from_native(String::new()),
-				pieces: HashMap::new(),
-			}),
+			lock: Mutex::new(Library { directory: Path::from_native(String::new()), pieces: HashMap::new() }),
 		}
 	}
 
@@ -48,21 +45,13 @@ impl LibraryCache {
 		lib.directory = directory;
 		lib.pieces = new_pieces;
 		if lib.pieces.is_empty() {
-			return Err(qpaste_doc_error(E::error(
-				"your competitive programming library is empty",
-			)));
+			return Err(qpaste_doc_error(E::error("your competitive programming library is empty")));
 		}
 		lib.verify()?;
 		Ok(lib)
 	}
 
-	async fn maybe_load_piece(
-		&self,
-		path: Path,
-		id: &str,
-		cached_pieces: &mut HashMap<String, Piece>,
-	) -> R<Piece>
-	{
+	async fn maybe_load_piece(&self, path: Path, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
 		let modified = fs::metadata(&path).await?.modified;
 		let cached = if let Some(cached) = cached_pieces.remove(id) {
 			if cached.modified == modified { Some(cached) } else { None }

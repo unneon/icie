@@ -51,8 +51,8 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	TELEMETRY.statement_pdf.spark();
 	webview.webview.set_html(&format!(
-		"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" \
-		 style=\"padding: 0;\"></body></html>",
+		"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: \
+		 0;\"></body></html>",
 		evscode::asset("pdf-2.2.228.min.js"),
 		include_str!("pdf.js")
 	));
@@ -98,11 +98,8 @@ async fn statement() -> R<()> {
 async fn nearby() -> R<()> {
 	TELEMETRY.launch_nearby.spark();
 	let parent = workspace_root()?.parent();
-	let mut nearby = fs::read_dir(&parent)
-		.await?
-		.into_iter()
-		.map(|path| (path.fmt_relative(&parent), path))
-		.collect::<Vec<_>>();
+	let mut nearby =
+		fs::read_dir(&parent).await?.into_iter().map(|path| (path.fmt_relative(&parent), path)).collect::<Vec<_>>();
 	nearby.sort_by_key(|nearby| nearby.0.clone());
 	let path = QuickPick::new()
 		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.1, nearby.0)))
@@ -127,9 +124,8 @@ async fn web_contest() -> R<()> {
 	let manifest = Manifest::load().await?;
 	let (url, backend) = interpret_url(manifest.req_task_url()?)?;
 	let Resource::Task(task) = require_task(url)?.resource;
-	let url = backend.backend.contest_url(
-		&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?,
-	);
+	let url =
+		backend.backend.contest_url(&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?);
 	evscode::open_external(&url).await?;
 	Ok(())
 }

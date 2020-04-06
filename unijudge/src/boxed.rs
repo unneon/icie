@@ -1,6 +1,4 @@
-use crate::{
-	http::Client, ContestDetails, Language, Resource, Result, Submission, TaskDetails, URL
-};
+use crate::{http::Client, ContestDetails, Language, Resource, Result, Submission, TaskDetails, URL};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -31,12 +29,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.accepted_domainsx()
 	}
 
-	fn deconstruct_resource(
-		&self,
-		domain: &str,
-		segments: &[&str],
-	) -> Result<Resource<Self::Contest, Self::Task>>
-	{
+	fn deconstruct_resource(&self, domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		self.deconstruct_resourcex(domain, segments)
 	}
 
@@ -52,13 +45,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.auth_deserializex(data)
 	}
 
-	async fn auth_login(
-		&self,
-		session: &Self::Session,
-		username: &str,
-		password: &str,
-	) -> Result<()>
-	{
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		self.auth_loginx(session.0.deref(), username, password).await
 	}
 
@@ -74,30 +61,15 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.task_contestx(task.0.deref())
 	}
 
-	async fn task_details(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<TaskDetails>
-	{
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		self.task_detailsx(session.0.deref(), task.0.deref()).await
 	}
 
-	async fn task_languages(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<Vec<Language>>
-	{
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		self.task_languagesx(session.0.deref(), task.0.deref()).await
 	}
 
-	async fn task_submissions(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<Vec<Submission>>
-	{
+	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
 		self.task_submissionsx(session.0.deref(), task.0.deref()).await
 	}
 
@@ -128,12 +100,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.contest_site_prefixx()
 	}
 
-	async fn contest_tasks(
-		&self,
-		session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<Vec<Self::Task>>
-	{
+	async fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		self.contest_tasksx(session.0.deref(), contest.0.deref()).await
 	}
 
@@ -141,20 +108,11 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.contest_urlx(contest.0.deref())
 	}
 
-	async fn contest_title(
-		&self,
-		session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<String>
-	{
+	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
 		self.contest_titlex(session.0.deref(), contest.0.deref()).await
 	}
 
-	async fn contests(
-		&self,
-		session: &Self::Session,
-	) -> Result<Vec<ContestDetails<Self::Contest>>>
-	{
+	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		self.contestsx(session.0.deref()).await
 	}
 
@@ -174,30 +132,13 @@ pub trait DynamicBackend: Debug+Send+Sync {
 	fn connectx(&self, client: Client, domain: &str) -> BoxedSession;
 	async fn auth_cachex(&self, session: &dyn AnyDebug) -> Result<Option<BoxedCachedAuth>>;
 	fn auth_deserializex(&self, data: &str) -> Result<BoxedCachedAuth>;
-	async fn auth_loginx(
-		&self,
-		session: &dyn AnyDebug,
-		username: &str,
-		password: &str,
-	) -> Result<()>;
+	async fn auth_loginx(&self, session: &dyn AnyDebug, username: &str, password: &str) -> Result<()>;
 	async fn auth_restorex(&self, session: &dyn AnyDebug, auth: &dyn AnyDebug) -> Result<()>;
 	fn auth_serializex(&self, auth: &dyn AnyDebug) -> Result<String>;
 	fn task_contestx(&self, task: &dyn AnyDebug) -> Option<BoxedContest>;
-	async fn task_detailsx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<TaskDetails>;
-	async fn task_languagesx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<Vec<Language>>;
-	async fn task_submissionsx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<Vec<Submission>>;
+	async fn task_detailsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<TaskDetails>;
+	async fn task_languagesx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Language>>;
+	async fn task_submissionsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Submission>>;
 	async fn task_submitx(
 		&self,
 		session: &dyn AnyDebug,
@@ -209,17 +150,9 @@ pub trait DynamicBackend: Debug+Send+Sync {
 	fn submission_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug, id: &str) -> String;
 	fn contest_idx(&self, contest: &dyn AnyDebug) -> String;
 	fn contest_site_prefixx(&self) -> &'static str;
-	async fn contest_tasksx(
-		&self,
-		session: &dyn AnyDebug,
-		contest: &dyn AnyDebug,
-	) -> Result<Vec<BoxedTask>>;
+	async fn contest_tasksx(&self, session: &dyn AnyDebug, contest: &dyn AnyDebug) -> Result<Vec<BoxedTask>>;
 	fn contest_urlx(&self, contest: &dyn AnyDebug) -> String;
-	async fn contest_titlex(
-		&self,
-		session: &dyn AnyDebug,
-		contest: &dyn AnyDebug,
-	) -> Result<String>;
+	async fn contest_titlex(&self, session: &dyn AnyDebug, contest: &dyn AnyDebug) -> Result<String>;
 	async fn contestsx(&self, session: &dyn AnyDebug) -> Result<Vec<BoxedContestDetails>>;
 	fn name_shortx(&self) -> &'static str;
 	fn supports_contestsx(&self) -> bool;
@@ -256,24 +189,12 @@ where
 		Ok(BoxedCachedAuth(Box::new(<T as crate::Backend>::auth_deserialize(self, data)?)))
 	}
 
-	async fn auth_loginx(
-		&self,
-		session: &dyn AnyDebug,
-		username: &str,
-		password: &str,
-	) -> Result<()>
-	{
-		<T as crate::Backend>::auth_login(self, ujcast::<T::Session>(session), username, password)
-			.await
+	async fn auth_loginx(&self, session: &dyn AnyDebug, username: &str, password: &str) -> Result<()> {
+		<T as crate::Backend>::auth_login(self, ujcast::<T::Session>(session), username, password).await
 	}
 
 	async fn auth_restorex(&self, session: &dyn AnyDebug, auth: &dyn AnyDebug) -> Result<()> {
-		<T as crate::Backend>::auth_restore(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::CachedAuth>(auth),
-		)
-		.await
+		<T as crate::Backend>::auth_restore(self, ujcast::<T::Session>(session), ujcast::<T::CachedAuth>(auth)).await
 	}
 
 	fn auth_serializex(&self, auth: &dyn AnyDebug) -> Result<String> {
@@ -285,46 +206,16 @@ where
 			.map(|contest| BoxedContest(Box::new(contest)))
 	}
 
-	async fn task_detailsx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<TaskDetails>
-	{
-		<T as crate::Backend>::task_details(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-		)
-		.await
+	async fn task_detailsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<TaskDetails> {
+		<T as crate::Backend>::task_details(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
 	}
 
-	async fn task_languagesx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<Vec<Language>>
-	{
-		<T as crate::Backend>::task_languages(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-		)
-		.await
+	async fn task_languagesx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Language>> {
+		<T as crate::Backend>::task_languages(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
 	}
 
-	async fn task_submissionsx(
-		&self,
-		session: &dyn AnyDebug,
-		task: &dyn AnyDebug,
-	) -> Result<Vec<Submission>>
-	{
-		<T as crate::Backend>::task_submissions(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-		)
-		.await
+	async fn task_submissionsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Submission>> {
+		<T as crate::Backend>::task_submissions(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
 	}
 
 	async fn task_submitx(
@@ -335,31 +226,16 @@ where
 		code: &str,
 	) -> Result<String>
 	{
-		<T as crate::Backend>::task_submit(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-			language,
-			code,
-		)
-		.await
+		<T as crate::Backend>::task_submit(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task), language, code)
+			.await
 	}
 
 	fn task_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<String> {
-		<T as crate::Backend>::task_url(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-		)
+		<T as crate::Backend>::task_url(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task))
 	}
 
 	fn submission_urlx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug, id: &str) -> String {
-		<T as crate::Backend>::submission_url(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Task>(task),
-			id,
-		)
+		<T as crate::Backend>::submission_url(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task), id)
 	}
 
 	fn contest_idx(&self, contest: &dyn AnyDebug) -> String {
@@ -370,50 +246,27 @@ where
 		<T as crate::Backend>::contest_site_prefix(self)
 	}
 
-	async fn contest_tasksx(
-		&self,
-		session: &dyn AnyDebug,
-		contest: &dyn AnyDebug,
-	) -> Result<Vec<BoxedTask>>
-	{
-		Ok(<T as crate::Backend>::contest_tasks(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Contest>(contest),
-		)
-		.await?
-		.into_iter()
-		.map(|task| BoxedTask(Box::new(task)))
-		.collect())
+	async fn contest_tasksx(&self, session: &dyn AnyDebug, contest: &dyn AnyDebug) -> Result<Vec<BoxedTask>> {
+		Ok(<T as crate::Backend>::contest_tasks(self, ujcast::<T::Session>(session), ujcast::<T::Contest>(contest))
+			.await?
+			.into_iter()
+			.map(|task| BoxedTask(Box::new(task)))
+			.collect())
 	}
 
 	fn contest_urlx(&self, contest: &dyn AnyDebug) -> String {
 		<T as crate::Backend>::contest_url(self, ujcast::<T::Contest>(contest))
 	}
 
-	async fn contest_titlex(
-		&self,
-		session: &dyn AnyDebug,
-		contest: &dyn AnyDebug,
-	) -> Result<String>
-	{
-		<T as crate::Backend>::contest_title(
-			self,
-			ujcast::<T::Session>(session),
-			ujcast::<T::Contest>(contest),
-		)
-		.await
+	async fn contest_titlex(&self, session: &dyn AnyDebug, contest: &dyn AnyDebug) -> Result<String> {
+		<T as crate::Backend>::contest_title(self, ujcast::<T::Session>(session), ujcast::<T::Contest>(contest)).await
 	}
 
 	async fn contestsx(&self, session: &dyn AnyDebug) -> Result<Vec<BoxedContestDetails>> {
 		Ok(<T as crate::Backend>::contests(self, ujcast::<T::Session>(session))
 			.await?
 			.into_iter()
-			.map(|ContestDetails { id, title, start }| ContestDetails {
-				id: BoxedContest(Box::new(id)),
-				title,
-				start,
-			})
+			.map(|ContestDetails { id, title, start }| ContestDetails { id: BoxedContest(Box::new(id)), title, start })
 			.collect())
 	}
 

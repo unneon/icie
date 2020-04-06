@@ -12,11 +12,8 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 	std::panic::set_hook(Box::new(panic_hook));
 	let on_activate = pkg.on_activate.take();
 	let on_deactivate = pkg.on_deactivate.take();
-	let telemetry_reporter = vscode_extension_telemetry_sys::TelemetryReporter::new(
-		pkg.identifier,
-		pkg.version,
-		pkg.telemetry_key,
-	);
+	let telemetry_reporter =
+		vscode_extension_telemetry_sys::TelemetryReporter::new(pkg.identifier, pkg.version, pkg.telemetry_key);
 	PACKAGE.set(pkg).map_err(|_| ()).unwrap();
 	let pkg = PACKAGE.get().unwrap();
 	EXTENSION_CONTEXT.with(|ext_ctx| ext_ctx.set((*ctx).clone()).map_err(|_| ()).unwrap());
@@ -41,9 +38,7 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 
 #[doc(hidden)]
 pub async fn deactivate() {
-	if let Some(on_deactivate) =
-		ON_DEACTIVATE.with(|on_deactivate| on_deactivate.borrow_mut().take())
-	{
+	if let Some(on_deactivate) = ON_DEACTIVATE.with(|on_deactivate| on_deactivate.borrow_mut().take()) {
 		match on_deactivate().await {
 			Ok(()) => (),
 			Err(e) => e.emit(),
@@ -55,8 +50,7 @@ pub async fn deactivate() {
 pub fn generate_package_json(path: &str, pkg: Package) {
 	let pkg = Box::leak(Box::new(pkg));
 	let package_json = package_json::construct_package_json(pkg);
-	node_sys::fs::write_file_sync(path, &serde_json::to_string_pretty(&package_json).unwrap())
-		.unwrap();
+	node_sys::fs::write_file_sync(path, &serde_json::to_string_pretty(&package_json).unwrap()).unwrap();
 }
 
 fn panic_hook(info: &PanicInfo) {
@@ -67,9 +61,9 @@ fn panic_hook(info: &PanicInfo) {
 	} else {
 		"???".to_owned()
 	};
-	let location = info.location().map_or("???".to_owned(), |location| {
-		format!("{}:{}:{}", location.file(), location.line(), location.column())
-	});
+	let location = info
+		.location()
+		.map_or("???".to_owned(), |location| format!("{}:{}:{}", location.file(), location.line(), location.column()));
 	E::error(format!("ICIE panicked, {} at {}", payload, location)).emit();
 }
 

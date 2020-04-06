@@ -24,12 +24,7 @@ impl Codegen {
 
 	pub fn flags_clang(self) -> &'static [&'static str] {
 		match &self {
-			Codegen::Debug => &[
-				"-g",
-				"-D_GLIBCXX_DEBUG",
-				"-fno-sanitize-recover=undefined",
-				"-fsanitize=undefined",
-			],
+			Codegen::Debug => &["-g", "-D_GLIBCXX_DEBUG", "-fno-sanitize-recover=undefined", "-fsanitize=undefined"],
 			Codegen::Release => &["-Ofast"],
 			Codegen::Profile => &["-g", "-O2", "-fno-inline-functions"],
 		}

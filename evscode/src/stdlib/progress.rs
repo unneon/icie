@@ -55,10 +55,8 @@ impl Builder {
 			.unwrap();
 			wasm_bindgen_futures::future_to_promise(async move {
 				while let Some(update) = rx.next().await {
-					progress.report(vscode_sys::ProgressProgressValue {
-						increment: update.0,
-						message: update.1.as_deref(),
-					})
+					progress
+						.report(vscode_sys::ProgressProgressValue { increment: update.0, message: update.1.as_deref() })
 				}
 				Ok(JsValue::undefined())
 			})
@@ -83,11 +81,7 @@ pub struct Progress {
 impl Progress {
 	/// Create a new builder to configure the progress bar.
 	pub fn new() -> Builder {
-		Builder {
-			title: None,
-			location: vscode_sys::window::ProgressLocation::Notification,
-			cancellable: false,
-		}
+		Builder { title: None, location: vscode_sys::window::ProgressLocation::Notification, cancellable: false }
 	}
 
 	/// Increment and set message on the progress bar, see [`Progress::increment`] and

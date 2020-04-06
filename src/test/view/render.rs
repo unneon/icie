@@ -22,44 +22,36 @@ enum HideBehaviour {
 
 const ACTION_COPY: Action = Action { onclick: "action_copy()", icon: "file_copy", hint: "Copy" };
 const ACTION_EDIT: Action = Action { onclick: "action_edit()", icon: "edit", hint: "Edit" };
-const ACTION_GDB: Action =
-	Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
-const ACTION_RR: Action =
-	Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
-const ACTION_SET_ALT: Action =
-	Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
-const ACTION_DEL_ALT: Action =
-	Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
+const ACTION_GDB: Action = Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
+const ACTION_RR: Action = Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
+const ACTION_SET_ALT: Action = Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
+const ACTION_DEL_ALT: Action = Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
 
 const MIN_CELL_LINES: i64 = 2;
 
-/// This controls when to hide passing tests in test view by collapsing them into a thin color line.
-/// Even if this is not set, any failing tests will still be visible if the
-/// icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+/// This controls when to hide passing tests in test view by collapsing them into a thin color line. Even if this is not
+/// set, any failing tests will still be visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by
+/// default).
 #[evscode::config]
 static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-/// This controls when to hide passing tests in test view by not displaying them at all. Even if
-/// this is not set, any failing tests will still be visible if the
-/// icie.test.view.scrollToFirstFailed option is enabled(as is by default).
+/// This controls when to hide passing tests in test view by not displaying them at all. Even if this is not set, any
+/// failing tests will still be visible if the icie.test.view.scrollToFirstFailed option is enabled(as is by default).
 #[evscode::config]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 
-/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test
-/// cell and press Ctrl+C; if nothing else is selected, the cell contents will be copied
-/// automatically.
+/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test cell and press
+/// Ctrl+C; if nothing else is selected, the cell contents will be copied automatically.
 #[evscode::config]
 static HIDE_COPY: evscode::Config<bool> = false;
 
-/// The maximum height of a test case, expressed in pixels. If the test case would take up more than
-/// that, it will be clipped. The full test case can be seen by scrolling. Leave empty to denote no
-/// limit.
+/// The maximum height of a test case, expressed in pixels. If the test case would take up more than that, it will be
+/// clipped. The full test case can be seen by scrolling. Leave empty to denote no limit.
 #[evscode::config]
 static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 
-/// If a solution takes longer to execute than the specified number of milliseconds, a note with the
-/// execution duration will be displayed. Set to 0 to always display the timings, or to a large
-/// value to never display the timings.
+/// If a solution takes longer to execute than the specified number of milliseconds, a note with the execution duration
+/// will be displayed. Set to 0 to always display the timings, or to a large value to never display the timings.
 #[evscode::config]
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
@@ -116,8 +108,7 @@ async fn render_test(test: &TestRun, any_failed: bool) -> R<String> {
 		"#,
 		status = match test.outcome.verdict {
 			Verdict::Accepted { .. } => "status-passed",
-			Verdict::WrongAnswer | Verdict::RuntimeError | Verdict::TimeLimitExceeded =>
-				"status-failed",
+			Verdict::WrongAnswer | Verdict::RuntimeError | Verdict::TimeLimitExceeded => "status-failed",
 			Verdict::IgnoredNoOut => "status-ignore",
 		},
 		verdict = match test.outcome.verdict {
@@ -150,8 +141,7 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 		Verdict::RuntimeError => Some("RE"),
 		Verdict::TimeLimitExceeded => Some("TLE"),
 	};
-	let notes =
-		vec![note_time.as_deref(), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
+	let notes = vec![note_time.as_deref(), note_verdict].into_iter().filter_map(|o| o).collect::<Vec<_>>();
 	let note = if notes.is_empty() { None } else { Some(notes.join("\n")) };
 	let attrs = [("data-raw", test.outcome.out.as_str())];
 	let actions = [
@@ -186,10 +176,8 @@ fn prepare_time_note(test: &TestRun) -> Option<String> {
 async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
 	let data = fs::read_to_string(&test.out_path).await.unwrap_or_default();
 	let attrs = [("data-raw", data.as_str())];
-	let actions = [
-		(test.outcome.verdict != Verdict::IgnoredNoOut && !HIDE_COPY.get(), ACTION_COPY),
-		(true, ACTION_EDIT),
-	];
+	let actions =
+		[(test.outcome.verdict != Verdict::IgnoredNoOut && !HIDE_COPY.get(), ACTION_COPY), (true, ACTION_EDIT)];
 	Ok(render_cell("desired", &attrs, &actions, None, &data, None, folded).await)
 }
 
@@ -225,12 +213,9 @@ async fn render_cell_raw(
 		Some(note) => format!("<div class=\"note\">{}</div>", html_escape(note)),
 		None => String::new(),
 	};
-	let lines =
-		(stderr.as_ref().map_or(0, |stderr| count_lines(stderr)) + count_lines(stdout)) as i64;
+	let lines = (stderr.as_ref().map_or(0, |stderr| count_lines(stderr)) + count_lines(stdout)) as i64;
 	let stderr = match stderr {
-		Some(stderr) => {
-			format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim()))
-		},
+		Some(stderr) => format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim())),
 		None => String::new(),
 	};
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
@@ -255,11 +240,7 @@ async fn render_cell_raw(
 }
 
 async fn render_actions(actions: &[(bool, Action)]) -> String {
-	let buttons = actions
-		.iter()
-		.filter(|action| action.0)
-		.map(|action| render_action(&action.1))
-		.collect::<Vec<_>>();
+	let buttons = actions.iter().filter(|action| action.0).map(|action| render_action(&action.1)).collect::<Vec<_>>();
 	format!(
 		"<div class=\"actions {}\">{}</div>",
 		if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" },
@@ -293,14 +274,7 @@ fn html_escape(s: &str) -> String {
 }
 
 fn html_escape_spaced(s: &str) -> String {
-	translate(s, &[
-		('&', "&amp;"),
-		('<', "&lt;"),
-		('>', "&gt;"),
-		('"', "&quot;"),
-		('\'', "&#39;"),
-		('\n', "<br/>"),
-	])
+	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;"), ('\n', "<br/>")])
 }
 
 fn translate(s: &str, table: &[(char, &str)]) -> String {

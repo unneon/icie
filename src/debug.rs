@@ -50,8 +50,7 @@ pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
 	let record_out = rr_exec.run(&input, &args, &environment).await?;
 	if record_out.stderr.contains("/proc/sys/kernel/perf_event_paranoid") {
 		return Err(E::error(
-			"RR is not configured properly (this is to be expected), kernel.perf_event_paranoid \
-			 must be <= 1",
+			"RR is not configured properly (this is to be expected), kernel.perf_event_paranoid must be <= 1",
 		)
 		.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid()));
 	}
@@ -61,7 +60,7 @@ pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
 async fn configure_kernel_perf_event_paranoid() -> R<()> {
 	term::Internal::raw(
 		"ICIE Auto-configure RR",
-		"echo 'kernel.perf_event_paranoid=1' | pkexec tee -a /etc/sysctl.conf && echo 1 | pkexec \
-		 tee -a /proc/sys/kernel/perf_event_paranoid",
+		"echo 'kernel.perf_event_paranoid=1' | pkexec tee -a /etc/sysctl.conf && echo 1 | pkexec tee -a \
+		 /proc/sys/kernel/perf_event_paranoid",
 	)
 }

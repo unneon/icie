@@ -78,11 +78,7 @@ impl From<ErrorCode> for Error {
 
 impl From<debris::Error> for Error {
 	fn from(e: debris::Error) -> Self {
-		Error {
-			code: ErrorCode::AlienInvasion,
-			cause: Some(Box::new(e)),
-			backtrace: Backtrace::new(),
-		}
+		Error { code: ErrorCode::AlienInvasion, cause: Some(Box::new(e)), backtrace: Backtrace::new() }
 	}
 }
 
@@ -100,20 +96,12 @@ impl<T> From<PoisonError<T>> for Error {
 
 impl From<reqwest::Error> for Error {
 	fn from(e: reqwest::Error) -> Self {
-		Error {
-			code: ErrorCode::NetworkFailure,
-			cause: Some(Box::new(e)),
-			backtrace: Backtrace::new(),
-		}
+		Error { code: ErrorCode::NetworkFailure, cause: Some(Box::new(e)), backtrace: Backtrace::new() }
 	}
 }
 
 impl From<url::ParseError> for Error {
 	fn from(e: url::ParseError) -> Self {
-		Error {
-			code: ErrorCode::MalformedURL,
-			cause: Some(Box::new(e)),
-			backtrace: Backtrace::new(),
-		}
+		Error { code: ErrorCode::MalformedURL, cause: Some(Box::new(e)), backtrace: Backtrace::new() }
 	}
 }

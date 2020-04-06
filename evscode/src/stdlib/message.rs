@@ -1,8 +1,9 @@
 //! Information messages with optional actions.
 //!
-//! The messages will ignore the newlines inside the string and display all text on one line.
-//! At the bottom of the message, the extension name will be displayed.
-//! [Markdown links](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet#links) will be parsed and displayed as links.
+//! The messages will ignore the newlines inside the string and display all text on one line. At the bottom of the
+//! message, the extension name will be displayed. [Markdown links] will be parsed and displayed as links.
+//!
+//! [Markdown links]: (https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet#links)
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,9 +31,7 @@ pub struct Builder<'a, T, A: Iterator<Item=Action<'a, T>>> {
 	modal: bool,
 	items: A,
 }
-impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a, T>>>
-	Builder<'a, T, A>
-{
+impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a, T>>> Builder<'a, T, A> {
 	/// Use a orange warning icon
 	pub fn warning(mut self) -> Self {
 		self.kind = vscode_sys::window::show_warning_message;
@@ -55,11 +54,7 @@ impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a,
 	}
 
 	/// Add action buttons to the message.
-	pub fn items<A2: IntoIterator<Item=Action<'a, T>>>(
-		self,
-		items: A2,
-	) -> Builder<'a, T, Chain<A, A2::IntoIter>>
-	{
+	pub fn items<A2: IntoIterator<Item=Action<'a, T>>>(self, items: A2) -> Builder<'a, T, Chain<A, A2::IntoIter>> {
 		Builder {
 			message: self.message,
 			kind: self.kind,
@@ -94,9 +89,7 @@ impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a,
 	/// Display the message, and only then return a future with the result.
 	/// Returns the id of the selected action, if any.
 	pub fn show_eager(self) -> ShownMessage<T> {
-		let options =
-			JsValue::from_serde(&vscode_sys::window::ShowMessageOptions { modal: self.modal })
-				.unwrap();
+		let options = JsValue::from_serde(&vscode_sys::window::ShowMessageOptions { modal: self.modal }).unwrap();
 		let items: Vec<_> = self
 			.items
 			.map(|item| {
@@ -123,17 +116,11 @@ pub struct Message {
 impl Message {
 	/// Create a new builder to configure the message.
 	pub fn new<'a, T>(message: &'a str) -> Builder<'a, T, Empty<Action<'a, T>>> {
-		Builder {
-			message,
-			kind: vscode_sys::window::show_information_message,
-			modal: false,
-			items: std::iter::empty(),
-		}
+		Builder { message, kind: vscode_sys::window::show_information_message, modal: false, items: std::iter::empty() }
 	}
 }
 
-/// A future returned after displaying a message eagerly. See [`Builder::show`] and
-/// [`Builder::show_eager`].
+/// A future returned after displaying a message eagerly. See [`Builder::show`] and [`Builder::show_eager`].
 pub struct ShownMessage<T>(vscode_sys::Thenable<JsValue>, PhantomData<T>);
 
 impl<T: for<'d> Deserialize<'d>+Unpin> Future for ShownMessage<T> {

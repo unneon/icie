@@ -23,9 +23,7 @@ fn collect_contest_domains() -> Vec<(&'static str, &'static BackendMeta)> {
 	BACKENDS
 		.iter()
 		.filter(|backend| backend.backend.supports_contests())
-		.flat_map(|backend| {
-			backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend))
-		})
+		.flat_map(|backend| backend.backend.accepted_domains().iter().map(move |domain| (*domain, backend)))
 		.collect()
 }
 
@@ -57,10 +55,9 @@ fn collect_contests(contest_lists: Vec<R<ContestList>>) -> Vec<ContestMeta> {
 	contest_lists
 		.into_iter()
 		.flat_map(|resp| match resp {
-			Ok((sess, contests, backend)) => contests
-				.into_iter()
-				.map(move |details| ContestMeta { sess: sess.clone(), details, backend })
-				.collect(),
+			Ok((sess, contests, backend)) => {
+				contests.into_iter().map(move |details| ContestMeta { sess: sess.clone(), details, backend }).collect()
+			},
 			Err(e) => {
 				e.severity(Severity::Warning).emit();
 				Vec::new()

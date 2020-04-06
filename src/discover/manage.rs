@@ -34,22 +34,13 @@ impl Behaviour for Discover {
 		Ok(())
 	}
 
-	async fn manage(
-		&self,
-		_: Self::K,
-		webview: WebviewRef,
-		listener: Listener,
-		disposer: Disposer,
-	) -> R<()>
-	{
+	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Discovering");
 		let solution = build(&SourceTarget::Main, Codegen::Debug, false).await?;
 		let brut = build(&SourceTarget::Custom(dir::brut()?), Codegen::Release, false).await?;
 		let gen = build(&SourceTarget::Custom(dir::gen()?), Codegen::Release, false).await?;
-		let task = Task {
-			checker: get_checker().await?,
-			environment: Environment { time_limit: time_limit(), cwd: None },
-		};
+		let task =
+			Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit(), cwd: None } };
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(
 			select(
@@ -62,8 +53,7 @@ impl Behaviour for Discover {
 			match event?? {
 				Event::Row(row) => {
 					let is_counterexample = !row.outcome.success();
-					let is_smallest =
-						best_row.as_ref().map_or(true, |best_row| row.fitness > best_row.fitness);
+					let is_smallest = best_row.as_ref().map_or(true, |best_row| row.fitness > best_row.fitness);
 					let is_new_best = is_counterexample && is_smallest;
 					webview
 						.post_message(Food::Row {
@@ -116,26 +106,15 @@ fn execute_runs<'a>(
 	futures::stream::iter(1..).then(move |number| execute_run(number, solution, brut, gen, task))
 }
 
-async fn execute_run(
-	number: usize,
-	solution: &Executable,
-	brut: &Executable,
-	gen: &Executable,
-	task: &Task,
-) -> R<Row>
-{
-	let run_gen = gen
-		.run("", &[], &task.environment)
-		.await
-		.map_err(|e| e.context("executing test generator aborted"))?;
+async fn execute_run(number: usize, solution: &Executable, brut: &Executable, gen: &Executable, task: &Task) -> R<Row> {
+	let run_gen =
+		gen.run("", &[], &task.environment).await.map_err(|e| e.context("executing test generator aborted"))?;
 	if !run_gen.success() {
 		return Err(E::error(format!("executing test generator failed, {:?}", run_gen)));
 	}
 	let input = run_gen.stdout;
-	let run_brut = brut
-		.run(&input, &[], &task.environment)
-		.await
-		.map_err(|e| e.context("executing slow solution aborted"))?;
+	let run_brut =
+		brut.run(&input, &[], &task.environment).await.map_err(|e| e.context("executing slow solution aborted"))?;
 	if !run_brut.success() {
 		return Err(E::error(format!("executing slow solution failed, {:?}", run_brut)));
 	}

@@ -45,26 +45,18 @@ impl unijudge::Backend for CodeChef {
 		&["www.codechef.com"]
 	}
 
-	fn deconstruct_resource(
-		&self,
-		_domain: &str,
-		segments: &[&str],
-	) -> Result<Resource<Self::Contest, Self::Task>>
-	{
+	fn deconstruct_resource(&self, _domain: &str, segments: &[&str]) -> Result<Resource<Self::Contest, Self::Task>> {
 		// There is no dedicated practice contest site, so we do not need to handle ["PRACTICE"].
 		// This is the only place where PRACTICE doesn't work, it's treated as a normal contest
 		// everywhere else.
 		match segments {
-			["problems", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() }))
-			},
+			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
 			["PRACTICE", "problems", task] => {
 				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() }))
 			},
-			[contest, "problems", task] => Ok(Resource::Task(Task {
-				contest: Contest::Normal((*contest).to_owned()),
-				task: (*task).to_owned(),
-			})),
+			[contest, "problems", task] => {
+				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned() }))
+			},
 			[contest] => Ok(Resource::Contest(Contest::Normal((*contest).to_owned()))),
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
 		}
@@ -84,13 +76,7 @@ impl unijudge::Backend for CodeChef {
 		unijudge::deserialize_auth(data)
 	}
 
-	async fn auth_login(
-		&self,
-		session: &Self::Session,
-		username: &str,
-		password: &str,
-	) -> Result<()>
-	{
+	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
 		session.client.cookies_clear()?;
 		let resp1 = session.client.get("https://www.codechef.com".parse()?).send().await?;
 		let doc = Document::new(&resp1.text().await?);
@@ -150,12 +136,7 @@ impl unijudge::Backend for CodeChef {
 		Some(task.contest.clone())
 	}
 
-	async fn task_details(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<TaskDetails>
-	{
+	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let resp = self.api_task(task, session).await?;
 		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
 		Ok(TaskDetails {
@@ -169,12 +150,7 @@ impl unijudge::Backend for CodeChef {
 		})
 	}
 
-	async fn task_languages(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<Vec<Language>>
-	{
+	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		let url = self.active_submit_url(task, session).await?;
 		let resp = session.client.get(url).send().await?;
 		let doc = Document::new(&resp.text().await?);
@@ -189,12 +165,7 @@ impl unijudge::Backend for CodeChef {
 			.collect()
 	}
 
-	async fn task_submissions(
-		&self,
-		session: &Self::Session,
-		task: &Self::Task,
-	) -> Result<Vec<Submission>>
-	{
+	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
 		// There is also an API to query a specific submission, but it is not available in other
 		// sites and would require refactoring unijudge. However, using it would possible make
 		// things faster and also get rid of the insanity that is querying all these submission
@@ -216,32 +187,24 @@ impl unijudge::Backend for CodeChef {
 			.find_all("tbody > tr")
 			.map(|row| {
 				let id = row.find_nth("td", 0)?.text().string();
-				let verdict = row.find_nth("td", 3)?.find("span")?.attr("title")?.map(
-					|verdict| match verdict {
-						"accepted" => Ok(Verdict::Accepted),
-						"wrong answer" => Ok(Verdict::Rejected {
-							cause: Some(RejectionCause::WrongAnswer),
-							test: None,
-						}),
-						"waiting.." => Ok(Verdict::Pending { test: None }),
-						"compilation error" => Ok(Verdict::Rejected {
-							cause: Some(RejectionCause::CompilationError),
-							test: None,
-						}),
-						"compiling.." => Ok(Verdict::Pending { test: None }),
-						"running.." => Ok(Verdict::Pending { test: None }),
-						"running judge.." => Ok(Verdict::Pending { test: None }),
-						"time limit exceeded" => Ok(Verdict::Rejected {
-							cause: Some(RejectionCause::TimeLimitExceeded),
-							test: None,
-						}),
-						re if re.starts_with("runtime error") => Ok(Verdict::Rejected {
-							cause: Some(RejectionCause::RuntimeError),
-							test: None,
-						}),
-						_ => Err(format!("unrecognized verdict {:?}", verdict)),
+				let verdict = row.find_nth("td", 3)?.find("span")?.attr("title")?.map(|verdict| match verdict {
+					"accepted" => Ok(Verdict::Accepted),
+					"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
+					"waiting.." => Ok(Verdict::Pending { test: None }),
+					"compilation error" => {
+						Ok(Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None })
 					},
-				)?;
+					"compiling.." => Ok(Verdict::Pending { test: None }),
+					"running.." => Ok(Verdict::Pending { test: None }),
+					"running judge.." => Ok(Verdict::Pending { test: None }),
+					"time limit exceeded" => {
+						Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })
+					},
+					re if re.starts_with("runtime error") => {
+						Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None })
+					},
+					_ => Err(format!("unrecognized verdict {:?}", verdict)),
+				})?;
 				Ok(Submission { id, verdict })
 			})
 			.collect()
@@ -271,9 +234,7 @@ impl unijudge::Backend for CodeChef {
 					.text("form_id", "problem_submission")
 					.part(
 						"files[sourcefile]",
-						multipart::Part::text(code.to_owned())
-							.file_name("main.cpp")
-							.mime_str("text/x-c++src")?,
+						multipart::Part::text(code.to_owned()).file_name("main.cpp").mime_str("text/x-c++src")?,
 					)
 					.text("language", language.id.clone())
 					.text("problem_code", task.task.clone())
@@ -289,11 +250,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	fn task_url(&self, _session: &Self::Session, task: &Self::Task) -> Result<String> {
-		Ok(format!(
-			"https://www.codechef.com/{}/problems/{}",
-			task.contest.as_virt_symbol(),
-			task.task
-		))
+		Ok(format!("https://www.codechef.com/{}/problems/{}", task.contest.as_virt_symbol(), task.task))
 	}
 
 	fn submission_url(&self, _session: &Self::Session, _task: &Self::Task, id: &str) -> String {
@@ -308,12 +265,7 @@ impl unijudge::Backend for CodeChef {
 		"CodeChef"
 	}
 
-	async fn contest_tasks(
-		&self,
-		session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<Vec<Self::Task>>
-	{
+	async fn contest_tasks(&self, session: &Self::Session, contest: &Self::Contest) -> Result<Vec<Self::Task>> {
 		Ok(self.contest_details_ex(session, contest).await?.tasks)
 	}
 
@@ -324,28 +276,13 @@ impl unijudge::Backend for CodeChef {
 		}
 	}
 
-	async fn contest_title(
-		&self,
-		session: &Self::Session,
-		contest: &Self::Contest,
-	) -> Result<String>
-	{
+	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
 		Ok(self.contest_details_ex(session, contest).await?.title)
 	}
 
-	async fn contests(
-		&self,
-		session: &Self::Session,
-	) -> Result<Vec<ContestDetails<Self::Contest>>>
-	{
+	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
 		let doc = Document::new(
-			&session
-				.client
-				.get("https://www.codechef.com/contests".parse()?)
-				.send()
-				.await?
-				.text()
-				.await?,
+			&session.client.get("https://www.codechef.com/contests".parse()?).send().await?.text().await?,
 		);
 		// CodeChef does not separate ongoing contests and permanent contests, so we only select the
 		// upcoming ones. This is irritating, but I would like to add some general heuristics for
@@ -403,12 +340,7 @@ impl CodeChef {
 		Ok(OtherSessions { others, form_build_id, form_token })
 	}
 
-	async fn disconnect_other_sessions(
-		&self,
-		session: &Session,
-		other: OtherSessions,
-	) -> Result<()>
-	{
+	async fn disconnect_other_sessions(&self, session: &Session, other: OtherSessions) -> Result<()> {
 		let payload = other
 			.others
 			.iter()
@@ -424,27 +356,14 @@ impl CodeChef {
 				.cloned(),
 			)
 			.collect::<Vec<_>>();
-		session
-			.client
-			.post("https://www.codechef.com/session/limit".parse()?)
-			.form(&payload)
-			.send()
-			.await?;
+		session.client.post("https://www.codechef.com/session/limit".parse()?).form(&payload).send().await?;
 		Ok(())
 	}
 
-	async fn contest_details_ex(
-		&self,
-		session: &Session,
-		contest: &Contest,
-	) -> Result<ContestDetailsEx>
-	{
+	async fn contest_details_ex(&self, session: &Session, contest: &Contest) -> Result<ContestDetailsEx> {
 		let resp_raw = session
 			.client
-			.get(
-				format!("https://www.codechef.com/api/contests/{}", contest.as_virt_symbol())
-					.parse()?,
-			)
+			.get(format!("https://www.codechef.com/api/contests/{}", contest.as_virt_symbol()).parse()?)
 			.send()
 			.await?
 			.text()
@@ -453,22 +372,14 @@ impl CodeChef {
 		if let Some(tasks) = resp.problems {
 			let mut tasks: Vec<_> = tasks
 				.into_iter()
-				.map(|kv| {
-					(
-						Task { contest: contest.clone(), task: kv.1.code },
-						kv.1.successful_submissions,
-					)
-				})
+				.map(|kv| (Task { contest: contest.clone(), task: kv.1.code }, kv.1.successful_submissions))
 				.collect();
 			// CodeChef does not sort problems by estimated difficulty, contrary to
 			// Codeforces/AtCoder. Instead, it sorts them by submission count. This is problematic
 			// when contest begin, as all problems have a submit count of 0. But since this naive
 			// sort is as good as what you get with a browser, let's just ignore this.
 			tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
-			Ok(ContestDetailsEx {
-				title: resp.name,
-				tasks: tasks.into_iter().map(|kv| kv.0).collect(),
-			})
+			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().map(|kv| kv.0).collect() })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
 		} else if !resp.user.username.is_empty() {
@@ -544,14 +455,10 @@ impl CodeChef {
 	}
 
 	async fn api_task(&self, task: &Task, session: &Session) -> Result<api::Task> {
-		let url: Url = format!(
-			"https://www.codechef.com/api/contests/{}/problems/{}",
-			task.contest.as_virt_symbol(),
-			task.task
-		)
-		.parse()?;
-		let resp =
-			json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
+		let url: Url =
+			format!("https://www.codechef.com/api/contests/{}/problems/{}", task.contest.as_virt_symbol(), task.task)
+				.parse()?;
+		let resp = json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
 		Ok(resp)
 	}
 
@@ -568,12 +475,8 @@ impl CodeChef {
 	/// See [`CodeChef::active_submit_url`], but for submission list URLs.
 	async fn active_submission_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
-		let url = format!(
-			"https://www.codechef.com/{}status/{},{}",
-			task.contest.prefix(),
-			task.task,
-			session.req_user()?
-		);
+		let url =
+			format!("https://www.codechef.com/{}status/{},{}", task.contest.prefix(), task.task, session.req_user()?);
 		Ok(url.parse()?)
 	}
 
@@ -714,23 +617,15 @@ mod api {
 	) -> Result<Option<HashMap<String, ContestTasksTask>>, D::Error> {
 		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
 	}
-	struct HashMapOrEmptyVec<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>>(
-		PhantomData<&'d (K, V)>,
-	);
-	impl<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>> serde::de::Visitor<'d>
-		for HashMapOrEmptyVec<'d, K, V>
-	{
+	struct HashMapOrEmptyVec<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>>(PhantomData<&'d (K, V)>);
+	impl<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>> serde::de::Visitor<'d> for HashMapOrEmptyVec<'d, K, V> {
 		type Value = Option<HashMap<K, V>>;
 
 		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 			write!(formatter, "a hash map or an empty vector")
 		}
 
-		fn visit_seq<A: SeqAccess<'d>>(
-			self,
-			mut seq: A,
-		) -> Result<Self::Value, <A as SeqAccess<'d>>::Error>
-		{
+		fn visit_seq<A: SeqAccess<'d>>(self, mut seq: A) -> Result<Self::Value, <A as SeqAccess<'d>>::Error> {
 			match seq.next_element::<()>() {
 				Ok(None) => Ok(None),
 				Ok(Some(_)) => Err(de::Error::invalid_value(Unexpected::Seq, &self)),
@@ -738,11 +633,7 @@ mod api {
 			}
 		}
 
-		fn visit_map<A: MapAccess<'d>>(
-			self,
-			mut map: A,
-		) -> Result<Self::Value, <A as MapAccess<'d>>::Error>
-		{
+		fn visit_map<A: MapAccess<'d>>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'d>>::Error> {
 			let mut acc = HashMap::new();
 			while let Some(kv) = map.next_entry::<K, V>()? {
 				acc.insert(kv.0, kv.1);

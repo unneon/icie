@@ -2,9 +2,7 @@ use crate::util::{invoke_list::InvocationList, ProcError};
 use proc_macro::{Diagnostic, Level, TokenStream};
 use quote::quote;
 use std::iter;
-use syn::{
-	parse2, parse_macro_input, spanned::Spanned, GenericArgument, ItemStatic, LitStr, PathArguments, Type
-};
+use syn::{parse2, parse_macro_input, spanned::Spanned, GenericArgument, ItemStatic, LitStr, PathArguments, Type};
 
 pub static CONFIG_INVOKELIST: InvocationList = InvocationList::new("Config");
 
@@ -52,17 +50,13 @@ fn transform(item: &ItemStatic) -> Result<TokenStream, ProcError> {
 
 fn extract_inner_type(item: &ItemStatic) -> Result<&Type, ProcError> {
 	match &*item.ty {
-		Type::Path(path) => {
-			path.path.segments.iter().nth(1).and_then(|segment| match &segment.arguments {
-				PathArguments::AngleBracketed(args) => {
-					args.args.iter().next().and_then(|arg| match arg {
-						GenericArgument::Type(ty) => Some(ty),
-						_ => None,
-					})
-				},
+		Type::Path(path) => path.path.segments.iter().nth(1).and_then(|segment| match &segment.arguments {
+			PathArguments::AngleBracketed(args) => args.args.iter().next().and_then(|arg| match arg {
+				GenericArgument::Type(ty) => Some(ty),
 				_ => None,
-			})
-		},
+			}),
+			_ => None,
+		}),
 		_ => None,
 	}
 	.ok_or_else(|| {

@@ -27,8 +27,7 @@ mod test;
 mod tutorial;
 mod util;
 
-pub static STATUS: Lazy<evscode::goodies::MultiStatus> =
-	Lazy::new(|| evscode::goodies::MultiStatus::new("❄️"));
+pub static STATUS: Lazy<evscode::goodies::MultiStatus> = Lazy::new(|| evscode::goodies::MultiStatus::new("❄️"));
 
 evscode::plugin! {
 	name: "ICIE",

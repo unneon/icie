@@ -18,7 +18,9 @@ pub struct Range {
 
 /// View column where a tab can appear.
 ///
-/// The values are from the [docs](https://code.visualstudio.com/api/references/vscode-api#ViewColumn), and hopefully no one changes them.
+/// The values are from the [docs], and hopefully no one changes them.
+///
+/// [docs]: https://code.visualstudio.com/api/references/vscode-api#ViewColumn
 #[derive(Clone, Copy)]
 #[repr(i32)]
 pub enum Column {
@@ -27,12 +29,10 @@ pub enum Column {
 	/// View column to the right of the currently active tab.
 	/// This can create new columns depending on what is currently selected.
 	/// Examples:
-	/// - One column exists: the column is split in half, the right half is taken by the new
-	///   webview.
-	/// - Two columns exist, left active: the new webvieb is added to the right column as a new
-	///   tab.
-	/// - Two columns exist, right active: the right column is split in half, the right half of the
-	///   right half is taken by the new webview.
+	/// - One column exists: the column is split in half, the right half is taken by the new webview.
+	/// - Two columns exist, left active: the new webvieb is added to the right column as a new tab.
+	/// - Two columns exist, right active: the right column is split in half, the right half of the right half is taken
+	///   by the new webview.
 	Beside = -2,
 	/// First, leftmost column.
 	One = 1,

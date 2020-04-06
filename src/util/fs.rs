@@ -25,11 +25,7 @@ pub async fn read_dir(path: &Path) -> R<Vec<Path>> {
 
 pub async fn read_to_string(path: &Path) -> R<String> {
 	let (tx, rx) = make_callback2();
-	node_sys::fs::read_file(
-		path.as_str(),
-		node_sys::fs::ReadFileOptions { encoding: Some("utf-8"), flag: "r" },
-		tx,
-	);
+	node_sys::fs::read_file(path.as_str(), node_sys::fs::ReadFileOptions { encoding: Some("utf-8"), flag: "r" }, tx);
 	Ok(rx.await?.as_string().unwrap())
 }
 

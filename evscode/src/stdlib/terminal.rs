@@ -13,8 +13,7 @@ pub struct Builder {
 	strict_env: bool,
 }
 
-/// Builder for configuring integrated terminals. See [module documentation](index.html) for
-/// details.
+/// Builder for configuring integrated terminals. See [module documentation](index.html) for details.
 impl Builder {
 	/// Set the current working directory.
 	pub fn cwd(mut self, cwd: impl Into<PathBuf>) -> Self {
@@ -93,14 +92,7 @@ pub struct Terminal {
 impl Terminal {
 	/// Create a new builder to configure the terminal.
 	pub fn new() -> Builder {
-		Builder {
-			cwd: None,
-			env: None,
-			name: None,
-			shell_args: None,
-			shell_path: None,
-			strict_env: false,
-		}
+		Builder { cwd: None, env: None, name: None, shell_args: None, shell_path: None, strict_env: false }
 	}
 
 	/// Write a text line to the terminal.

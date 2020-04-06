@@ -28,8 +28,7 @@ impl Rewrite {
 
 	pub fn fix_override_csp(&mut self) {
 		self.fix_traverse(|mut v| {
-			let is_head =
-				if let scraper::Node::Element(v) = v.value() { v.name() == "head" } else { false };
+			let is_head = if let scraper::Node::Element(v) = v.value() { v.name() == "head" } else { false };
 			if is_head {
 				v.prepend(scraper::Node::Element(scraper::node::Element {
 					name: qn!("meta"),
@@ -52,10 +51,8 @@ impl Rewrite {
 	) -> bool
 	{
 		let good_self = f(&mut v);
-		let good_path =
-			good_self || v.first_child().map(|kid| Self::impl_fix_hide(kid, f)).unwrap_or(false);
-		let good_siblings =
-			v.next_sibling().map(|sib| Self::impl_fix_hide(sib, f)).unwrap_or(false);
+		let good_path = good_self || v.first_child().map(|kid| Self::impl_fix_hide(kid, f)).unwrap_or(false);
+		let good_siblings = v.next_sibling().map(|sib| Self::impl_fix_hide(sib, f)).unwrap_or(false);
 		if !good_path {
 			if let scraper::Node::Element(v) = v.value() {
 				add_style(v, "display: none !important;");
@@ -68,11 +65,7 @@ impl Rewrite {
 		Self::impl_traversal(self.doc.tree.tree.root_mut(), &mut f);
 	}
 
-	fn impl_traversal(
-		mut v: ego_tree::NodeMut<scraper::Node>,
-		f: &mut impl FnMut(ego_tree::NodeMut<scraper::Node>),
-	)
-	{
+	fn impl_traversal(mut v: ego_tree::NodeMut<scraper::Node>, f: &mut impl FnMut(ego_tree::NodeMut<scraper::Node>)) {
 		if let Some(kid) = v.first_child() {
 			Self::impl_traversal(kid, f)
 		}

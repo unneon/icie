@@ -135,11 +135,9 @@ fn get_compiler_environment(compiler: &Compiler) -> Environment {
 }
 
 fn parse_clang_output(stderr: &str) -> (Vec<Message>, Vec<Message>) {
-	static COMPILATION_ERROR: Lazy<Regex> = Lazy::new(|| {
-		Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap()
-	});
-	static LINKING_ERROR: Lazy<Regex> =
-		Lazy::new(|| Regex::new(".*(undefined reference to .*)").unwrap());
+	static COMPILATION_ERROR: Lazy<Regex> =
+		Lazy::new(|| Regex::new("(.*):(\\d+):(\\d+): (error|warning|fatal error): (.*)\\n").unwrap());
+	static LINKING_ERROR: Lazy<Regex> = Lazy::new(|| Regex::new(".*(undefined reference to .*)").unwrap());
 
 	let mut errors = Vec::new();
 	let mut warnings = Vec::new();

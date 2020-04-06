@@ -28,10 +28,7 @@ impl Client {
 
 	pub fn cookie_set(&self, cookie: Cookie, url: &str) -> Result<()> {
 		let mut cookies = self.inner.cookies().unwrap().write()?;
-		cookies
-			.0
-			.insert_raw(&cookie.cookie, &url.parse()?)
-			.map_err(|_| ErrorCode::MalformedData)?;
+		cookies.0.insert_raw(&cookie.cookie, &url.parse()?).map_err(|_| ErrorCode::MalformedData)?;
 		Ok(())
 	}
 

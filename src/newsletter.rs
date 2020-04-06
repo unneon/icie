@@ -14,8 +14,7 @@ pub async fn check() -> R<()> {
 		LAST_ACKNOWLEDGED_VERSION.set(&acknowledge).await;
 		if choice.is_some() {
 			TELEMETRY.newsletter_changelog.spark_with(&METRICS);
-			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md")
-				.await?;
+			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
 		} else {
 			TELEMETRY.newsletter_dismiss.spark_with(&METRICS);
 		}
@@ -28,13 +27,10 @@ struct Update {
 	features: &'static str,
 }
 
-const LAST_IMPORTANT_UPDATE: Update =
-	Update { version: "0.7", features: "Windows and macOS support" };
+const LAST_IMPORTANT_UPDATE: Update = Update { version: "0.7", features: "Windows and macOS support" };
 
-const METRICS: telemetry::Metrics = telemetry::Metrics {
-	properties: &[("last-important", LAST_IMPORTANT_UPDATE.version)],
-	measurements: &[],
-};
+const METRICS: telemetry::Metrics =
+	telemetry::Metrics { properties: &[("last-important", LAST_IMPORTANT_UPDATE.version)], measurements: &[] };
 
 const LAST_ACKNOWLEDGED_VERSION: evscode::State<String> =
 	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);

@@ -1,9 +1,9 @@
 //! Rich error typee, supporting cancellation, backtraces, automatic logging and followup actions.
 //!
-//! It should also be used by extensions instead of custom error types, because it supports
-//! follow-up actions, cancellations, hiding error details from the user, backtraces and carrying
-//! extended logs. Properly connecting these features to VS Code API is a little bit code-heavy, and
-//! keeping this logic inside Evscode allows to improve error message format across all extensions.
+//! It should also be used by extensions instead of custom error types, because it supports follow-up actions,
+//! cancellations, hiding error details from the user, backtraces and carrying extended logs. Properly connecting these
+//! features to VS Code API is a little bit code-heavy, and keeping this logic inside Evscode allows to improve error
+//! message format across all extensions.
 
 use futures::{
 	stream::{once, select}, Stream, StreamExt
@@ -61,8 +61,8 @@ pub struct E {
 	pub extended: Vec<String>,
 }
 
-/// String prefix that will be prepended to every log message which contains extended data. This is
-/// used for detecting whether e.g. data can be safely sent to telemetry systems.
+/// String prefix that will be prepended to every log message which contains extended data. This is used for detecting
+/// whether e.g. data can be safely sent to telemetry systems.
 pub const EXTENDED_PREFIX: &str = "----EVSCODE.ERROR.EXTENDED----\n\n";
 
 impl E {
@@ -157,25 +157,14 @@ impl E {
 
 	/// Add a follow-up action that can be taken by the user, who will see the action as a button on
 	/// the error message.
-	pub fn action(
-		mut self,
-		title: impl AsRef<str>,
-		trigger: impl Future<Output=R<()>>+'static,
-	) -> Self
-	{
+	pub fn action(mut self, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+'static) -> Self {
 		self.actions.push(Action { title: title.as_ref().to_owned(), trigger: Box::pin(trigger) });
 		self
 	}
 
 	/// A convenience function to add a follow-up action if the condition is true. See [`E::action`]
 	/// for details.
-	pub fn action_if(
-		self,
-		cond: bool,
-		title: impl AsRef<str>,
-		trigger: impl Future<Output=R<()>>+'static,
-	) -> Self
-	{
+	pub fn action_if(self, cond: bool, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+'static) -> Self {
 		if cond { self.action(title, trigger) } else { self }
 	}
 
@@ -236,14 +225,12 @@ impl E {
 			let message = format!(
 				"{}{}",
 				self.human(),
-				if should_suggest_report {
-					"; [report issue?](https://github.com/pustaczek/icie/issues)"
-				} else {
-					""
-				}
+				if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues)" } else { "" }
 			);
-			let items = self.actions.iter().enumerate().map(|(id, action)| {
-				crate::message::Action { id, title: &action.title, is_close_affordance: false }
+			let items = self.actions.iter().enumerate().map(|(id, action)| crate::message::Action {
+				id,
+				title: &action.title,
+				is_close_affordance: false,
 			});
 			let msg = crate::Message::new(&message).items(items);
 			let msg = match self.severity {
@@ -293,19 +280,13 @@ pub struct Cancellation;
 
 /// Result-like type for operations that could be intentionally cancelled by the user.
 ///
-/// It implements [`std::ops::Try`], which makes it possible to use ? operator in functions
-/// returning [`R`].
+/// It implements [`std::ops::Try`], which makes it possible to use ? operator in functions returning [`R`].
 #[derive(Debug)]
 pub struct Cancellable<T>(pub Option<T>);
 
-/// Return a stream yielding values from this stream, unless the other future yields any value.
-/// In that case the stream will yield a Result-like value representing a cancelled operation, that
-/// can be forwarder using the ? operator.
-pub fn cancel_on<T, A: Stream<Item=T>, B: Future<Output=()>>(
-	a: A,
-	b: B,
-) -> impl Stream<Item=Cancellable<T>>
-{
+/// Return a stream yielding values from this stream, unless the other future yields any value. In that case the stream
+/// will yield a Result-like value representing a cancelled operation, that can be forwarder using the ? operator.
+pub fn cancel_on<T, A: Stream<Item=T>, B: Future<Output=()>>(a: A, b: B) -> impl Stream<Item=Cancellable<T>> {
 	select(a.map(|x| Cancellable(Some(x))), once(b).map(|()| Cancellable(None)))
 }
 

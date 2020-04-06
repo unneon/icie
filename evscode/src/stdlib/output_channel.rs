@@ -1,8 +1,7 @@
 //! Readonly text containers, displayed at the bottom of the screen.
 //!
-//! Typically used for displaying compilation output, logs from spawned processes, and other
-//! user-facing information that take too much space to display elsewhere and are a part of normal
-//! workflow.
+//! Typically used for displaying compilation output, logs from spawned processes, and other user-facing information
+//! that take too much space to display elsewhere and are a part of normal workflow.
 
 /// Handle to an output channel.
 pub struct OutputChannel {

@@ -24,8 +24,7 @@ pub async fn scan() -> R<()> {
 	contests.sort_by_key(|contest| contest.details.start);
 	let contest = select_contest(&contests).await?;
 	TELEMETRY.init_scan_ok.spark();
-	contest::sprint(contest.sess.clone(), &contest.details.id, Some(&contest.details.title))
-		.await?;
+	contest::sprint(contest.sess.clone(), &contest.details.id, Some(&contest.details.title)).await?;
 	Ok(())
 }
 
@@ -96,14 +95,12 @@ impl InitCommand {
 				let (url, backend) = net::interpret_url(&raw_url)?;
 				let URL { domain, site, resource } = url;
 				match resource {
-					Resource::Task(task) => InitCommand::Task(Some((
-						URL { domain, site, resource: Resource::Task(task) },
-						backend,
-					))),
-					Resource::Contest(contest) => InitCommand::Contest(
-						URL { domain, site, resource: Resource::Contest(contest) },
-						backend,
-					),
+					Resource::Task(task) => {
+						InitCommand::Task(Some((URL { domain, site, resource: Resource::Task(task) }, backend)))
+					},
+					Resource::Contest(contest) => {
+						InitCommand::Contest(URL { domain, site, resource: Resource::Contest(contest) }, backend)
+					},
 				}
 			},
 			None => InitCommand::Task(None),
@@ -111,9 +108,7 @@ impl InitCommand {
 	}
 }
 
-async fn fetch_task_details(
-	url: &Option<(BoxedTaskURL, &'static BackendMeta)>,
-) -> R<Option<TaskDetails>> {
+async fn fetch_task_details(url: &Option<(BoxedTaskURL, &'static BackendMeta)>) -> R<Option<TaskDetails>> {
 	match url {
 		Some((url, backend)) => {
 			let _status = crate::STATUS.push("Fetching task");

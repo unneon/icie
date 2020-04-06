@@ -81,8 +81,7 @@ static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 #[evscode::config]
 static WINDOWS_MINGW_PATH: evscode::Config<String> = "";
 
-static COMPILER_INSTALL_CONFIRMED: State<bool> =
-	State::new("icie.build.compiler_install_confirmed", Scope::Global);
+static COMPILER_INSTALL_CONFIRMED: State<bool> = State::new("icie.build.compiler_install_confirmed", Scope::Global);
 
 #[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
 async fn manual() -> R<()> {
@@ -99,15 +98,12 @@ async fn collect_possible_sources() -> R<Vec<Path>> {
 	Ok(fs::read_dir(&workspace_root()?)
 		.await?
 		.into_iter()
-		.filter(|path| {
-			SOURCE_EXTENSIONS.iter().any(|ext| Some(*ext) == path.extension().as_deref())
-		})
+		.filter(|path| SOURCE_EXTENSIONS.iter().any(|ext| Some(*ext) == path.extension().as_deref()))
 		.collect())
 }
 
 async fn select_source(sources: &[Path]) -> R<Path> {
-	let items =
-		sources.iter().map(|source| quick_pick::Item::new(source.clone(), source.fmt_workspace()));
+	let items = sources.iter().map(|source| quick_pick::Item::new(source.clone(), source.fmt_workspace()));
 	let source = QuickPick::new().items(items).show().await.ok_or_else(E::cancel)?;
 	Ok(source)
 }
@@ -118,13 +114,7 @@ async fn select_codegen() -> R<Codegen> {
 		let description = codegen.flags_clang().join(" ");
 		quick_pick::Item::new(*codegen, label).description(description)
 	});
-	let codegen = QuickPick::new()
-		.ignore_focus_out()
-		.match_on_all()
-		.items(items)
-		.show()
-		.await
-		.ok_or_else(E::cancel)?;
+	let codegen = QuickPick::new().ignore_focus_out().match_on_all().items(items).show().await.ok_or_else(E::cancel)?;
 	Ok(codegen)
 }
 
@@ -149,8 +139,7 @@ pub async fn build(source: &SourceTarget, codegen: Codegen, force_rebuild: bool)
 }
 
 async fn should_cache(source: &Path, out: &Path) -> R<bool> {
-	Ok(fs::exists(out).await?
-		&& fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
+	Ok(fs::exists(out).await? && fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
 }
 
 fn get_custom_flags(codegen: Codegen) -> Vec<String> {
@@ -159,11 +148,7 @@ fn get_custom_flags(codegen: Codegen) -> Vec<String> {
 		Codegen::Release => ADDITIONAL_CPP_FLAGS_RELEASE.get(),
 		Codegen::Profile => ADDITIONAL_CPP_FLAGS_PROFILE.get(),
 	});
-	flags
-		.split(' ')
-		.map(|flag| flag.trim().to_owned())
-		.filter(|flag| !flag.is_empty())
-		.collect::<Vec<_>>()
+	flags.split(' ').map(|flag| flag.trim().to_owned()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>()
 }
 
 async fn check_source_exists(source: &Path) -> R<()> {
@@ -220,20 +205,12 @@ async fn try_move_cursor_to_error(error: &Message) -> R<()> {
 pub async fn suggest_install_compiler() -> R<()> {
 	let already_checked = COMPILER_INSTALL_CONFIRMED.get()? != Some(true);
 	if already_checked {
-		let message =
-			"You have not compiled anything yet, should ICIE check if a C++ compiler is installed?";
-		let should_check = evscode::Message::new(message)
-			.item((), "Check", false)
-			.warning()
-			.show()
-			.await
-			.is_some();
+		let message = "You have not compiled anything yet, should ICIE check if a C++ compiler is installed?";
+		let should_check = evscode::Message::new(message).item((), "Check", false).warning().show().await.is_some();
 		if should_check {
 			dummy_compiler_run().await?;
 			COMPILER_INSTALL_CONFIRMED.set(&true).await;
-			evscode::Message::new::<()>("Compiling C++ was tested and it works. Good luck!")
-				.show()
-				.await;
+			evscode::Message::new::<()>("Compiling C++ was tested and it works. Good luck!").show().await;
 		}
 	}
 	Ok(())

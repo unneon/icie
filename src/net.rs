@@ -7,8 +7,7 @@ use unijudge::{
 	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Error, ErrorCode, Resource, URL
 };
 
-const USER_AGENT: &str =
-	concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
+const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
 const NETWORK_ERROR_RETRY_LIMIT: usize = 4;
 const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(5);
 
@@ -34,12 +33,7 @@ pub struct BackendMeta {
 }
 
 impl BackendMeta {
-	const fn new(
-		backend: &'static dyn DynamicBackend,
-		cpp: &'static str,
-		telemetry_id: &'static str,
-	) -> BackendMeta
-	{
+	const fn new(backend: &'static dyn DynamicBackend, cpp: &'static str, telemetry_id: &'static str) -> BackendMeta {
 		BackendMeta { backend, cpp, telemetry_id }
 	}
 }
@@ -56,9 +50,7 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 	Ok(backend
 		.wrap(format!("not yet supporting contests/tasks on site {}", url))
 		.map_err(|e| e.action("Help with URLs", help_urls()))?
-		.map_err(|e| {
-			from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url))
-		})?)
+		.map_err(|e| from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url)))?)
 }
 
 impl Session {
@@ -73,9 +65,7 @@ impl Session {
 				match backend.auth_restore(&session, &auth).await {
 					Ok(()) => Ok(()),
 					Err(e) => match e.code {
-						ErrorCode::MalformedData
-						| ErrorCode::WrongCredentials
-						| ErrorCode::AccessDenied => Ok(()),
+						ErrorCode::MalformedData | ErrorCode::WrongCredentials | ErrorCode::AccessDenied => Ok(()),
 						_ => Err(from_unijudge_error(e)),
 					},
 				}?;
@@ -99,9 +89,7 @@ impl Session {
 						let (username, password) = auth::get_cached_or_ask(&self.site).await?;
 						self.login(&username, &password).await?
 					},
-					ErrorCode::NetworkFailure if retries_left > 0 => {
-						self.wait_for_retry(&mut retries_left, e).await
-					},
+					ErrorCode::NetworkFailure if retries_left > 0 => self.wait_for_retry(&mut retries_left, e).await,
 					_ => break Err(from_unijudge_error(e)),
 				},
 			}
@@ -113,26 +101,17 @@ impl Session {
 		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
 		match self.backend.auth_login(&self.session, &username, &password).await {
 			Ok(()) => {
-				if let Some(cache) =
-					self.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)?
-				{
-					auth::save_cache(
-						&self.site,
-						&self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?,
-					)
-					.await;
+				if let Some(cache) = self.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)? {
+					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?)
+						.await;
 				}
 			},
 			Err(e) => match e.code {
-				ErrorCode::MalformedData
-				| ErrorCode::WrongCredentials
-				| ErrorCode::AccessDenied => {
+				ErrorCode::MalformedData | ErrorCode::WrongCredentials | ErrorCode::AccessDenied => {
 					self.maybe_error_show(e);
 					self.force_login_boxed().await?;
 				},
-				ErrorCode::NetworkFailure if retries_left > 0 => {
-					self.wait_for_retry(&mut retries_left, e).await
-				},
+				ErrorCode::NetworkFailure if retries_left > 0 => self.wait_for_retry(&mut retries_left, e).await,
 				_ => return Err(from_unijudge_error(e)),
 			},
 		}
@@ -173,17 +152,13 @@ impl Session {
 
 pub fn require_task<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<!, T>> {
 	match url.resource {
-		Resource::Task(t) => {
-			Ok(URL { domain: url.domain, site: url.site, resource: Resource::Task(t) })
-		},
+		Resource::Task(t) => Ok(URL { domain: url.domain, site: url.site, resource: Resource::Task(t) }),
 		_ => Err(E::error(format!("expected task url, found {:?}", url.resource))),
 	}
 }
 pub fn require_contest<C: fmt::Debug, T: fmt::Debug>(url: URL<C, T>) -> R<URL<C, !>> {
 	match url.resource {
-		Resource::Contest(c) => {
-			Ok(URL { domain: url.domain, site: url.site, resource: Resource::Contest(c) })
-		},
+		Resource::Contest(c) => Ok(URL { domain: url.domain, site: url.site, resource: Resource::Contest(c) }),
 		_ => Err(E::error(format!("expected contest url, found {:?}", url.resource))),
 	}
 }
@@ -195,10 +170,9 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 		| ErrorCode::NetworkFailure
 		| ErrorCode::RateLimit
 		| ErrorCode::WrongTaskUrl => Severity::Error,
-		ErrorCode::AlienInvasion
-		| ErrorCode::MalformedData
-		| ErrorCode::NoTLS
-		| ErrorCode::StateCorruption => Severity::Bug,
+		ErrorCode::AlienInvasion | ErrorCode::MalformedData | ErrorCode::NoTLS | ErrorCode::StateCorruption => {
+			Severity::Bug
+		},
 		ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
 	};
 	let mut e = E::from_std_ref(&uj_e);
