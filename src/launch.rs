@@ -101,23 +101,15 @@ async fn nearby() -> R<()> {
 	let mut nearby = fs::read_dir(&parent)
 		.await?
 		.into_iter()
-		.map(|path| {
-			let title = match path.strip_prefix(&parent) {
-				Ok(rel) => rel.into_string(),
-				Err(_) => path.as_str().to_owned(),
-			};
-			(path, title)
-		})
+		.map(|path| (path.fmt_relative(&parent), path))
 		.collect::<Vec<_>>();
-	nearby.sort_by_key(|nearby| nearby.1.clone());
-	let select = QuickPick::new()
-		.items(
-			nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.0.to_string(), nearby.1)),
-		)
+	nearby.sort_by_key(|nearby| nearby.0.clone());
+	let path = QuickPick::new()
+		.items(nearby.into_iter().map(|nearby| quick_pick::Item::new(nearby.1, nearby.0)))
 		.show()
 		.await
 		.ok_or_else(E::cancel)?;
-	evscode::open_folder(&select, false).await;
+	evscode::open_folder(path.as_str(), false).await;
 	Ok(())
 }
 

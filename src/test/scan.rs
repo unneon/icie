@@ -1,14 +1,19 @@
 use crate::util::path::Path;
 use itertools::Itertools;
-use std::cmp::Ordering;
 
-pub async fn scan_and_order(test_dir: &str) -> Vec<Path> {
-	let mut tests = scan(test_dir).await;
-	order(&mut tests);
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+enum OrderedWord {
+	Text(String),
+	Number(i64),
+}
+
+pub async fn scan_for_tests(test_dir: &str) -> Vec<Path> {
+	let mut tests = scan_unordered(test_dir).await;
+	tests.sort_by_key(compare_test_path);
 	tests
 }
 
-async fn scan(test_dir: &str) -> Vec<Path> {
+async fn scan_unordered(test_dir: &str) -> Vec<Path> {
 	vscode_sys::workspace::find_files(&format!("{}/**/*.in", test_dir))
 		.await
 		.into_iter()
@@ -16,24 +21,15 @@ async fn scan(test_dir: &str) -> Vec<Path> {
 		.collect()
 }
 
-fn order(tests: &mut Vec<Path>) {
-	tests.sort_by(comp_by_test_number);
-}
-
-fn comp_by_test_number(lhs: &Path, rhs: &Path) -> Ordering {
-	let lgroups = lhs.as_str().chars().group_by(|c| c.is_numeric());
-	let rgroups = rhs.as_str().chars().group_by(|c| c.is_numeric());
-	for ((isdig, lgrp), (_, rgrp)) in lgroups.into_iter().zip(rgroups.into_iter()) {
-		let grp_compr = if isdig {
-			let lnum: i64 = lgrp.collect::<String>().parse().unwrap();
-			let rnum: i64 = rgrp.collect::<String>().parse().unwrap();
-			lnum.cmp(&rnum)
-		} else {
-			lgrp.cmp(rgrp)
-		};
-		if grp_compr != Ordering::Equal {
-			return grp_compr;
-		}
-	}
-	lhs.as_str().len().cmp(&rhs.as_str().len())
+fn compare_test_path(path: &Path) -> Vec<OrderedWord> {
+	path.as_str()
+		.chars()
+		.group_by(|c| c.is_numeric())
+		.into_iter()
+		.map(|(is_digit, group): (bool, _)| {
+			let text = group.collect::<String>();
+			let number = if is_digit { text.parse::<i64>().ok() } else { None };
+			number.map(OrderedWord::Number).unwrap_or(OrderedWord::Text(text))
+		})
+		.collect()
 }

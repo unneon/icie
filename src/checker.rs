@@ -27,7 +27,7 @@ pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 
 #[async_trait(?Send)]
 pub trait Checker: fmt::Debug {
-	async fn judge(&self, input: &str, desired: &str, out: &str) -> R<bool>;
+	async fn judge(&self, input: &str, desired: &str, output: &str) -> R<bool>;
 }
 
 #[derive(Debug)]

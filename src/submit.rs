@@ -90,10 +90,7 @@ async fn track(sess: crate::net::Session, url: &unijudge::boxed::BoxedTask, id: 
 				return Err(E::error(format!("submission {} not found on status page", id)));
 			},
 		};
-		let should_send = match &submission.verdict {
-			unijudge::Verdict::Pending { .. } => false,
-			_ => true,
-		};
+		let should_send = !matches!(&submission.verdict, unijudge::Verdict::Pending { .. });
 		if should_send {
 			break submission.verdict;
 		} else if Some(&submission.verdict) != last_verdict.as_ref() {

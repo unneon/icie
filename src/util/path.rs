@@ -1,4 +1,4 @@
-use crate::util::expand_path;
+use crate::util::{expand_path, workspace_root};
 use evscode::{
 	marshal::{type_error2, Marshal}, Configurable
 };
@@ -52,16 +52,27 @@ impl Path {
 		Ok(Path { buf: node_sys::path::relative(&to.buf, &self.buf) })
 	}
 
-	pub fn to_owned(&self) -> Path {
-		Path { buf: self.buf.to_owned() }
-	}
-
 	pub fn with_extension(&self, new_ext: &str) -> Path {
 		let old_ext_len = match self.extension() {
 			Some(old_ext) => old_ext.len() + 1,
 			None => 0,
 		};
 		Path::from_native(format!("{}.{}", &self.buf[..self.buf.len() - old_ext_len], new_ext))
+	}
+
+	pub fn without_extension(&self) -> Path {
+		self.parent().join(self.file_stem())
+	}
+
+	pub fn fmt_workspace(&self) -> String {
+		match workspace_root() {
+			Ok(workspace) => self.fmt_relative(&workspace),
+			Err(_) => self.as_str().to_owned(),
+		}
+	}
+
+	pub fn fmt_relative(&self, root: &Path) -> String {
+		self.strip_prefix(&root).unwrap_or_else(|_| self.clone()).into_string()
 	}
 }
 

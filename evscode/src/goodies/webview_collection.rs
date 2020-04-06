@@ -71,6 +71,14 @@ impl<T: Behaviour> Collection<T> {
 		None
 	}
 
+	/// Selects the active webview, or a specified one if no webview is active.
+	pub async fn active_or_lazy(&'static self, key: T::K) -> R<WebviewRef> {
+		match self.find_active().await {
+			Some(active) => Ok(active),
+			None => self.get_lazy(key).await,
+		}
+	}
+
 	/// Rerun the computation on all existing webviews and update them.
 	pub async fn update_all(&'static self) -> R<()> {
 		let lck = self.collection.lock().await;

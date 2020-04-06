@@ -2,7 +2,7 @@ mod clang;
 mod options;
 
 use crate::{
-	build::clang::compile, dir, executable::{Executable, Run}, telemetry::TELEMETRY, template, util::{self, fmt_source_path, fs, path::Path, suggest_init, workspace_root, Tempfile}
+	build::clang::compile, dir, executable::{Executable, Run}, telemetry::TELEMETRY, template, util::{self, fs, path::Path, suggest_init, workspace_root, Tempfile}
 };
 use evscode::{
 	error::Severity, quick_pick, state::Scope, stdlib::output_channel::OutputChannel, Position, QuickPick, State, E, R
@@ -107,7 +107,7 @@ async fn collect_possible_sources() -> R<Vec<Path>> {
 
 async fn select_source(sources: &[Path]) -> R<Path> {
 	let items =
-		sources.iter().map(|source| quick_pick::Item::new(source.clone(), fmt_source_path(source)));
+		sources.iter().map(|source| quick_pick::Item::new(source.clone(), source.fmt_workspace()));
 	let source = QuickPick::new().items(items).show().await.ok_or_else(E::cancel)?;
 	Ok(source)
 }
@@ -170,7 +170,7 @@ async fn check_source_exists(source: &Path) -> R<()> {
 	if fs::exists(source).await? {
 		Ok(())
 	} else {
-		let pretty_source = fmt_source_path(source);
+		let pretty_source = source.fmt_workspace();
 		let error = E::error(format!("source {} does not exist at {}", pretty_source, source));
 		let error = if source == &dir::solution()? {
 			suggest_init(error)

@@ -1,7 +1,7 @@
 use crate::{
 	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::{path::Path, workspace_root}
 };
-use evscode::{error::ResultExt, E, R};
+use evscode::{E, R};
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
 async fn spawn() -> R<()> {
@@ -18,9 +18,7 @@ pub fn debugger<A: AsRef<str>>(
 	command: impl IntoIterator<Item=A>,
 ) -> R<()>
 {
-	let test = util::without_extension(
-		&test.strip_prefix(&workspace_root()?).wrap("found test outside of test directory")?,
-	);
+	let test = test.without_extension().fmt_workspace();
 	External::command(Some(&format!("{} - {} - ICIE", test.as_str(), app.as_ref())), Some(command))
 }
 

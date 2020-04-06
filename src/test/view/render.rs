@@ -1,8 +1,14 @@
 use crate::{
-	test::{judge::Verdict, view::SKILL_ACTIONS, TestRun}, util::{self, fs}
+	test::{view::SKILL_ACTIONS, TestRun, Verdict}, util::{self, fmt_time_short, fs}
 };
 use evscode::R;
 use std::cmp::max;
+
+struct Action {
+	onclick: &'static str,
+	icon: &'static str,
+	hint: &'static str,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, evscode::Configurable)]
 enum HideBehaviour {
@@ -13,15 +19,19 @@ enum HideBehaviour {
 	#[evscode(name = "Never")]
 	Never,
 }
-impl HideBehaviour {
-	fn should(&self, any_failed: bool) -> bool {
-		match self {
-			HideBehaviour::Always => true,
-			HideBehaviour::IfAnyFailed => any_failed,
-			HideBehaviour::Never => false,
-		}
-	}
-}
+
+const ACTION_COPY: Action = Action { onclick: "action_copy()", icon: "file_copy", hint: "Copy" };
+const ACTION_EDIT: Action = Action { onclick: "action_edit()", icon: "edit", hint: "Edit" };
+const ACTION_GDB: Action =
+	Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
+const ACTION_RR: Action =
+	Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
+const ACTION_SET_ALT: Action =
+	Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
+const ACTION_DEL_ALT: Action =
+	Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
+
+const MIN_CELL_LINES: i64 = 2;
 
 /// This controls when to hide passing tests in test view by collapsing them into a thin color line.
 /// Even if this is not set, any failing tests will still be visible if the
@@ -34,6 +44,24 @@ static FOLD_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
 /// icie.test.view.scrollToFirstFailed option is enabled(as is by default).
 #[evscode::config]
 static HIDE_AC: evscode::Config<HideBehaviour> = HideBehaviour::Never;
+
+/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test
+/// cell and press Ctrl+C; if nothing else is selected, the cell contents will be copied
+/// automatically.
+#[evscode::config]
+static HIDE_COPY: evscode::Config<bool> = false;
+
+/// The maximum height of a test case, expressed in pixels. If the test case would take up more than
+/// that, it will be clipped. The full test case can be seen by scrolling. Leave empty to denote no
+/// limit.
+#[evscode::config]
+static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
+
+/// If a solution takes longer to execute than the specified number of milliseconds, a note with the
+/// execution duration will be displayed. Set to 0 to always display the timings, or to a large
+/// value to never display the timings.
+#[evscode::config]
+static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
 pub async fn render(tests: &[TestRun]) -> R<String> {
 	Ok(format!(
@@ -115,21 +143,8 @@ async fn render_in_cell(test: &TestRun, folded: bool) -> R<String> {
 	Ok(render_cell("input", &attrs, &actions, None, &data, None, folded).await)
 }
 
-/// If a solution takes longer to execute than the specified number of milliseconds, a note with the
-/// execution duration will be displayed. Set to 0 to always display the timings, or to a large
-/// value to never display the timings.
-#[evscode::config]
-static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
-
 async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
-	let note_time = if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get())
-		|| test.outcome.verdict == Verdict::TimeLimitExceeded
-	{
-		let ms = test.outcome.time.as_millis();
-		Some(format!("{}.{:03}s", ms / 1000, ms % 1000))
-	} else {
-		None
-	};
+	let note_time = prepare_time_note(test);
 	let note_verdict = match test.outcome.verdict {
 		Verdict::Accepted { .. } | Verdict::WrongAnswer | Verdict::IgnoredNoOut => None,
 		Verdict::RuntimeError => Some("RE"),
@@ -158,6 +173,16 @@ async fn render_out_cell(test: &TestRun, folded: bool) -> R<String> {
 	.await)
 }
 
+fn prepare_time_note(test: &TestRun) -> Option<String> {
+	if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get())
+		|| test.outcome.verdict == Verdict::TimeLimitExceeded
+	{
+		Some(fmt_time_short(&test.outcome.time))
+	} else {
+		None
+	}
+}
+
 async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
 	let data = fs::read_to_string(&test.out_path).await.unwrap_or_default();
 	let attrs = [("data-raw", data.as_str())];
@@ -167,28 +192,6 @@ async fn render_desired_cell(test: &TestRun, folded: bool) -> R<String> {
 	];
 	Ok(render_cell("desired", &attrs, &actions, None, &data, None, folded).await)
 }
-
-struct Action {
-	onclick: &'static str,
-	icon: &'static str,
-	hint: &'static str,
-}
-const ACTION_COPY: Action = Action { onclick: "action_copy()", icon: "file_copy", hint: "Copy" };
-const ACTION_EDIT: Action = Action { onclick: "action_edit()", icon: "edit", hint: "Edit" };
-const ACTION_GDB: Action =
-	Action { onclick: "action_gdb()", icon: "skip_previous", hint: "Debug in GDB" };
-const ACTION_RR: Action =
-	Action { onclick: "action_rr()", icon: "fast_rewind", hint: "Debug in RR" };
-const ACTION_SET_ALT: Action =
-	Action { onclick: "action_setalt()", icon: "check", hint: "Mark as correct" };
-const ACTION_DEL_ALT: Action =
-	Action { onclick: "action_delalt()", icon: "close", hint: "Unmark as correct" };
-
-/// Whether to hide the "Copy" action in test view. Instead of using it, you can hover over the test
-/// cell and press Ctrl+C; if nothing else is selected, the cell contents will be copied
-/// automatically.
-#[evscode::config]
-static HIDE_COPY: evscode::Config<bool> = false;
 
 async fn render_cell(
 	class: &str,
@@ -208,14 +211,6 @@ async fn render_cell(
 	}
 }
 
-const MIN_CELL_LINES: i64 = 2;
-
-/// The maximum height of a test case, expressed in pixels. If the test case would take up more than
-/// that, it will be clipped. The full test case can be seen by scrolling. Leave empty to denote no
-/// limit.
-#[evscode::config]
-static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
-
 async fn render_cell_raw(
 	class: &str,
 	attrs: &[(&str, &str)],
@@ -225,27 +220,19 @@ async fn render_cell_raw(
 	note: Option<&str>,
 ) -> String
 {
-	let actions = actions
-		.iter()
-		.filter_map(|(active, action)| if *active { Some(action) } else { None })
-		.map(|action| {
-			format!(
-				"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
-				action.onclick, action.hint, action.icon
-			)
-		})
-		.collect::<Vec<_>>();
-	let actions = format!(
-		"<div class=\"actions {}\">{}</div>",
-		if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" },
-		actions.join("\n")
-	);
-	let note = note
-		.map_or(String::new(), |note| format!("<div class=\"note\">{}</div>", html_escape(note)));
-	let lines = (stderr.as_ref().map_or(0, |stderr| lines(stderr)) + lines(stdout)) as i64;
-	let stderr = stderr.as_ref().map_or(String::new(), |stderr| {
-		format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim()))
-	});
+	let actions = render_actions(actions).await;
+	let note = match note {
+		Some(note) => format!("<div class=\"note\">{}</div>", html_escape(note)),
+		None => String::new(),
+	};
+	let lines =
+		(stderr.as_ref().map_or(0, |stderr| count_lines(stderr)) + count_lines(stdout)) as i64;
+	let stderr = match stderr {
+		Some(stderr) => {
+			format!("<div class=\"stderr\">{}</div>", html_escape_spaced(stderr.trim()))
+		},
+		None => String::new(),
+	};
 	let newline_fill = (0..max(MIN_CELL_LINES - lines + 1, 0)).map(|_| "<br/>").collect::<String>();
 	let max_test_height = MAX_TEST_HEIGHT.get();
 	let max_test_height = if let Some(max_test_height) = max_test_height {
@@ -267,12 +254,44 @@ async fn render_cell_raw(
 	format!("<td class=\"cell {}\" {}>{}{}{}</td>", class, attr_html, actions, note, data)
 }
 
-fn lines(s: &str) -> usize {
+async fn render_actions(actions: &[(bool, Action)]) -> String {
+	let buttons = actions
+		.iter()
+		.filter(|action| action.0)
+		.map(|action| render_action(&action.1))
+		.collect::<Vec<_>>();
+	format!(
+		"<div class=\"actions {}\">{}</div>",
+		if !SKILL_ACTIONS.is_proficient().await { "tutorialize" } else { "" },
+		buttons.join("\n")
+	)
+}
+
+fn render_action(action: &Action) -> String {
+	format!(
+		"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
+		action.onclick, action.hint, action.icon
+	)
+}
+
+impl HideBehaviour {
+	fn should(&self, any_failed: bool) -> bool {
+		match self {
+			HideBehaviour::Always => true,
+			HideBehaviour::IfAnyFailed => any_failed,
+			HideBehaviour::Never => false,
+		}
+	}
+}
+
+fn count_lines(s: &str) -> usize {
 	if !s.trim().is_empty() { s.trim().matches('\n').count() + 1 } else { 0 }
 }
+
 fn html_escape(s: &str) -> String {
 	translate(s, &[('&', "&amp;"), ('<', "&lt;"), ('>', "&gt;"), ('"', "&quot;"), ('\'', "&#39;")])
 }
+
 fn html_escape_spaced(s: &str) -> String {
 	translate(s, &[
 		('&', "&amp;"),
@@ -283,6 +302,7 @@ fn html_escape_spaced(s: &str) -> String {
 		('\n', "<br/>"),
 	])
 }
+
 fn translate(s: &str, table: &[(char, &str)]) -> String {
 	let mut buf = String::new();
 	for c in s.chars() {

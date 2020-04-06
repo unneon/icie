@@ -3,7 +3,7 @@ use crate::{
 		logic::{Library, Piece}, qpaste_doc_error
 	}, util::{fs, path::Path}
 };
-use evscode::{error::ResultExt, E, R};
+use evscode::{E, R};
 use futures::lock::{Mutex, MutexGuard};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -39,10 +39,7 @@ impl LibraryCache {
 		}
 		let mut new_pieces = HashMap::new();
 		for path in fs::read_dir(&directory).await? {
-			let id = crate::util::without_extension(&path)
-				.strip_prefix(&directory)
-				.wrap("piece outside the piece collection directory")?
-				.into_string();
+			let id = path.without_extension().fmt_relative(&directory);
 			if path.extension() == Some("cpp".to_owned()) {
 				let piece = self.maybe_load_piece(path, &id, &mut lib.pieces).await?;
 				new_pieces.insert(id, piece);

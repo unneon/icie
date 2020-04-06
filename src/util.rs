@@ -50,7 +50,7 @@ fn test_fmt_time() {
 
 pub fn fmt_verb(verb: &'static str, source: &SourceTarget) -> String {
 	match source {
-		SourceTarget::Custom(source) => format!("{} {}", verb, fmt_source_path(source)),
+		SourceTarget::Custom(source) => format!("{} {}", verb, source.fmt_workspace()),
 		SourceTarget::Main => verb.to_owned(),
 	}
 }
@@ -201,21 +201,6 @@ pub fn expand_path(path: &str) -> Path {
 	Path::from_native(normalized)
 }
 
-pub fn without_extension(path: &Path) -> Path {
-	path.parent().join(path.file_stem())
-}
-
-#[test]
-fn test_pathmanip() {
-	assert_eq!(without_extension("/home/wizard/file.txt"), Path::new("/home/wizard/file"));
-	assert_eq!(
-		without_extension("/home/wizard/source.old.cpp"),
-		Path::new("/home/wizard/source.old")
-	);
-	assert_eq!(without_extension("../manifest.json"), Path::new("../manifest"));
-	assert_eq!(without_extension("./inner/dev0"), Path::new("./inner/dev0"));
-}
-
 pub fn node_hrtime() -> Duration {
 	let raw_time = node_sys::process::hrtime();
 	match raw_time
@@ -289,15 +274,6 @@ pub fn suggest_init(e: E) -> E {
 async fn help_init() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start")
 		.await
-}
-
-pub fn fmt_source_path(source: &Path) -> String {
-	match workspace_root() {
-		Ok(workspace) => {
-			source.strip_prefix(&workspace).unwrap_or_else(|_| source.clone()).into_string()
-		},
-		Err(_) => source.as_str().to_owned(),
-	}
 }
 
 pub fn join_all_with_progress<I>(

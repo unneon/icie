@@ -1,7 +1,5 @@
 use crate::{
-	build::{build, Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{
-		self, add_test, judge::{simple_test, Outcome, Verdict}, time_limit, Task
-	}, util::SourceTarget
+	build::{build, Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{self, add_test, judge::simple_test, time_limit, Outcome, Task, Verdict}, util::SourceTarget
 };
 use async_trait::async_trait;
 use evscode::{

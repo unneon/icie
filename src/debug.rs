@@ -1,5 +1,5 @@
 use crate::{
-	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test::time_limit, util, util::{fs, path::Path, SourceTarget}
+	build, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, term, test, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::{E, R};
 
@@ -46,7 +46,7 @@ pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
 	let input = fs::read_to_string(in_path).await?;
 	let exec_path = build::executable_path(source)?;
 	let args = ["record", exec_path.as_str()];
-	let environment = Environment { time_limit: time_limit(), cwd: None };
+	let environment = Environment { time_limit: test::time_limit(), cwd: None };
 	let record_out = rr_exec.run(&input, &args, &environment).await?;
 	if record_out.stderr.contains("/proc/sys/kernel/perf_event_paranoid") {
 		return Err(E::error(
