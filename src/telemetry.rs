@@ -6,9 +6,18 @@ impl Counter {
 		evscode::telemetry(self.id, &[], &[])
 	}
 
+	pub fn spark_with(&self, metrics: &Metrics) {
+		evscode::telemetry(self.id, metrics.properties, metrics.measurements)
+	}
+
 	pub const fn new(id: &'static str) -> Counter {
 		Counter { id }
 	}
+}
+
+pub struct Metrics<'a> {
+	pub properties: &'a [(&'a str, &'a str)],
+	pub measurements: &'a [(&'a str, f64)],
 }
 
 pub struct Events {
