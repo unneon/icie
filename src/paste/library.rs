@@ -45,7 +45,7 @@ impl LibraryCache {
 		lib.directory = directory;
 		lib.pieces = new_pieces;
 		if lib.pieces.is_empty() {
-			return Err(qpaste_doc_error(E::error("your competitive programming library is empty")));
+			return Err(qpaste_doc_error(E::error("library is empty")));
 		}
 		lib.verify()?;
 		Ok(lib)
@@ -53,27 +53,23 @@ impl LibraryCache {
 
 	async fn maybe_load_piece(&self, path: Path, id: &str, cached_pieces: &mut HashMap<String, Piece>) -> R<Piece> {
 		let modified = fs::metadata(&path).await?.modified;
-		let cached = if let Some(cached) = cached_pieces.remove(id) {
-			if cached.modified == modified { Some(cached) } else { None }
-		} else {
-			None
-		};
-		let piece = if let Some(cached) = cached {
-			cached
-		} else {
-			let code = fs::read_to_string(&path).await?;
-			Piece::parse(&code, id.to_owned(), modified)?
-		};
-		Ok(piece)
+		match cached_pieces.remove(id) {
+			Some(cached) if cached.modified == modified => Ok(cached),
+			_ => {
+				let code = fs::read_to_string(&path).await?;
+				let piece = Piece::parse(&code, id.to_owned(), modified).map_err(qpaste_doc_error)?;
+				Ok(piece)
+			},
+		}
 	}
 
 	async fn get_directory(&self) -> R<Path> {
 		let dir = PATH.get();
 		if dir.as_str() == "" {
-			return Err(qpaste_doc_error(E::error("no competitive programming library found")));
+			return Err(qpaste_doc_error(E::error("library not found")));
 		}
 		if !fs::exists(&dir).await? {
-			return Err(E::error(format!("directory {} does not exist", dir)));
+			return Err(qpaste_doc_error(E::error(format!("library directory {} does not exist", dir))));
 		}
 		Ok(dir)
 	}
