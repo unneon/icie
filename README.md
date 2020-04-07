@@ -28,7 +28,7 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 - <kbd>Alt</kbd><kbd>=</kbd> to create a new file from a template
 - <kbd>Alt</kbd><kbd>;</kbd> to manually compile a file
 - <kbd>Alt</kbd><kbd>\\</kbd> and <kbd>Alt</kbd><kbd>0</kbd> to run tests on currently open file instead of the solution
-- <kbd>Alt</kbd><kbd>+</kbd> and select "C++ Output Checker" to use custom code for checking output correctness
+- <kbd>Alt</kbd><kbd>+</kbd> and select "C++ Checker" to use custom code for checking output correctness
 - <kbd>Alt</kbd><kbd>+</kbd> and select something else to create more .cpp files from templates
 - <kbd>Ctrl</kbd><kbd>,</kbd> and select Extensions > ICIE to easily configure ICIE's behavior.
 - To alter settings only for the current task, use the "Workspace" tab in the settings view.

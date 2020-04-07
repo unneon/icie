@@ -2,7 +2,7 @@ mod clang;
 mod options;
 
 use crate::{
-	build::clang::compile, dir, executable::{Executable, Run}, telemetry::TELEMETRY, template, util::{self, fs, path::Path, suggest_init, workspace_root, Tempfile}
+	dir, executable::{Executable, Run}, telemetry::TELEMETRY, template, util::{self, fs, path::Path, suggest_open, workspace_root, Tempfile}
 };
 use evscode::{
 	error::Severity, quick_pick, state::Scope, stdlib::output_channel::OutputChannel, Position, QuickPick, State, E, R
@@ -81,16 +81,16 @@ static ADDITIONAL_CPP_FLAGS_PROFILE: evscode::Config<String> = "";
 #[evscode::config]
 static WINDOWS_MINGW_PATH: evscode::Config<String> = "";
 
-static COMPILER_INSTALL_CONFIRMED: State<bool> = State::new("icie.build.compiler_install_confirmed", Scope::Global);
+static COMPILER_INSTALL_CONFIRMED: State<bool> = State::new("icie.compile.compiler_install_confirmed", Scope::Global);
 
-#[evscode::command(title = "ICIE Manual Build", key = "alt+;")]
+#[evscode::command(title = "ICIE Compile manually", key = "alt+;")]
 async fn manual() -> R<()> {
-	let _status = crate::STATUS.push("Building manually");
-	TELEMETRY.build_manual.spark();
+	let _status = crate::STATUS.push("Compiling manually");
+	TELEMETRY.compile_manual.spark();
 	let sources = collect_possible_sources().await?;
 	let source = select_source(&sources).await?;
 	let codegen = select_codegen().await?;
-	build(&SourceTarget::Custom(source), codegen, true).await?;
+	compile(&SourceTarget::Custom(source), codegen, true).await?;
 	Ok(())
 }
 
@@ -118,20 +118,20 @@ async fn select_codegen() -> R<Codegen> {
 	Ok(codegen)
 }
 
-pub async fn build(source: &SourceTarget, codegen: Codegen, force_rebuild: bool) -> R<Executable> {
-	let _status = crate::STATUS.push(util::fmt_verb("Building", &source));
-	TELEMETRY.build_all.spark();
+pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<Executable> {
+	let _status = crate::STATUS.push(util::fmt_verb("Compiling", &source));
+	TELEMETRY.compile.spark();
 	let source = source.clone().into_path()?;
 	evscode::save_all().await?;
 	check_source_exists(&source).await?;
 	let output_path = source.with_extension(&*EXECUTABLE_EXTENSION.get());
-	if !force_rebuild && should_cache(&source, &output_path).await? {
+	if !force && should_cache(&source, &output_path).await? {
 		return Ok(Executable::new(output_path));
 	}
 	let sources = [&source];
 	let standard = CPP_STANDARD.get();
 	let custom_flags = get_custom_flags(codegen);
-	let status = compile(&sources, &output_path, standard, codegen, &custom_flags).await?;
+	let status = clang::compile(&sources, &output_path, standard, codegen, &custom_flags).await?;
 	display_compiler_stderr(&status.run.stderr);
 	check_compiler_errors(&status).await?;
 	COMPILER_INSTALL_CONFIRMED.set(&true).await;
@@ -158,7 +158,7 @@ async fn check_source_exists(source: &Path) -> R<()> {
 		let pretty_source = source.fmt_workspace();
 		let error = E::error(format!("source {} does not exist at {}", pretty_source, source));
 		let error = if source == &dir::solution()? {
-			suggest_init(error)
+			suggest_open(error)
 		} else {
 			error.action(format!("Create {} (Alt++)", pretty_source), crate::template::instantiate())
 		};
@@ -168,7 +168,7 @@ async fn check_source_exists(source: &Path) -> R<()> {
 
 fn display_compiler_stderr(stderr: &str) {
 	thread_local! {
-		static OUTPUT_CHANNEL: Lazy<OutputChannel> = Lazy::new(|| OutputChannel::new("ICIE Build"));
+		static OUTPUT_CHANNEL: Lazy<OutputChannel> = Lazy::new(|| OutputChannel::new("ICIE Compile"));
 	}
 	if !stderr.is_empty() {
 		OUTPUT_CHANNEL.with(|output| {
@@ -217,10 +217,10 @@ pub async fn suggest_install_compiler() -> R<()> {
 }
 
 async fn dummy_compiler_run() -> R<()> {
-	let code = template::generate_default_solution()?;
+	let code = template::default_solution()?;
 	let code_file = Tempfile::new("compilerinstallcheck", ".cpp", code).await?;
 	let source = SourceTarget::Custom(code_file.path().to_owned());
-	let executable = build(&source, Codegen::Debug, true).await?;
+	let executable = compile(&source, Codegen::Debug, true).await?;
 	fs::remove_file(&Path::from_native(executable.command)).await?;
 	Ok(())
 }

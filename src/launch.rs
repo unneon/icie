@@ -1,5 +1,5 @@
 use crate::{
-	dir, init, logger, manifest::Manifest, net::{interpret_url, require_task}, telemetry::TELEMETRY, util::{self, fs, workspace_root}
+	dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, telemetry::TELEMETRY, util::{self, fs, workspace_root}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -11,7 +11,7 @@ pub async fn activate() -> R<()> {
 	logger::initialize()?;
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;
-	init::contest::check_for_manifest().await?;
+	open::contest::check_for_manifest().await?;
 	Ok(())
 }
 

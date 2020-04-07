@@ -4,7 +4,7 @@ pub mod scan;
 pub mod view;
 
 use crate::{
-	build::{self, Codegen}, dir, telemetry::TELEMETRY, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget}
+	compile::{self, Codegen}, dir, telemetry::TELEMETRY, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::R;
 use std::time::Duration;
@@ -20,7 +20,7 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
 	TELEMETRY.test_run.spark();
-	let solution = build::build(&source, Codegen::Debug, false).await?;
+	let solution = compile::compile(&source, Codegen::Debug, false).await?;
 	let task = Task::simple().await?;
 	let inputs = scan_for_tests(&dir::TESTS_DIRECTORY.get()).await;
 	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &source)).show().0;

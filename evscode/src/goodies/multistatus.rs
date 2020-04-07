@@ -17,13 +17,13 @@
 //! # let STATUS = evscode::StackedStatus::new("EEE ");
 //! # fn compile() {}
 //! # fn parse_compilation_errors() {}
-//! let _status = STATUS.push("Building"); // "EEE Building"
+//! let _status = STATUS.push("Building"); // "EEE Compiling"
 //! compile();
 //! {
-//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Building, Parsing compilation errors"
+//!     let _status = STATUS.push("Parsing compilation errors"); // "EEE Compiling, Parsing compilation errors"
 //!     parse_compilation_errors();
 //! }
-//! // "EEE Building"
+//! // "EEE Compiling"
 //! // (disappears)
 //! ```
 //!

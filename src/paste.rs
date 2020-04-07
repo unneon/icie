@@ -46,7 +46,7 @@ async fn select_piece(library: &Library) -> R<String> {
 		.ok_or_else(E::cancel)?)
 }
 
-#[evscode::command(title = "ICIE Quick input struct", key = "alt+i")]
+#[evscode::command(title = "ICIE Quick Input struct", key = "alt+i")]
 async fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
 	TELEMETRY.paste_qistruct.spark();

@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, Codegen}, checker::get_checker, dir, discover::render::render, executable::{Environment, Executable}, test::{self, add_test, judge::simple_test, time_limit, Outcome, Task, Verdict}, util::SourceTarget
+	checker::get_checker, compile::{compile, Codegen}, dir, executable::{Environment, Executable}, stress::render::render, test::{self, add_test, judge::simple_test, time_limit, Outcome, Task, Verdict}, util::SourceTarget
 };
 use async_trait::async_trait;
 use evscode::{
@@ -9,17 +9,17 @@ use futures::{stream::select, Stream, StreamExt, TryStreamExt};
 use once_cell::sync::Lazy;
 use serde::{Serialize, Serializer};
 
-pub static WEBVIEW: Lazy<Collection<Discover>> = Lazy::new(|| Collection::new(Discover));
+pub static WEBVIEW: Lazy<Collection<Stress>> = Lazy::new(|| Collection::new(Stress));
 
-pub struct Discover;
+pub struct Stress;
 
 #[async_trait(?Send)]
-impl Behaviour for Discover {
+impl Behaviour for Stress {
 	type K = ();
 	type V = ();
 
 	fn create_empty(&self, _: Self::K) -> R<WebviewMeta> {
-		Ok(evscode::Webview::new("icie.discover", "ICIE Discover", 1)
+		Ok(evscode::Webview::new("icie.stress", "ICIE Stress", 1)
 			.enable_scripts()
 			.retain_context_when_hidden()
 			.create())
@@ -35,18 +35,19 @@ impl Behaviour for Discover {
 	}
 
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
-		let _status = crate::STATUS.push("Discovering");
-		let solution = build(&SourceTarget::Main, Codegen::Debug, false).await?;
-		let brut = build(&SourceTarget::Custom(dir::brut()?), Codegen::Release, false).await.map_err(|e| {
-			e.context("could not start stress testing").action("Only run normal tests (Alt+0)", crate::test::view())
-		})?;
-		let gen = build(&SourceTarget::Custom(dir::gen()?), Codegen::Release, false).await?;
+		let _status = crate::STATUS.push("Stress testing");
+		let solution = compile(&SourceTarget::Main, Codegen::Debug, false).await?;
+		let brute_force =
+			compile(&SourceTarget::Custom(dir::brute_force()?), Codegen::Release, false).await.map_err(|e| {
+				e.context("could not start stress testing").action("Only run normal tests (Alt+0)", crate::test::view())
+			})?;
+		let gen = compile(&SourceTarget::Custom(dir::test_generator()?), Codegen::Release, false).await?;
 		let task =
 			Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit(), cwd: None } };
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(
 			select(
-				execute_runs(&solution, &brut, &gen, &task).map_ok(Event::Row),
+				execute_runs(&solution, &brute_force, &gen, &task).map_ok(Event::Row),
 				listener.map(|_| Event::Add).map(Ok),
 			),
 			disposer,
@@ -100,30 +101,41 @@ pub struct Row {
 
 fn execute_runs<'a>(
 	solution: &'a Executable,
-	brut: &'a Executable,
-	gen: &'a Executable,
+	brute_force: &'a Executable,
+	test_generator: &'a Executable,
 	task: &'a Task,
 ) -> impl Stream<Item=R<Row>>+'a
 {
-	futures::stream::iter(1..).then(move |number| execute_run(number, solution, brut, gen, task))
+	futures::stream::iter(1..).then(move |number| execute_run(number, solution, brute_force, test_generator, task))
 }
 
-async fn execute_run(number: usize, solution: &Executable, brut: &Executable, gen: &Executable, task: &Task) -> R<Row> {
-	let run_gen =
-		gen.run("", &[], &task.environment).await.map_err(|e| e.context("executing test generator aborted"))?;
-	if !run_gen.success() {
-		return Err(E::error(format!("executing test generator failed, {:?}", run_gen)));
+async fn execute_run(
+	number: usize,
+	solution: &Executable,
+	brute_force: &Executable,
+	test_generator: &Executable,
+	task: &Task,
+) -> R<Row>
+{
+	let run_test_generator = test_generator
+		.run("", &[], &task.environment)
+		.await
+		.map_err(|e| e.context("executing test generator aborted"))?;
+	if !run_test_generator.success() {
+		return Err(E::error(format!("executing test generator failed, {:?}", run_test_generator)));
 	}
-	let input = run_gen.stdout;
-	let run_brut =
-		brut.run(&input, &[], &task.environment).await.map_err(|e| e.context("executing slow solution aborted"))?;
-	if !run_brut.success() {
-		return Err(E::error(format!("executing slow solution failed, {:?}", run_brut)));
+	let input = run_test_generator.stdout;
+	let run_brute_force = brute_force
+		.run(&input, &[], &task.environment)
+		.await
+		.map_err(|e| e.context("executing brute force solution aborted"))?;
+	if !run_brute_force.success() {
+		return Err(E::error(format!("executing brute force solution failed, {:?}", run_brute_force)));
 	}
-	let desired = run_brut.stdout;
+	let desired = run_brute_force.stdout;
 	let outcome = simple_test(&solution, &input, Some(&desired), None, &task)
 		.await
-		.map_err(|e| e.context("failed to run test in discover"))?;
+		.map_err(|e| e.context("failed to run test in stress"))?;
 	let fitness = -(input.len() as i64);
 	let row = Row { number, outcome, fitness, input, desired };
 	Ok(row)

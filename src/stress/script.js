@@ -1,8 +1,9 @@
 const vscode = acquireVsCodeApi();
 
 function action_save() {
+	// TODO: How does this work if Rust code does not contain this string?
 	vscode.postMessage({
-		tag: 'discovery_save',
+		tag: 'stress_save',
 	});
 }
 

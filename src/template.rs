@@ -19,9 +19,9 @@ static SOLUTION: evscode::Config<String> = "".to_owned();
 /// Replace the path placeholder with a path to your template file, or add more templates.
 #[evscode::config]
 pub static LIST: evscode::Config<HashMap<String, String>> = vec![
-	("C++ Slow Solution".to_owned(), PSEUDOPATH_SLOW_SOLUTION.to_owned()),
-	("C++ Input Generator".to_owned(), PSEUDOPATH_INPUT_GENERATOR.to_owned()),
-	("C++ Output Checker".to_owned(), PSEUDOPATH_OUTPUT_CHECKER.to_owned()),
+	("C++ Brute force".to_owned(), PSEUDOPATH_BRUTE_FORCE.to_owned()),
+	("C++ Test generator".to_owned(), PSEUDOPATH_TEST_GENERATOR.to_owned()),
+	("C++ Checker".to_owned(), PSEUDOPATH_CHECKER.to_owned()),
 ]
 .into_iter()
 .collect();
@@ -73,9 +73,9 @@ pub struct LoadedTemplate {
 	pub code: String,
 }
 
-const PSEUDOPATH_SLOW_SOLUTION: &str = "(replace this with a path to your slow solution template)";
-const PSEUDOPATH_INPUT_GENERATOR: &str = "(replace this with a path to your input generator template)";
-const PSEUDOPATH_OUTPUT_CHECKER: &str = "(replace this with a path to your output checker template)";
+const PSEUDOPATH_BRUTE_FORCE: &str = "(replace this with a path to your brute force solution template)";
+const PSEUDOPATH_TEST_GENERATOR: &str = "(replace this with a path to your test generator template)";
+const PSEUDOPATH_CHECKER: &str = "(replace this with a path to your checker template)";
 
 pub async fn load_solution() -> R<LoadedTemplate> {
 	TELEMETRY.template_solution.spark();
@@ -94,7 +94,7 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 		},
 		None => LoadedTemplate {
 			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
-			code: generate_default_solution()?,
+			code: default_solution()?,
 		},
 	};
 	Ok(template)
@@ -102,12 +102,12 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 
 pub async fn load_additional(path: &str) -> R<LoadedTemplate> {
 	let suggested_filename = additional_suggested_filename(path);
-	let template = if path == PSEUDOPATH_SLOW_SOLUTION {
-		LoadedTemplate { suggested_filename, code: generate_brut_solution()? }
-	} else if path == PSEUDOPATH_INPUT_GENERATOR {
-		LoadedTemplate { suggested_filename, code: generate_default_ingen()? }
-	} else if path == PSEUDOPATH_OUTPUT_CHECKER {
-		LoadedTemplate { suggested_filename, code: generate_default_checker()? }
+	let template = if path == PSEUDOPATH_BRUTE_FORCE {
+		LoadedTemplate { suggested_filename, code: default_brute_force()? }
+	} else if path == PSEUDOPATH_TEST_GENERATOR {
+		LoadedTemplate { suggested_filename, code: default_test_generator()? }
+	} else if path == PSEUDOPATH_CHECKER {
+		LoadedTemplate { suggested_filename, code: default_checker()? }
 	} else {
 		let path = util::expand_path(path);
 		let code = fs::read_to_string(&path).await?;
@@ -117,11 +117,11 @@ pub async fn load_additional(path: &str) -> R<LoadedTemplate> {
 }
 
 fn additional_suggested_filename(path: &str) -> String {
-	if path == PSEUDOPATH_SLOW_SOLUTION {
-		format!("{}.{}", dir::BRUT_STEM.get(), dir::CPP_EXTENSION.get())
-	} else if path == PSEUDOPATH_INPUT_GENERATOR {
-		format!("{}.{}", dir::GEN_STEM.get(), dir::CPP_EXTENSION.get())
-	} else if path == PSEUDOPATH_OUTPUT_CHECKER {
+	if path == PSEUDOPATH_BRUTE_FORCE {
+		format!("{}.{}", dir::BRUTE_FORCE_STEM.get(), dir::CPP_EXTENSION.get())
+	} else if path == PSEUDOPATH_TEST_GENERATOR {
+		format!("{}.{}", dir::TEST_GENERATOR_STEM.get(), dir::CPP_EXTENSION.get())
+	} else if path == PSEUDOPATH_CHECKER {
 		format!("{}.{}", dir::CHECKER_STEM.get(), dir::CPP_EXTENSION.get())
 	} else {
 		let path = util::expand_path(path);
@@ -142,7 +142,7 @@ async fn try_migrate_v074_template() -> R<Option<Path>> {
 	Ok(None)
 }
 
-pub fn generate_default_solution() -> R<String> {
+pub fn default_solution() -> R<String> {
 	generate(
 		r#"// 💖 Hi, thanks for using ICIE! 💖
 // 🔧 To use a custom code template, press Ctrl+Shift+P and select "ICIE Template configure" from the list 🔧
@@ -153,9 +153,9 @@ pub fn generate_default_solution() -> R<String> {
 	)
 }
 
-fn generate_brut_solution() -> R<String> {
+fn default_brute_force() -> R<String> {
 	generate(
-		r#"// 💻 Here in brut.cpp, write a simple, slow solution that will be used to generate test outputs from inputs. 💻
+		r#"// 💻 Here in brute-force.cpp, write a straighforward, brute-force solution that will be used to generate correct test outputs from inputs. 💻
 // 💡 Then, press Alt+F9 to have ICIE automatically test your solution on thousands of tests! 💡
 // 😕 Just write O(n^6), O(2^n) code; it doesn't need to be fast, but correct. 😕
 "#,
@@ -164,13 +164,13 @@ fn generate_brut_solution() -> R<String> {
 	)
 }
 
-fn generate_default_ingen() -> R<String> {
+fn default_test_generator() -> R<String> {
 	generate(
 		r#"minstd_rand rng(chrono::high_resolution_clock::now().time_since_epoch().count());
 template <typename T> T randint(T a, T b) { return uniform_int_distribution<T>(a, b)(rng); }
 template <typename T> T uniform(T a, T b) { return uniform_real_distribution<T>(a, b)(rng); }
 
-// 💻 Here in gen.cpp, write code that prints one random test input with cout/printf. 💻
+// 💻 Here in test-generator.cpp, write code that prints one random test input with cout/printf. 💻
 // 💡 Then, press Alt+F9 to have ICIE automatically test your solution on thousands of tests! 💡
 // 😕 How to randomize a dice roll: int dice = randint<int>(1, 6); 😕
 // 😕 How to randomize a probability: double probability = uniform<double>(0., 1.); 😕
@@ -180,7 +180,7 @@ template <typename T> T uniform(T a, T b) { return uniform_real_distribution<T>(
 	)
 }
 
-fn generate_default_checker() -> R<String> {
+fn default_checker() -> R<String> {
 	generate(
 		r#"// 💻 Here in checker.cpp, write code that checks whether your output is correct. 💻
 // 🤢 This helps when there are many correct outputs, like 3.000000005 and 3. 🤢
@@ -197,6 +197,7 @@ fn generate_default_checker() -> R<String> {
 
 // TODO: Check Windows headers in ingen.
 fn generate(prelude: &str, main_args: bool, main_prelude: &str) -> R<String> {
+	// TODO: Does bits/stdc++.h work on macOS? I heard it doesn't.
 	let includes = match OS::query()? {
 		OS::Linux => "#include <bits/stdc++.h>",
 		OS::Windows | OS::MacOS => "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <random>",

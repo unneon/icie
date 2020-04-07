@@ -1,7 +1,7 @@
 use crate::{
-	auth, build::suggest_install_compiler, init::{
+	auth, compile::suggest_install_compiler, net::{interpret_url, require_contest, Session}, open::{
 		files, names::{design_contest_name, design_task_name}
-	}, net::{interpret_url, require_contest, Session}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now, workspace_root}
+	}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now, workspace_root}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
@@ -28,7 +28,7 @@ const NOT_YET_STARTED_RETRY_DELAY: Duration = Duration::from_secs(1);
 /// kill the extension process, so do not do anything important after calling this function. Post-setup steps will
 /// either be done from this function or the extension activation function.
 pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: Option<&str>) -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
+	let _status = crate::STATUS.push("Opening");
 	let contest_title = fetch_contest_title(&sess, contest, contest_title).await?;
 	let projects = design_contest_name(&contest_title).await?;
 	fs::create_dir_all(&projects).await?;
@@ -38,7 +38,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let task0 = tasks.get(0).wrap("could not find any tasks in contest")?;
-	let task0_path = init_task(task0, tasks.len(), &projects, &sess).await?;
+	let task0_path = open_task(task0, tasks.len(), &projects, &sess).await?;
 	create_contest_manifest(&task0_path, &url_raw).await?;
 	evscode::open_folder(task0_path.as_str(), false).await;
 	Ok(())
@@ -62,7 +62,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		Ok(total) => total,
 		Err(_) => return Ok(()),
 	};
-	TELEMETRY.init_countdown.spark();
+	TELEMETRY.open_countdown.spark();
 	let _status = crate::STATUS.push("Waiting");
 	let (progress, on_cancel) =
 		evscode::Progress::new().title(format!("Waiting for {}", details.title)).cancellable().show();
@@ -80,7 +80,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		}
 	}
 	progress.end();
-	TELEMETRY.init_countdown_ok.spark();
+	TELEMETRY.open_countdown_ok.spark();
 	Ok(())
 }
 
@@ -115,12 +115,12 @@ fn spawn_suggest_install_compiler() {
 	evscode::spawn(suggest_install_compiler());
 }
 
-async fn init_task(task: &BoxedTask, task_count: usize, projects: &Path, sess: &Session) -> R<Path> {
+async fn open_task(task: &BoxedTask, task_count: usize, projects: &Path, sess: &Session) -> R<Path> {
 	let name = format!("1/{}", task_count);
 	let details = fetch_task(task, &name, &sess).await?;
 	let url = sess.run(|backend, sess| async move { backend.task_url(sess, task) }).await?;
 	let workspace = design_task_name(&projects, Some(&details)).await?;
-	files::init_task(&workspace, Some(url), Some(details)).await?;
+	files::open_task(&workspace, Some(url), Some(details)).await?;
 	Ok(workspace)
 }
 
@@ -142,15 +142,15 @@ pub async fn check_for_manifest() -> R<()> {
 	if let Ok(workspace) = workspace_root() {
 		let manifest = workspace.join(".icie-contest");
 		if fs::exists(&manifest).await? {
-			init_remaining_tasks(&manifest).await?;
+			open_remaining_tasks(&manifest).await?;
 		}
 	}
 	Ok(())
 }
 
 /// Do the setup for the rest of the contest tasks.
-async fn init_remaining_tasks(manifest: &Path) -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
+async fn open_remaining_tasks(manifest: &Path) -> R<()> {
+	let _status = crate::STATUS.push("Opening");
 	let manifest = pop_manifest(manifest).await?;
 	let (url, backend) = interpret_url(&manifest.contest_url)?;
 	let url = require_contest(url)?;
@@ -160,7 +160,7 @@ async fn init_remaining_tasks(manifest: &Path) -> R<()> {
 	let projects = workspace_root()?.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {
-			init_task(task, tasks.len(), &projects, &sess).await?;
+			open_task(task, tasks.len(), &projects, &sess).await?;
 		}
 	}
 	Ok(())

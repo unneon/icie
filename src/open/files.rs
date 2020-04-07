@@ -4,8 +4,8 @@ use crate::{
 use evscode::R;
 use unijudge::{Example, Statement, TaskDetails};
 
-pub async fn init_task(workspace: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
+pub async fn open_task(workspace: &Path, url: Option<String>, meta: Option<TaskDetails>) -> R<()> {
+	let _status = crate::STATUS.push("Opening");
 	fs::create_dir_all(workspace).await?;
 	let examples =
 		meta.as_ref().and_then(|meta| meta.examples.as_ref()).map(|examples| examples.as_slice()).unwrap_or(&[]);

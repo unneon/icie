@@ -249,17 +249,17 @@ impl OS {
 }
 
 pub fn workspace_root() -> R<Path> {
-	let buf = evscode::workspace_root().map_err(suggest_init)?;
+	let buf = evscode::workspace_root().map_err(suggest_open)?;
 	Ok(Path::from_native(buf))
 }
 
-pub fn suggest_init(e: E) -> E {
-	e.action("Open URL (Alt+F11)", crate::init::url())
-		.action("Scan for contests (Alt+F9)", crate::init::scan())
-		.action("How to use ICIE?", help_init())
+pub fn suggest_open(e: E) -> E {
+	e.action("Open URL (Alt+F11)", crate::open::url())
+		.action("Scan for contests (Alt+F9)", crate::open::scan())
+		.action("How to use ICIE?", help_open())
 }
 
-async fn help_init() -> R<()> {
+async fn help_open() -> R<()> {
 	evscode::open_external("https://github.com/pustaczek/icie/blob/master/README.md#quick-start").await
 }
 

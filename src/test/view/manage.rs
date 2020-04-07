@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
+	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
 	}, util::{fmt_verb, fs, path::Path, SourceTarget}
 };
@@ -75,22 +75,23 @@ impl Behaviour for TestView {
 				},
 				Note::ActionNotice => SKILL_ACTIONS.add_use().await,
 				Note::EvalReq { id, input } => {
-					if let Ok(brut) = dir::brut() {
-						if fs::exists(&brut).await? {
+					if let Ok(brute_force) = dir::brute_force() {
+						if fs::exists(&brute_force).await? {
 							let webview = webview.clone();
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let brut = build(&SourceTarget::Custom(brut), Codegen::Release, false).await?;
+								let brute_force =
+									compile(&SourceTarget::Custom(brute_force), Codegen::Release, false).await?;
 								let environment = Environment { time_limit: time_limit(), cwd: None };
-								let run = brut.run(&input, &[], &environment).await?;
+								let run = brute_force.run(&input, &[], &environment).await?;
 								drop(_status);
 								if run.success() {
 									add_test(&input, &run.stdout).await?;
 									webview.post_message(Food::EvalResp { id, input }).await;
 									Ok(())
 								} else {
-									Err(E::error("brut did not evaluate test successfully"))
+									Err(E::error("brute force solution did not evaluate test successfully"))
 								}
 							});
 						}

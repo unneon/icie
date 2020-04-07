@@ -1,5 +1,5 @@
 use crate::{
-	build::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, util, util::{fs, OS}
+	compile::{Codegen, Location, Message, Standard, Status, WINDOWS_MINGW_PATH}, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, util, util::{fs, OS}
 };
 use evscode::R;
 use once_cell::sync::Lazy;

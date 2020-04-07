@@ -1,5 +1,5 @@
 use crate::{
-	executable::Executable, telemetry::Counter, term, util::{is_installed, OS}
+	executable::Executable, telemetry::Counter, terminal, util::{is_installed, OS}
 };
 use evscode::{error::ResultExt, E, R};
 
@@ -82,15 +82,15 @@ impl Service {
 }
 
 async fn apt_install(package: &'static str) -> R<()> {
-	term::install(package, &["pkexec", "apt", "install", "-y", package])
+	terminal::install(package, &["pkexec", "apt", "install", "-y", package])
 }
 
 async fn brew_install(package: &'static str) -> R<()> {
-	term::install(package, &["brew", "install", package])
+	terminal::install(package, &["brew", "install", package])
 }
 
 async fn pacman_s(package: &'static str) -> R<()> {
-	term::install(package, &["pkexec", "pacman", "-S", package])
+	terminal::install(package, &["pkexec", "pacman", "-S", package])
 }
 
 async fn tutorial_show(url: &'static str) -> R<()> {

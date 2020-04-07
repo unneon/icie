@@ -1,4 +1,4 @@
-use crate::util::{fs, path::Path, suggest_init, workspace_root};
+use crate::util::{fs, path::Path, suggest_open, workspace_root};
 use evscode::{error::ResultExt, R};
 use serde::{Deserialize, Serialize};
 use unijudge::Statement;
@@ -22,16 +22,16 @@ impl Manifest {
 
 	pub async fn load() -> R<Manifest> {
 		let path = workspace_root()?.join(".icie");
-		let s = fs::read_to_string(&path).await.map_err(|e| suggest_init(e.context("this folder has no task open")))?;
+		let s = fs::read_to_string(&path).await.map_err(|e| suggest_open(e.context("this folder has no task open")))?;
 		let manifest = serde_json::from_str(&s).wrap(".icie is not a valid icie::manifest::Manifest")?;
 		Ok(manifest)
 	}
 
 	pub fn req_statement(&self) -> R<&Statement> {
-		Ok(self.statement.as_ref().wrap("this folder has no downloaded task description").map_err(suggest_init)?)
+		Ok(self.statement.as_ref().wrap("this folder has no downloaded task description").map_err(suggest_open)?)
 	}
 
 	pub fn req_task_url(&self) -> R<&str> {
-		Ok(self.task_url.as_ref().wrap("this folder has no task URL set").map_err(suggest_init)?.as_str())
+		Ok(self.task_url.as_ref().wrap("this folder has no task URL set").map_err(suggest_open)?.as_str())
 	}
 }

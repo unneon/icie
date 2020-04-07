@@ -1,5 +1,5 @@
 use crate::{
-	dir::PROJECT_DIRECTORY, init::scan::ContestMeta, net::{self, BackendMeta}, telemetry::TELEMETRY, util::fs
+	dir::PROJECT_DIRECTORY, net::{self, BackendMeta}, open::scan::ContestMeta, telemetry::TELEMETRY, util::fs
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -12,18 +12,18 @@ mod files;
 pub mod names;
 mod scan;
 
-enum InitCommand {
+enum Command {
 	Task(Option<(BoxedTaskURL, &'static BackendMeta)>),
 	Contest(BoxedContestURL, &'static BackendMeta),
 }
 
-#[evscode::command(title = "ICIE Init Scan", key = "alt+f9")]
+#[evscode::command(title = "ICIE Open Scan", key = "alt+f9")]
 pub async fn scan() -> R<()> {
-	TELEMETRY.init_scan.spark();
+	TELEMETRY.open_scan.spark();
 	let mut contests = scan::fetch_contests().await;
 	contests.sort_by_key(|contest| contest.details.start);
 	let contest = select_contest(&contests).await?;
-	TELEMETRY.init_scan_ok.spark();
+	TELEMETRY.open_scan_ok.spark();
 	contest::sprint(contest.sess.clone(), &contest.details.id, Some(&contest.details.title)).await?;
 	Ok(())
 }
@@ -51,23 +51,23 @@ fn fmt_contest_pick((index, contest): (usize, &ContestMeta)) -> quick_pick::Item
 	quick_pick::Item::new(index, label).description(start)
 }
 
-#[evscode::command(title = "ICIE Init URL", key = "alt+f11")]
+#[evscode::command(title = "ICIE Open URL", key = "alt+f11")]
 pub async fn url() -> R<()> {
-	let _status = crate::STATUS.push("Initializing");
-	TELEMETRY.init_url.spark();
+	let _status = crate::STATUS.push("Opening");
+	TELEMETRY.open_url.spark();
 	let raw_url = ask_url().await?;
-	match InitCommand::from_url(raw_url.as_ref())? {
-		InitCommand::Task(url) => {
-			TELEMETRY.init_url_task.spark();
+	match Command::from_url(raw_url.as_ref())? {
+		Command::Task(url) => {
+			TELEMETRY.open_url_task.spark();
 			let details = fetch_task_details(&url).await?;
 			let projects_dir = PROJECT_DIRECTORY.get();
 			let workspace = names::design_task_name(&projects_dir, details.as_ref()).await?;
 			fs::create_dir_all(&workspace).await?;
-			files::init_task(&workspace, raw_url, details).await?;
+			files::open_task(&workspace, raw_url, details).await?;
 			evscode::open_folder(workspace.as_str(), false).await;
 		},
-		InitCommand::Contest(url, backend) => {
-			TELEMETRY.init_url_contest.spark();
+		Command::Contest(url, backend) => {
+			TELEMETRY.open_url_contest.spark();
 			let sess = net::Session::connect(&url.domain, backend).await?;
 			let Resource::Contest(contest) = url.resource;
 			drop(_status);
@@ -88,22 +88,22 @@ async fn ask_url() -> R<Option<String>> {
 		.ok_or_else(E::cancel)?)
 }
 
-impl InitCommand {
-	fn from_url(url: Option<&String>) -> R<InitCommand> {
+impl Command {
+	fn from_url(url: Option<&String>) -> R<Command> {
 		Ok(match url {
 			Some(raw_url) => {
 				let (url, backend) = net::interpret_url(&raw_url)?;
 				let URL { domain, site, resource } = url;
 				match resource {
 					Resource::Task(task) => {
-						InitCommand::Task(Some((URL { domain, site, resource: Resource::Task(task) }, backend)))
+						Command::Task(Some((URL { domain, site, resource: Resource::Task(task) }, backend)))
 					},
 					Resource::Contest(contest) => {
-						InitCommand::Contest(URL { domain, site, resource: Resource::Contest(contest) }, backend)
+						Command::Contest(URL { domain, site, resource: Resource::Contest(contest) }, backend)
 					},
 				}
 			},
-			None => InitCommand::Task(None),
+			None => Command::Task(None),
 		})
 	}
 }

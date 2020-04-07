@@ -1,5 +1,5 @@
 use crate::{
-	build::{build, Codegen}, dir, executable::{Environment, Executable}, util::{fs, SourceTarget, Tempfile}
+	compile::{compile, Codegen}, dir, executable::{Environment, Executable}, util::{fs, SourceTarget, Tempfile}
 };
 use async_trait::async_trait;
 use evscode::R;
@@ -18,7 +18,7 @@ pub async fn get_checker() -> R<Box<dyn Checker+Send+Sync>> {
 		bx
 	} else {
 		let environment = Environment { time_limit: TIME_LIMIT.get().map(Duration::from_millis), cwd: None };
-		let executable = build(&SourceTarget::Custom(checker), Codegen::Release, false).await?;
+		let executable = compile(&SourceTarget::Custom(checker), Codegen::Release, false).await?;
 		Box::new(ExecChecker { executable, environment })
 	})
 }
