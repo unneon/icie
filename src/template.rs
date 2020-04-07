@@ -1,5 +1,5 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, path::Path, workspace_root, OS}
+	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, workspace_root, OS}
 };
 use evscode::{E, R};
 use log::debug;
@@ -79,20 +79,15 @@ const PSEUDOPATH_CHECKER: &str = "(replace this with a path to your checker temp
 
 pub async fn load_solution() -> R<LoadedTemplate> {
 	TELEMETRY.template_solution.spark();
-	let path = match SOLUTION.get() {
-		path if !path.is_empty() => {
-			debug!("found solution path via modern setting, unexpanded = {:?}", path);
-			Some(expand_path(&path))
-		},
-		_ => try_migrate_v074_template().await?,
-	};
-	debug!("found solution path {:?}", path);
-	let template = match path {
-		Some(path) => {
+	let template = match SOLUTION.get() {
+		raw_path if !raw_path.is_empty() => {
+			debug!("found solution path, unexpanded = {:?}", raw_path);
+			let path = expand_path(&raw_path);
+			debug!("found solution path, {:?}", path);
 			TELEMETRY.template_solution_custom.spark();
 			load_additional(&path).await.map_err(|e| e.action("Configure C++ template", configure()))?
 		},
-		None => LoadedTemplate {
+		_ => LoadedTemplate {
 			suggested_filename: format!("{}.{}", dir::SOLUTION_STEM.get(), dir::CPP_EXTENSION.get()),
 			code: default_solution()?,
 		},
@@ -127,19 +122,6 @@ fn additional_suggested_filename(path: &str) -> String {
 		let path = util::expand_path(path);
 		path.file_name()
 	}
-}
-
-async fn try_migrate_v074_template() -> R<Option<Path>> {
-	debug!("trying to apply v074 migration");
-	if SOLUTION.get().is_empty() {
-		if let Some(path) = LIST.get().get("C++") {
-			TELEMETRY.v074_migrate_template.spark();
-			debug!("found solution path through v074 setting, unexpanded = {:?}", path);
-			SOLUTION.update_global(&path).await;
-			return Ok(Some(expand_path(path)));
-		}
-	}
-	Ok(None)
 }
 
 pub fn default_solution() -> R<String> {

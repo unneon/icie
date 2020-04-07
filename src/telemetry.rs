@@ -74,7 +74,6 @@ pub struct Events {
 	pub test_eval: Counter,
 	pub test_input: Counter,
 	pub test_run: Counter,
-	pub v074_migrate_template: Counter,
 }
 
 pub const TELEMETRY: Events = Events {
@@ -131,5 +130,4 @@ pub const TELEMETRY: Events = Events {
 	test_eval: Counter::new("action.test_eval"),
 	test_input: Counter::new("action.test_input"),
 	test_run: Counter::new("action.test_run"),
-	v074_migrate_template: Counter::new("migrate.v074_template"),
 };
