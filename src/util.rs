@@ -10,6 +10,7 @@ use wasm_bindgen::{closure::Closure, JsValue};
 pub mod fs;
 pub mod letter_case;
 pub mod path;
+pub mod retries;
 pub mod tempfile;
 
 pub fn fmt_time_short(t: &Duration) -> String {

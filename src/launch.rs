@@ -25,24 +25,23 @@ pub async fn deactivate() -> R<()> {
 pub async fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
-		if let Ok(solution) = dir::solution() {
-			let _ = evscode::open_editor(&solution)
-				.cursor(util::find_cursor_place(&solution).await)
-				.view_column(1)
-				.open()
-				.await;
-		}
+		place_cursor_in_code().await?;
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
-		if let Ok(solution) = dir::solution() {
-			// refocus the cursor, because apparently preserve_focus is useless
-			let _ = evscode::open_editor(&solution)
-				.cursor(util::find_cursor_place(&solution).await)
-				.view_column(1)
-				.open()
-				.await;
-		}
+		// Refocus the cursor, because apparently preserve_focus is useless.
+		place_cursor_in_code().await?;
+	}
+	Ok(())
+}
+
+async fn place_cursor_in_code() -> R<()> {
+	if let Ok(solution) = dir::solution() {
+		let _ = evscode::open_editor(&solution)
+			.cursor(util::find_cursor_place(&solution).await)
+			.view_column(1)
+			.open()
+			.await;
 	}
 	Ok(())
 }
@@ -124,8 +123,8 @@ async fn web_contest() -> R<()> {
 	let manifest = Manifest::load().await?;
 	let (url, backend) = interpret_url(manifest.req_task_url()?)?;
 	let Resource::Task(task) = require_task(url)?.resource;
-	let url =
-		backend.backend.contest_url(&backend.backend.task_contest(&task).wrap("task is not attached to any contest")?);
+	let contest = backend.backend.task_contest(&task).wrap("task is not attached to any contest")?;
+	let url = backend.backend.contest_url(&contest);
 	evscode::open_external(&url).await?;
 	Ok(())
 }

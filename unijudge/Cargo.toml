@@ -10,7 +10,7 @@ cookie = "0.12"
 chrono = "0.4"
 debris = { git = "https://github.com/pustaczek/debris" }
 ego-tree = "0.6"
-hex = "0.4"
+hex = { version = "0.4", features = ["serde"] }
 html5ever = "0.24"
 http = "0.1"
 log = "0.4"

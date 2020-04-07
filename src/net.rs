@@ -1,10 +1,10 @@
-use crate::{auth, util::sleep};
+use crate::{auth, util::retries::Retries};
 use evscode::{
 	error::{ResultExt, Severity}, E, R
 };
 use std::{error::Error as StdError, fmt, future::Future, pin::Pin, time::Duration};
 use unijudge::{
-	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, Error, ErrorCode, Resource, URL
+	boxed::{BoxedSession, BoxedURL, DynamicBackend}, http::Client, Backend, ErrorCode, Resource, URL
 };
 
 const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
@@ -20,7 +20,7 @@ pub static BACKENDS: [BackendMeta; 5] = [
 ];
 
 pub struct Session {
-	pub backend: &'static dyn DynamicBackend,
+	pub backend: &'static BackendMeta,
 	pub session: BoxedSession,
 	site: String,
 }
@@ -56,13 +56,12 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 impl Session {
 	pub async fn connect(domain: &str, backend: &'static BackendMeta) -> R<Session> {
 		evscode::telemetry("connect", &[("backend", backend.telemetry_id)], &[]);
-		let backend = backend.backend;
 		let client = Client::new(USER_AGENT).map_err(from_unijudge_error)?;
-		let session = backend.connect(client, domain);
+		let session = backend.backend.connect(client, domain);
 		let site = format!("https://{}", domain);
 		if let Some(auth) = auth::get_if_cached(&site).await {
-			if let Ok(auth) = backend.auth_deserialize(&auth) {
-				match backend.auth_restore(&session, &auth).await {
+			if let Ok(auth) = backend.backend.auth_deserialize(&auth) {
+				match backend.backend.auth_restore(&session, &auth).await {
 					Ok(()) => Ok(()),
 					Err(e) => match e.code {
 						ErrorCode::MalformedData | ErrorCode::WrongCredentials | ErrorCode::AccessDenied => Ok(()),
@@ -79,9 +78,9 @@ impl Session {
 		mut f: impl FnMut(&'static dyn DynamicBackend, &'f BoxedSession) -> F+'f,
 	) -> R<Y>
 	{
-		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
+		let mut retries = Retries::new(NETWORK_ERROR_RETRY_LIMIT, NETWORK_ERROR_RETRY_DELAY);
 		loop {
-			match f(self.backend, &self.session).await {
+			match f(self.backend.backend, &self.session).await {
 				Ok(y) => break Ok(y),
 				Err(e) => match e.code {
 					ErrorCode::WrongCredentials | ErrorCode::AccessDenied => {
@@ -89,7 +88,7 @@ impl Session {
 						let (username, password) = auth::get_cached_or_ask(&self.site).await?;
 						self.login(&username, &password).await?
 					},
-					ErrorCode::NetworkFailure if retries_left > 0 => self.wait_for_retry(&mut retries_left, e).await,
+					ErrorCode::NetworkFailure if retries.wait().await => (),
 					_ => break Err(from_unijudge_error(e)),
 				},
 			}
@@ -98,12 +97,17 @@ impl Session {
 
 	pub async fn login(&self, username: &str, password: &str) -> R<()> {
 		let _status = crate::STATUS.push("Logging in");
-		let mut retries_left = NETWORK_ERROR_RETRY_LIMIT;
-		match self.backend.auth_login(&self.session, &username, &password).await {
+		let mut retries = Retries::new(NETWORK_ERROR_RETRY_LIMIT, NETWORK_ERROR_RETRY_DELAY);
+		match self.backend.backend.auth_login(&self.session, &username, &password).await {
 			Ok(()) => {
-				if let Some(cache) = self.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)? {
-					auth::save_cache(&self.site, &self.backend.auth_serialize(&cache).map_err(from_unijudge_error)?)
-						.await;
+				if let Some(cache) =
+					self.backend.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)?
+				{
+					auth::save_cache(
+						&self.site,
+						&self.backend.backend.auth_serialize(&cache).map_err(from_unijudge_error)?,
+					)
+					.await;
 				}
 			},
 			Err(e) => match e.code {
@@ -111,7 +115,7 @@ impl Session {
 					self.maybe_error_show(e);
 					self.force_login_boxed().await?;
 				},
-				ErrorCode::NetworkFailure if retries_left > 0 => self.wait_for_retry(&mut retries_left, e).await,
+				ErrorCode::NetworkFailure if retries.wait().await => (),
 				_ => return Err(from_unijudge_error(e)),
 			},
 		}
@@ -134,19 +138,6 @@ impl Session {
 				Ok(())
 			});
 		}
-	}
-
-	async fn wait_for_retry(&self, retries_left: &mut usize, e: Error) {
-		assert!(*retries_left > 0);
-		let _status = crate::STATUS.push("Waiting to retry");
-		if *retries_left == NETWORK_ERROR_RETRY_LIMIT {
-			from_unijudge_error(e)
-				.context(format!("retrying in {} seconds", NETWORK_ERROR_RETRY_DELAY.as_secs_f64()))
-				.severity(Severity::Warning)
-				.emit();
-		}
-		*retries_left -= 1;
-		sleep(NETWORK_ERROR_RETRY_DELAY).await;
 	}
 }
 

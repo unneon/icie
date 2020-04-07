@@ -1,4 +1,4 @@
-#![feature(never_type, type_alias_impl_trait)]
+#![feature(never_type)]
 
 pub extern crate chrono;
 pub extern crate debris;
@@ -21,8 +21,8 @@ pub use error::{Error, ErrorCode, Result};
 
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
+use std::{fmt, fmt::Debug};
 use url::Url;
 
 #[derive(Clone, Debug)]
@@ -37,7 +37,8 @@ pub enum Statement {
 		html: String,
 	},
 	PDF {
-		#[serde(serialize_with = "as_base64", deserialize_with = "from_base64")]
+		// Use base64 when (de)serializing to reduce file sizes.
+		#[serde(with = "hex::serde")]
 		pdf: Vec<u8>,
 	},
 }
@@ -107,12 +108,6 @@ pub struct URL<C, T> {
 	pub resource: Resource<C, T>,
 }
 
-impl URL<(), ()> {
-	pub fn dummy_domain(domain: &str) -> URL<(), ()> {
-		URL { domain: domain.to_owned(), site: format!("https://{}", domain), resource: Resource::Task(()) }
-	}
-}
-
 #[async_trait(?Send)]
 pub trait Backend: Debug+Send+Sync+'static {
 	type CachedAuth: Debug+Send+Sync+'static;
@@ -162,17 +157,54 @@ pub trait Backend: Debug+Send+Sync+'static {
 	fn supports_contests(&self) -> bool;
 }
 
-fn as_base64<T: AsRef<[u8]>, S: Serializer>(buffer: &T, serializer: S) -> std::result::Result<S::Ok, S::Error> {
-	serializer.serialize_str(&hex::encode(buffer.as_ref()))
-}
-fn from_base64<'d, D: Deserializer<'d>>(deserializer: D) -> std::result::Result<Vec<u8>, D::Error> {
-	<&str as Deserialize<'d>>::deserialize(deserializer)
-		.and_then(|buffer| hex::decode(buffer).map_err(|e| serde::de::Error::custom(e.to_string())))
-}
-
 pub fn deserialize_auth<'d, T: Deserialize<'d>>(data: &'d str) -> Result<T> {
 	Ok(serde_json::from_str(data).map_err(|_| ErrorCode::MalformedData)?)
 }
 pub fn serialize_auth<T: Serialize>(auth: &T) -> Result<String> {
 	Ok(serde_json::to_string(auth).map_err(|_| ErrorCode::MalformedData)?)
+}
+
+impl fmt::Display for RejectionCause {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", match self {
+			RejectionCause::WrongAnswer => "Wrong Answer",
+			RejectionCause::RuntimeError => "Runtime Error",
+			RejectionCause::TimeLimitExceeded => "Time Limit Exceeded",
+			RejectionCause::MemoryLimitExceeded => "Memory Limit Exceeded",
+			RejectionCause::RuleViolation => "Rule Violation",
+			RejectionCause::SystemError => "System Error",
+			RejectionCause::CompilationError => "Compilation Error",
+			RejectionCause::IdlenessLimitExceeded => "Idleness Limit Exceeded",
+		})
+	}
+}
+
+impl fmt::Display for Verdict {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			Verdict::Scored { score, max, cause, test } => {
+				let out_of = max.map(|max| format!(" out of {}", max)).unwrap_or_default();
+				write!(f, "Scored {}{}{}{}", score, out_of, fmt_verdict_cause(cause, test), fmt_verdict_test(test))
+			},
+			Verdict::Accepted => write!(f, "Accepted"),
+			Verdict::Rejected { cause, test } => {
+				write!(f, "Rejected{}{}", fmt_verdict_cause(cause, test), fmt_verdict_test(test))
+			},
+			Verdict::Pending { test } => write!(f, "Pending{}", fmt_verdict_test(test)),
+			Verdict::Skipped => write!(f, "Skipped"),
+			Verdict::Glitch => write!(f, "Glitched"),
+		}
+	}
+}
+
+fn fmt_verdict_cause(cause: &Option<RejectionCause>, test: &Option<String>) -> String {
+	match (cause, test) {
+		(Some(cause), _) => format!(" due to {}", cause),
+		(None, Some(_)) => " failing".to_owned(),
+		(None, None) => "".to_owned(),
+	}
+}
+
+fn fmt_verdict_test(test: &Option<String>) -> String {
+	test.as_ref().map(|test| format!(" on {}", test)).unwrap_or_default()
 }

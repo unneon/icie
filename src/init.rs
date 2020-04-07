@@ -41,7 +41,7 @@ async fn select_contest(contests: &[ContestMeta]) -> R<&ContestMeta> {
 }
 
 fn fmt_contest_pick((index, contest): (usize, &ContestMeta)) -> quick_pick::Item<usize> {
-	let site_prefix = contest.sess.backend.contest_site_prefix();
+	let site_prefix = contest.sess.backend.backend.contest_site_prefix();
 	let label = if contest.details.title.starts_with(site_prefix) {
 		contest.details.title.clone()
 	} else {

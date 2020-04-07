@@ -32,7 +32,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	let contest_title = fetch_contest_title(&sess, contest, contest_title).await?;
 	let projects = design_contest_name(&contest_title).await?;
 	fs::create_dir_all(&projects).await?;
-	let url_raw = sess.backend.contest_url(contest);
+	let url_raw = sess.backend.backend.contest_url(contest);
 	let url = require_contest(interpret_url(&url_raw)?.0)?;
 	wait_for_contest(&url_raw, &url.site, &sess).await?;
 	let Resource::Contest(contest) = url.resource;
