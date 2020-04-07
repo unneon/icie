@@ -35,7 +35,7 @@ evscode::plugin! {
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
 	keywords: &["competitive", "contest", "codeforces", "atcoder", "codechef"],
 	categories: &["Other"],
-	license: "GPL-3.0-only",
+	license: "MPL-2.0",
 	repository: "https://github.com/pustaczek/icie",
 	gallery: evscode::meta::Gallery {
 		color: "#6d0759",
