@@ -76,7 +76,7 @@ X wasm-pack build -d "${dir_wasmpack}" -t nodejs -m no-install ${wasmpack_profil
 
 # Copy the generated WebAssembly and glue files to the target directory.
 # This step may change if WASM some proposals progress further.
-cp "${dir_wasmpack}/icie_bg.js" "${dir_wasmpack}/icie_bg.wasm" "${dir_vscode}/"
+cp "${dir_wasmpack}/icie_bg.wasm" "${dir_vscode}/"
 
 # Copy and optimize the generated WebAssembly.
 X wasm-opt ${wasmopt_profile} -o "${dir_vscode}/icie_bg.wasm" "${dir_wasmpack}/icie_bg.wasm"
