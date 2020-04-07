@@ -1,3 +1,9 @@
+## 0.7.8
+
+- Added a suggestion to run normal tests with <kbd>Alt</kbd><kbd>0</kbd> if brut.cpp is not found in stress tests.
+- Added support for Codeforces /contests/1260 links.
+- Released under a more permissive license, Mozilla Public License 2.0.
+
 ## 0.7.7
 
 - Fixed some 'website could not be analyzed' errors when submitting on CodeChef. The problems were caused by trying to submit to contests that ended, but now ICIE will try to determine whether to submit to practice or to a contest.
