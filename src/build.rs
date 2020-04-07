@@ -160,7 +160,7 @@ async fn check_source_exists(source: &Path) -> R<()> {
 		let error = if source == &dir::solution()? {
 			suggest_init(error)
 		} else {
-			error.action("Create from template (Alt++)", crate::template::instantiate())
+			error.action(format!("Create {} (Alt++)", pretty_source), crate::template::instantiate())
 		};
 		Err(error)
 	}

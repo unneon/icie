@@ -37,7 +37,9 @@ impl Behaviour for Discover {
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Discovering");
 		let solution = build(&SourceTarget::Main, Codegen::Debug, false).await?;
-		let brut = build(&SourceTarget::Custom(dir::brut()?), Codegen::Release, false).await?;
+		let brut = build(&SourceTarget::Custom(dir::brut()?), Codegen::Release, false).await.map_err(|e| {
+			e.context("could not start stress testing").action("Only run normal tests (Alt+0)", crate::test::view())
+		})?;
 		let gen = build(&SourceTarget::Custom(dir::gen()?), Codegen::Release, false).await?;
 		let task =
 			Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit(), cwd: None } };

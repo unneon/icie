@@ -57,7 +57,7 @@ fn update_test_progress(run: &TestRun, count: usize, progress: &evscode::Progres
 }
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
-async fn view() -> R<()> {
+pub async fn view() -> R<()> {
 	TELEMETRY.test_alt0.spark();
 	view::manage::COLLECTION.get_force(SourceTarget::Main).await?;
 	Ok(())
