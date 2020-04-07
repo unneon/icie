@@ -14,7 +14,7 @@ function X {
 function handle_package_json {
 	# Prepare a version of the package that can be used outside of VS Code.
 	# This needs to because import vscode does not work anywhere else, but we do not use it at all.
-	cp "${dir_wasmpack}/icie_bg.js" "${dir_wasmpack}/icie_bg.wasm" "${dir_wasmpack}/package.json" "${dir_genpackagejson}/"
+	cp "${dir_wasmpack}/icie_bg.wasm" "${dir_wasmpack}/package.json" "${dir_genpackagejson}/"
 	cat "${dir_wasmpack}/icie.js" | sed 's/^.*require.*vscode.*$//gm' | sed 's/^.*require.*keytar.*$//g'  > "${dir_genpackagejson}/icie.js"
 
 	# Generate fresh package.json.
