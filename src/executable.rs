@@ -76,7 +76,9 @@ impl Executable {
 			kid.on_2("error", &Closure::once_into_js(|err: js_sys::Error| tx.send(err).unwrap()));
 			return Err(E::from(rx.await.unwrap()).context("running solution executable failed"));
 		}
-		kid.stdin().unwrap().end(&input_buffer, (), Closure::once_into_js(|| {}));
+		// Ignore the error returned from stdin. This can happen when the app exits before any input can be written,
+		// which I guess can happen with empty programs, especially in debug mode.
+		let _ = kid.stdin().unwrap().end(&input_buffer, (), Closure::once_into_js(|| {}));
 		let capture_stdout = capture_node_stream(kid.stdout().unwrap());
 		let capture_stderr = capture_node_stream(kid.stderr().unwrap());
 		let execution_finished = AtomicBool::new(false);

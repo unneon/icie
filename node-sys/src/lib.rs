@@ -287,11 +287,8 @@ pub mod stream {
 
 		pub type Writable;
 
-		#[wasm_bindgen(method)]
-		pub fn end(this: &Writable, chunk: &Buffer, encoding: (), callback: JsValue);
-
-		#[wasm_bindgen(method)]
-		pub fn write(this: &Writable, chunk: &Buffer, encoding: (), callback: JsValue);
+		#[wasm_bindgen(method, catch)]
+		pub fn end(this: &Writable, chunk: &Buffer, encoding: (), callback: JsValue) -> Result<(), JsValue>;
 
 	}
 }
