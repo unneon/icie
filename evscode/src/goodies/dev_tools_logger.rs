@@ -5,7 +5,16 @@ use log::{Log, Metadata, Record};
 
 /// Formats the message in the same way it will be displayed in Developer Tools.
 pub fn format_message(record: &Record) -> String {
-	format!("[{}.{}] {}", PACKAGE.get().unwrap().publisher, PACKAGE.get().unwrap().identifier, record.args())
+	format!(
+		"{}, [{:?} {} at {}:{} ({}.{})]",
+		record.args(),
+		record.level(),
+		record.target(),
+		record.file().unwrap_or_default(),
+		record.line().map_or(String::new(), |line| line.to_string()),
+		PACKAGE.get().unwrap().publisher,
+		PACKAGE.get().unwrap().identifier,
+	)
 }
 
 /// Logger that logs every passed event to Developer Tools console in VS Code.

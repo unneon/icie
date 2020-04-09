@@ -7,7 +7,7 @@ use std::{collections::VecDeque, ops::Deref, sync::Mutex};
 
 const LOG_LEVELS: &[(&str, LevelFilter)] = &[
 	("cookie_store", log::LevelFilter::Info),
-	("html5ever", log::LevelFilter::Info),
+	("html5ever", log::LevelFilter::Error),
 	("selectors", log::LevelFilter::Info),
 ];
 
