@@ -53,9 +53,9 @@ pub async fn has_any_saved(site: &str) -> bool {
 	Keyring::new("session", site).get().await.is_some() || Keyring::new("credentials", site).get().await.is_some()
 }
 
-#[evscode::command(title = "ICIE Password reset")]
-async fn reset() -> R<()> {
-	TELEMETRY.auth_reset.spark();
+#[evscode::command(title = "ICIE Password reset from URL")]
+async fn reset_from_url() -> R<()> {
+	TELEMETRY.auth_reset_from_url.spark();
 	let url = evscode::InputBox::new()
 		.prompt("Enter any contest/task URL from the site for which you want to reset the password")
 		.placeholder("https://codeforces.com/contest/.../problem/...")
@@ -66,6 +66,22 @@ async fn reset() -> R<()> {
 	let site = crate::net::interpret_url(&url)?.0.site;
 	Keyring::new("credentials", &site).delete().await;
 	Keyring::new("session", &site).delete().await;
+	Ok(())
+}
+
+#[evscode::command(title = "ICIE Password reset from list")]
+async fn reset_from_list() -> R<()> {
+	TELEMETRY.auth_reset_from_list.spark();
+	let credentials_list = Keyring::list().await;
+	let credentials = evscode::QuickPick::new()
+		.items(credentials_list.into_iter().map(|credentials| {
+			let label = credentials.account.clone();
+			evscode::quick_pick::Item::new(credentials.account, label)
+		}))
+		.show()
+		.await
+		.ok_or_else(E::cancel)?;
+	Keyring::delete_entry(&credentials).await;
 	Ok(())
 }
 
@@ -97,6 +113,17 @@ impl Keyring {
 
 	async fn delete(&self) {
 		let entry = format!("@{} {}", self.kind, self.site);
+		Keyring::delete_entry(&entry).await
+	}
+
+	async fn list() -> Vec<keytar_sys::Credentials> {
+		match JsFuture::from(keytar_sys::find_credentials("ICIE")).await {
+			Ok(val) => val.into_serde().unwrap(),
+			Err(_) => Vec::new(),
+		}
+	}
+
+	async fn delete_entry(entry: &str) {
 		let _ = JsFuture::from(keytar_sys::delete_password("ICIE", &entry)).await;
 	}
 }

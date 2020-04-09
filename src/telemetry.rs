@@ -22,7 +22,8 @@ pub struct Metrics<'a> {
 
 pub struct Events {
 	pub auth_ask: Counter,
-	pub auth_reset: Counter,
+	pub auth_reset_from_url: Counter,
+	pub auth_reset_from_list: Counter,
 	pub checker_exists: Counter,
 	pub clang_install: Counter,
 	pub clang_not_installed: Counter,
@@ -78,7 +79,8 @@ pub struct Events {
 
 pub const TELEMETRY: Events = Events {
 	auth_ask: Counter::new("action.auth_ask"),
-	auth_reset: Counter::new("action.auth_reset"),
+	auth_reset_from_url: Counter::new("action.auth_reset_from_url"),
+	auth_reset_from_list: Counter::new("action.auth_reset_from_list"),
 	checker_exists: Counter::new("action.checker_exists"),
 	clang_install: Counter::new("service.clang.install"),
 	clang_not_installed: Counter::new("service.clang.not_installed"),

@@ -50,7 +50,7 @@ evscode::plugin! {
 	],
 	vscode_version: "^1.33.0",
 	node_dependencies: &[
-		("keytar", "5.0.0-beta.3"),
+		("keytar", "5.4.0"),
 		("node-fetch", "2.6.0"),
 		("vscode-extension-telemetry", "0.1.2")
 	],
