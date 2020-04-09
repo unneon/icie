@@ -1,3 +1,9 @@
+## 0.7.9
+
+- Added links to quickpaste documentation on more kinds of quickpaste errors.
+- Changed "Build" to "Compile", "Discover" to "Stress" and "Init" to "Open". This has the unfortunate effect of breaking all configuration relating to these operations, although the old values are still present in the VS Code extension .json config file.
+- Removed detecting C++ template path from the pre-0.7.4 configuration entry. It's now replaced with an easier to edit entry, and can be set without going in the preferences. To do so, press <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd> and select "ICIE Template Configure".
+
 ## 0.7.8
 
 - Added a suggestion to run normal tests with <kbd>Alt</kbd><kbd>0</kbd> if brut.cpp is not found in stress tests.
