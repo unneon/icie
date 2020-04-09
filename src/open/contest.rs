@@ -38,7 +38,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let task0 = tasks.get(0).wrap("could not find any tasks in contest")?;
-	let task0_path = open_task(task0, tasks.len(), &projects, &sess).await?;
+	let task0_path = open_task(task0, 0, tasks.len(), &projects, &sess).await?;
 	create_contest_manifest(&task0_path, &url_raw).await?;
 	evscode::open_folder(task0_path.as_str(), false).await;
 	Ok(())
@@ -115,8 +115,8 @@ fn spawn_suggest_install_compiler() {
 	evscode::spawn(suggest_install_compiler());
 }
 
-async fn open_task(task: &BoxedTask, task_count: usize, projects: &Path, sess: &Session) -> R<Path> {
-	let name = format!("1/{}", task_count);
+async fn open_task(task: &BoxedTask, index: usize, count: usize, projects: &Path, sess: &Session) -> R<Path> {
+	let name = format!("{}/{}", index + 1, count);
 	let details = fetch_task(task, &name, &sess).await?;
 	let url = sess.run(|backend, sess| async move { backend.task_url(sess, task) }).await?;
 	let workspace = design_task_name(&projects, Some(&details)).await?;
@@ -160,7 +160,7 @@ async fn open_remaining_tasks(manifest: &Path) -> R<()> {
 	let projects = workspace_root()?.parent();
 	for (i, task) in tasks.iter().enumerate() {
 		if i > 0 {
-			open_task(task, tasks.len(), &projects, &sess).await?;
+			open_task(task, i, tasks.len(), &projects, &sess).await?;
 		}
 	}
 	Ok(())
