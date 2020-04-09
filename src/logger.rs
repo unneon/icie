@@ -32,6 +32,7 @@ pub fn initialize() -> R<()> {
 pub async fn on_error(error: E) {
 	error.backtrace.0.set_name("ICIEError");
 	error.backtrace.0.set_message(&error.human_detailed());
+	error.emit_log();
 	if error.should_auto_report() {
 		let log_history = LOGGER.log_history.lock().unwrap();
 		let log_history = log_history.iter().map(String::as_str).collect::<Vec<_>>();
@@ -42,7 +43,7 @@ pub async fn on_error(error: E) {
 			&[],
 		);
 	}
-	error.emit();
+	error.emit_user();
 }
 
 struct Logger {

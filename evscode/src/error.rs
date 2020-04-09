@@ -194,18 +194,26 @@ impl E {
 		}
 	}
 
-	/// Show the error to the end user.
-	/// Prefer to return this value from event handlers instead.
-	/// This is meant to be used e.g. for warnings.
+	/// Prints the error to logs and displays a message to the user, if necessary. Prefer returning error results from
+	/// event handlers rather than calling this function directly.
 	pub fn emit(self) {
-		let should_show = match self.severity {
+		self.emit_log();
+		self.emit_user();
+	}
+
+	fn should_show(&self) -> bool {
+		match self.severity {
 			Severity::Bug => true,
 			Severity::Error => true,
 			Severity::Warning => true,
 			Severity::Workflow => true,
 			Severity::Cancel => false,
-		};
-		if should_show {
+		}
+	}
+
+	/// Prints the error to logging systems.
+	pub fn emit_log(&self) {
+		if self.should_show() {
 			let mut log_msg = String::new();
 			for reason in &self.reasons {
 				log_msg += &format!("{}\n", reason);
@@ -215,6 +223,12 @@ impl E {
 			for extended in &self.extended {
 				log::error!("{}{}", EXTENDED_PREFIX, extended);
 			}
+		}
+	}
+
+	/// Displays the error message to the user.
+	pub fn emit_user(self) {
+		if self.should_show() {
 			let should_suggest_report = match self.severity {
 				Severity::Bug => true,
 				Severity::Error => true,
