@@ -13,11 +13,11 @@ ICIE is intended to be a VS Code plugin which turns it into an IDE focused on co
 
 ### More features
 
-- Hover over the test input/output and press <kbd>Ctrl</kbd><kbd>C</kbd> to copy it
-- Click ✎ action to edit a test input or output
-- Click ✓ action on a failing test to mark the output as correct
-- Click ◀ action to launch the test in the gdb debugger
-- Click ⏪ action to launch the test in the [rr](https://rr-project.org/) debugger
+- Hover over the test input or output and press <kbd>Ctrl</kbd><kbd>C</kbd> to copy it
+- Click "Edit" icon on test input or output to edit it
+- Click "Accept" icon on a failing test output to mark it as correct
+- Click "Reverse" icon on a failing test output to launch it in [GDB debugger](https://medium.com/@amit.kulkarni/gdb-basics-bf3407593285)
+- Click "Reverse 2x" icon on a failing test output to launch it in [RR debugger](https://rr-project.org/)
 - <kbd>Alt</kbd><kbd>-</kbd> to add a new test
 - <kbd>Alt</kbd><kbd>t</kbd> to launch a terminal
 - <kbd>Alt</kbd><kbd>0</kbd> to run tests without submitting
