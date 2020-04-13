@@ -70,7 +70,7 @@ async fn connect_to_workspace_task() -> R<(Session, BoxedTask)> {
 async fn fetch_cpp_language(task: &BoxedTask, sess: &Session) -> R<Language> {
 	let languages = fetch_languages(task, sess).await?;
 	debug!("found {} supported languages", languages.len());
-	let language = languages.iter().find(|lang| lang.name == sess.backend.cpp).ok_or_else(|| {
+	let language = languages.iter().find(|lang| sess.backend.cpp.contains(&&*lang.name)).ok_or_else(|| {
 		E::error(format!("not found language {:?}", sess.backend.cpp))
 			.context("this task does not seem to allow C++ solutions")
 			.extended(format!("{:#?}", languages))
