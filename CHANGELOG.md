@@ -1,3 +1,9 @@
+## 0.7.10
+
+- Added resetting credentials by selecting from a list, in addition to entering an URL.
+- Fixed only detecting "C++14 (GCC 5.4.1)" and not "C++ (GCC 9.2.1)" at AtCoder.
+- Fixed rare panics when executable exited too fast and closed stdin before we could write to it.
+
 ## 0.7.9
 
 - Added links to quickpaste documentation on more kinds of quickpaste errors.
