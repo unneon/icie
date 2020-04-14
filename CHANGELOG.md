@@ -1,3 +1,7 @@
+## 0.7.11
+
+- Fixed parsing some CodeChef problems failing with "missing field practice_submission_allowed".
+
 ## 0.7.10
 
 - Added resetting credentials by selecting from a list, in addition to entering an URL.
