@@ -62,5 +62,4 @@ members = [
 	"unijudge-spoj",
 	"vscode-extension-telemetry-sys",
 	"vscode-sys",
-	"wasm-backtrace",
 ]

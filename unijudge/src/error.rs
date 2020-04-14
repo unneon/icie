@@ -41,7 +41,7 @@ pub enum ErrorCode {
 #[derive(Debug)]
 pub struct Error {
 	pub code: ErrorCode,
-	pub cause: Option<Box<dyn StdError+Send+Sync+'static>>,
+	pub cause: Option<Box<dyn StdError+'static>>,
 	pub backtrace: Backtrace,
 }
 
@@ -78,7 +78,8 @@ impl From<ErrorCode> for Error {
 
 impl From<debris::Error> for Error {
 	fn from(e: debris::Error) -> Self {
-		Error { code: ErrorCode::AlienInvasion, cause: Some(Box::new(e)), backtrace: Backtrace::new() }
+		let backtrace = e.backtrace.clone();
+		Error { code: ErrorCode::AlienInvasion, cause: Some(Box::new(e)), backtrace }
 	}
 }
 
