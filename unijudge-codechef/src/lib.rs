@@ -493,7 +493,7 @@ impl CodeChef {
 				} else if details.time.current <= details.time.end_date {
 					debug!("submit target confirmed to canonical url");
 					Contest::Normal(contest.clone())
-				} else if details.time.practice_submission_allowed {
+				} else if details.time.practice_submission_allowed.unwrap_or(true) {
 					debug!("submit target confirmed to practice url");
 					Contest::Practice
 				} else {
@@ -539,7 +539,7 @@ mod api {
 	pub struct TaskTime {
 		pub end_date: u64,
 		pub current: u64,
-		pub practice_submission_allowed: bool,
+		pub practice_submission_allowed: Option<bool>,
 	}
 
 	#[derive(Debug, Deserialize)]
