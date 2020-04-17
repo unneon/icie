@@ -1,3 +1,7 @@
+## 0.7.12
+
+- Fixed parsing example tests on Codeforces, where "Input" and "Output" headers were downloaded as test data instead of the actual test data. 
+
 ## 0.7.11
 
 - Fixed parsing some CodeChef problems failing with "missing field practice_submission_allowed".
