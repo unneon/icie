@@ -77,9 +77,11 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
+		debug!("starting login");
 		session.client.cookies_clear()?;
 		let resp1 = session.client.get("https://www.codechef.com".parse()?).send().await?;
 		let doc = Document::new(&resp1.text().await?);
+		debug!("received the login form");
 		let form = doc.find("#new-login-form")?;
 		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
 		let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
@@ -96,6 +98,7 @@ impl unijudge::Backend for CodeChef {
 			])
 			.send()
 			.await?;
+		debug!("sent the login form");
 		let resp2_url = resp2.url().clone();
 		let other_sessions = {
 			let doc = Document::new(&resp2.text().await?);
@@ -105,8 +108,10 @@ impl unijudge::Backend for CodeChef {
 					// When this happens, disconnect all the other sessions so that ICIE's one can
 					// proceed. This can be irritating, but there is no other sensible way of doing
 					// this.
+					debug!("other active codechef sessions found");
 					Some(self.select_other_sessions(&doc)?)
 				} else {
+					debug!("no other codechef sessions found");
 					None
 				}
 			} else if doc.html().contains("Sorry, unrecognized username or password.") {
@@ -119,10 +124,12 @@ impl unijudge::Backend for CodeChef {
 		if let Some(other_sessions) = other_sessions {
 			self.disconnect_other_sessions(session, other_sessions).await?;
 		}
+		debug!("seemingly logged in");
 		Ok(())
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
+		debug!("restoring an old session");
 		*session.username.lock()? = Some(auth.username.clone());
 		session.client.cookie_set(auth.c_sess.clone(), "https://www.codechef.com")?;
 		Ok(())
@@ -137,6 +144,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		debug!("querying task details of {:?}", task);
 		let resp = self.api_task(task, session).await?;
 		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
 		Ok(TaskDetails {
@@ -151,6 +159,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
+		debug!("querying languages of {:?}", task);
 		let url = self.active_submit_url(task, session).await?;
 		let resp = session.client.get(url).send().await?;
 		let doc = Document::new(&resp.text().await?);
@@ -469,6 +478,7 @@ impl CodeChef {
 	async fn active_submit_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
 		let url = format!("https://www.codechef.com/{}submit/{}", task.contest.prefix(), task.task);
+		debug!("activated submit url is {}", url);
 		Ok(url.parse()?)
 	}
 

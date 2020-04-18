@@ -1,4 +1,5 @@
 use crate::{error::ErrorCode, Result};
+use log::debug;
 use reqwest::{
 	header::{HeaderName, HeaderValue}, RequestBuilder
 };
@@ -52,10 +53,12 @@ impl Client {
 	}
 
 	pub fn get(&self, url: Url) -> RequestBuilder {
+		debug!("building GET request for {}", url);
 		self.inner.get(url)
 	}
 
 	pub fn post(&self, url: Url) -> RequestBuilder {
+		debug!("building POST request for {}", url);
 		self.inner.post(url)
 	}
 }
