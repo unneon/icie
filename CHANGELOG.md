@@ -1,3 +1,9 @@
+## 0.7.14
+
+- Fixed handling IE (Internal Error) verdict at AtCoder.
+- Fixed panics when trying to launch quickpasting.
+- Fixed handling of weird characters in contest/task titles, which could result in EINVAL error, especially on Windows. Now, all non-alphanumeric (Unicode aware) characters are stripped from titles.
+
 ## 0.7.13
 
 - Added manual error reports for 'website could not be analyzed' errors. If you are getting one, please press the report button and [make a bug report](https://github.com/pustaczek/icie/blob/master/docs/WEBSITE_COULD_NOT_BE_ANALYZED.md). It's really hard to debug these without any information!
