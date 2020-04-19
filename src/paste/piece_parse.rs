@@ -50,7 +50,7 @@ impl Headers<'_> {
 	}
 }
 
-static HEADER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("///\\s*(\\w+):\\s*(.*)").unwrap());
+static HEADER_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new("/// *([a-zA-Z]+): *(.*)").unwrap());
 
 #[test]
 fn test_simple() {
