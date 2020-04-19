@@ -221,6 +221,7 @@ impl unijudge::Backend for AtCoder {
 							"RE" => Some(RejectionCause::RuntimeError),
 							"TLE" => Some(RejectionCause::TimeLimitExceeded),
 							"CE" => Some(RejectionCause::CompilationError),
+							"IE" => Some(RejectionCause::SystemError),
 							_ => {
 								return Err(status.error(format!(
 									"unrecognized AtCoder verdict {:?} [{:?} {:?}]",
