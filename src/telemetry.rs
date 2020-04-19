@@ -21,7 +21,9 @@ pub struct Metrics<'a> {
 }
 
 pub struct Events {
-	pub auth_ask: Counter,
+	pub auth_ask_username: Counter,
+	pub auth_ask_password: Counter,
+	pub auth_ask_ok: Counter,
 	pub auth_reset_from_url: Counter,
 	pub auth_reset_from_list: Counter,
 	pub checker_exists: Counter,
@@ -83,7 +85,9 @@ pub struct Events {
 }
 
 pub const TELEMETRY: Events = Events {
-	auth_ask: Counter::new("action.auth_ask"),
+	auth_ask_username: Counter::new("action.auth_ask_username"),
+	auth_ask_password: Counter::new("action.auth_ask_password"),
+	auth_ask_ok: Counter::new("action.auth_ask_ok"),
 	auth_reset_from_url: Counter::new("action.auth_reset_from_url"),
 	auth_reset_from_list: Counter::new("action.auth_reset_from_list"),
 	checker_exists: Counter::new("action.checker_exists"),

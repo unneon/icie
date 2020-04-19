@@ -11,12 +11,14 @@ struct Credentials {
 }
 
 pub async fn get_force_ask(site: &str) -> R<(String, String)> {
-	TELEMETRY.auth_ask.spark();
+	TELEMETRY.auth_ask_username.spark();
 	let message = format!("Username at {}", site);
 	let username = evscode::InputBox::new().prompt(&message).ignore_focus_out().show().await.ok_or_else(E::cancel)?;
+	TELEMETRY.auth_ask_password.spark();
 	let message = format!("Password for {} at {}", username, site);
 	let password =
 		evscode::InputBox::new().prompt(&message).password().ignore_focus_out().show().await.ok_or_else(E::cancel)?;
+	TELEMETRY.auth_ask_ok.spark();
 	let kr = Keyring::new("credentials", site);
 	if !kr
 		.set(&serde_json::to_string(&Credentials { username: username.clone(), password: password.clone() }).unwrap())
