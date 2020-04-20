@@ -320,13 +320,9 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
-		let url: Url = self.contest_url(contest).parse()?;
+		let url: Url = format!("{}/countdown", self.contest_url(contest)).parse()?;
 		let doc = Document::new(&session.client.get(url).send().await?.text().await?);
-		Ok(doc
-			.find_nth("#sidebar > div.roundbox.sidebox", 0)?
-			.find("table.rtable > tbody > tr > th > a")?
-			.text()
-			.string())
+		Ok(doc.find("#pageContent .caption")?.text().string())
 	}
 
 	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
