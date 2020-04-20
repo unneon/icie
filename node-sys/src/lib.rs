@@ -149,6 +149,9 @@ pub mod fs {
 		#[wasm_bindgen(js_name = readFile)]
 		pub fn read_file(path: &str, options: ReadFileOptions, callback: JsValue);
 
+		#[wasm_bindgen(js_name = readlink)]
+		pub fn read_link(path: &str, callback: JsValue);
+
 		pub fn stat(path: &str, options: StatOptions, callback: JsValue);
 
 		pub fn unlink(path: &str, callback: JsValue);

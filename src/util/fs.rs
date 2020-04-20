@@ -109,7 +109,7 @@ fn make_callback1() -> (JsValue, impl Future<Output=Result<(), js_sys::Error>>) 
 	(closure, completion)
 }
 
-fn make_callback2() -> (JsValue, impl Future<Output=Result<JsValue, js_sys::Error>>) {
+pub fn make_callback2() -> (JsValue, impl Future<Output=Result<JsValue, js_sys::Error>>) {
 	let (tx, rx) = oneshot::channel();
 	let closure = Closure::once_into_js(move |err: JsValue, value: JsValue| {
 		let _ = tx.send(match err.dyn_into::<js_sys::Error>() {

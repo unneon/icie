@@ -82,15 +82,19 @@ fn test_bash_escape() {
 	assert_eq!(bash_escape("${HOME}\\Projects"), r#""\${HOME}\\Projects""#);
 }
 
-pub async fn is_installed(app: &'static str) -> R<bool> {
+pub async fn is_installed(app: &str) -> R<bool> {
+	Ok(find_app(app).await?.is_some())
+}
+
+pub async fn find_app(app: &str) -> R<Option<Path>> {
 	let exec_lookups = env("PATH")?;
 	for exec_lookup in exec_lookups.split(&String::from(node_sys::path::DELIMITER.clone())) {
 		let path = Path::from_native(exec_lookup.to_owned()).join(app);
 		if fs::exists(&path).await? {
-			return Ok(true);
+			return Ok(Some(path));
 		}
 	}
-	Ok(false)
+	Ok(None)
 }
 
 pub fn env(key: &'static str) -> R<String> {

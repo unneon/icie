@@ -2,6 +2,7 @@ use crate::{
 	executable::{Environment, Executable}, telemetry::TELEMETRY, util, util::{path::Path, workspace_root}
 };
 use evscode::{E, R};
+use log::debug;
 
 #[evscode::command(title = "ICIE Terminal", key = "alt+t")]
 async fn spawn() -> R<()> {
@@ -41,34 +42,26 @@ impl Internal {
 #[evscode::config]
 static EXTERNAL_COMMAND: evscode::Config<String> = "x-terminal-emulator";
 
-/// Whether the external terminal should set a custom title.
-#[evscode::config]
-static EXTERNAL_CUSTOM_TITLE: evscode::Config<bool> = true;
-
 impl External {
 	fn command<I: IntoIterator<Item=A>, A: AsRef<str>>(title: Option<&str>, command: Option<I>) -> R<()> {
 		let title = title.map(str::to_owned);
 		let command = command.map(|command| command.into_iter().map(|a| a.as_ref().to_owned()).collect::<Vec<_>>());
 		evscode::spawn(async move {
-			let program = Executable::new_name(EXTERNAL_COMMAND.get());
+			let emulator = Emulator::detect().await?;
 			let mut args = Vec::new();
-			if EXTERNAL_CUSTOM_TITLE.get() {
-				if let Some(title) = &title {
-					args.push("--title");
-					args.push(title.as_ref());
-				}
+			if let Some(title) = &title {
+				emulator.args_title(&title, &mut args);
 			}
-			let command = command.map(bash_escape_command);
 			if let Some(command) = &command {
-				args.push("-e");
-				args.push(&command);
+				emulator.args_command(command, &mut args);
 			}
-			let run = program.run("", &args, &Environment { time_limit: None, cwd: None }).await?;
+			let args: Vec<_> = args.iter().map(String::as_str).collect();
+			let run = emulator.executable.run("", &args, &Environment { time_limit: None, cwd: None }).await?;
 			if run.success() {
 				Ok(())
 			} else {
 				Err(E::error(format!("{:?} {:?} {:?}", run.exit_code, run.stdout, run.stderr))
-					.context(format!("failed to run external terminal {:?}", program.command)))
+					.context(format!("failed to run {:?} terminal emulator", emulator.executable.command)))
 			}
 		});
 		Ok(())
@@ -78,4 +71,46 @@ impl External {
 pub fn bash_escape_command<A: AsRef<str>>(command: impl IntoIterator<Item=A>) -> String {
 	let escaped = command.into_iter().map(|p| util::bash_escape(p.as_ref())).collect::<Vec<_>>();
 	escaped.join(" ")
+}
+
+struct Emulator {
+	executable: Executable,
+	kind: EmulatorKind,
+}
+
+#[derive(Debug)]
+enum EmulatorKind {
+	Alacritty,
+	Generic,
+}
+
+impl Emulator {
+	async fn detect() -> R<Emulator> {
+		let command = EXTERNAL_COMMAND.get();
+		let app = util::find_app(&command).await?.unwrap();
+		let app_path = app.read_link_8x().await?;
+		let executable = Executable::new_name(command.clone());
+		let kind = if app_path.ends_with("alacritty") { EmulatorKind::Alacritty } else { EmulatorKind::Generic };
+		debug!("terminal found: {}, {}, {}, {:?}", command, app, app_path, kind);
+		Ok(Emulator { executable, kind })
+	}
+
+	fn args_title(&self, title: &str, args: &mut Vec<String>) {
+		args.push("--title".to_owned());
+		args.push(title.to_owned());
+	}
+
+	fn args_command<I>(&self, command: I, args: &mut Vec<String>)
+	where I: IntoIterator<Item: AsRef<str>> {
+		match self.kind {
+			EmulatorKind::Generic => {
+				args.push("-e".to_owned());
+				args.push(bash_escape_command(command));
+			},
+			EmulatorKind::Alacritty => {
+				args.push("-e".to_owned());
+				args.extend(command.into_iter().map(|c| c.as_ref().to_owned()));
+			},
+		}
+	}
 }

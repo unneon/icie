@@ -1,4 +1,4 @@
-#![feature(const_fn, exhaustive_patterns, never_type, specialization, try_blocks)]
+#![feature(associated_type_bounds, const_fn, exhaustive_patterns, never_type, specialization, try_blocks)]
 // This lint works badly in generic contexts, causing warnings inside #[async_trait] macros.
 #![allow(clippy::unit_arg)]
 

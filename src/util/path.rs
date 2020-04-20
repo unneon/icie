@@ -1,6 +1,6 @@
-use crate::util::{expand_path, workspace_root};
+use crate::util::{expand_path, fs, workspace_root};
 use evscode::{
-	marshal::{type_error2, Marshal}, Configurable
+	marshal::{type_error2, Marshal}, Configurable, R
 };
 use serde::{Deserializer, Serializer};
 use std::{fmt, ops};
@@ -62,6 +62,23 @@ impl Path {
 
 	pub fn without_extension(&self) -> Path {
 		self.parent().join(self.file_stem())
+	}
+
+	pub async fn read_link_once(&self) -> R<Path> {
+		let (tx, rx) = fs::make_callback2();
+		node_sys::fs::read_link(&self.buf, tx);
+		Ok(Path::from_native(rx.await?.as_string().unwrap()))
+	}
+
+	pub async fn read_link_8x(&self) -> R<Path> {
+		let mut old = self.clone();
+		for _ in 0..8 {
+			match old.read_link_once().await {
+				Ok(new) => old = new,
+				Err(_) => break,
+			}
+		}
+		Ok(old)
 	}
 
 	pub fn fmt_workspace(&self) -> String {
