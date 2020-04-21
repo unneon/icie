@@ -1,3 +1,8 @@
+## 0.7.15
+
+- Added support for Alacritty terminal emulator.
+- Fixed Codeforces 'website could not be analyzed' error fetching contest title, which has not yet started.
+
 ## 0.7.14
 
 - Fixed handling IE (Internal Error) verdict at AtCoder.
