@@ -186,10 +186,9 @@ impl unijudge::Backend for Codeforces {
 		}
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
 		let languages = doc
-			.find_all("[name=\"programTypeId\"] option")
-			.map(|opt| {
-				Ok(unijudge::Language { id: opt.attr("value")?.as_str().trim().to_owned(), name: opt.text().string() })
-			})
+			.find("select[name=programTypeId]")?
+			.find_all("option")
+			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
 			.collect::<Result<_>>()?;
 		Ok(languages)
 	}

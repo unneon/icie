@@ -119,7 +119,8 @@ impl unijudge::Backend for SPOJ {
 		let url: Url = format!("https://www.spoj.com/submit/{}/", task).parse()?;
 		let resp = session.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
-		doc.find_all("#lang > option")
+		doc.find("#lang")?
+			.find_all("option")
 			.map(|node| Ok(Language { id: node.attr("value")?.string(), name: node.text().string() }))
 			.collect::<Result<_>>()
 	}

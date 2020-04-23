@@ -173,7 +173,8 @@ impl unijudge::Backend for Sio2 {
 			return Err(ErrorCode::AccessDenied.into());
 		}
 		Ok(doc
-			.find_all("#id_prog_lang > option")
+			.find("#id_prog_lang")?
+			.find_all("option")
 			.filter(|opt| opt.attr("selected").is_err())
 			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
 			.collect::<Result<_>>()?)
