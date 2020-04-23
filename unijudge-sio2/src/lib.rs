@@ -169,7 +169,7 @@ impl unijudge::Backend for Sio2 {
 		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);
-		if doc.find("#id_password").is_ok() {
+		if doc.find("#id_password").is_ok() || doc.find("a[href=\"/register/\"]").is_ok() {
 			return Err(ErrorCode::AccessDenied.into());
 		}
 		Ok(doc
