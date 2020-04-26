@@ -1,3 +1,10 @@
+## 0.7.16
+
+- Added [official Discord channel](https://discord.gg/ffSEhtb).
+- Fixed displaying dates in UTC instead of local time.
+- Fixed not detecting access denied on some sio2 sites.
+- Fixed not treating no languages found as a WCNBA error.
+
 ## 0.7.15
 
 - Added support for Alacritty terminal emulator.
