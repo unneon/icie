@@ -17,6 +17,7 @@ panic = "abort"
 
 [dependencies]
 async-trait = "0.1"
+chrono = { version = "0.4", features = ["wasmbind"] }
 debris = { git = "https://github.com/pustaczek/debris" }
 evscode = { path = "./evscode" }
 futures-preview = { version = "0.3.0-alpha.19", features = ["async-await"] }
@@ -40,6 +41,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
 [patch.crates-io]
+chrono = { git = "https://github.com/pustaczek/chrono", branch = "icie" }
 cookie = { git = "https://github.com/SergioBenitez/cookie-rs", rev = "50ef66357921673d8292aeecd344d2645ba65fe4" }
 js-sys = { git = "https://github.com/pustaczek/wasm-bindgen", branch = "icie" }
 time = { git = "https://github.com/pustaczek/time", branch = "icie" }
