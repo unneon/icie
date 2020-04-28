@@ -34,6 +34,8 @@ If you have any questions, create a [GitHub issue] or ask me at [our Discord]!
 - <kbd>Alt</kbd><kbd>\\</kbd> and <kbd>Alt</kbd><kbd>0</kbd> to run tests on currently open file instead of the solution
 - <kbd>Alt</kbd><kbd>+</kbd> and select "C++ Checker" to use custom code for checking output correctness
 - <kbd>Alt</kbd><kbd>+</kbd> and select something else to create more .cpp files from templates
+- <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd> and select "ICIE Web" to open contest or task page in a web browser
+- <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd> and select "ICIE Password reset" to log out or reset a password
 - <kbd>Ctrl</kbd><kbd>,</kbd> and select Extensions > ICIE to easily configure ICIE's behavior.
 - To alter settings only for the current task, use the "Workspace" tab in the settings view.
 
