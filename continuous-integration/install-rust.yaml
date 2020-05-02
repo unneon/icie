@@ -1,5 +1,5 @@
 steps:
 - script: >
-    rustup toolchain install nightly --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown &&
+    rustup toolchain install nightly --profile minimal --component clippy --component rustfmt --target wasm32-unknown-unknown &&
     rustup default nightly
   displayName: Install Rust
