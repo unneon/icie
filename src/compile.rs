@@ -139,7 +139,9 @@ pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<
 }
 
 async fn should_cache(source: &Path, out: &Path) -> R<bool> {
-	Ok(fs::exists(out).await? && fs::metadata(source).await?.modified < fs::metadata(out).await?.modified)
+	let meta_source = fs::metadata(source).await?;
+	let meta_out = fs::metadata(out).await?;
+	Ok(fs::exists(out).await? && meta_source.modified < meta_out.modified)
 }
 
 fn get_custom_flags(codegen: Codegen) -> Vec<String> {

@@ -1,6 +1,6 @@
 parameters:
 - name: version
-  default: 1.39.1
+  default: version_93
 
 steps:
 - script: >
