@@ -190,6 +190,7 @@ impl unijudge::Backend for AtCoder {
 			})
 			.ok_or_else(|| doc.error(format!("no lang list with id equal to {}", selection_id)))?
 			.find_all("option")
+			.filter(|option| !option.text().as_str().is_empty())
 			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
 			.collect::<Result<_>>()?)
 	}
