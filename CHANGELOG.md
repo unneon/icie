@@ -1,3 +1,9 @@
+## 0.7.17
+
+- Added message about the Discord to the default code template and newsletter.
+- Added documentation about resetting passwords to README. Just press <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>P</kbd> and type "ICIE Password reset".
+- Fixed AtCoder latest "website could not be analyzed" errors when submitting.
+
 ## 0.7.16
 
 - Added [official Discord channel](https://discord.gg/ffSEhtb).
