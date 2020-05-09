@@ -39,7 +39,7 @@ stages:
         displayName: Verify changelog was updated
       - script: '[[ `sed "3q;d" Cargo.toml` = "version = \"$(Build.SourceBranchName)"* ]]'
         displayName: Verify Cargo.toml was updated
-    - deployment: Deploy to GitHub and VS Marketplace
+    - deployment: Deploy
       dependsOn: Verify
       environment: icie-vsmarketplace
       strategy:
