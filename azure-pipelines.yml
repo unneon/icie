@@ -42,24 +42,27 @@ stages:
     - deployment: Deploy to GitHub and VS Marketplace
       dependsOn: Verify
       environment: icie-vsmarketplace
-      steps:
-      - template: continuous-integration/install-rust.yaml
-      - template: continuous-integration/install-binaryen.yaml
-      - template: continuous-integration/install-wasmbindgen.yaml
-      - template: continuous-integration/install-wasmpack.yaml
-      - script: sudo npm install -g vsce
-        displayName: Install dependencies (vsce)
-      - script: BUILDSH_RELEASE=1 ./build.sh package
-        displayName: Package extension
-      - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n -2 > github-release-changelog-diff.md
-        displayName: Prepare changelog
-      - task: GitHubRelease@0
-        displayName: Deploy to GitHub
-        inputs:
-          gitHubConnection: github/pustaczek
-          repositoryName: pustaczek/icie
-          releaseNotesFile: github-release-changelog-diff.md
-          assets: target/evscode/icie-*.vsix
-          addChangeLog: false
-      - script: vsce publish --pat $(VSMARKETPLACE_PAT) --packagePath target/evscode/icie-*.vsix
-        displayName: Deploy to VS Marketplace
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - template: continuous-integration/install-rust.yaml
+            - template: continuous-integration/install-binaryen.yaml
+            - template: continuous-integration/install-wasmbindgen.yaml
+            - template: continuous-integration/install-wasmpack.yaml
+            - script: sudo npm install -g vsce
+              displayName: Install dependencies (vsce)
+            - script: BUILDSH_RELEASE=1 ./build.sh package
+              displayName: Package extension
+            - script: sed '/##/q' <(tail CHANGELOG.md -n +3) | head -n -2 > github-release-changelog-diff.md
+              displayName: Prepare changelog
+            - task: GitHubRelease@0
+              displayName: Deploy to GitHub
+              inputs:
+                gitHubConnection: github/pustaczek
+                repositoryName: pustaczek/icie
+                releaseNotesFile: github-release-changelog-diff.md
+                assets: target/evscode/icie-*.vsix
+                addChangeLog: false
+            - script: vsce publish --pat $(VSMARKETPLACE_PAT) --packagePath target/evscode/icie-*.vsix
+              displayName: Deploy to VS Marketplace
