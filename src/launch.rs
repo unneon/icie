@@ -50,10 +50,10 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	TELEMETRY.statement_pdf.spark();
 	webview.webview.set_html(&format!(
-		"<html><head><script src=\"{}\"></script><script>{}</script></head><body id=\"body\" style=\"padding: \
-		 0;\"></body></html>",
-		evscode::asset("pdf-2.2.228.min.js"),
-		include_str!("pdf.js")
+		"<html><head><script src=\"{}\"></script><script src=\"{}\"></script></head><body id=\"body\" \
+		 style=\"padding: 0;\"></body></html>",
+		evscode::asset("assets/pdf-2.2.228.min.js"),
+		evscode::asset("src/pdf.js")
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.

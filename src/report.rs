@@ -51,7 +51,7 @@ fn render_report_html(message: &str, id: &str) -> String {
 		r##"
 		<html>
 			<head>
-				<script>{js}</script>
+				<script src="{js}"></script>
 			</head>
 			<body>
 				<h1>Bug report {id}, 'website could not be analyzed'</h1>
@@ -70,7 +70,7 @@ fn render_report_html(message: &str, id: &str) -> String {
 			</body>
 		</html>
 	"##,
-		js = include_str!("report/script.js"),
+		js = evscode::asset("src/report.js"),
 		id = id,
 		message = message,
 	)

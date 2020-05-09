@@ -92,7 +92,9 @@ sed -i 's/getObject(arg0) instanceof Window;/true;/mg' "${dir_vscode}/icie.js"
 cp "${dir_root}/README.md" "${dir_root}/CHANGELOG.md" "${dir_vscode}/"
 
 # Copy runtime assets to the target directory
-X rsync -r "${dir_root}/assets" "${dir_vscode}"
+X rsync -rv "${dir_root}/assets" "${dir_vscode}"
+X rsync -rv --include="*/" --include="*.css" --exclude="*" "${dir_root}/src" "${dir_vscode}"
+X rsync -rv --include="*/" --include="*.js" --exclude="*" "${dir_root}/src" "${dir_vscode}"
 
 handle_package_json
 generate_vscodeignore

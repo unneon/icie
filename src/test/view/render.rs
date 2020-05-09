@@ -60,10 +60,10 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 		r#"
 		<html>
 			<head>
-				<script>{js}</script>
+				<script src="{js}"></script>
 				{material_icons}
-				<style>{css_layout}</style>
-				<style>{css_paint}</style>
+				<link rel="stylesheet" type="text/css" href="{css_layout}">
+				<link rel="stylesheet" type="text/css" href="{css_paint}">
 			</head>
 			<body>
 				<table class="table">
@@ -76,10 +76,10 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 			</body>
 		</html>
 		"#,
-		js = include_str!("./script.js"),
+		js = evscode::asset("src/test/view/script.js"),
 		material_icons = util::html_material_icons(),
-		css_layout = include_str!("./layout.css"),
-		css_paint = include_str!("./paint.css"),
+		css_layout = evscode::asset("src/test/view/layout.css"),
+		css_paint = evscode::asset("src/test/view/paint.css"),
 		table = render_test_table(tests).await?
 	))
 }

@@ -146,7 +146,7 @@ pub fn material_icons_bundled() -> String {
 			}}
 		</style>
 	"#,
-		woff2_asset = evscode::asset("material-icons.woff2")
+		woff2_asset = evscode::asset("assets/material-icons.woff2")
 	)
 }
 

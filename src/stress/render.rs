@@ -3,9 +3,9 @@ pub fn render() -> String {
 		r#"
 		<html>
 			<head>
-				<style>{css}</style>
+				<link rel="stylesheet" type="text/css" href="{css}">
 				{material_icons}
-				<script>{js}</script>
+				<script src="{js}"></script>
 			</head>
 			<body>
 				<div class="container">
@@ -37,8 +37,8 @@ pub fn render() -> String {
 			</body>
 		</html>
 	"#,
-		css = include_str!("./style.css"),
+		css = evscode::asset("src/stress/style.css"),
 		material_icons = crate::util::html_material_icons(),
-		js = include_str!("./script.js"),
+		js = evscode::asset("src/stress/script.js"),
 	)
 }
