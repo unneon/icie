@@ -1,3 +1,7 @@
+::-webkit-input-placeholder {
+	text-align: center;
+	line-height: 70px;
+}
 ::-webkit-scrollbar {
 	display: none;
 }
@@ -53,18 +57,26 @@ body {
 	pointer-events: none;
 }
 
-#new-container {
-	--padding-half: 8px;
+.new {
 	display: none;
 }
-
-#new-container.is-active {
-	display: flex;
-	padding: var(--padding-half);
+.new.is-active {
+	display: unset;
 }
 
-.new {
+.new-areas {
+	--padding-half: 8px;
+	display: flex;
+	padding: var(--padding-half);
+	padding-bottom: 0;
+}
+.new-area {
 	flex-grow: 1;
 	margin: var(--padding-half);
+	margin-bottom: 0;
 	resize: vertical;
+}
+
+.new-tutorial {
+	text-align: center;
 }

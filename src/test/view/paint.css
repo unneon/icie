@@ -79,7 +79,7 @@ body {
 	font-family: var(--font)
 }
 
-.new {
+.new-area {
 	border: var(--border-width) solid var(--col-norm1);
 	padding: 4px;
 	color: var(--col-text);

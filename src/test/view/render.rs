@@ -69,9 +69,14 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 				<table class="table">
 					{table}
 				</table>
-				<div id="new-container">
-					<textarea id="new-input" class="new"></textarea>
-					<textarea id="new-desired" class="new"></textarea>
+				<div class="new">
+					<div class="new-areas">
+						<textarea id="new-input" class="new-area" placeholder="Write test input here..."></textarea>
+						<textarea id="new-desired" class="new-area" placeholder="Write test output here..."></textarea>
+					</div>
+					<p class="new-tutorial">
+						... and press <kbd>Alt</kbd><kbd>-</kbd> to add the test.
+					</p>
 				</div>
 			</body>
 		</html>

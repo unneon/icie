@@ -43,7 +43,7 @@ action_edit = make_action(ev => {
 function new_start() {
 	console.log(`new_start()`);
 	if (!newing) {
-		document.getElementById('new-container').classList.add("is-active");
+		document.getElementsByClassName('new')[0].classList.add("is-active");
 		newing = true;
 	}
 	document.getElementById('new-input').focus();
@@ -66,7 +66,7 @@ function new_shutdown() {
 	if (!newing) {
 		throw new Error('shut down the test even though creation has not been started');
     }
-	document.getElementById('new-container').classList.remove('is-active');
+	document.getElementsByClassName('new')[0].classList.remove('is-active');
 	document.getElementById('new-input').value = '';
 	document.getElementById('new-desired').value = '';
 	newing = false;
