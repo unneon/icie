@@ -25,7 +25,7 @@ In VS Code, go to Extensions and use "Install from VSIX..." option.
 # Development
 
 In order to launch a debug build, run `./build.sh run`.
-To quickly check if your changes compile, run `cargo check --target=wasm32-unknown-unknown`.
+To quickly check if your changes compile, run `cargo check`.
 
 Most of the logic resides in the src/ directory/.
 The exceptions are network interactions and VS Code interactions, which live respectively in the unijudge*/ and evscode*/ directory families.

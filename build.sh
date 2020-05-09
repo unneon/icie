@@ -61,7 +61,7 @@ else
 fi
 
 if [[ "${1}" == "check" ]] ; then
-	X cargo check --target=wasm32-unknown-unknown
+	X cargo check
 	exit 0
 fi
 

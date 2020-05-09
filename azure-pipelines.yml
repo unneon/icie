@@ -28,7 +28,7 @@ stages:
     - job: Lint
       steps:
       - template: continuous-integration/install-rust.yaml
-      - script: cargo clippy --all --target=wasm32-unknown-unknown -- -D warnings
+      - script: cargo clippy --all -- -D warnings
         displayName: Cargo Clippy
   - stage: Release
     condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
