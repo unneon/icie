@@ -1,18 +1,20 @@
 ::-webkit-scrollbar {
 	display: none;
 }
+
 body {
-	margin-top: 20px;
+	padding: 0px;
 }
 
 .table {
 	width: 100%;
+	border-collapse: collapse;
 	table-layout: fixed;
 }
 
 .cell {
 	position: relative;
-	padding: 4px;
+	padding: 10px;
 	vertical-align: top;
 }
 .row.folded > .cell {
@@ -44,20 +46,25 @@ body {
 	position: absolute;
 	right: 0;
 	bottom: 0;
-	margin-right: 4px;
-	margin-bottom: 4px;
+	margin-right: 10px;
+	margin-bottom: 10px;
 	z-index: 2;
 	user-select: none;
 	pointer-events: none;
 }
 
 #new-container {
-	margin-top: 10px;
+	--padding-half: 8px;
 	display: none;
 }
+
 #new-container.is-active {
 	display: flex;
+	padding: var(--padding-half);
 }
+
 .new {
 	flex-grow: 1;
+	margin: var(--padding-half);
+	resize: vertical;
 }

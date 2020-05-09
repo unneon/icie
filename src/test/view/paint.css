@@ -1,55 +1,58 @@
 :root {
-	--col-norm2: rgba(192, 192, 192, 0.2);
 	--col-norm1: rgba(192, 192, 192, 0.1);
+	--col-norm2: rgba(192, 192, 192, 0.01);
 	--col-text: var(--vscode-editor-foreground);
 	--font: var(--vscode-editor-font-family);
+	--font-size: 18px;
 	--border-width: 1px;
 }
 
+body {
+	color: var(--col-text);
+}
+
 .row {
-	--col2: var(--col-norm2);
 	--col1: var(--col-norm1);
+	--col2: var(--col-norm2);
 }
 .row.status-passed > .cell.output {
-	--col2: rgba(32, 255, 32, 0.3);
-	--col1: rgba(32, 255, 32, 0.15);
+	--col1: rgba(32, 255, 32, 0.4);
+	--col2: var(--col1);
+}
+.row.status-passed.verdict-alternative > .cell.output {
+	--col1: rgba(32, 255, 128, 0.4);
+	--col2: var(--col1);
 }
 .row.status-failed > .cell.output {
-	--col2: rgba(255, 32, 32, 0.3);
-	--col1: rgba(255, 32, 32, 0.15);
+	--col1: rgba(255, 32, 32, 0.4);
+	--col2: var(--col1);
 }
 .row.status-ignore > .cell.output {
-	--col2: rgba(255, 127, 0, 0.3);
-	--col1: rgba(255, 127, 0, 0.15);
+	--col1: var(--col-norm1);
+	--col2: transparent;
+}
+
+.row.status-ignore:not(:last-child) > .cell.output {
+	border-bottom: none;
 }
 
 .cell {
-	border: var(--border-width) solid var(--col2);
-	background: var(--col1);
+	border: var(--border-width) solid var(--col1);
 }
-.row.verdict-alternative > .cell.output {
-	background: repeating-linear-gradient(
-		45deg,
-		var(--col1),
-		var(--col1) 10px,
-		transparent 10px,
-		transparent 20px
-	);
+.cell.input {
+	border-right: none;
 }
-.row.status-ignore > .cell.desired {
-	opacity: 0.5;
-}
-.row.folded > .cell {
-	opacity: 0.5;
+.cell.output {
+	background: linear-gradient(to top right, transparent, var(--col2));
 }
 
 .data {
 	color: var(--col-text);
-	font-size: 22px;
+	font-size: var(--font-size);
 	font-family: var(--font);
 }
 .stderr {
-	opacity: 0.2;
+	opacity: 0.3;
 }
 
 .actions {
@@ -61,25 +64,26 @@
 .actions.tutorialize {
 	display: unset;
 }
+
 .action {
-	color: var(--col2);
-	font-size: 22px;
+	color: var(--col1);
+	font-size: var(--font-size);
 }
 .action:hover {
 	color: white;
 }
 
 .note {
-	color: var(--col2);
-	font-size: 22px;
+	color: var(--col1);
+	font-size: var(--font-size);
 	font-family: var(--font)
 }
 
 .new {
-	border: var(--border-width) solid var(--col-norm2);
+	border: var(--border-width) solid var(--col-norm1);
 	padding: 4px;
 	color: var(--col-text);
-	font-size: 22px;
+	font-size: var(--font-size);
 	font-family: var(--font);
-	background-color: var(--col-norm1);
+	background-color: var(--col-norm2);
 }
