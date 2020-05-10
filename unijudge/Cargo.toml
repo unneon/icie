@@ -14,7 +14,7 @@ hex = { version = "0.4", features = ["serde"] }
 html5ever = "0.24"
 http = "0.1"
 log = "0.4"
-reqwest = { git = "https://github.com/pustaczek/reqwest", features = ["cookies"], branch = "icie" }
+reqwest = { git = "https://github.com/pustaczek/reqwest", features = ["cookies"], default-features = false, branch = "icie" }
 scraper = { version = "0.11", default-features = false }
 selectors = "0.21"
 serde = { version = "1.0", features = ["derive"] }
