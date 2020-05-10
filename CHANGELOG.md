@@ -1,3 +1,9 @@
+## 0.7.18
+
+- **Added modern, more clear test view user interface.**
+- Added help text when adding new tests.
+- Fixed configuration option descriptions being split into random lines.
+
 ## 0.7.17
 
 - Added message about the Discord to the default code template and newsletter.
