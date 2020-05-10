@@ -76,21 +76,17 @@ fn extract_description(item: &ItemStatic) -> Result<String, ProcError> {
 		.map(|attr| {
 			let lit = attr.tokens.clone().into_iter().nth(1).unwrap();
 			let lit: LitStr = parse2(iter::once(lit).collect()).unwrap();
-			lit.value()
+			lit.value().trim().to_owned()
 		})
-		.fold(None, |acc, line| {
-			Some(match acc {
-				Some(acc) => format!("{}\n{}", acc, line.trim()),
-				None => line,
-			})
-		})
-		.ok_or_else(|| {
-			ProcError::new(Diagnostic::spanned(
-				item.span().unwrap(),
-				Level::Error,
-				"configuration entries must have an attached doc comment",
-			))
-		})?;
+		.collect::<Vec<_>>()
+		.join(" ");
+	if value.is_empty() {
+		return Err(ProcError::new(Diagnostic::spanned(
+			item.span().unwrap(),
+			Level::Error,
+			"configuration entries must have an attached doc comment",
+		)));
+	}
 	Ok(value)
 }
 
