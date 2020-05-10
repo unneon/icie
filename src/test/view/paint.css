@@ -9,6 +9,8 @@
 
 body {
 	color: var(--col-text);
+	font-family: var(--font);
+	font-size: var(--font-size);
 }
 
 .row {
@@ -31,7 +33,6 @@ body {
 	--col1: var(--col-norm1);
 	--col2: transparent;
 }
-
 .row.status-ignore:not(:last-child) > .cell.output {
 	border-bottom: none;
 }
@@ -46,11 +47,6 @@ body {
 	background: linear-gradient(to top right, transparent, var(--col2));
 }
 
-.data {
-	color: var(--col-text);
-	font-size: var(--font-size);
-	font-family: var(--font);
-}
 .stderr {
 	opacity: 0.3;
 }
@@ -64,26 +60,15 @@ body {
 .actions.tutorialize {
 	display: unset;
 }
-
-.action {
-	color: var(--col1);
-	font-size: var(--font-size);
-}
 .action:hover {
 	color: white;
-}
-
-.note {
-	color: var(--col1);
-	font-size: var(--font-size);
-	font-family: var(--font)
 }
 
 .new-area {
 	border: var(--border-width) solid var(--col-norm1);
 	padding: 4px;
-	color: var(--col-text);
-	font-size: var(--font-size);
-	font-family: var(--font);
-	background-color: var(--col-norm2);
+	color: inherit;
+	font-family: inherit;
+	font-size: inherit;
+	background: var(--col-norm2);
 }
