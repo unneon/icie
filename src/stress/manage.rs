@@ -1,5 +1,5 @@
 use crate::{
-	checker::get_checker, compile::{compile, Codegen}, dir, executable::{Environment, Executable}, stress::render::render, test::{self, add_test, judge::simple_test, time_limit, Outcome, Task, Verdict}, util::SourceTarget
+	compile::{compile, Codegen}, dir, executable::Executable, stress::render::render, test::{self, add_test, judge::simple_test, Outcome, Task, Verdict}, util::SourceTarget
 };
 use async_trait::async_trait;
 use evscode::{
@@ -37,18 +37,18 @@ impl Behaviour for Stress {
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Stress testing");
 		let solution = compile(&SourceTarget::Main, Codegen::Debug, false).await?;
-		let brute_force =
-			compile(&SourceTarget::Custom(dir::brute_force()?), Codegen::Release, false).await.map_err(|e| {
-				e.context("could not start stress testing").action("Only run normal tests (Alt+0)", crate::test::view())
-			})?;
-		let gen = compile(&SourceTarget::Custom(dir::test_generator()?), Codegen::Release, false).await?;
-		let task =
-			Task { checker: get_checker().await?, environment: Environment { time_limit: time_limit(), cwd: None } };
+		let brute_force = compile(&SourceTarget::Custom(dir::brute_force()?), Codegen::Release, false)
+			.await
+			.map_err(|e| e.context("could not start stress testing"))?;
+		let gen = compile(&SourceTarget::Custom(dir::test_generator()?), Codegen::Release, false)
+			.await
+			.map_err(|e| e.context("could not start stress testing"))?;
+		let task = Task::simple().await?;
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(
 			select(
 				execute_runs(&solution, &brute_force, &gen, &task).map_ok(Event::Row),
-				listener.map(|_| Event::Add).map(Ok),
+				listener.map(|_| Ok(Event::Add)),
 			),
 			disposer,
 		));

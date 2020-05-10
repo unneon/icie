@@ -41,6 +41,6 @@ pub async fn render() -> String {
 	"#,
 		css = assets::html_css("src/stress/style.css").await,
 		material_icons = assets::html_material_icons(),
-		js = assets::html_css("src/stress/script.js").await,
+		js = assets::html_js("src/stress/script.js").await,
 	)
 }
