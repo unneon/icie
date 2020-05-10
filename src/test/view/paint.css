@@ -3,7 +3,7 @@
 	--col-norm2: rgba(192, 192, 192, 0.01);
 	--col-text: var(--vscode-editor-foreground);
 	--font: var(--vscode-editor-font-family);
-	--font-size: 18px;
+	--font-size: 20px;
 	--border-width: 1px;
 }
 
@@ -48,7 +48,7 @@ body {
 }
 
 .stderr {
-	opacity: 0.3;
+	color: var(--col1);
 }
 
 .actions {
@@ -60,13 +60,21 @@ body {
 .actions.tutorialize {
 	display: unset;
 }
+
+.action {
+	color: var(--col1);
+	font-size: inherit;
+}
 .action:hover {
 	color: white;
 }
 
+.note {
+	color: var(--col1);
+}
+
 .new-area {
 	border: var(--border-width) solid var(--col-norm1);
-	padding: 4px;
 	color: inherit;
 	font-family: inherit;
 	font-size: inherit;

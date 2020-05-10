@@ -30,7 +30,7 @@ impl Behaviour for Stress {
 	}
 
 	async fn update(&self, _: Self::K, _: &Self::V, webview: WebviewRef) -> R<()> {
-		webview.set_html(&render());
+		webview.set_html(&render().await);
 		Ok(())
 	}
 

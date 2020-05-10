@@ -105,51 +105,6 @@ pub fn env(key: &'static str) -> R<String> {
 		.unwrap())
 }
 
-pub fn html_material_icons() -> String {
-	match OS::query() {
-		// For whatever reason, bundled icons do not display on Windows.
-		// I made sure the paths are correct and fully-backslashed, but to no avail.
-		Ok(OS::Windows) => material_icons_cloud(),
-		_ => material_icons_bundled(),
-	}
-}
-
-pub fn material_icons_cloud() -> String {
-	r#"<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">"#.to_owned()
-}
-
-pub fn material_icons_bundled() -> String {
-	format!(
-		r#"
-		<style>
-			@font-face {{
-				font-family: 'Material Icons';
-				font-style: normal;
-				font-weight: 400;
-				src: url({woff2_asset}) format('woff2');
-			}}
-
-			.material-icons {{
-				font-family: 'Material Icons';
-				font-weight: normal;
-				font-style: normal;
-				font-size: 24px;
-				line-height: 1;
-				letter-spacing: normal;
-				text-transform: none;
-				display: inline-block;
-				white-space: nowrap;
-				word-wrap: normal;
-				direction: ltr;
-				-webkit-font-feature-settings: 'liga';
-				-webkit-font-smoothing: antialiased;
-			}}
-		</style>
-	"#,
-		woff2_asset = evscode::asset("assets/material-icons.woff2")
-	)
-}
-
 pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
 	xs.sort();
 	xs.dedup();

@@ -4,6 +4,7 @@
 
 use once_cell::sync::Lazy;
 
+mod assets;
 mod auth;
 mod checker;
 mod compile;

@@ -1,5 +1,5 @@
 use crate::{
-	telemetry::TELEMETRY, util::{fs, path::Path, workspace_root}
+	assets, telemetry::TELEMETRY, util::{fs, path::Path, workspace_root}
 };
 use evscode::{error::Severity, R};
 use futures::StreamExt;
@@ -12,7 +12,7 @@ pub async fn report_html(message: &str, crashy_html: &str) -> R<()> {
 	let title = "ICIE Report 'website could not be analyzed'";
 	let webview_meta = evscode::Webview::new("icie.report.html", title, 1).enable_scripts().create();
 	let webview = webview_meta.webview;
-	webview.set_html(&render_report_html(message, &id));
+	webview.set_html(&render_report_html(message, &id).await);
 	let mut stream = evscode::error::cancel_on(webview_meta.listener, webview_meta.disposer);
 	TELEMETRY.report.spark();
 	while let Some(note) = stream.next().await {
@@ -46,12 +46,12 @@ async fn save_crashy_html(id: &str, crashy_html: &str) -> R<Path> {
 	Ok(path)
 }
 
-fn render_report_html(message: &str, id: &str) -> String {
+async fn render_report_html(message: &str, id: &str) -> String {
 	format!(
 		r##"
 		<html>
 			<head>
-				<script src="{js}"></script>
+				{js}
 			</head>
 			<body>
 				<h1>Bug report {id}, 'website could not be analyzed'</h1>
@@ -70,7 +70,7 @@ fn render_report_html(message: &str, id: &str) -> String {
 			</body>
 		</html>
 	"##,
-		js = evscode::asset("src/report.js"),
+		js = assets::html_js("src/report.js").await,
 		id = id,
 		message = message,
 	)

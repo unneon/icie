@@ -1,5 +1,5 @@
 use crate::{
-	dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, telemetry::TELEMETRY, util::{self, fs, workspace_root}
+	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, telemetry::TELEMETRY, util::{self, fs, workspace_root}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -50,10 +50,9 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	TELEMETRY.statement_pdf.spark();
 	webview.webview.set_html(&format!(
-		"<html><head><script src=\"{}\"></script><script src=\"{}\"></script></head><body id=\"body\" \
-		 style=\"padding: 0;\"></body></html>",
-		evscode::asset("assets/pdf-2.2.228.min.js"),
-		evscode::asset("src/pdf.js")
+		"<html><head>{}{}</head><body id=\"body\" style=\"padding: 0;\"></body></html>",
+		assets::html_js_static("assets/pdf-2.2.228.min.js"),
+		assets::html_js("src/pdf.js").await
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.

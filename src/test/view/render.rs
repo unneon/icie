@@ -1,5 +1,5 @@
 use crate::{
-	test::{view::SKILL_ACTIONS, TestRun, Verdict}, util::{self, fmt_time_short, fs}
+	assets, test::{view::SKILL_ACTIONS, TestRun, Verdict}, util::{fmt_time_short, fs}
 };
 use evscode::R;
 use std::cmp::max;
@@ -60,10 +60,10 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 		r#"
 		<html>
 			<head>
-				<script src="{js}"></script>
+				{js}
 				{material_icons}
-				<link rel="stylesheet" type="text/css" href="{css_layout}">
-				<link rel="stylesheet" type="text/css" href="{css_paint}">
+				{css_layout}
+				{css_paint}
 			</head>
 			<body>
 				<table class="table">
@@ -75,16 +75,16 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 						<textarea id="new-desired" class="new-area" placeholder="Write test output here..."></textarea>
 					</div>
 					<p class="new-tutorial">
-						... and press <kbd>Alt</kbd><kbd>-</kbd> to add the test.
+						... and press <kbd>Alt</kbd><kbd>-</kbd> to finish adding the test.
 					</p>
 				</div>
 			</body>
 		</html>
 		"#,
-		js = evscode::asset("src/test/view/script.js"),
-		material_icons = util::html_material_icons(),
-		css_layout = evscode::asset("src/test/view/layout.css"),
-		css_paint = evscode::asset("src/test/view/paint.css"),
+		js = assets::html_js("src/test/view/script.js").await,
+		material_icons = assets::html_material_icons(),
+		css_layout = assets::html_css("src/test/view/layout.css").await,
+		css_paint = assets::html_css("src/test/view/paint.css").await,
 		table = render_test_table(tests).await?
 	))
 }

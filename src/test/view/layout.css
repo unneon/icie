@@ -1,3 +1,8 @@
+:root {
+	--margin-new: 8px;
+	--padding-cell: 12px;
+}
+
 ::-webkit-input-placeholder {
 	text-align: center;
 	line-height: 70px;
@@ -18,43 +23,35 @@ body {
 
 .cell {
 	position: relative;
-	padding: 10px;
+	padding: var(--padding-cell);
 	vertical-align: top;
 }
-.row.folded > .cell {
-	padding: 0px;
-}
-
 .data {
-	white-space: nowrap;
 	z-index: 1;
 	overflow: auto;
+	white-space: nowrap;
 }
 
 .actions {
 	position: absolute;
-	right: 0;
-	margin-right: 4px;
+	right: var(--padding-cell);
 	z-index: 2;
-	user-select: none;
 	pointer-events: none;
+	user-select: none;
 }
-
 .action {
 	margin: 0;
-	pointer-events: all;
 	cursor: pointer;
+	pointer-events: all;
 }
 
 .note {
 	position: absolute;
-	right: 0;
-	bottom: 0;
-	margin-right: 10px;
-	margin-bottom: 10px;
+	right: var(--padding-cell);
+	bottom: var(--padding-cell);
 	z-index: 2;
-	user-select: none;
 	pointer-events: none;
+	user-select: none;
 }
 
 .new {
@@ -65,18 +62,17 @@ body {
 }
 
 .new-areas {
-	--padding-half: 8px;
 	display: flex;
-	padding: var(--padding-half);
+	padding: calc(var(--margin-new) / 2);
 	padding-bottom: 0;
 }
 .new-area {
 	flex-grow: 1;
-	margin: var(--padding-half);
-	margin-bottom: 0;
+	margin: calc(var(--margin-new) / 2);
 	resize: vertical;
 }
 
 .new-tutorial {
+	margin: var(--margin-new);
 	text-align: center;
 }

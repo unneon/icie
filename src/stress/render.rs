@@ -1,11 +1,13 @@
-pub fn render() -> String {
+use crate::assets;
+
+pub async fn render() -> String {
 	format!(
 		r#"
 		<html>
 			<head>
-				<link rel="stylesheet" type="text/css" href="{css}">
+				{css}
 				{material_icons}
-				<script src="{js}"></script>
+				{js}
 			</head>
 			<body>
 				<div class="container">
@@ -37,8 +39,8 @@ pub fn render() -> String {
 			</body>
 		</html>
 	"#,
-		css = evscode::asset("src/stress/style.css"),
-		material_icons = crate::util::html_material_icons(),
-		js = evscode::asset("src/stress/script.js"),
+		css = assets::html_css("src/stress/style.css").await,
+		material_icons = assets::html_material_icons(),
+		js = assets::html_css("src/stress/script.js").await,
 	)
 }
