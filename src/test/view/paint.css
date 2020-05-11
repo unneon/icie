@@ -1,6 +1,7 @@
 :root {
-	--col-norm1: rgba(192, 192, 192, 0.1);
-	--col-norm2: rgba(192, 192, 192, 0.01);
+	--col0-normal: rgba(192, 192, 192, 1.0);
+	--col1-normal: rgba(192, 192, 192, 0.1);
+	--col2-normal: rgba(192, 192, 192, 0.01);
 	--col-text: var(--vscode-editor-foreground);
 	--font: var(--vscode-editor-font-family);
 	--font-size: 20px;
@@ -14,23 +15,28 @@ body {
 }
 
 .row {
-	--col1: var(--col-norm1);
-	--col2: var(--col-norm2);
+	--col0: var(--col0-normal);
+	--col1: var(--col1-normal);
+	--col2: var(--col2-normal);
 }
 .row.status-passed > .cell.output {
+	--col0: rgba(32, 255, 32, 1.0);
 	--col1: rgba(32, 255, 32, 0.4);
-	--col2: var(--col1);
+	--col2: rgba(32, 255, 32, 0.4);
 }
 .row.status-passed.verdict-alternative > .cell.output {
+	--col0: rgba(32, 255, 128, 1.0);
 	--col1: rgba(32, 255, 128, 0.4);
-	--col2: var(--col1);
+	--col2: rgba(32, 255, 128, 0.4);
 }
 .row.status-failed > .cell.output {
+	--col0: rgba(255, 32, 32, 1.0);
 	--col1: rgba(255, 32, 32, 0.4);
-	--col2: var(--col1);
+	--col2: rgba(255, 32, 32, 0.4);
 }
 .row.status-ignore > .cell.output {
-	--col1: var(--col-norm1);
+	--col0: var(--col0-normal);
+	--col1: var(--col1-normal);
 	--col2: transparent;
 }
 .row.status-ignore:not(:last-child) > .cell.output {
@@ -48,7 +54,7 @@ body {
 }
 
 .stderr {
-	color: var(--col1);
+	color: var(--col0);
 }
 
 .actions {
@@ -74,9 +80,9 @@ body {
 }
 
 .new-area {
-	border: var(--border-width) solid var(--col-norm1);
+	border: var(--border-width) solid var(--col1-normal);
 	color: inherit;
 	font-family: inherit;
 	font-size: inherit;
-	background: var(--col-norm2);
+	background: var(--col2-normal);
 }
