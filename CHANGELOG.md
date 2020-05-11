@@ -1,3 +1,7 @@
+## 0.7.19
+
+- Fixed low contrast of stderr text.
+
 ## 0.7.18
 
 - **Added modern, more clear test view user interface.**
