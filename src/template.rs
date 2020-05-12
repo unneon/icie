@@ -183,7 +183,9 @@ fn generate(prelude: &str, main_args: bool, main_prelude: &str) -> R<String> {
 	// TODO: Does bits/stdc++.h work on macOS? I heard it doesn't.
 	let includes = match OS::query()? {
 		OS::Linux => "#include <bits/stdc++.h>",
-		OS::Windows | OS::MacOS => "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <random>",
+		OS::Windows | OS::MacOS => {
+			"#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <random>\n#include <chrono>"
+		},
 	};
 	let main_args = if main_args { "int argc, char* argv[]" } else { "" };
 	Ok(format!(
