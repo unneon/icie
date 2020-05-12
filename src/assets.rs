@@ -40,26 +40,17 @@ fn html_css_dynamic(source: &str) -> String {
 }
 
 pub fn html_material_icons() -> String {
-	match OS::query() {
-		// For whatever reason, bundled icons do not display on Windows.
-		// I made sure the paths are correct and fully-backslashed, but to no avail.
-		Ok(OS::Windows) => material_icons_cloud(),
-		_ => material_icons_bundled(),
+	let mut woff2_asset = evscode::asset("assets/material-icons.woff2");
+	if let Ok(OS::Windows) = OS::query() {
+		woff2_asset = woff2_asset.replace('\\', "\\\\");
 	}
-}
-
-fn material_icons_cloud() -> String {
-	html_css_static_raw("https://fonts.googleapis.com/icon?family=Material+Icons")
-}
-
-fn material_icons_bundled() -> String {
 	html_css_dynamic(&format!(
 		r#"
 			@font-face {{
 				font-family: 'Material Icons';
 				font-style: normal;
 				font-weight: 400;
-				src: url({woff2_asset}) format('woff2');
+				src: url("{woff2_asset}") format('woff2');
 			}}
 
 			.material-icons {{
@@ -78,7 +69,7 @@ fn material_icons_bundled() -> String {
 				-webkit-font-smoothing: antialiased;
 			}}
 	"#,
-		woff2_asset = evscode::asset("assets/material-icons.woff2")
+		woff2_asset = woff2_asset
 	))
 }
 
