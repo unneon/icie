@@ -1,3 +1,8 @@
+## 0.7.20
+
+- Fixed broken user interface in test view and stress view on Windows.
+- Fixed not including chrono header in default Windows code template.
+
 ## 0.7.19
 
 - Fixed low contrast of stderr text.
