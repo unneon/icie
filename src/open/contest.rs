@@ -1,7 +1,7 @@
 use crate::{
 	auth, compile::suggest_install_compiler, net::{interpret_url, require_contest, Session}, open::{
 		files, names::{design_contest_name, design_task_name}
-	}, telemetry::TELEMETRY, util::{fmt_time_left, fs, path::Path, plural, sleep, time_now, workspace_root}
+	}, telemetry::TELEMETRY, util::{self, fs, path::Path, sleep, time_now, workspace_root}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
@@ -71,7 +71,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 	spawn_suggest_install_compiler();
 	while let Ok(left) = deadline.duration_since(time_now()) {
 		let left_ratio = left.as_millis() as f64 / total.as_millis() as f64;
-		progress.update_set(100. * (1. - left_ratio), fmt_time_left(left));
+		progress.update_set(100. * (1. - left_ratio), util::fmt::time_left(left));
 		let delay = min(left, Duration::from_secs(1));
 		let mut delay = Box::pin(sleep(delay).fuse());
 		select! {
@@ -180,8 +180,8 @@ async fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>
 		loop {
 			match backend.contest_tasks(sess, &contest).await {
 				Err(e) if e.code == ErrorCode::NetworkFailure && wait_retries > 0 => {
-					let _status = crate::STATUS
-						.push(format!("Waiting for contest start, {} left", plural(wait_retries, "retry", "retries")));
+					let fmt_retries = util::fmt::plural(wait_retries, "retry", "retries");
+					let _status = crate::STATUS.push(format!("Waiting for contest start, {} left", fmt_retries));
 					wait_retries -= 1;
 					sleep(NOT_YET_STARTED_RETRY_DELAY).await;
 				},

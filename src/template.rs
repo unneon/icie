@@ -35,30 +35,38 @@ pub async fn instantiate() -> R<()> {
 	let _status = crate::STATUS.push("Instantiating template");
 	TELEMETRY.template_instantiate.spark();
 	let templates = LIST.get();
-	let template_id = evscode::QuickPick::new()
-		.items(templates.iter().map(|(name, path)| {
-			evscode::quick_pick::Item::new(name.clone(), name.clone()).description(additional_suggested_filename(&path))
-		}))
-		.show()
-		.await
-		.ok_or_else(E::cancel)?;
+	let template_id = select_from_list(&templates).await?;
 	let template_path = &templates[&template_id];
 	let template = load_additional(&template_path).await?;
-	let filename = evscode::InputBox::new()
-		.ignore_focus_out()
-		.placeholder(&template.suggested_filename)
-		.prompt("New file name")
-		.value(&template.suggested_filename)
-		.value_selection(0, template.suggested_filename.rfind('.').unwrap())
-		.show()
-		.await
-		.ok_or_else(E::cancel)?;
+	let filename = enter_filename(&template.suggested_filename).await?;
 	let path = workspace_root()?.join(filename);
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}
 	write(&path, &template).await?;
 	Ok(())
+}
+
+async fn select_from_list(templates: &HashMap<String, String>) -> R<String> {
+	evscode::QuickPick::new()
+		.items(templates.iter().map(|(name, path)| {
+			evscode::quick_pick::Item::new(name.clone(), name.clone()).description(additional_suggested_filename(&path))
+		}))
+		.show()
+		.await
+		.ok_or_else(E::cancel)
+}
+
+async fn enter_filename(suggested: &str) -> R<String> {
+	evscode::InputBox::new()
+		.ignore_focus_out()
+		.placeholder(suggested)
+		.prompt("New file name")
+		.value(suggested)
+		.value_selection(0, suggested.rfind('.').unwrap())
+		.show()
+		.await
+		.ok_or_else(E::cancel)
 }
 
 pub async fn write(path: &Path, template: &LoadedTemplate) -> R<()> {
@@ -200,7 +208,6 @@ fn default_checker() -> R<String> {
 	)
 }
 
-// TODO: Check Windows headers in ingen.
 fn generate(prelude: &str, main_args: bool, main_prelude: &str) -> R<String> {
 	// TODO: Does bits/stdc++.h work on macOS? I heard it doesn't.
 	let includes = match OS::query()? {

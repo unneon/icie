@@ -1,5 +1,5 @@
 use crate::{
-	assets, test::{view::SKILL_ACTIONS, TestRun, Verdict}, util::{fmt_time_short, fs}
+	assets, test::{view::SKILL_ACTIONS, TestRun, Verdict}, util, util::fs
 };
 use evscode::R;
 use std::cmp::max;
@@ -172,7 +172,7 @@ fn prepare_time_note(test: &TestRun) -> Option<String> {
 	if test.outcome.time.as_millis() >= u128::from(TIME_DISPLAY_THRESHOLD.get())
 		|| test.outcome.verdict == Verdict::TimeLimitExceeded
 	{
-		Some(fmt_time_short(&test.outcome.time))
+		Some(util::fmt::time(&test.outcome.time))
 	} else {
 		None
 	}

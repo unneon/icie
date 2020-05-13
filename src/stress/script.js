@@ -19,8 +19,8 @@ window.addEventListener('message', event => {
 			let td1 = document.createElement('td');
 			td1.textContent = message.number;
 			let td2 = document.createElement('td');
-			td2.classList.add(`outcome-${message.outcome}`);
-			td2.textContent = pretty_outcome(message.outcome);
+			td2.classList.add(`verdict-${message.verdict}`);
+			td2.textContent = pretty_verdict(message.verdict);
 			let td3 = document.createElement('td');
 			td3.textContent = message.fitness;
 			tr.appendChild(td1);
@@ -38,18 +38,18 @@ window.addEventListener('message', event => {
 	}
 });
 
-function pretty_outcome(outcome) {
-	if (outcome === 'accept') {
+function pretty_verdict(verdict) {
+	if (verdict === 'accept') {
 		return 'Accept';
-	} else if (outcome === 'wrong_answer') {
+	} else if (verdict === 'wrong_answer') {
 		return 'Wrong answer';
-	} else if (outcome === 'runtime_error') {
+	} else if (verdict === 'runtime_error') {
 		return 'Runtime error';
-	} else if (outcome === 'time_limit_exceeded') {
+	} else if (verdict === 'time_limit_exceeded') {
 		return 'Time limit exceeded';
-	} else if (outcome === 'ignored_no_out') {
+	} else if (verdict === 'ignored_no_out') {
 		return 'Ignored because of no out';
 	} else {
-		throw new Error('unrecognized outcome');
+		throw new Error('unrecognized verdict');
 	}
 }

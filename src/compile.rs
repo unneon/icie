@@ -119,11 +119,11 @@ async fn select_codegen() -> R<Codegen> {
 }
 
 pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<Executable> {
-	let _status = crate::STATUS.push(util::fmt_verb("Compiling", &source));
+	let _status = crate::STATUS.push(util::fmt::verb_on_source("Compiling", &source));
 	TELEMETRY.compile.spark();
 	evscode::save_all().await?;
 	check_source_exists(&source).await?;
-	let source = source.clone().into_path()?;
+	let source = source.to_path()?;
 	let output_path = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if !force && should_cache(&source, &output_path).await? {
 		return Ok(Executable::new(output_path));
@@ -158,7 +158,7 @@ fn get_custom_flags(codegen: Codegen) -> Vec<String> {
 }
 
 async fn check_source_exists(source: &SourceTarget) -> R<()> {
-	let path = source.clone().into_path()?;
+	let path = source.to_path()?;
 	if fs::exists(&path).await? {
 		Ok(())
 	} else {
@@ -238,5 +238,5 @@ async fn dummy_compiler_run() -> R<()> {
 }
 
 pub fn executable_path(source: SourceTarget) -> R<Path> {
-	Ok(source.into_path()?.with_extension(&*EXECUTABLE_EXTENSION.get()))
+	Ok(source.to_path()?.with_extension(&*EXECUTABLE_EXTENSION.get()))
 }

@@ -1,7 +1,7 @@
 use crate::{
 	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{self, fmt_verb, fs, path::Path, SourceTarget}
+	}, util::{self, fs, path::Path, SourceTarget}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -21,7 +21,7 @@ impl Behaviour for TestView {
 	type V = Vec<TestRun>;
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
-		let title = fmt_verb("ICIE Test View", &source);
+		let title = util::fmt::verb_on_source("ICIE Test View", &source);
 		Ok(Webview::new("icie.test.view", &title, 2).enable_scripts().retain_context_when_hidden().create())
 	}
 

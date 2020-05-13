@@ -7,56 +7,12 @@ use std::{
 pub use tempfile::Tempfile;
 use wasm_bindgen::{closure::Closure, JsValue};
 
+pub mod fmt;
 pub mod fs;
 pub mod letter_case;
 pub mod path;
 pub mod retries;
 pub mod tempfile;
-
-pub fn fmt_time_short(t: &Duration) -> String {
-	let s = t.as_secs();
-	let ms = t.as_millis() % 1000;
-	format!("{}.{:03}s", s, ms)
-}
-
-pub fn fmt_time_left(mut t: Duration) -> String {
-	let mut s = {
-		let x = t.as_secs() % 60;
-		t -= Duration::from_secs(x);
-		format!("{} left", plural(x as usize, "second", "seconds"))
-	};
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 % 60;
-		t -= Duration::from_secs(x * 60);
-		s = format!("{}, {}", plural(x as usize, "minute", "minutes"), s);
-	}
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 / 60 % 24;
-		t -= Duration::from_secs(x * 60 * 60);
-		s = format!("{}, {}", plural(x as usize, "hour", "hours"), s);
-	}
-	if t.as_secs() > 0 {
-		let x = t.as_secs() / 60 / 60 / 24;
-		t -= Duration::from_secs(x * 60 * 60 * 24);
-		s = format!("{}, {}", plural(x as usize, "day", "days"), s)
-	}
-	s
-}
-
-#[test]
-fn test_fmt_time() {
-	assert_eq!(fmt_time_short(&Duration::from_millis(2137)), "2.137s");
-	assert_eq!(fmt_time_short(&Duration::from_millis(42)), "0.042s");
-}
-
-pub fn fmt_verb(verb: &'static str, source: &SourceTarget) -> String {
-	match source {
-		SourceTarget::Custom(source) => format!("{} {}", verb, source.fmt_workspace()),
-		SourceTarget::Main => verb.to_owned(),
-		SourceTarget::BruteForce => format!("{} brute force", verb),
-		SourceTarget::TestGenerator => format!("{} test generator", verb),
-	}
-}
 
 pub async fn active_tab() -> R<SourceTarget> {
 	let source = Path::from_native(evscode::active_editor_file().await.ok_or_else(E::cancel)?);
@@ -76,12 +32,6 @@ pub fn bash_escape(raw: &str) -> String {
 	}
 	escaped += "\"";
 	escaped
-}
-
-#[test]
-fn test_bash_escape() {
-	assert_eq!(bash_escape("\"Hello, world!\""), r#""\"Hello, world\!\"""#);
-	assert_eq!(bash_escape("${HOME}\\Projects"), r#""\${HOME}\\Projects""#);
 }
 
 pub async fn is_installed(app: &str) -> R<bool> {
@@ -149,10 +99,6 @@ pub async fn find_cursor_place(path: &Path) -> Option<Position> {
 	None
 }
 
-pub fn plural(x: usize, singular: &str, plural: &str) -> String {
-	format!("{} {}", x, if x == 1 { singular } else { plural })
-}
-
 pub fn expand_path(path: &str) -> Path {
 	let expanded = if path == "~" || path.starts_with("~/") {
 		format!("{}{}", node_sys::os::homedir(), &path[1..])
@@ -180,12 +126,12 @@ pub enum SourceTarget {
 }
 
 impl SourceTarget {
-	pub fn into_path(self) -> R<Path> {
+	pub fn to_path(&self) -> R<Path> {
 		match self {
 			SourceTarget::Main => dir::solution(),
 			SourceTarget::BruteForce => dir::brute_force(),
 			SourceTarget::TestGenerator => dir::test_generator(),
-			SourceTarget::Custom(source) => Ok(source),
+			SourceTarget::Custom(source) => Ok(source.clone()),
 		}
 	}
 }

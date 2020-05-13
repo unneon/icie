@@ -1,17 +1,36 @@
 use crate::{
-	compile::{compile, Codegen}, executable::Executable, stress::render::render, test::{self, add_test, judge::simple_test, Outcome, Task, Verdict}, util::SourceTarget
+	stress, stress::{execute_runs, render::render, Row}, test::{add_test, Verdict}
 };
 use async_trait::async_trait;
 use evscode::{
 	error::cancel_on, goodies::webview_collection::{Behaviour, Collection}, webview::{Disposer, Listener, WebviewMeta, WebviewRef}, E, R
 };
-use futures::{stream::select, Stream, StreamExt, TryStreamExt};
+use futures::{stream::select, StreamExt, TryStreamExt};
 use once_cell::sync::Lazy;
 use serde::{Serialize, Serializer};
 
-pub static WEBVIEW: Lazy<Collection<Stress>> = Lazy::new(|| Collection::new(Stress));
-
 pub struct Stress;
+
+#[derive(Debug)]
+pub enum Event {
+	Row(Row),
+	Add,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "tag")]
+enum Food<'a> {
+	#[serde(rename = "row")]
+	Row {
+		number: usize,
+		#[serde(serialize_with = "ser_verdict")]
+		verdict: Verdict,
+		fitness: i64,
+		input: Option<&'a str>,
+	},
+}
+
+pub static WEBVIEW: Lazy<Collection<Stress>> = Lazy::new(|| Collection::new(Stress));
 
 #[async_trait(?Send)]
 impl Behaviour for Stress {
@@ -36,20 +55,10 @@ impl Behaviour for Stress {
 
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Stress testing");
-		let solution = compile(&SourceTarget::Main, Codegen::Debug, false).await?;
-		let brute_force = compile(&SourceTarget::BruteForce, Codegen::Release, false)
-			.await
-			.map_err(|e| e.context("could not start stress testing"))?;
-		let gen = compile(&SourceTarget::TestGenerator, Codegen::Release, false)
-			.await
-			.map_err(|e| e.context("could not start stress testing"))?;
-		let task = Task::simple().await?;
+		let state = stress::prepare_state().await.map_err(|e| e.context("could not start stress testing"))?;
 		let mut best_row: Option<Row> = None;
 		let mut events = Box::pin(cancel_on(
-			select(
-				execute_runs(&solution, &brute_force, &gen, &task).map_ok(Event::Row),
-				listener.map(|_| Ok(Event::Add)),
-			),
+			select(execute_runs(&state).map_ok(Event::Row), listener.map(|_| Ok(Event::Add))),
 			disposer,
 		));
 		while let Some(event) = events.next().await {
@@ -58,14 +67,7 @@ impl Behaviour for Stress {
 					let is_counterexample = !row.outcome.success();
 					let is_smallest = best_row.as_ref().map_or(true, |best_row| row.fitness > best_row.fitness);
 					let is_new_best = is_counterexample && is_smallest;
-					webview
-						.post_message(Food::Row {
-							number: row.number,
-							outcome: row.outcome.verdict,
-							fitness: row.fitness,
-							input: if is_new_best { Some(row.input.as_str()) } else { None },
-						})
-						.await;
+					webview.post_message(Food::from_row(&row, is_new_best)).await;
 					if is_new_best {
 						best_row = Some(row);
 					}
@@ -73,7 +75,6 @@ impl Behaviour for Stress {
 				Event::Add => match &best_row {
 					Some(best_row) => {
 						add_test(&best_row.input, &best_row.desired).await?;
-						test::view::manage::COLLECTION.get_force(SourceTarget::Main).await?;
 						break;
 					},
 					None => E::error("no test with non-AC verdict was found yet").emit(),
@@ -84,74 +85,15 @@ impl Behaviour for Stress {
 	}
 }
 
-#[derive(Debug)]
-pub enum Event {
-	Row(Row),
-	Add,
-}
-
-#[derive(Debug)]
-pub struct Row {
-	pub number: usize,
-	pub outcome: Outcome,
-	pub fitness: i64,
-	pub input: String,
-	pub desired: String,
-}
-
-fn execute_runs<'a>(
-	solution: &'a Executable,
-	brute_force: &'a Executable,
-	test_generator: &'a Executable,
-	task: &'a Task,
-) -> impl Stream<Item=R<Row>>+'a
-{
-	futures::stream::iter(1..).then(move |number| execute_run(number, solution, brute_force, test_generator, task))
-}
-
-async fn execute_run(
-	number: usize,
-	solution: &Executable,
-	brute_force: &Executable,
-	test_generator: &Executable,
-	task: &Task,
-) -> R<Row>
-{
-	let run_test_generator = test_generator
-		.run("", &[], &task.environment)
-		.await
-		.map_err(|e| e.context("executing test generator aborted"))?;
-	if !run_test_generator.success() {
-		return Err(E::error(format!("executing test generator failed, {:?}", run_test_generator)));
+impl<'a> Food<'a> {
+	fn from_row(row: &'a Row, is_new_best: bool) -> Food {
+		Food::Row {
+			number: row.number,
+			verdict: row.outcome.verdict,
+			fitness: row.fitness,
+			input: if is_new_best { Some(row.input.as_str()) } else { None },
+		}
 	}
-	let input = run_test_generator.stdout;
-	let run_brute_force = brute_force
-		.run(&input, &[], &task.environment)
-		.await
-		.map_err(|e| e.context("executing brute force solution aborted"))?;
-	if !run_brute_force.success() {
-		return Err(E::error(format!("executing brute force solution failed, {:?}", run_brute_force)));
-	}
-	let desired = run_brute_force.stdout;
-	let outcome = simple_test(&solution, &input, Some(&desired), None, &task)
-		.await
-		.map_err(|e| e.context("failed to run test in stress"))?;
-	let fitness = -(input.len() as i64);
-	let row = Row { number, outcome, fitness, input, desired };
-	Ok(row)
-}
-
-#[derive(Serialize)]
-#[serde(tag = "tag")]
-enum Food<'a> {
-	#[serde(rename = "row")]
-	Row {
-		number: usize,
-		#[serde(serialize_with = "ser_verdict")]
-		outcome: Verdict,
-		fitness: i64,
-		input: Option<&'a str>,
-	},
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]

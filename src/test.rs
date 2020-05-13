@@ -23,7 +23,7 @@ pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let solution = compile::compile(&source, Codegen::Debug, false).await?;
 	let task = Task::simple().await?;
 	let inputs = scan_for_tests(&dir::TESTS_DIRECTORY.get()).await;
-	let progress = evscode::Progress::new().title(util::fmt_verb("Testing", &source)).show().0;
+	let progress = evscode::Progress::new().title(util::fmt::verb_on_source("Testing", &source)).show().0;
 	let mut runs = Vec::new();
 	for input_path in &inputs {
 		let input = fs::read_to_string(&input_path).await?;
@@ -50,7 +50,7 @@ async fn load_test_output(input_path: &Path, ext: &str) -> R<Option<String>> {
 fn update_test_progress(run: &TestRun, count: usize, progress: &evscode::Progress) -> R<()> {
 	let name = run.in_path.fmt_relative(&dir::tests()?);
 	let inc = 100. / count as f64;
-	let msg_time = util::fmt_time_short(&run.outcome.time);
+	let msg_time = util::fmt::time(&run.outcome.time);
 	let msg = format!("{} on `{}` in {}", run.outcome.verdict, name, msg_time);
 	progress.update_inc(inc, msg);
 	Ok(())
