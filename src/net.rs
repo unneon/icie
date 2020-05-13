@@ -181,7 +181,7 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 				TELEMETRY.report_action_show.spark();
 				let message = e.human();
 				let html = html.clone();
-				e = e.action("Report this 😭 (please do!)", async move {
+				e = e.action("Extended manual error report", async move {
 					TELEMETRY.report_action_click.spark();
 					crate::report::report_html(&message, &html).await
 				});
