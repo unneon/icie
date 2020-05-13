@@ -28,4 +28,9 @@ impl OutputChannel {
 	pub fn show(&self, preserve_focus: bool) {
 		self.native.show(preserve_focus)
 	}
+
+	/// Hides the output channel from the UI.
+	pub fn hide(&self) {
+		self.native.hide();
+	}
 }

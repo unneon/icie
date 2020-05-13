@@ -151,6 +151,9 @@ extern "C" {
 	pub fn clear(this: &OutputChannel);
 
 	#[wasm_bindgen(method)]
+	pub fn hide(this: &OutputChannel);
+
+	#[wasm_bindgen(method)]
 	pub fn show(this: &OutputChannel, preserve_focus: bool);
 
 	#[wasm_bindgen(method, getter, js_name = workspaceState)]

@@ -182,13 +182,15 @@ fn display_compiler_stderr(stderr: &str) {
 	thread_local! {
 		static OUTPUT_CHANNEL: Lazy<OutputChannel> = Lazy::new(|| OutputChannel::new("ICIE Compile"));
 	}
-	if !stderr.is_empty() {
-		OUTPUT_CHANNEL.with(|output| {
+	OUTPUT_CHANNEL.with(|output| {
+		if !stderr.is_empty() {
 			output.clear();
 			output.append(&stderr);
 			output.show(true);
-		});
-	}
+		} else {
+			output.hide();
+		}
+	});
 }
 
 async fn check_compiler_errors(status: &Status) -> R<()> {
