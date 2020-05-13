@@ -1,3 +1,12 @@
+## 0.7.21
+
+- Added automatically hiding compilation errors after a next compilation is successful.
+- Added automatically selecting code template and filename to suggestions displayed when source file is not found in stress testing.
+- Added configuration option to disable all tutorial messages.
+- Added message in test view reminding how to add new tests.
+- Added hiding the tutorial for adding new tests after 6 successful uses.
+- Added listing supported platforms for some features in error messages.
+
 ## 0.7.20
 
 - Fixed broken user interface in test view and stress view on Windows.
