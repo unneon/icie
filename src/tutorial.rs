@@ -1,5 +1,10 @@
 use evscode::{stdlib::state::Scope, State};
 
+/// Disables all tutorials, like showing action icons without hovering in test view, or displaying instructions for
+/// adding new tests.
+#[evscode::config]
+static DISABLE_ALL: evscode::Config<bool> = false;
+
 pub struct Skill {
 	use_count: State<u64>,
 	proficiency_threshold: u64,
@@ -10,7 +15,7 @@ impl Skill {
 	}
 
 	pub async fn is_proficient(&'static self) -> bool {
-		self.use_count.get().unwrap().unwrap_or(0) >= self.proficiency_threshold
+		self.use_count.get().unwrap().unwrap_or(0) >= self.proficiency_threshold || DISABLE_ALL.get()
 	}
 
 	pub async fn add_use(&'static self) {

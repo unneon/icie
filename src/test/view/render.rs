@@ -1,5 +1,7 @@
 use crate::{
-	assets, test::{view::SKILL_ACTIONS, TestRun, Verdict}, util, util::fs
+	assets, test::{
+		view::{SKILL_ACTIONS, SKILL_ADD}, TestRun, Verdict
+	}, util, util::fs
 };
 use evscode::R;
 use std::cmp::max;
@@ -69,15 +71,7 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 				<table class="table">
 					{table}
 				</table>
-				<div class="new">
-					<div class="new-areas">
-						<textarea id="new-input" class="new-area" placeholder="Write test input here..."></textarea>
-						<textarea id="new-desired" class="new-area" placeholder="Write test output here..."></textarea>
-					</div>
-					<p class="new-tutorial">
-						... and press <kbd>Alt</kbd><kbd>-</kbd> to finish adding the test.
-					</p>
-				</div>
+				{new_test}
 			</body>
 		</html>
 		"#,
@@ -85,7 +79,8 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 		material_icons = assets::html_material_icons(),
 		css_layout = assets::html_css("src/test/view/layout.css").await,
 		css_paint = assets::html_css("src/test/view/paint.css").await,
-		table = render_test_table(tests).await?
+		table = render_test_table(tests).await?,
+		new_test = render_new_test().await,
 	))
 }
 
@@ -258,6 +253,41 @@ fn render_action(action: &Action) -> String {
 		"<div class=\"material-icons action\" onclick=\"{}\" title=\"{}\">{}</div>",
 		action.onclick, action.hint, action.icon
 	)
+}
+
+async fn render_new_test() -> String {
+	let first = if !SKILL_ADD.is_proficient().await {
+		"<p class=\"new-tutorial new-tutorial-start\">Press <kbd>Alt</kbd><kbd>-</kbd> to add a new test.</p>"
+	} else {
+		""
+	};
+	let instruction = if !SKILL_ADD.is_proficient().await {
+		"<p class=\"new-tutorial\">... and press <kbd>Alt</kbd><kbd>-</kbd> to finish adding the test.</p>"
+	} else {
+		""
+	};
+	format!(
+		r#"
+		{first}
+		<div class="new">
+			<div class="new-areas">
+				{input_area}
+				{output_area}
+			</div>
+			{instruction}
+		</div>
+"#,
+		first = first,
+		input_area = render_new_test_area("new-input", "Write test input here...").await,
+		output_area = render_new_test_area("new-desired", "Write test output here...").await,
+		instruction = instruction,
+	)
+}
+
+async fn render_new_test_area(id: &str, hint: &str) -> String {
+	let placeholder =
+		if !SKILL_ADD.is_proficient().await { format!("placeholder=\"{}\"", hint) } else { String::new() };
+	format!("<textarea id=\"{}\" class=\"new-area\" {}></textarea>", id, placeholder)
 }
 
 impl HideBehaviour {

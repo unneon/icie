@@ -1,6 +1,6 @@
 use crate::{
 	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
-		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
+		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS, SKILL_ADD}, TestRun
 	}, util::{self, fs, path::Path, SourceTarget}
 };
 use async_trait::async_trait;
@@ -51,7 +51,12 @@ impl Behaviour for TestView {
 					let source = source.clone();
 					evscode::spawn(async move { gdb(&in_path, source).await });
 				},
-				Note::NewTest { input, desired } => evscode::spawn(async move { add_test(&input, &desired).await }),
+				Note::NewTest { input, desired } => evscode::spawn(async move {
+					if !input.is_empty() && !desired.is_empty() {
+						SKILL_ADD.add_use().await;
+					}
+					add_test(&input, &desired).await
+				}),
 				Note::SetAlt { in_path, out } => evscode::spawn(async move {
 					TELEMETRY.test_alternative_add.spark();
 					let in_alt_path = in_path.with_extension("alt.out");

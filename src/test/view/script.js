@@ -46,6 +46,9 @@ function new_start() {
 		document.getElementsByClassName('new')[0].classList.add("is-active");
 		newing = true;
 	}
+	for (let to_hide of document.getElementsByClassName('new-tutorial-start')) {
+		to_hide.style.display = 'none';
+	}
 	document.getElementById('new-input').focus();
 }
 
