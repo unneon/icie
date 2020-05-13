@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1"
 evscode-codegen = { path = "../evscode-codegen" }
-futures-preview = "0.3.0-alpha.19"
+futures = { version = "0.3", default-features = false }
 js-sys = "0.3"
 log = { version = "0.4", features = ["std"] }
 node-sys = { path = "../node-sys" }
