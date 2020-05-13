@@ -1,9 +1,13 @@
 use crate::{
-	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, workspace_root, OS}
+	dir, telemetry::TELEMETRY, util, util::{expand_path, fs, path::Path, workspace_root, OS}
 };
 use evscode::{E, R};
 use log::debug;
 use std::collections::HashMap;
+
+const ID_BRUTE_FORCE: &str = "C++ Brute force";
+const ID_TEST_GENERATOR: &str = "C++ Test generator";
+const ID_CHECKER: &str = "C++ Checker";
 
 /// Path to your C++ template file. Set this to a value like `/home/jonsmith/template.cpp` or
 /// `C:\Users\JohnSmith\template.cpp`. When opening a new task or contest, the contents of this file
@@ -19,9 +23,9 @@ static SOLUTION: evscode::Config<String> = "".to_owned();
 /// Replace the path placeholder with a path to your template file, or add more templates.
 #[evscode::config]
 pub static LIST: evscode::Config<HashMap<String, String>> = vec![
-	("C++ Brute force".to_owned(), PSEUDOPATH_BRUTE_FORCE.to_owned()),
-	("C++ Test generator".to_owned(), PSEUDOPATH_TEST_GENERATOR.to_owned()),
-	("C++ Checker".to_owned(), PSEUDOPATH_CHECKER.to_owned()),
+	(ID_BRUTE_FORCE.to_owned(), PSEUDOPATH_BRUTE_FORCE.to_owned()),
+	(ID_TEST_GENERATOR.to_owned(), PSEUDOPATH_TEST_GENERATOR.to_owned()),
+	(ID_CHECKER.to_owned(), PSEUDOPATH_CHECKER.to_owned()),
 ]
 .into_iter()
 .collect();
@@ -53,10 +57,13 @@ pub async fn instantiate() -> R<()> {
 	if fs::exists(&path).await? {
 		return Err(E::error("file already exists"));
 	}
-	fs::write(&path, template.code).await?;
-	// FIXME: This for some reason failed to open the editor after the WASM rewrite.
-	evscode::open_editor(&path).cursor(util::find_cursor_place(&path).await).open().await?;
+	write(&path, &template).await?;
 	Ok(())
+}
+
+pub async fn write(path: &Path, template: &LoadedTemplate) -> R<()> {
+	fs::write(path, &template.code).await?;
+	util::open_source(path).await
 }
 
 #[evscode::command(title = "ICIE Template configure")]
@@ -93,6 +100,21 @@ pub async fn load_solution() -> R<LoadedTemplate> {
 		},
 	};
 	Ok(template)
+}
+
+pub async fn load_brute_force() -> R<LoadedTemplate> {
+	load_by_id_or(ID_BRUTE_FORCE, PSEUDOPATH_BRUTE_FORCE).await
+}
+
+pub async fn load_test_generator() -> R<LoadedTemplate> {
+	load_by_id_or(ID_TEST_GENERATOR, PSEUDOPATH_TEST_GENERATOR).await
+}
+
+async fn load_by_id_or(id: &str, default_path: &str) -> R<LoadedTemplate> {
+	let custom_templates = LIST.get();
+	let custom_path = custom_templates.iter().find(|(name, _)| *name == id).map(|(_, path)| path.as_str());
+	let template_path = custom_path.unwrap_or(default_path);
+	load_additional(template_path).await
 }
 
 pub async fn load_additional(path: &str) -> R<LoadedTemplate> {

@@ -53,6 +53,8 @@ pub fn fmt_verb(verb: &'static str, source: &SourceTarget) -> String {
 	match source {
 		SourceTarget::Custom(source) => format!("{} {}", verb, source.fmt_workspace()),
 		SourceTarget::Main => verb.to_owned(),
+		SourceTarget::BruteForce => format!("{} brute force", verb),
+		SourceTarget::TestGenerator => format!("{} test generator", verb),
 	}
 }
 
@@ -128,6 +130,11 @@ pub fn time_now() -> SystemTime {
 	SystemTime::UNIX_EPOCH + Duration::from_millis(js_sys::Date::now() as u64)
 }
 
+pub async fn open_source(path: &Path) -> R<()> {
+	let cursor = find_cursor_place(&path).await;
+	evscode::open_editor(&path).cursor(cursor).open().await
+}
+
 pub async fn find_cursor_place(path: &Path) -> Option<Position> {
 	let doc = fs::read_to_string(path).await.unwrap_or_default();
 	let mut found_main = false;
@@ -167,6 +174,8 @@ pub fn node_hrtime() -> Duration {
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub enum SourceTarget {
 	Main,
+	BruteForce,
+	TestGenerator,
 	Custom(Path),
 }
 
@@ -174,6 +183,8 @@ impl SourceTarget {
 	pub fn into_path(self) -> R<Path> {
 		match self {
 			SourceTarget::Main => dir::solution(),
+			SourceTarget::BruteForce => dir::brute_force(),
+			SourceTarget::TestGenerator => dir::test_generator(),
 			SourceTarget::Custom(source) => Ok(source),
 		}
 	}

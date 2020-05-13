@@ -1,5 +1,5 @@
 use crate::{
-	compile::{compile, Codegen}, dir, executable::Executable, stress::render::render, test::{self, add_test, judge::simple_test, Outcome, Task, Verdict}, util::SourceTarget
+	compile::{compile, Codegen}, executable::Executable, stress::render::render, test::{self, add_test, judge::simple_test, Outcome, Task, Verdict}, util::SourceTarget
 };
 use async_trait::async_trait;
 use evscode::{
@@ -37,10 +37,10 @@ impl Behaviour for Stress {
 	async fn manage(&self, _: Self::K, webview: WebviewRef, listener: Listener, disposer: Disposer) -> R<()> {
 		let _status = crate::STATUS.push("Stress testing");
 		let solution = compile(&SourceTarget::Main, Codegen::Debug, false).await?;
-		let brute_force = compile(&SourceTarget::Custom(dir::brute_force()?), Codegen::Release, false)
+		let brute_force = compile(&SourceTarget::BruteForce, Codegen::Release, false)
 			.await
 			.map_err(|e| e.context("could not start stress testing"))?;
-		let gen = compile(&SourceTarget::Custom(dir::test_generator()?), Codegen::Release, false)
+		let gen = compile(&SourceTarget::TestGenerator, Codegen::Release, false)
 			.await
 			.map_err(|e| e.context("could not start stress testing"))?;
 		let task = Task::simple().await?;

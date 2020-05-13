@@ -1,7 +1,7 @@
 use crate::{
 	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS}, TestRun
-	}, util::{fmt_verb, fs, path::Path, SourceTarget}
+	}, util::{self, fmt_verb, fs, path::Path, SourceTarget}
 };
 use async_trait::async_trait;
 use evscode::{
@@ -71,7 +71,7 @@ impl Behaviour for TestView {
 					if !fs::exists(&path).await? {
 						fs::write(&path, "").await?;
 					}
-					evscode::open_editor(&path).open().await?;
+					util::open_source(&path).await?;
 				},
 				Note::ActionNotice => SKILL_ACTIONS.add_use().await,
 				Note::EvalReq { id, input } => {
@@ -81,8 +81,7 @@ impl Behaviour for TestView {
 							evscode::spawn(async move {
 								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
-								let brute_force =
-									compile(&SourceTarget::Custom(brute_force), Codegen::Release, false).await?;
+								let brute_force = compile(&SourceTarget::BruteForce, Codegen::Release, false).await?;
 								let environment = Environment { time_limit: time_limit(), cwd: None };
 								let run = brute_force.run(&input, &[], &environment).await?;
 								drop(_status);

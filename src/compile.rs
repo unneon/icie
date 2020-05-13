@@ -121,9 +121,9 @@ async fn select_codegen() -> R<Codegen> {
 pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<Executable> {
 	let _status = crate::STATUS.push(util::fmt_verb("Compiling", &source));
 	TELEMETRY.compile.spark();
-	let source = source.clone().into_path()?;
 	evscode::save_all().await?;
 	check_source_exists(&source).await?;
+	let source = source.clone().into_path()?;
 	let output_path = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if !force && should_cache(&source, &output_path).await? {
 		return Ok(Executable::new(output_path));
@@ -157,16 +157,22 @@ fn get_custom_flags(codegen: Codegen) -> Vec<String> {
 	flags.split(' ').map(|flag| flag.trim().to_owned()).filter(|flag| !flag.is_empty()).collect::<Vec<_>>()
 }
 
-async fn check_source_exists(source: &Path) -> R<()> {
-	if fs::exists(source).await? {
+async fn check_source_exists(source: &SourceTarget) -> R<()> {
+	let path = source.clone().into_path()?;
+	if fs::exists(&path).await? {
 		Ok(())
 	} else {
-		let pretty_source = source.fmt_workspace();
-		let error = E::error(format!("source {} does not exist at {}", pretty_source, source));
-		let error = if source == &dir::solution()? {
-			suggest_open(error)
-		} else {
-			error.action(format!("Create {} (Alt++)", pretty_source), crate::template::instantiate())
+		let path_pretty = path.fmt_workspace();
+		let mut error = E::error(format!("source {} does not exist at {}", path_pretty, path));
+		error = match source {
+			SourceTarget::Main => suggest_open(error),
+			SourceTarget::BruteForce => error.action("Create brute force (Alt++)", async move {
+				template::write(&dir::brute_force()?, &template::load_brute_force().await?).await
+			}),
+			SourceTarget::TestGenerator => error.action("Create test generator (Alt++)", async move {
+				template::write(&dir::test_generator()?, &template::load_test_generator().await?).await
+			}),
+			SourceTarget::Custom(_) => error.action("Create (Alt++)", crate::template::instantiate()),
 		};
 		Err(error)
 	}

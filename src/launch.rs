@@ -25,25 +25,20 @@ pub async fn deactivate() -> R<()> {
 pub async fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
-		place_cursor_in_code().await?;
+		place_cursor_in_code().await;
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
 		// Refocus the cursor, because apparently preserve_focus is useless.
-		place_cursor_in_code().await?;
+		place_cursor_in_code().await;
 	}
 	Ok(())
 }
 
-async fn place_cursor_in_code() -> R<()> {
+async fn place_cursor_in_code() {
 	if let Ok(solution) = dir::solution() {
-		let _ = evscode::open_editor(&solution)
-			.cursor(util::find_cursor_place(&solution).await)
-			.view_column(1)
-			.open()
-			.await;
+		let _ = util::open_source(&solution).await;
 	}
-	Ok(())
 }
 
 async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
