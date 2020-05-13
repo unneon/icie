@@ -24,6 +24,9 @@ const CLANG: Service = Service {
 	telemetry_install: &TELEMETRY.clang_install,
 	telemetry_not_installed: &TELEMETRY.clang_not_installed,
 	tutorial_url_windows: None,
+	supports_linux: true,
+	supports_windows: false,
+	supports_macos: true,
 };
 
 // Searching for MinGW is more complex than searching for Linux/macOS executables, so this is just
@@ -38,6 +41,9 @@ const MINGW: Service = Service {
 	telemetry_install: &TELEMETRY.mingw_install,
 	telemetry_not_installed: &TELEMETRY.mingw_not_installed,
 	tutorial_url_windows: Some("https://github.com/pustaczek/icie/blob/master/docs/WINDOWS.md"),
+	supports_linux: false,
+	supports_windows: true,
+	supports_macos: false,
 };
 
 pub async fn compile(

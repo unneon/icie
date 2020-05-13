@@ -1,7 +1,7 @@
 use crate::{
-	executable::Executable, telemetry::Counter, terminal, util::{is_installed, OS}
+	executable::Executable, telemetry::Counter, terminal, util::{self, is_installed, OS}
 };
-use evscode::{error::ResultExt, E, R};
+use evscode::{E, R};
 
 pub struct Service {
 	pub human_name: &'static str,
@@ -13,6 +13,9 @@ pub struct Service {
 	pub telemetry_install: &'static Counter,
 	pub telemetry_not_installed: &'static Counter,
 	pub tutorial_url_windows: Option<&'static str>,
+	pub supports_linux: bool,
+	pub supports_windows: bool,
+	pub supports_macos: bool,
 }
 
 impl Service {
@@ -21,11 +24,25 @@ impl Service {
 	}
 
 	pub async fn find_command(&'static self) -> R<String> {
-		let command = self.get_exec().wrap(format!("{} is not supported on your platform", self.human_name))?;
+		let command = self.get_exec().ok_or_else(|| E::error(self.fmt_supported_platforms()))?;
 		if !is_installed(command).await? {
 			return Err(self.not_installed().await?);
 		}
 		Ok(command.to_owned())
+	}
+
+	fn fmt_supported_platforms(&self) -> String {
+		let mut platforms = Vec::new();
+		if self.supports_linux {
+			platforms.push("Linux");
+		}
+		if self.supports_windows {
+			platforms.push("Windows");
+		}
+		if self.supports_macos {
+			platforms.push("macOS");
+		}
+		format!("{} is only supported on {}", self.human_name, util::fmt::list(&platforms))
 	}
 
 	pub async fn not_installed(&'static self) -> R<E> {

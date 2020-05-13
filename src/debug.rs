@@ -13,6 +13,9 @@ pub const GDB: Service = Service {
 	telemetry_install: &TELEMETRY.gdb_install,
 	telemetry_not_installed: &TELEMETRY.gdb_not_installed,
 	tutorial_url_windows: None,
+	supports_linux: true,
+	supports_windows: false,
+	supports_macos: true,
 };
 
 pub const RR: Service = Service {
@@ -25,6 +28,9 @@ pub const RR: Service = Service {
 	telemetry_install: &TELEMETRY.rr_install,
 	telemetry_not_installed: &TELEMETRY.rr_not_installed,
 	tutorial_url_windows: None,
+	supports_linux: true,
+	supports_windows: false,
+	supports_macos: false,
 };
 
 pub async fn gdb(in_path: &Path, source: SourceTarget) -> R<()> {

@@ -43,3 +43,11 @@ pub fn verb_on_source(verb: &'static str, source: &SourceTarget) -> String {
 pub fn plural(x: usize, singular: &str, plural: &str) -> String {
 	format!("{} {}", x, if x == 1 { singular } else { plural })
 }
+
+pub fn list(xs: &[&str]) -> String {
+	match xs {
+		[] => "...".to_owned(),
+		[only] => (*only).to_owned(),
+		[head @ .., tail] => format!("{} and {}", head.join(", "), tail),
+	}
+}
