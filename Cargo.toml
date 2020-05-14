@@ -21,7 +21,6 @@ chrono = { version = "0.4", features = ["wasmbind"] }
 debris = { git = "https://github.com/pustaczek/debris" }
 evscode = { path = "./evscode" }
 futures = { version = "0.3", default-features = false, features = ["async-await", "std"] }
-itertools = "0.9"
 js-sys = "0.3"
 keytar-sys = { path = "./keytar-sys" }
 log = "0.4"

@@ -1,15 +1,14 @@
 use crate::util::path::Path;
-use itertools::Itertools;
 
-#[derive(Eq, Ord, PartialEq, PartialOrd)]
-enum OrderedWord {
-	Text(String),
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum Word<'a> {
+	Text(&'a str),
 	Number(i64),
 }
 
 pub async fn scan_for_tests(test_dir: &str) -> Vec<Path> {
 	let mut tests = scan_unordered(test_dir).await;
-	tests.sort_by_key(compare_test_path);
+	tests.sort_by(|a, b| compare_test_path(a).cmp(&compare_test_path(b)));
 	tests
 }
 
@@ -21,15 +20,18 @@ async fn scan_unordered(test_dir: &str) -> Vec<Path> {
 		.collect()
 }
 
-fn compare_test_path(path: &Path) -> Vec<OrderedWord> {
-	path.as_str()
-		.chars()
-		.group_by(|c| c.is_numeric())
-		.into_iter()
-		.map(|(is_digit, group): (bool, _)| {
-			let text = group.collect::<String>();
-			let number = if is_digit { text.parse::<i64>().ok() } else { None };
-			number.map(OrderedWord::Number).unwrap_or(OrderedWord::Text(text))
-		})
-		.collect()
+fn compare_test_path(raw_path: &Path) -> Vec<Word> {
+	let mut path = raw_path.as_str();
+	let mut words = Vec::new();
+	while !path.is_empty() {
+		let end_of_number = path.find(|c: char| !c.is_digit(10)).unwrap_or_else(|| path.len());
+		let end_of_word = path.find(|c: char| c.is_digit(10)).unwrap_or_else(|| path.len());
+		let word = match path[..end_of_number].parse() {
+			Ok(number) => Word::Number(number),
+			Err(_) => Word::Text(&path[..end_of_number.max(end_of_word)]),
+		};
+		path = &path[end_of_number.max(end_of_word)..];
+		words.push(word);
+	}
+	words
 }
