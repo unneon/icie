@@ -1,7 +1,4 @@
-#![feature(const_generics, proc_macro_diagnostic)]
-#![allow(incomplete_features)]
-
-extern crate proc_macro;
+#![feature(proc_macro_diagnostic)]
 
 use proc_macro::TokenStream;
 

@@ -98,8 +98,11 @@ fn find_attribute<'a>(ident: &'static str, attrs: &'a [Attribute], span: Span) -
 }
 
 fn parse_attribute(attr: &Attribute) -> Result<LitStr, ProcError> {
-	let name = parse_meta_name_value_list::<1>(attr).and_then(|[meta_name_value]| match &meta_name_value.lit {
-		Lit::Str(name) if meta_name_value.path.is_ident("name") => Some(name.clone()),
+	let name = parse_meta_name_value_list(attr).and_then(|meta_name_values| match meta_name_values.as_slice() {
+		[meta_name_value] => match &meta_name_value.lit {
+			Lit::Str(name) if meta_name_value.path.is_ident("name") => Some(name.clone()),
+			_ => None,
+		},
 		_ => None,
 	});
 	name.ok_or_else(|| {
@@ -111,25 +114,18 @@ fn parse_attribute(attr: &Attribute) -> Result<LitStr, ProcError> {
 	})
 }
 
-fn parse_meta_name_value_list<const N: usize>(attr: &Attribute) -> Option<[MetaNameValue; N]>
-where [MetaNameValue; N]: array_init::IsArray<Item=MetaNameValue> {
+fn parse_meta_name_value_list(attr: &Attribute) -> Option<Vec<MetaNameValue>> {
 	let meta = attr.parse_meta().ok()?;
 	let meta_list = match meta {
 		Meta::List(meta_list) => meta_list,
 		_ => return None,
 	};
-	if meta_list.nested.len() != N {
-		return None;
-	}
-	// TODO: Drop array_init dependency once Rust #69985 is merged.
-	array_init::from_iter::<[MetaNameValue; N], _>(
-		meta_list
-			.nested
-			.into_iter()
-			.map(|nested_meta| match nested_meta {
-				NestedMeta::Meta(Meta::NameValue(meta_name_value)) => Some(meta_name_value),
-				_ => None,
-			})
-			.collect::<Option<Vec<_>>>()?,
-	)
+	meta_list
+		.nested
+		.into_iter()
+		.map(|nested_meta| match nested_meta {
+			NestedMeta::Meta(Meta::NameValue(meta_name_value)) => Some(meta_name_value),
+			_ => None,
+		})
+		.collect()
 }
