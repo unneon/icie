@@ -1,5 +1,5 @@
 use crate::{
-	compile, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, terminal, test, util, util::{fs, path::Path, SourceTarget}
+	compile, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, terminal, terminal::BashTerminal, test, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::{E, R};
 
@@ -43,6 +43,7 @@ pub async fn gdb(in_path: &Path, source: SourceTarget) -> R<()> {
 		"-ex",
 		&format!("set args < {}", util::bash_escape(in_path.as_str())),
 	])
+	.await
 }
 
 pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
@@ -60,13 +61,15 @@ pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
 		)
 		.action("🔐 Auto-configure", configure_kernel_perf_event_paranoid()));
 	}
-	terminal::debugger("RR", in_path, &[&rr, "replay", "--", "-q"])
+	terminal::debugger("RR", in_path, &[&rr, "replay", "--", "-q"]).await
 }
 
 async fn configure_kernel_perf_event_paranoid() -> R<()> {
-	terminal::Internal::raw(
-		"ICIE Auto-configure RR",
-		"echo 'kernel.perf_event_paranoid=1' | pkexec tee -a /etc/sysctl.conf && echo 1 | pkexec tee -a \
-		 /proc/sys/kernel/perf_event_paranoid",
-	)
+	terminal::Internal
+		.spawn_bash(
+			"ICIE Auto-configure RR",
+			"echo 'kernel.perf_event_paranoid=1' | pkexec tee -a /etc/sysctl.conf && echo 1 | pkexec tee -a \
+			 /proc/sys/kernel/perf_event_paranoid",
+		)
+		.await
 }

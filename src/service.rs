@@ -99,15 +99,15 @@ impl Service {
 }
 
 async fn apt_install(package: &'static str) -> R<()> {
-	terminal::install(package, &["pkexec", "apt", "install", "-y", package])
+	terminal::install(package, &["pkexec", "apt", "install", "-y", package]).await
 }
 
 async fn brew_install(package: &'static str) -> R<()> {
-	terminal::install(package, &["brew", "install", package])
+	terminal::install(package, &["brew", "install", package]).await
 }
 
 async fn pacman_s(package: &'static str) -> R<()> {
-	terminal::install(package, &["pkexec", "pacman", "-S", package])
+	terminal::install(package, &["pkexec", "pacman", "-S", package]).await
 }
 
 async fn tutorial_show(url: &'static str) -> R<()> {
