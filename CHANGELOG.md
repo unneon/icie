@@ -1,3 +1,8 @@
+## 0.7.22
+
+- Added scanning ongoing CodeChef contests. They are added to the bottom of the list, because they are really long and they would clutter the view for people who don't use CodeChef.
+- Added falling back to VS Code integrated terminal, if an external one can't be found or has returned an error. This also fixed some crashes when x-terminal-emulator did not exist, like on Windows.
+
 ## 0.7.21
 
 - Added automatically hiding compilation errors after a next compilation is successful.
