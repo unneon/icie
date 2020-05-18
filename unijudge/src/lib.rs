@@ -89,10 +89,16 @@ pub enum Verdict {
 }
 
 #[derive(Clone, Debug)]
+pub enum ContestTime {
+	Upcoming { start: DateTime<FixedOffset> },
+	Ongoing { finish: DateTime<FixedOffset> },
+}
+
+#[derive(Clone, Debug)]
 pub struct ContestDetails<I> {
 	pub id: I,
 	pub title: String,
-	pub start: DateTime<FixedOffset>,
+	pub time: ContestTime,
 }
 
 #[derive(Clone, Debug)]

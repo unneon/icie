@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{self, Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		header::{ORIGIN, REFERER}, StatusCode, Url
-	}, ContestDetails, Error, ErrorCode, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
+	}, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -359,7 +359,8 @@ impl unijudge::Backend for AtCoder {
 							"http://www.timeanddate.com/worldclock/fixedtime.html?iso=%Y%m%dT%H%M&p1=248",
 						)
 					})?;
-					Ok(ContestDetails { id, title, start })
+					let time = ContestTime::Upcoming { start };
+					Ok(ContestDetails { id, title, time })
 				})
 			})
 			.collect()

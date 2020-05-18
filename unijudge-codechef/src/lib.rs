@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{multipart, Url}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{Context, Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{multipart, Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -297,17 +297,26 @@ impl unijudge::Backend for CodeChef {
 		// upcoming ones. This is irritating, but I would like to add some general heuristics for
 		// all sites later. Doing this only for CodeChef wouldn't make sense because it's better to
 		// also handle SPOJ and sio2 at the same time.
-		doc.find("#primary-content > .content-wrapper")?
-			.find_nth("table", 1)?
-			.find_all("tbody > tr")
-			.map(|row| {
+		let contests = doc.find("#primary-content > .content-wrapper")?;
+		let table_ongoing = contests.find_nth("table", 0)?;
+		let table_upcoming = contests.find_nth("table", 1)?;
+		let rows_ongoing = table_ongoing.find_all("tbody > tr").map(|row| (row, true));
+		let rows_upcoming = table_upcoming.find_all("tbody > tr").map(|row| (row, false));
+		rows_ongoing
+			.chain(rows_upcoming)
+			.map(|(row, is_ongoing)| {
 				let id = Contest::Normal(row.find_nth("td", 0)?.text().string());
 				let title = row.find_nth("td", 1)?.text().string();
-				let start = row
-					.find_nth("td", 2)?
-					.attr("data-starttime")?
+				let datetime = row
+					.find_nth("td", if is_ongoing { 3 } else { 2 })?
+					.attr(if is_ongoing { "data-endtime" } else { "data-starttime" })?
 					.map(|start_time| unijudge::chrono::DateTime::parse_from_rfc3339(start_time))?;
-				Ok(ContestDetails { id, title, start })
+				let time = if is_ongoing {
+					ContestTime::Ongoing { finish: datetime }
+				} else {
+					ContestTime::Upcoming { start: datetime }
+				};
+				Ok(ContestDetails { id, title, time })
 			})
 			.collect()
 	}

@@ -266,7 +266,7 @@ where
 		Ok(<T as crate::Backend>::contests(self, ujcast::<T::Session>(session))
 			.await?
 			.into_iter()
-			.map(|ContestDetails { id, title, start }| ContestDetails { id: BoxedContest(Box::new(id)), title, start })
+			.map(|ContestDetails { id, title, time }| ContestDetails { id: BoxedContest(Box::new(id)), title, time })
 			.collect())
 	}
 

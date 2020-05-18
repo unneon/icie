@@ -4,7 +4,7 @@ use crate::{
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
 use unijudge::{
-	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Backend, Resource, TaskDetails, URL
+	boxed::{BoxedContestURL, BoxedTaskURL}, chrono::Local, Backend, ContestTime, Resource, TaskDetails, URL
 };
 
 pub mod contest;
@@ -21,11 +21,18 @@ enum Command {
 pub async fn scan() -> R<()> {
 	TELEMETRY.open_scan.spark();
 	let mut contests = scan::fetch_contests().await;
-	contests.sort_by_key(|contest| contest.details.start);
+	order_contests(&mut contests);
 	let contest = select_contest(&contests).await?;
 	TELEMETRY.open_scan_ok.spark();
 	contest::sprint(contest.sess.clone(), &contest.details.id, Some(&contest.details.title)).await?;
 	Ok(())
+}
+
+fn order_contests(contests: &mut [ContestMeta]) {
+	contests.sort_by_key(|contest| match contest.details.time {
+		ContestTime::Upcoming { start } => (0, start),
+		ContestTime::Ongoing { finish } => (1, finish),
+	});
 }
 
 async fn select_contest(contests: &[ContestMeta]) -> R<&ContestMeta> {
@@ -47,8 +54,16 @@ fn fmt_contest_pick((index, contest): (usize, &ContestMeta)) -> quick_pick::Item
 	} else {
 		format!("{} {}", site_prefix, contest.details.title)
 	};
-	let start = contest.details.start.with_timezone(&Local).to_rfc2822();
-	quick_pick::Item::new(index, label).description(start)
+	let time = match contest.details.time {
+		ContestTime::Upcoming { start } => start,
+		ContestTime::Ongoing { finish } => finish,
+	};
+	let time = time.with_timezone(&Local).to_rfc2822();
+	let time = match contest.details.time {
+		ContestTime::Upcoming { .. } => time,
+		ContestTime::Ongoing { .. } => format!("[ONGOING] {}", time),
+	};
+	quick_pick::Item::new(index, label).description(time)
 }
 
 #[evscode::command(title = "ICIE Open URL", key = "alt+f11")]

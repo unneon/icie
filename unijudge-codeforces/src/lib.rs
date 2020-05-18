@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use unijudge::{
 	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
-	}, Backend, ContestDetails, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
+	}, Backend, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
 
 #[derive(Debug)]
@@ -342,7 +342,8 @@ impl unijudge::Backend for Codeforces {
 						"https://www.timeanddate.com/worldclock/fixedtime.html?day=%e&month=%m&year=%Y&hour=%k&min=%M&sec=%S&p1=166",
 					)
 				})?;
-				Ok(ContestDetails { id, title, start })
+				let time = ContestTime::Upcoming { start };
+				Ok(ContestDetails { id, title, time })
 			})
 			.collect()
 	}

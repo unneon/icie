@@ -10,7 +10,7 @@ use std::{
 	cmp::min, sync::Arc, time::{Duration, SystemTime}
 };
 use unijudge::{
-	boxed::{BoxedContest, BoxedContestDetails, BoxedTask}, Backend, ErrorCode, Resource, TaskDetails
+	boxed::{BoxedContest, BoxedContestDetails, BoxedTask}, Backend, ContestTime, ErrorCode, Resource, TaskDetails
 };
 
 /// Contains information about the contest necessary to start waiting for it to start. When created, this manifest is
@@ -57,7 +57,10 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		Some(details) => details,
 		None => return Ok(()),
 	};
-	let deadline = SystemTime::from(details.start);
+	let deadline = match details.time {
+		ContestTime::Upcoming { start } => SystemTime::from(start),
+		ContestTime::Ongoing { .. } => return Ok(()),
+	};
 	let total = match deadline.duration_since(time_now()) {
 		Ok(total) => total,
 		Err(_) => return Ok(()),
