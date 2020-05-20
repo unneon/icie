@@ -51,10 +51,9 @@ dir_wasmpack="${dir_build}/wasmpack"
 dir_genpackagejson="${dir_build}/genpackagejson"
 
 # Check whether we should run in release mode
-# Adding -g costs 0.1MB .vsix size and nothing in startup time, but makes backtraces work.
 if [ "${BUILDSH_RELEASE}" ] ; then
 	wasmpack_profile=""
-	wasmopt_profile="-g -O3"
+	wasmopt_profile="-O3"
 else
 	wasmpack_profile="--dev"
 	wasmopt_profile="-g -O0"
