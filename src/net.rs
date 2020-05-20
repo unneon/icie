@@ -173,10 +173,10 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 		ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
 	};
 	let mut e = E::from_std_ref(&uj_e);
-	e.severity = severity;
+	e.0.severity = severity;
 	if let Some(cause) = uj_e.source() {
 		if let Some(cause) = cause.downcast_ref::<debris::Error>() {
-			e.extended = cause.snapshots.clone();
+			e.0.extended = cause.snapshots.clone();
 			if let Some(html) = cause.snapshots.get(0) {
 				TELEMETRY.report_action_show.spark();
 				let message = e.human();
@@ -191,7 +191,7 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 	if uj_e.code == ErrorCode::MalformedURL || uj_e.code == ErrorCode::WrongTaskUrl {
 		e = e.action("Help with URLs", help_urls());
 	}
-	e.backtrace = uj_e.backtrace;
+	e.0.backtrace = uj_e.backtrace;
 	e
 }
 

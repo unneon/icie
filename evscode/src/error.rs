@@ -43,11 +43,9 @@ pub enum Severity {
 	Cancel,
 }
 
-/// Error type used by Evscode.
-///
-/// See [module documentation](index.html) for details.
+/// Error type data used by Evscode.
 #[derive(Debug)]
-pub struct E {
+pub struct ErrorData {
 	/// Marks whose fault this error is and how serious is it.
 	pub severity: Severity,
 	/// List of human-facing error messages, ordered from low-level to high-level.
@@ -61,6 +59,11 @@ pub struct E {
 	pub extended: Vec<String>,
 }
 
+/// Error type used by Evscode. Boxed for code size.
+///
+/// See [module documentation](index.html) for details.
+pub struct E(pub Box<ErrorData>);
+
 /// String prefix that will be prepended to every log message which contains extended data. This is used for detecting
 /// whether e.g. data can be safely sent to telemetry systems.
 pub const EXTENDED_PREFIX: &str = "----EVSCODE.ERROR.EXTENDED----\n\n";
@@ -73,13 +76,13 @@ impl E {
 
 	/// Create an error with no message.
 	pub fn empty() -> E {
-		E {
+		E(Box::new(ErrorData {
 			severity: Severity::Error,
 			reasons: Vec::new(),
 			actions: Vec::new(),
 			backtrace: Backtrace::new(),
 			extended: Vec::new(),
-		}
+		}))
 	}
 
 	/// Create an error representing an operation cancelled by user. This error will be logged, but
@@ -99,23 +102,23 @@ impl E {
 	/// [`E::from_std`] method for details.
 	pub fn from_std_ref<E2: std::error::Error+?Sized>(native: &E2) -> E {
 		let mut e = E::empty();
-		e.reasons.push(format!("{}", native));
+		e.0.reasons.push(format!("{}", native));
 		let mut v: Option<&(dyn std::error::Error)> = native.source();
 		while let Some(native) = v {
 			let inner_message = format!("{}", native);
-			if !e.reasons.iter().any(|reason| reason.contains(inner_message.as_str())) {
-				e.reasons.push(inner_message);
+			if !e.0.reasons.iter().any(|reason| reason.contains(inner_message.as_str())) {
+				e.0.reasons.push(inner_message);
 			}
 			v = native.source();
 		}
-		e.reasons.reverse();
+		e.0.reasons.reverse();
 		e
 	}
 
 	/// A short human-facing representation of the error.
 	pub fn human(&self) -> String {
 		let mut buf = String::new();
-		for (i, reason) in self.reasons.iter().enumerate().rev() {
+		for (i, reason) in self.0.reasons.iter().enumerate().rev() {
 			buf += reason;
 			if i != 0 {
 				buf += "; ";
@@ -128,9 +131,9 @@ impl E {
 	/// usually hidden.
 	pub fn human_detailed(&self) -> String {
 		let mut buf = String::new();
-		for (i, reason) in self.reasons.iter().rev().enumerate() {
+		for (i, reason) in self.0.reasons.iter().rev().enumerate() {
 			buf += reason;
-			if i != self.reasons.len() - 1 {
+			if i != self.0.reasons.len() - 1 {
 				buf += "; ";
 			}
 		}
@@ -151,14 +154,14 @@ impl E {
 	///     );
 	/// ```
 	pub fn context(mut self, msg: impl AsRef<str>) -> Self {
-		self.reasons.push(msg.as_ref().to_owned());
+		self.0.reasons.push(msg.as_ref().to_owned());
 		self
 	}
 
 	/// Add a follow-up action that can be taken by the user, who will see the action as a button on
 	/// the error message.
 	pub fn action(mut self, title: impl AsRef<str>, trigger: impl Future<Output=R<()>>+'static) -> Self {
-		self.actions.push(Action { title: title.as_ref().to_owned(), trigger: Box::pin(trigger) });
+		self.0.actions.push(Action { title: title.as_ref().to_owned(), trigger: Box::pin(trigger) });
 		self
 	}
 
@@ -171,21 +174,21 @@ impl E {
 	/// Add an extended error log, which typically is a multiline string, like a compilation log or
 	/// a subprocess output. The log will be displayed as a seperate message in developer tools.
 	pub fn extended(mut self, extended: impl AsRef<str>) -> Self {
-		self.extended.push(extended.as_ref().to_owned());
+		self.0.extended.push(extended.as_ref().to_owned());
 		self
 	}
 
 	/// Set the severity of an error. This will affect how the error is displayed, and whether it
 	/// will be auto-reported.
 	pub fn severity(mut self, severity: Severity) -> Self {
-		self.severity = severity;
+		self.0.severity = severity;
 		self
 	}
 
 	/// Checks whether this error should be automatically sent to error collection systems. See
 	/// [`Severity`] for details.
 	pub fn should_auto_report(&self) -> bool {
-		match self.severity {
+		match self.0.severity {
 			Severity::Bug => true,
 			Severity::Error => true,
 			Severity::Warning => true,
@@ -202,7 +205,7 @@ impl E {
 	}
 
 	fn should_show(&self) -> bool {
-		match self.severity {
+		match self.0.severity {
 			Severity::Bug => true,
 			Severity::Error => true,
 			Severity::Warning => true,
@@ -215,12 +218,12 @@ impl E {
 	pub fn emit_log(&self) {
 		if self.should_show() {
 			let mut log_msg = String::new();
-			for reason in &self.reasons {
+			for reason in &self.0.reasons {
 				log_msg += &format!("{}\n", reason);
 			}
-			log_msg += &format!("\n{:?}", self.backtrace);
+			log_msg += &format!("\n{:?}", self.0.backtrace);
 			log::error!("{}", log_msg);
-			for extended in &self.extended {
+			for extended in &self.0.extended {
 				log::error!("{}{}", EXTENDED_PREFIX, extended);
 			}
 		}
@@ -229,7 +232,7 @@ impl E {
 	/// Displays the error message to the user.
 	pub fn emit_user(self) {
 		if self.should_show() {
-			let should_suggest_report = match self.severity {
+			let should_suggest_report = match self.0.severity {
 				Severity::Bug => true,
 				Severity::Error => true,
 				Severity::Warning => true,
@@ -241,13 +244,13 @@ impl E {
 				self.human(),
 				if should_suggest_report { "; [report issue?](https://github.com/pustaczek/icie/issues)" } else { "" }
 			);
-			let items = self.actions.iter().enumerate().map(|(id, action)| crate::message::Action {
+			let items = self.0.actions.iter().enumerate().map(|(id, action)| crate::message::Action {
 				id,
 				title: &action.title,
 				is_close_affordance: false,
 			});
 			let msg = crate::Message::new(&message).items(items);
-			let msg = match self.severity {
+			let msg = match self.0.severity {
 				Severity::Bug => msg.error(),
 				Severity::Error => msg.error(),
 				Severity::Warning => msg.warning(),
@@ -258,12 +261,18 @@ impl E {
 			crate::spawn(async move {
 				let choice = promise.await;
 				if let Some(choice) = choice {
-					let action = self.actions.into_iter().nth(choice).unwrap();
+					let action = self.0.actions.into_iter().nth(choice).unwrap();
 					action.trigger.await?;
 				}
 				Ok(())
 			});
 		}
+	}
+}
+
+impl fmt::Debug for E {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Debug::fmt(&self.0, f)
 	}
 }
 
@@ -328,13 +337,13 @@ impl From<Cancellation> for E {
 }
 impl From<js_sys::Error> for E {
 	fn from(e: js_sys::Error) -> Self {
-		E {
+		E(Box::new(ErrorData {
 			severity: Severity::Error,
 			reasons: vec![String::from(e.message())],
 			actions: Vec::new(),
 			backtrace: Backtrace(e),
 			extended: Vec::new(),
-		}
+		}))
 	}
 }
 

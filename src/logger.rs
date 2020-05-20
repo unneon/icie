@@ -30,8 +30,8 @@ pub fn initialize() -> R<()> {
 }
 
 pub async fn on_error(error: E) {
-	error.backtrace.0.set_name("ICIEError");
-	error.backtrace.0.set_message(&error.human_detailed());
+	error.0.backtrace.0.set_name("ICIEError");
+	error.0.backtrace.0.set_message(&error.human_detailed());
 	error.emit_log();
 	if error.should_auto_report() {
 		let log_history = LOGGER.log_history.lock().unwrap();
@@ -39,7 +39,7 @@ pub async fn on_error(error: E) {
 		let log_history = log_history.join("\n");
 		evscode::telemetry_exception(
 			&error,
-			&[("severity", format!("{:?}", error.severity).as_str()), ("log_history", &log_history)],
+			&[("severity", format!("{:?}", error.0.severity).as_str()), ("log_history", &log_history)],
 			&[],
 		);
 	}

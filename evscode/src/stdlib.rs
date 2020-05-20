@@ -156,7 +156,7 @@ pub fn telemetry_exception<'a>(
 	let js_measurements = get_telemetry_measurements(measurements);
 	TELEMETRY_REPORTER.with(|reporter| {
 		reporter.borrow().as_ref().unwrap().send_telemetry_exception(
-			&error.backtrace.0,
+			&error.0.backtrace.0,
 			&js_properties,
 			&js_measurements,
 		)
