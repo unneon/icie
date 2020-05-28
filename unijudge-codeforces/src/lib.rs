@@ -185,6 +185,9 @@ impl unijudge::Backend for Codeforces {
 			return Err(ErrorCode::AccessDenied.into());
 		}
 		let doc = unijudge::debris::Document::new(&resp.text().await?);
+		if doc.html().contains("You should be registered for the contest to be able to submit") {
+			return Err(ErrorCode::NotRegistered.into());
+		}
 		let languages = doc
 			.find("select[name=programTypeId]")?
 			.find_all("option")

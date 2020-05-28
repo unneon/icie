@@ -170,7 +170,7 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 		ErrorCode::AlienInvasion | ErrorCode::MalformedData | ErrorCode::NoTLS | ErrorCode::StateCorruption => {
 			Severity::Bug
 		},
-		ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
+		ErrorCode::NotRegistered | ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
 	};
 	let mut e = E::from_std_ref(&uj_e);
 	e.0.severity = severity;

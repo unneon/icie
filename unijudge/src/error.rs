@@ -19,6 +19,10 @@ pub enum ErrorCode {
 	/// A network request has failed for whatever reason. This can also be caused by infinite
 	/// redirect loops and other reasons not strictly related to network status.
 	NetworkFailure,
+	/// The site denied submission or a different action, because the user was not registered for
+	/// the contest. Some sites require accepting the terms and conditions before the contest, and
+	/// if the user doesn't do this, this happens.
+	NotRegistered,
 	/// The resource requested was not yet made public. An expected publication time should be
 	/// obtained through some other API.
 	NotYetStarted,
@@ -53,6 +57,7 @@ impl fmt::Display for Error {
 			ErrorCode::MalformedData => "internal data corrupted possibly due to updates",
 			ErrorCode::MalformedURL => "website link was not a valid URL",
 			ErrorCode::NetworkFailure => "network request failed",
+			ErrorCode::NotRegistered => "you are not registered for the contest",
 			ErrorCode::NotYetStarted => "event has not yet started",
 			ErrorCode::NoTLS => "could not find TLS configuration in your operating system",
 			ErrorCode::RateLimit => "you sent too many requests to the website",
