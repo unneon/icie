@@ -19,7 +19,6 @@ static TIME_LIMIT: evscode::Config<Option<u64>> = Some(1500);
 
 pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
-	TELEMETRY.test_run.spark();
 	let solution = compile::compile(&source, Codegen::Debug, false).await?;
 	let task = Task::simple().await?;
 	let inputs = scan_for_tests(&dir::TESTS_DIRECTORY.get()).await;

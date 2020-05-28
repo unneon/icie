@@ -15,8 +15,6 @@ pub async fn check() -> R<()> {
 		if choice.is_some() {
 			TELEMETRY.newsletter_changelog.spark_with(&METRICS);
 			evscode::open_external("https://github.com/pustaczek/icie/blob/master/CHANGELOG.md").await?;
-		} else {
-			TELEMETRY.newsletter_dismiss.spark_with(&METRICS);
 		}
 	}
 	Ok(())

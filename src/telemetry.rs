@@ -21,15 +21,14 @@ pub struct Metrics<'a> {
 }
 
 pub struct Events {
+	pub activate: Counter,
 	pub auth_ask_username: Counter,
 	pub auth_ask_password: Counter,
 	pub auth_ask_ok: Counter,
 	pub auth_reset_from_url: Counter,
 	pub auth_reset_from_list: Counter,
-	pub checker_exists: Counter,
 	pub clang_install: Counter,
 	pub clang_not_installed: Counter,
-	pub compile: Counter,
 	pub compile_manual: Counter,
 	pub debug_gdb: Counter,
 	pub debug_rr: Counter,
@@ -42,7 +41,6 @@ pub struct Events {
 	pub mingw_not_installed: Counter,
 	pub newsletter_show: Counter,
 	pub newsletter_changelog: Counter,
-	pub newsletter_dismiss: Counter,
 	pub open_countdown: Counter,
 	pub open_countdown_ok: Counter,
 	pub open_scan: Counter,
@@ -81,19 +79,17 @@ pub struct Events {
 	pub test_edit: Counter,
 	pub test_eval: Counter,
 	pub test_input: Counter,
-	pub test_run: Counter,
 }
 
 pub const TELEMETRY: Events = Events {
+	activate: Counter::new("activate"),
 	auth_ask_username: Counter::new("action.auth_ask_username"),
 	auth_ask_password: Counter::new("action.auth_ask_password"),
 	auth_ask_ok: Counter::new("action.auth_ask_ok"),
 	auth_reset_from_url: Counter::new("action.auth_reset_from_url"),
 	auth_reset_from_list: Counter::new("action.auth_reset_from_list"),
-	checker_exists: Counter::new("action.checker_exists"),
 	clang_install: Counter::new("service.clang.install"),
 	clang_not_installed: Counter::new("service.clang.not_installed"),
-	compile: Counter::new("action.compile"),
 	compile_manual: Counter::new("action.compile_manual"),
 	debug_gdb: Counter::new("action.debug_gdb"),
 	debug_rr: Counter::new("action.debug_rr"),
@@ -106,7 +102,6 @@ pub const TELEMETRY: Events = Events {
 	mingw_not_installed: Counter::new("service.mingw.not_installed"),
 	newsletter_show: Counter::new("action.newsletter_show"),
 	newsletter_changelog: Counter::new("action.newsletter_changelog"),
-	newsletter_dismiss: Counter::new("action.newsletter_dismiss"),
 	open_countdown: Counter::new("action.open_countdown"),
 	open_countdown_ok: Counter::new("action.open_countdown_ok"),
 	open_scan: Counter::new("action.open_scan"),
@@ -145,5 +140,4 @@ pub const TELEMETRY: Events = Events {
 	test_edit: Counter::new("action.test_edit"),
 	test_eval: Counter::new("action.test_eval"),
 	test_input: Counter::new("action.test_input"),
-	test_run: Counter::new("action.test_run"),
 };

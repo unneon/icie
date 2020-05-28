@@ -120,7 +120,6 @@ async fn select_codegen() -> R<Codegen> {
 
 pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<Executable> {
 	let _status = crate::STATUS.push(util::fmt::verb_on_source("Compiling", &source));
-	TELEMETRY.compile.spark();
 	evscode::save_all().await?;
 	check_source_exists(&source).await?;
 	let source = source.to_path()?;

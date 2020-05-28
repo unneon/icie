@@ -9,6 +9,7 @@ use unijudge::{Backend, Resource, Statement};
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
+	TELEMETRY.activate.spark();
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;
 	open::contest::check_for_manifest().await?;
