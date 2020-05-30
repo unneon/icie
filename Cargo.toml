@@ -1,6 +1,6 @@
 [package]
 name = "icie"
-version = "0.7.22"
+version = "0.7.23"
 authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 description = "Competitive programming IDE-as-a-VS-Code-plugin"

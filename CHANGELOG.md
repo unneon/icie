@@ -1,3 +1,8 @@
+## 0.7.23
+
+- Fixed submitting to a Codeforces contest you are not registered for causing a 'website could not be analyzed' error.
+- Optimized code size, which should speed up startup times.
+
 ## 0.7.22
 
 - Added scanning ongoing CodeChef contests. They are added to the bottom of the list, because they are really long and they would clutter the view for people who don't use CodeChef.
