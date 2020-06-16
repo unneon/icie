@@ -3,7 +3,14 @@ use evscode::R;
 
 pub async fn check() -> R<()> {
 	let last = LAST_ACKNOWLEDGED_VERSION.get()?;
-	if last.as_deref() != Some(LAST_IMPORTANT_UPDATE.version) {
+	let last = match &last {
+		Some(last) => last.as_str(),
+		None => {
+			LAST_ACKNOWLEDGED_VERSION.set(&LAST_IMPORTANT_UPDATE.version.to_owned()).await;
+			LAST_IMPORTANT_UPDATE.version
+		},
+	};
+	if last != LAST_IMPORTANT_UPDATE.version {
 		TELEMETRY.newsletter_show.spark_with(&METRICS);
 		let message = format!(
 			"Hey, ICIE {} has some cool new features, like: {}; check them out!",
