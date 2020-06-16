@@ -18,7 +18,6 @@ mod net;
 mod newsletter;
 mod open;
 mod paste;
-mod report;
 mod service;
 mod stress;
 mod submit;

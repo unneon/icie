@@ -1,4 +1,4 @@
-use crate::{auth, telemetry::TELEMETRY, util::retries::Retries};
+use crate::{auth, util::retries::Retries};
 use evscode::{
 	error::{ResultExt, Severity}, E, R
 };
@@ -177,15 +177,6 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 	if let Some(cause) = uj_e.source() {
 		if let Some(cause) = cause.downcast_ref::<debris::Error>() {
 			e.0.extended = cause.snapshots.clone();
-			if let Some(html) = cause.snapshots.get(0) {
-				TELEMETRY.report_action_show.spark();
-				let message = e.human();
-				let html = html.clone();
-				e = e.action("Extended manual error report", async move {
-					TELEMETRY.report_action_click.spark();
-					crate::report::report_html(&message, &html).await
-				});
-			}
 		}
 	}
 	if uj_e.code == ErrorCode::MalformedURL || uj_e.code == ErrorCode::WrongTaskUrl {
