@@ -12,15 +12,12 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 	std::panic::set_hook(Box::new(panic_hook));
 	let on_activate = pkg.on_activate.take();
 	let on_deactivate = pkg.on_deactivate.take();
-	let telemetry_reporter =
-		vscode_extension_telemetry_sys::TelemetryReporter::new(pkg.identifier, pkg.version, pkg.telemetry_key);
 	PACKAGE.set(pkg).map_err(|_| ()).unwrap();
 	let pkg = PACKAGE.get().unwrap();
 	EXTENSION_CONTEXT.with(|ext_ctx| ext_ctx.set((*ctx).clone()).map_err(|_| ()).unwrap());
 	EXTENSION_PATH.set(ctx.get_extension_path()).map_err(|_| ()).unwrap();
 	CONFIG_ENTRIES.set(pkg.configuration.clone()).map_err(|_| ()).unwrap();
 	crate::stdlib::STATUS.with(|s| s.replace(Some(vscode_sys::window::create_status_bar_item())));
-	crate::stdlib::TELEMETRY_REPORTER.with(|tr| tr.replace(Some(telemetry_reporter)));
 	for command in &pkg.commands {
 		let command_id = command.id.to_string();
 		let closure = Box::leak(Box::new(Closure::wrap(Box::new(move || {

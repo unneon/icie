@@ -1,5 +1,5 @@
 use crate::{
-	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, telemetry::TELEMETRY, test::{
+	compile::{compile, Codegen}, debug::{gdb, rr}, dir, executable::Environment, test::{
 		add_test, run, time_limit, view::{render::render, SCROLL_TO_FIRST_FAILED, SKILL_ACTIONS, SKILL_ADD}, TestRun
 	}, util::{self, fs, path::Path, SourceTarget}
 };
@@ -58,21 +58,18 @@ impl Behaviour for TestView {
 					add_test(&input, &desired).await
 				}),
 				Note::SetAlt { in_path, out } => evscode::spawn(async move {
-					TELEMETRY.test_alternative_add.spark();
 					let in_alt_path = in_path.with_extension("alt.out");
 					fs::write(&in_alt_path, out).await?;
 					COLLECTION.update_all().await?;
 					Ok(())
 				}),
 				Note::DelAlt { in_path } => evscode::spawn(async move {
-					TELEMETRY.test_alternative_delete.spark();
 					let in_alt_path = in_path.with_extension("alt.out");
 					fs::remove_file(&in_alt_path).await?;
 					COLLECTION.update_all().await?;
 					Ok(())
 				}),
 				Note::Edit { path } => {
-					TELEMETRY.test_edit.spark();
 					if !fs::exists(&path).await? {
 						fs::write(&path, "").await?;
 					}
@@ -84,7 +81,6 @@ impl Behaviour for TestView {
 						if fs::exists(&brute_force).await? {
 							let webview = webview.clone();
 							evscode::spawn(async move {
-								TELEMETRY.test_eval.spark();
 								let _status = crate::STATUS.push("Evaluating");
 								let brute_force = compile(&SourceTarget::BruteForce, Codegen::Release, false).await?;
 								let environment = Environment { time_limit: time_limit(), cwd: None };

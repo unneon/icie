@@ -21,7 +21,6 @@ mod paste;
 mod service;
 mod stress;
 mod submit;
-mod telemetry;
 mod template;
 mod terminal;
 mod test;
@@ -53,7 +52,5 @@ evscode::plugin! {
 	node_dependencies: &[
 		("keytar", "5.4.0"),
 		("node-fetch", "2.6.0"),
-		("vscode-extension-telemetry", "0.1.2")
 	],
-	telemetry_key: "d131172a-874d-4c0a-b02f-dbf4c951de3c",
 }

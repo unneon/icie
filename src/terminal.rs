@@ -5,7 +5,7 @@ mod internal;
 pub use internal::Internal;
 
 use crate::{
-	telemetry::TELEMETRY, util, util::{path::Path, workspace_root}
+	util, util::{path::Path, workspace_root}
 };
 use async_trait::async_trait;
 use evscode::R;
@@ -39,7 +39,6 @@ pub async fn debugger(name: &str, test: &Path, command: &[&str]) -> R<()> {
 }
 
 pub async fn install(name: &str, command: &[&str]) -> R<()> {
-	TELEMETRY.term_install.spark();
 	let title = format!("ICIE Install {}", name);
 	get_unobtrusive().spawn(&title, command).await
 }

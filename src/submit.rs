@@ -1,5 +1,5 @@
 use crate::{
-	dir, manifest::Manifest, net::{self, require_task, Session}, telemetry::TELEMETRY, test, test::TestRun, util::{fs, retries::Retries, sleep, SourceTarget}
+	dir, manifest::Manifest, net::{self, require_task, Session}, test, test::TestRun, util::{fs, retries::Retries, sleep, SourceTarget}
 };
 use evscode::{error::Severity, E, R};
 use log::debug;
@@ -16,7 +16,6 @@ const TRACK_NOT_SEEN_RETRY_DELAY: Duration = Duration::from_secs(5);
 async fn send() -> R<()> {
 	debug!("requesting submit");
 	let _status = crate::STATUS.push("Submitting");
-	TELEMETRY.submit_f12.spark();
 	let report = crate::test::view::manage::COLLECTION.get_force(SourceTarget::Main).await?.1;
 	check_tests_passed(&report)?;
 	check_any_tests_ran(&report)?;
@@ -27,7 +26,6 @@ async fn send() -> R<()> {
 fn check_tests_passed(report: &[TestRun]) -> R<()> {
 	if report.iter().any(|test| !test.success()) {
 		debug!("submit aborted because of failing tests");
-		TELEMETRY.submit_failtest.spark();
 		return Err(E::error("some tests failed, submit aborted").severity(Severity::Workflow));
 	}
 	Ok(())
@@ -36,7 +34,6 @@ fn check_tests_passed(report: &[TestRun]) -> R<()> {
 fn check_any_tests_ran(report: &[TestRun]) -> R<()> {
 	if report.is_empty() {
 		debug!("submit aborted because of missing tests");
-		TELEMETRY.submit_notest.spark();
 		return Err(E::error("no tests available, add some to check if your solution is correct")
 			.action("Add test (Alt+-)", test::input())
 			.action("Submit anyway", send_after_tests_passed())
@@ -47,7 +44,6 @@ fn check_any_tests_ran(report: &[TestRun]) -> R<()> {
 
 async fn send_after_tests_passed() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
-	TELEMETRY.submit_send.spark();
 	let code = fs::read_to_string(&dir::solution()?).await?;
 	let (sess, task) = connect_to_workspace_task().await?;
 	let language = fetch_cpp_language(&task, &sess).await?;

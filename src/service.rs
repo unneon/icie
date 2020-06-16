@@ -1,5 +1,5 @@
 use crate::{
-	executable::Executable, telemetry::Counter, terminal, util::{self, is_installed, OS}
+	executable::Executable, terminal, util::{self, is_installed, OS}
 };
 use evscode::{E, R};
 
@@ -10,8 +10,6 @@ pub struct Service {
 	pub package_apt: Option<&'static str>,
 	pub package_brew: Option<&'static str>,
 	pub package_pacman: Option<&'static str>,
-	pub telemetry_install: &'static Counter,
-	pub telemetry_not_installed: &'static Counter,
 	pub tutorial_url_windows: Option<&'static str>,
 	pub supports_linux: bool,
 	pub supports_windows: bool,
@@ -46,42 +44,29 @@ impl Service {
 	}
 
 	pub async fn not_installed(&'static self) -> R<E> {
-		self.telemetry_not_installed.spark();
 		let mut e = E::error(format!("{} is not installed", self.human_name));
 		match OS::query()? {
 			OS::Linux => {
 				if let Some(package) = self.package_apt {
 					if is_installed("apt").await? {
-						e = e.action("🔐 Auto-install (apt)".to_owned(), async move {
-							self.telemetry_install.spark();
-							apt_install(package).await
-						});
+						e = e.action("🔐 Auto-install (apt)".to_owned(), async move { apt_install(package).await });
 					}
 				}
 				if let Some(package) = self.package_pacman {
 					if is_installed("pacman").await? {
-						e = e.action("🔐 Auto-install (pacman)".to_owned(), async move {
-							self.telemetry_install.spark();
-							pacman_s(package).await
-						});
+						e = e.action("🔐 Auto-install (pacman)".to_owned(), async move { pacman_s(package).await });
 					}
 				}
 			},
 			OS::Windows => {
 				if let Some(tutorial) = self.tutorial_url_windows {
-					e = e.action("📄 How to install?".to_owned(), async move {
-						self.telemetry_install.spark();
-						tutorial_show(tutorial).await
-					});
+					e = e.action("📄 How to install?".to_owned(), async move { tutorial_show(tutorial).await });
 				}
 			},
 			OS::MacOS => {
 				if let Some(package) = self.package_brew {
 					if is_installed("brew").await? {
-						e = e.action("🔐 Auto install (brew)".to_owned(), async move {
-							self.telemetry_install.spark();
-							brew_install(package).await
-						});
+						e = e.action("🔐 Auto install (brew)".to_owned(), async move { brew_install(package).await });
 					}
 				}
 			},

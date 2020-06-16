@@ -12,11 +12,11 @@ const NETWORK_ERROR_RETRY_LIMIT: usize = 4;
 const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(5);
 
 pub static BACKENDS: [BackendMeta; 5] = [
-	BackendMeta::new(&unijudge_atcoder::AtCoder, &["C++ (GCC 9.2.1)", "C++14 (GCC 5.4.1)"], "atcoder"),
-	BackendMeta::new(&unijudge_codechef::CodeChef, &["C++14(gcc 6.3)"], "codechef"),
-	BackendMeta::new(&unijudge_codeforces::Codeforces, &["GNU G++17 7.3.0"], "codeforces"),
-	BackendMeta::new(&unijudge_sio2::Sio2, &["C++"], "sio2"),
-	BackendMeta::new(&unijudge_spoj::SPOJ, &["C++14 (clang 8.0)"], "spoj"),
+	BackendMeta::new(&unijudge_atcoder::AtCoder, &["C++ (GCC 9.2.1)", "C++14 (GCC 5.4.1)"]),
+	BackendMeta::new(&unijudge_codechef::CodeChef, &["C++14(gcc 6.3)"]),
+	BackendMeta::new(&unijudge_codeforces::Codeforces, &["GNU G++17 7.3.0"]),
+	BackendMeta::new(&unijudge_sio2::Sio2, &["C++"]),
+	BackendMeta::new(&unijudge_spoj::SPOJ, &["C++14 (clang 8.0)"]),
 ];
 
 pub struct Session {
@@ -29,17 +29,11 @@ pub struct Session {
 pub struct BackendMeta {
 	pub backend: &'static dyn DynamicBackend,
 	pub cpp: &'static [&'static str],
-	pub telemetry_id: &'static str,
 }
 
 impl BackendMeta {
-	const fn new(
-		backend: &'static dyn DynamicBackend,
-		cpp: &'static [&'static str],
-		telemetry_id: &'static str,
-	) -> BackendMeta
-	{
-		BackendMeta { backend, cpp, telemetry_id }
+	const fn new(backend: &'static dyn DynamicBackend, cpp: &'static [&'static str]) -> BackendMeta {
+		BackendMeta { backend, cpp }
 	}
 }
 
@@ -60,7 +54,6 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 
 impl Session {
 	pub async fn connect(domain: &str, backend: &'static BackendMeta) -> R<Session> {
-		evscode::telemetry("connect", &[("backend", backend.telemetry_id)], &[]);
 		let client = Client::new(USER_AGENT).map_err(from_unijudge_error)?;
 		let session = backend.backend.connect(client, domain);
 		let site = format!("https://{}", domain);

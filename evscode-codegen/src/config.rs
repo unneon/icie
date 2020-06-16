@@ -23,10 +23,6 @@ fn transform(item: &ItemStatic) -> Result<TokenStream, ProcError> {
 				module_path: module_path!(),
 				local_name: stringify!(#local_name),
 			},
-			telemetry_id: evscode::meta::Identifier {
-				module_path: module_path!(),
-				local_name: stringify!(#local_name)
-			}.to_telemetry_fmt(),
 			schema: || <#ty as evscode::Configurable>::schema(
 				Some(&<#ty as From<_>>::from(#default)),
 			),

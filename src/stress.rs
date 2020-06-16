@@ -2,7 +2,7 @@ pub mod manage;
 mod render;
 
 use crate::{
-	compile::{compile, Codegen}, executable::{Environment, Executable}, telemetry::TELEMETRY, test::{judge::simple_test, Outcome, Task}, util::SourceTarget
+	compile::{compile, Codegen}, executable::{Environment, Executable}, test::{judge::simple_test, Outcome, Task}, util::SourceTarget
 };
 use evscode::{E, R};
 use futures::{Stream, StreamExt};
@@ -25,7 +25,6 @@ pub struct StressState {
 
 #[evscode::command(title = "ICIE Stress", key = "alt+9")]
 async fn open() -> R<()> {
-	TELEMETRY.stress_start.spark();
 	let webview = manage::WEBVIEW.get_lazy(()).await?;
 	webview.reveal(1, false);
 	Ok(())

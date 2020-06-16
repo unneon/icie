@@ -2,7 +2,7 @@ mod clang;
 mod options;
 
 use crate::{
-	dir, executable::{Executable, Run}, telemetry::TELEMETRY, template, util::{self, fs, path::Path, suggest_open, workspace_root, Tempfile}
+	dir, executable::{Executable, Run}, template, util::{self, fs, path::Path, suggest_open, workspace_root, Tempfile}
 };
 use evscode::{
 	error::Severity, quick_pick, state::Scope, stdlib::output_channel::OutputChannel, Position, QuickPick, State, E, R
@@ -86,7 +86,6 @@ static COMPILER_INSTALL_CONFIRMED: State<bool> = State::new("icie.compile.compil
 #[evscode::command(title = "ICIE Compile manually", key = "alt+;")]
 async fn manual() -> R<()> {
 	let _status = crate::STATUS.push("Compiling manually");
-	TELEMETRY.compile_manual.spark();
 	let sources = collect_possible_sources().await?;
 	let source = select_source(&sources).await?;
 	let codegen = select_codegen().await?;

@@ -3,7 +3,7 @@ mod logic;
 mod piece_parse;
 
 use crate::{
-	dir, paste::logic::{Library, Piece}, telemetry::TELEMETRY, util::time_now
+	dir, paste::logic::{Library, Piece}, util::time_now
 };
 use async_trait::async_trait;
 use evscode::{error::ResultExt, E, R};
@@ -17,11 +17,9 @@ pub struct VscodePaste<'a> {
 #[evscode::command(title = "ICIE Quick Paste", key = "alt+[")]
 async fn quick() -> R<()> {
 	let _status = crate::STATUS.push("Copy-pasting");
-	TELEMETRY.paste_quick.spark();
 	let library = library::CACHED_LIBRARY.update().await?;
 	let piece_id = select_piece(&library).await?;
 	let context = query_context(&library).await?;
-	TELEMETRY.paste_quick_ok.spark();
 	library.walk_graph(&piece_id, context).await?;
 	Ok(())
 }
@@ -49,7 +47,6 @@ async fn select_piece(library: &Library) -> R<String> {
 #[evscode::command(title = "ICIE Quick Input struct", key = "alt+i")]
 async fn qistruct() -> R<()> {
 	let _status = crate::STATUS.push("Qistructing");
-	TELEMETRY.paste_qistruct.spark();
 	let name =
 		evscode::InputBox::new().prompt("Qistruct name").placeholder("Person").show().await.ok_or_else(E::cancel)?;
 	let members = input_members().await?;

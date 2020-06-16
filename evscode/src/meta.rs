@@ -26,11 +26,6 @@ impl fmt::Display for Identifier {
 }
 
 impl Identifier {
-	#[doc(hidden)]
-	pub fn to_telemetry_fmt(&self) -> String {
-		format!("config_delta_{}", self).replace(".", "").to_lowercase()
-	}
-
 	pub(crate) fn extension_id(&self) -> String {
 		let full_path = self.to_string();
 		let i = full_path.find('.').unwrap();
@@ -58,9 +53,6 @@ pub struct Command {
 pub struct ConfigEntry {
 	#[doc(hidden)]
 	pub id: Identifier,
-	/// An nicely formatted identifier for use with telemetry or other purposes.
-	/// Will look like "config_delta_pdfautopen".
-	pub telemetry_id: String,
 	/// Uses Markdown.
 	#[doc(hidden)]
 	pub description: &'static str,
@@ -68,13 +60,6 @@ pub struct ConfigEntry {
 	pub reference: &'static dyn ErasedConfig,
 	#[doc(hidden)]
 	pub schema: fn() -> serde_json::Value,
-}
-
-impl ConfigEntry {
-	/// Returns a 0 or 1 depending on whether user has changed the value of this entry.
-	pub fn telemetry_config_delta(&self) -> f64 {
-		if self.reference.is_default() { 0.0 } else { 1.0 }
-	}
 }
 
 /// [Activation event](https://code.visualstudio.com/api/references/activation-events) checked by VS Code even when the extension is not active.
@@ -180,6 +165,4 @@ pub struct Package {
 	/// Additional dependencies to append to package.json.
 	/// They can be later imported using wasm-bindgen.
 	pub node_dependencies: &'static [(&'static str, &'static str)],
-	/// Telemetry instrumentation key, set up in [Azure Apllication Insights](https://github.com/microsoft/vscode-extension-telemetry).
-	pub telemetry_key: &'static str,
 }

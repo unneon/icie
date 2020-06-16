@@ -1,5 +1,5 @@
 use crate::{
-	compile, executable::{Environment, Executable}, service::Service, telemetry::TELEMETRY, terminal, terminal::BashTerminal, test, util, util::{fs, path::Path, SourceTarget}
+	compile, executable::{Environment, Executable}, service::Service, terminal, terminal::BashTerminal, test, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::{E, R};
 
@@ -10,8 +10,6 @@ pub const GDB: Service = Service {
 	package_apt: Some("gdb"),
 	package_brew: Some("gdb"),
 	package_pacman: Some("gdb"),
-	telemetry_install: &TELEMETRY.gdb_install,
-	telemetry_not_installed: &TELEMETRY.gdb_not_installed,
 	tutorial_url_windows: None,
 	supports_linux: true,
 	supports_windows: false,
@@ -25,8 +23,6 @@ pub const RR: Service = Service {
 	package_apt: Some("rr"),
 	package_brew: None,
 	package_pacman: None,
-	telemetry_install: &TELEMETRY.rr_install,
-	telemetry_not_installed: &TELEMETRY.rr_not_installed,
 	tutorial_url_windows: None,
 	supports_linux: true,
 	supports_windows: false,
@@ -34,7 +30,6 @@ pub const RR: Service = Service {
 };
 
 pub async fn gdb(in_path: &Path, source: SourceTarget) -> R<()> {
-	TELEMETRY.debug_gdb.spark();
 	let gdb = GDB.find_command().await?;
 	terminal::debugger("GDB", in_path, &[
 		&gdb,
@@ -47,7 +42,6 @@ pub async fn gdb(in_path: &Path, source: SourceTarget) -> R<()> {
 }
 
 pub async fn rr(in_path: &Path, source: SourceTarget) -> R<()> {
-	TELEMETRY.debug_rr.spark();
 	let rr = RR.find_command().await?;
 	let rr_exec = Executable::new_name(rr.clone());
 	let input = fs::read_to_string(in_path).await?;

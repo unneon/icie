@@ -1,7 +1,7 @@
 use crate::{
 	auth, compile::suggest_install_compiler, net::{interpret_url, require_contest, Session}, open::{
 		files, names::{design_contest_name, design_task_name}
-	}, telemetry::TELEMETRY, util::{self, fs, path::Path, sleep, time_now, workspace_root}
+	}, util::{self, fs, path::Path, sleep, time_now, workspace_root}
 };
 use evscode::{error::ResultExt, E, R};
 use futures::{select, FutureExt};
@@ -65,7 +65,6 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		Ok(total) => total,
 		Err(_) => return Ok(()),
 	};
-	TELEMETRY.open_countdown.spark();
 	let _status = crate::STATUS.push("Waiting");
 	let (progress, on_cancel) =
 		evscode::Progress::new().title(format!("Waiting for {}", details.title)).cancellable().show();
@@ -83,7 +82,6 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		}
 	}
 	progress.end();
-	TELEMETRY.open_countdown_ok.spark();
 	Ok(())
 }
 

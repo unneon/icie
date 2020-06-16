@@ -1,5 +1,5 @@
 use crate::{
-	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, telemetry::TELEMETRY, util::{self, fs, workspace_root}
+	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, util::{self, fs, workspace_root}
 };
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use futures::StreamExt;
@@ -9,7 +9,6 @@ use unijudge::{Backend, Resource, Statement};
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
-	TELEMETRY.activate.spark();
 	evscode::spawn(crate::newsletter::check());
 	layout_setup().await?;
 	open::contest::check_for_manifest().await?;
@@ -44,7 +43,6 @@ async fn place_cursor_in_code() {
 
 async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
-	TELEMETRY.statement_pdf.spark();
 	webview.webview.set_html(&format!(
 		"<html><head>{}{}</head><body id=\"body\" style=\"padding: 0;\"></body></html>",
 		assets::html_js_static("assets/pdf-2.2.228.min.js"),
@@ -63,7 +61,6 @@ struct StatementData<'a> {
 
 #[evscode::command(title = "ICIE Statement", key = "alt+8")]
 async fn statement() -> R<()> {
-	TELEMETRY.statement.spark();
 	let manifest = Manifest::load().await?;
 	let statement = manifest.req_statement()?;
 	let webview = evscode::Webview::new("icie.statement", "ICIE Statement", 2)
@@ -73,10 +70,7 @@ async fn statement() -> R<()> {
 		.preserve_focus()
 		.create();
 	match statement {
-		Statement::HTML { html } => {
-			TELEMETRY.statement_html.spark();
-			webview.webview.set_html(html)
-		},
+		Statement::HTML { html } => webview.webview.set_html(html),
 		Statement::PDF { pdf } => {
 			let pdf = pdf.clone();
 			evscode::spawn(async move {
@@ -90,7 +84,6 @@ async fn statement() -> R<()> {
 
 #[evscode::command(title = "ICIE Launch nearby", key = "alt+backspace")]
 async fn nearby() -> R<()> {
-	TELEMETRY.launch_nearby.spark();
 	let parent = workspace_root()?.parent();
 	let mut nearby =
 		fs::read_dir(&parent).await?.into_iter().map(|path| (path.fmt_relative(&parent), path)).collect::<Vec<_>>();
@@ -106,7 +99,6 @@ async fn nearby() -> R<()> {
 
 #[evscode::command(title = "ICIE Web Task")]
 async fn web_task() -> R<()> {
-	TELEMETRY.launch_web_task.spark();
 	let manifest = Manifest::load().await?;
 	evscode::open_external(manifest.req_task_url()?).await?;
 	Ok(())
@@ -114,7 +106,6 @@ async fn web_task() -> R<()> {
 
 #[evscode::command(title = "ICIE Web Contest")]
 async fn web_contest() -> R<()> {
-	TELEMETRY.launch_web_contest.spark();
 	let manifest = Manifest::load().await?;
 	let (url, backend) = interpret_url(manifest.req_task_url()?)?;
 	let Resource::Task(task) = require_task(url)?.resource;

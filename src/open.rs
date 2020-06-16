@@ -1,5 +1,5 @@
 use crate::{
-	dir::PROJECT_DIRECTORY, net::{self, BackendMeta}, open::scan::ContestMeta, telemetry::TELEMETRY, util::fs
+	dir::PROJECT_DIRECTORY, net::{self, BackendMeta}, open::scan::ContestMeta, util::fs
 };
 use evscode::{quick_pick, QuickPick, E, R};
 use std::sync::Arc;
@@ -19,11 +19,9 @@ enum Command {
 
 #[evscode::command(title = "ICIE Open Scan", key = "alt+f9")]
 pub async fn scan() -> R<()> {
-	TELEMETRY.open_scan.spark();
 	let mut contests = scan::fetch_contests().await;
 	order_contests(&mut contests);
 	let contest = select_contest(&contests).await?;
-	TELEMETRY.open_scan_ok.spark();
 	contest::sprint(contest.sess.clone(), &contest.details.id, Some(&contest.details.title)).await?;
 	Ok(())
 }
@@ -69,11 +67,9 @@ fn fmt_contest_pick((index, contest): (usize, &ContestMeta)) -> quick_pick::Item
 #[evscode::command(title = "ICIE Open URL", key = "alt+f11")]
 pub async fn url() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
-	TELEMETRY.open_url.spark();
 	let raw_url = ask_url().await?;
 	match Command::from_url(raw_url.as_ref())? {
 		Command::Task(url) => {
-			TELEMETRY.open_url_task.spark();
 			let details = fetch_task_details(&url).await?;
 			let projects_dir = PROJECT_DIRECTORY.get();
 			let workspace = names::design_task_name(&projects_dir, details.as_ref()).await?;
@@ -82,7 +78,6 @@ pub async fn url() -> R<()> {
 			evscode::open_folder(workspace.as_str(), false).await;
 		},
 		Command::Contest(url, backend) => {
-			TELEMETRY.open_url_contest.spark();
 			let sess = net::Session::connect(&url.domain, backend).await?;
 			let Resource::Contest(contest) = url.resource;
 			drop(_status);

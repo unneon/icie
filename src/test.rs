@@ -4,7 +4,7 @@ pub mod scan;
 pub mod view;
 
 use crate::{
-	compile::{self, Codegen}, dir, telemetry::TELEMETRY, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget}
+	compile::{self, Codegen}, dir, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget}
 };
 use evscode::R;
 use std::time::Duration;
@@ -57,21 +57,18 @@ fn update_test_progress(run: &TestRun, count: usize, progress: &evscode::Progres
 
 #[evscode::command(title = "ICIE Open Test View", key = "alt+0")]
 pub async fn view() -> R<()> {
-	TELEMETRY.test_alt0.spark();
 	view::manage::COLLECTION.get_force(SourceTarget::Main).await?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE Open Test View (current editor)", key = "alt+\\ alt+0")]
 async fn view_current() -> R<()> {
-	TELEMETRY.test_current.spark();
 	view::manage::COLLECTION.get_force(util::active_tab().await?).await?;
 	Ok(())
 }
 
 #[evscode::command(title = "ICIE New Test", key = "alt+-")]
 pub async fn input() -> evscode::R<()> {
-	TELEMETRY.test_input.spark();
 	let webview = view::manage::COLLECTION.active_or_lazy(SourceTarget::Main).await?;
 	// FIXME: JS .focus() does not work despite the reveal.
 	webview.reveal(2, false);
@@ -80,7 +77,6 @@ pub async fn input() -> evscode::R<()> {
 }
 
 pub async fn add_test(input: &str, desired: &str) -> R<()> {
-	TELEMETRY.test_add.spark();
 	let tests = dir::custom_tests()?;
 	fs::create_dir_all(&tests).await?;
 	let id = unused_test_id(&tests).await?;

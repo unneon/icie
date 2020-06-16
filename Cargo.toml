@@ -58,6 +58,5 @@ members = [
 	"unijudge-codeforces",
 	"unijudge-sio2",
 	"unijudge-spoj",
-	"vscode-extension-telemetry-sys",
 	"vscode-sys",
 ]
