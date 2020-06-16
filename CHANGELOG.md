@@ -1,3 +1,11 @@
+## 0.7.24
+
+- Removed all mentions and links to the Discord channel.
+- Removed displaying newsletter on first launch.
+- Removed all telemetry and usage statistics.
+- Removed automatic error reports.
+- Removed manual WCNBA error reports.
+
 ## 0.7.23
 
 - Fixed submitting to a Codeforces contest you are not registered for causing a 'website could not be analyzed' error.
