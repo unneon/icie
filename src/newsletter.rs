@@ -25,10 +25,7 @@ struct Update {
 	features: &'static str,
 }
 
-const LAST_IMPORTANT_UPDATE: Update = Update {
-	version: "0.7.17",
-	features: "[official Discord server](https://discord.gg/ffSEhtb), nicer configuration",
-};
+const LAST_IMPORTANT_UPDATE: Update = Update { version: "0.7.17", features: "nicer configuration" };
 
 const METRICS: telemetry::Metrics =
 	telemetry::Metrics { properties: &[("last-important", LAST_IMPORTANT_UPDATE.version)], measurements: &[] };

@@ -40,7 +40,7 @@
 
 ## 0.7.16
 
-- Added [official Discord channel](https://discord.gg/ffSEhtb).
+- Added official Discord channel.
 - Fixed displaying dates in UTC instead of local time.
 - Fixed not detecting access denied on some sio2 sites.
 - Fixed not treating no languages found as a WCNBA error.

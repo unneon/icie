@@ -1,4 +1,4 @@
-*If you have any trobubles with these instructions at all, please create a [GitHub issue] or ask me at [our Discord]!*
+*If you have any trobubles with these instructions at all, please create a [GitHub issue]!*
 
 # Building from source
 
@@ -43,5 +43,4 @@ To add your changes back to the plugin, open a [pull request](https://help.githu
 [Clone]: https://help.github.com/en/articles/cloning-a-repository
 [GitHub issue]: https://github.com/pustaczek/icie/issues
 [official API]: https://code.visualstudio.com/api/references/vscode-api
-[our Discord]: https://discord.gg/ffSEhtb
 [rustup]: https://www.rust-lang.org/tools/install

@@ -1,10 +1,10 @@
-# ICIE [![](https://img.shields.io/azure-devops/build/pustaczek/7b7eb991-b079-479b-8716-8248c968eaf8/1?logo=azure-pipelines)](https://dev.azure.com/pustaczek/ICIE/_build?definitionId=1) [![](https://img.shields.io/visual-studio-marketplace/i/pustaczek.icie.svg?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg?color=green)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/languages/top/pustaczek/icie?color=success&logo=rust)](https://www.rust-lang.org/) [![](https://img.shields.io/discord/702414349855096842?logo=discord&logoColor=white)](https://discord.gg/ffSEhtb) [![](https://img.shields.io/github/license/pustaczek/icie.svg?logo=github&color=success)](https://github.com/pustaczek/icie/blob/master/LICENSE)
+# ICIE [![](https://img.shields.io/azure-devops/build/pustaczek/7b7eb991-b079-479b-8716-8248c968eaf8/1?logo=azure-pipelines)](https://dev.azure.com/pustaczek/ICIE/_build?definitionId=1) [![](https://img.shields.io/visual-studio-marketplace/i/pustaczek.icie.svg?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/visual-studio-marketplace/v/pustaczek.icie.svg?color=green)](https://marketplace.visualstudio.com/items?itemName=pustaczek.icie) [![](https://img.shields.io/github/languages/top/pustaczek/icie?color=success&logo=rust)](https://www.rust-lang.org/) [![](https://img.shields.io/github/license/pustaczek/icie.svg?logo=github&color=success)](https://github.com/pustaczek/icie/blob/master/LICENSE)
 
 ICIE is intended to be a VS Code plugin which turns it into an IDE focused on competitive programming.
 It aims to cover every aspect of participating in programming competitions, from downloading statements and setting up template code, through building solutions and running the example tests to submitting the solution and tracking its status.
 Both efficiency and convenience are priorities, with automated behavior and keyboard shortcuts making coding hassle-free and achieving otherwise impossible time penalties.
 Currently, it works on Windows, Linux and macOS, with support for [Codeforces], [AtCoder], [CodeChef] and [SPOJ].
-If you have any questions, create a [GitHub issue] or ask me at [our Discord]!
+If you have any questions, just create a [GitHub issue]!
 
 ## Quick start
 
@@ -52,7 +52,7 @@ If you have any questions, create a [GitHub issue] or ask me at [our Discord]!
 
 The instructions can be found in [CONTRIBUTING.md].
 The project is still in development, the Rust language does not have an official VS Code API, there is a custom build system, it uses WebAssembly which is still in heavy development, and it also patches the compiler output with regexes to remove some type checks, but nevertheless I have tried to make it as streamlined as possible.
-If you have any trouble, just ask me at [our Discord]!
+If you have any trouble, just create a [GitHub issue]!
 
 [AtCoder]: https://atcoder.jp
 [CodeChef]: https://www.codechef.com/
@@ -61,7 +61,6 @@ If you have any trouble, just ask me at [our Discord]!
 [copy-paste parts of your library]: https://github.com/pustaczek/icie/blob/master/docs/QUICKPASTE.md
 [GDB debugger]: https://medium.com/@amit.kulkarni/gdb-basics-bf3407593285
 [GitHub issue]: https://github.com/pustaczek/icie/issues
-[our Discord]: https://discord.gg/ffSEhtb
 [RR debugger]: https://rr-project.org/
 [SPOJ]: https://www.spoj.com
 [Visual Studio Code]: https://code.visualstudio.com/
