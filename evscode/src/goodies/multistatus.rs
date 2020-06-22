@@ -71,7 +71,8 @@ pub struct Guard<'a> {
 impl<'a> Drop for Guard<'a> {
 	fn drop(&mut self) {
 		let mut lck = self.stacked.obtain_lock();
-		lck.remove_item(&self.msg);
+		let index = lck.iter().enumerate().find(|(_, msg)| msg == &&self.msg).unwrap().0;
+		lck.remove(index);
 		self.stacked.update(lck);
 	}
 }
