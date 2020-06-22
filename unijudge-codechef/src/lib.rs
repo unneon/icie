@@ -196,7 +196,9 @@ impl unijudge::Backend for CodeChef {
 			.find_all("tbody > tr")
 			.map(|row| {
 				let id = row.find_nth("td", 0)?.text().string();
-				let verdict = row.find_nth("td", 3)?.find("span")?.attr("title")?.map(|verdict| match verdict {
+				let verdict_td = row.find_nth("td", 3)?;
+				let verdict_text = verdict_td.text();
+				let verdict = verdict_td.find("span")?.attr("title")?.map(|verdict| match verdict {
 					"accepted" => Ok(Verdict::Accepted),
 					"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
 					"waiting.." => Ok(Verdict::Pending { test: None }),
@@ -211,6 +213,12 @@ impl unijudge::Backend for CodeChef {
 					},
 					re if re.starts_with("runtime error") => {
 						Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None })
+					},
+					"" if verdict_text.as_str().contains("pts") => {
+						let score_regex = regex::Regex::new("\\[(.*)pts\\]").unwrap();
+						let score_matches = score_regex.captures(verdict_text.as_str()).ok_or("score regex error")?;
+						let score = score_matches[1].parse().map_err(|_| "score f64 parse error")?;
+						Ok(Verdict::Scored { score, max: Some(1.), cause: None, test: None })
 					},
 					_ => Err(format!("unrecognized verdict {:?}", verdict)),
 				})?;
