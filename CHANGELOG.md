@@ -1,3 +1,7 @@
+## 0.7.25
+
+- Fixed WCNBA errors when submitting CodeChef optimization problems.
+
 ## 0.7.24
 
 - Removed all mentions and links to the Discord channel.
