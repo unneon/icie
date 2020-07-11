@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "icie"
-version = "0.7.25"
+version = "0.7.26"
 dependencies = [
  "async-trait",
  "chrono",

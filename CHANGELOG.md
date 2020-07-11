@@ -1,3 +1,7 @@
+## 0.7.26
+
+- Fixed bug where CSS/JS in test view and stress view sometimes wouldn't load, working around some VS Code resource loading bugs.
+
 ## 0.7.25
 
 - Fixed WCNBA errors when submitting CodeChef optimization problems.
