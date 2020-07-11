@@ -75,10 +75,10 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 			</body>
 		</html>
 		"#,
-		js = assets::html_js("src/test/view/script.js").await,
+		js = assets::html_js_dynamic(include_str!("script.js")),
 		material_icons = assets::html_material_icons(),
-		css_layout = assets::html_css("src/test/view/layout.css").await,
-		css_paint = assets::html_css("src/test/view/paint.css").await,
+		css_layout = assets::html_css_dynamic(include_str!("layout.css")),
+		css_paint = assets::html_css_dynamic(include_str!("paint.css")),
 		table = render_test_table(tests).await?,
 		new_test = render_new_test().await,
 	))
