@@ -58,7 +58,7 @@ pub fn env(key: &'static str) -> R<String> {
 }
 
 pub fn mex(x0: i64, mut xs: Vec<i64>) -> i64 {
-	xs.sort();
+	xs.sort_unstable();
 	xs.dedup();
 	for (i, x) in xs.iter().enumerate() {
 		if x0 + i as i64 != *x {

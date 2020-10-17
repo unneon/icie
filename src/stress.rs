@@ -38,7 +38,7 @@ pub async fn prepare_state() -> R<StressState> {
 	Ok(StressState { solution, brute_force, test_generator, task })
 }
 
-pub fn execute_runs<'a>(state: &'a StressState) -> impl Stream<Item=R<Row>>+'a {
+pub fn execute_runs(state: &StressState) -> impl Stream<Item=R<Row>>+'_ {
 	futures::stream::iter(1..).then(move |number| async move { execute_run(number, &state).await })
 }
 
