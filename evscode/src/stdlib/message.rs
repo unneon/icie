@@ -115,7 +115,7 @@ pub struct Message {
 
 impl Message {
 	/// Create a new builder to configure the message.
-	pub fn new<'a, T>(message: &'a str) -> Builder<'a, T, Empty<Action<'a, T>>> {
+	pub fn new<T>(message: &str) -> Builder<T, Empty<Action<T>>> {
 		Builder { message, kind: vscode_sys::window::show_information_message, modal: false, items: std::iter::empty() }
 	}
 }
