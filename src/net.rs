@@ -15,7 +15,7 @@ pub static BACKENDS: [BackendMeta; 5] = [
 	BackendMeta::new(&unijudge_atcoder::AtCoder, &["C++ (GCC 9.2.1)", "C++14 (GCC 5.4.1)"]),
 	BackendMeta::new(&unijudge_codechef::CodeChef, &["C++14(gcc 6.3)"]),
 	BackendMeta::new(&unijudge_codeforces::Codeforces, &["GNU G++17 7.3.0"]),
-	BackendMeta::new(&unijudge_sio2::Sio2, &["C++"]),
+	BackendMeta::new(&unijudge_sio2::Sio2, &["C++", "C++ (g++:8.3 std=c++17)"]),
 	BackendMeta::new(&unijudge_spoj::SPOJ, &["C++14 (clang 8.0)"]),
 ];
 

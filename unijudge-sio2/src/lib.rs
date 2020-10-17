@@ -172,8 +172,21 @@ impl unijudge::Backend for Sio2 {
 		if doc.find("#id_password").is_ok() || doc.find("a[href=\"/register/\"]").is_ok() {
 			return Err(ErrorCode::AccessDenied.into());
 		}
-		Ok(doc
-			.find("#id_prog_lang")?
+		// Older sio2 versions use #id_prog_lang, newer sio2 versions use e.g. id_prog_lang_69540 for each problem.
+		let lang_select = match doc.find("#id_prog_lang") {
+			Ok(lang_select) => lang_select,
+			Err(_) => {
+				let task_id = self.find_task_id(task, &doc)?;
+				match doc
+					.find_all("[id^=id_prog_lang_]")
+					.find(|lang_select| lang_select.attr("id").unwrap().as_str() == format!("id_prog_lang_{}", task_id))
+				{
+					Some(lang_select) => lang_select,
+					None => return Err(doc.error(format!("not found '#id_prog_lang_{}'", task_id)).into()),
+				}
+			},
+		};
+		Ok(lang_select
 			.find_all("option")
 			.filter(|opt| opt.attr("selected").is_err())
 			.map(|opt| Ok(Language { id: opt.attr("value")?.string(), name: opt.text().string() }))
@@ -195,7 +208,7 @@ impl unijudge::Backend for Sio2 {
 					"Memory limit exceeded" => Ok(Some(Status::MemoryLimitExceeded)),
 					"Runtime error" => Ok(Some(Status::RuntimeError)),
 					"Compilation failed" | "CE" => Ok(Some(Status::CompilationFailed)),
-					"Initial tests: OK" | "INI_OK" => Ok(None),
+					"Initial tests: OK" | "INI_OK" | "Wstępne sprawdzanie: OK" => Ok(None),
 					"Initial tests: failed" | "INI_ERR" => Ok(None),
 					"Pending" | "Oczekuje" => Ok(Some(Status::Pending)),
 					_ => Err(format!("unrecognized submission status {:?}", status)),
@@ -246,38 +259,16 @@ impl unijudge::Backend for Sio2 {
 	{
 		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
-		// Workaround for https://github.com/rust-lang/rust/issues/57478.
-		let (problem_instance_id, csrf, is_admin) = {
-			let doc = debris::Document::new(&resp.text().await?);
-			if doc.find("#navbar-login").is_ok() {
-				return Err(ErrorCode::AccessDenied.into());
-			}
-			let problem_instance_id = doc
-				.find("#id_problem_instance_id")?
-				.find_all("option")
-				.filter(|opt| opt.attr("selected").is_err())
-				.map(|opt| {
-					Ok((
-						opt.attr("value")?.string(),
-						opt.text().map(|joint| {
-							let i1 = joint.rfind('(').ok_or("'(' not found in submittable title")?;
-							let i2 = joint.rfind(')').ok_or("')' not found in submittable title")?;
-							std::result::Result::<_, &'static str>::Ok(joint[i1 + 1..i2].to_owned())
-						})?,
-					))
-				})
-				.collect::<Result<Vec<_>>>()?
-				.into_iter()
-				.find(|(_, symbol)| *symbol == task.task)
-				.ok_or(ErrorCode::MalformedData)?
-				.0;
-			let csrf = doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
-			let is_admin = doc.find("#id_kind").is_ok();
-			(problem_instance_id, csrf, is_admin)
-		};
+		let doc = debris::Document::new(&resp.text().await?);
+		if doc.find("#navbar-login").is_ok() {
+			return Err(ErrorCode::AccessDenied.into());
+		}
+		let task_id = self.find_task_id(task, &doc)?;
+		let csrf = doc.find_first("input[name=\"csrfmiddlewaretoken\"]")?.attr("value")?.string();
+		let is_admin = doc.find("#id_kind").is_ok();
 		let mut form = multipart::Form::new()
 			.text("csrfmiddlewaretoken", csrf)
-			.text("problem_instance_id", problem_instance_id)
+			.text("problem_instance_id", task_id)
 			.text("code", code.to_owned())
 			.text("prog_lang", language.id.to_owned());
 		if is_admin {
@@ -328,6 +319,32 @@ impl unijudge::Backend for Sio2 {
 	}
 }
 
+impl Sio2 {
+	fn find_task_id(&self, task: &Task, submit_doc: &Document) -> Result<String> {
+		let selects = self.parse_task_select(submit_doc)?;
+		let select = selects.into_iter().find(|select| select.symbol == task.task).ok_or(ErrorCode::MalformedData)?;
+		Ok(select.id)
+	}
+
+	fn parse_task_select(&self, submit_doc: &Document) -> Result<Vec<TaskSelect>> {
+		let problem_instance_ids = submit_doc
+			.find("#id_problem_instance_id")?
+			.find_all("option")
+			.filter(|opt| opt.attr("selected").is_err())
+			.map(|opt| {
+				let id = opt.attr("value")?.string();
+				let symbol = opt.text().map(|joint| {
+					let i1 = joint.rfind('(').ok_or("'(' not found in submittable title")?;
+					let i2 = joint.rfind(')').ok_or("')' not found in submittable title")?;
+					std::result::Result::<_, &'static str>::Ok(joint[i1 + 1..i2].to_owned())
+				})?;
+				Ok(TaskSelect { id, symbol })
+			})
+			.collect::<Result<Vec<_>>>()?;
+		Ok(problem_instance_ids)
+	}
+}
+
 impl Session {
 	fn req_user(&self) -> Result<String> {
 		let username = self.username.lock()?.clone().ok_or(ErrorCode::AccessDenied)?;
@@ -343,4 +360,9 @@ enum Status {
 	RuntimeError,
 	CompilationFailed,
 	Pending,
+}
+
+struct TaskSelect {
+	symbol: String,
+	id: String,
 }
