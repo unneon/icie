@@ -1,6 +1,6 @@
 parameters:
 - name: version
-  default: version_98
+  default: version_97
 
 steps:
 - script: >
