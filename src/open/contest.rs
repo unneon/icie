@@ -76,6 +76,7 @@ async fn wait_for_contest(url: &str, site: &str, sess: &Arc<Session>) -> R<()> {
 		progress.update_set(100. * (1. - left_ratio), util::fmt::time_left(left));
 		let delay = min(left, Duration::from_secs(1));
 		let mut delay = Box::pin(sleep(delay).fuse());
+		#[allow(clippy::unused_unit)]
 		select! {
 			() = delay => (),
 			() = on_cancel => return Err(E::cancel()),
