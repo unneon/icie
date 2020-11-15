@@ -1,6 +1,12 @@
 #![feature(associated_type_bounds, const_fn, exhaustive_patterns, never_type, specialization, try_blocks)]
 // This lint works badly in generic contexts, causing warnings inside #[async_trait] macros.
-#![allow(clippy::unit_arg, clippy::unnested_or_patterns, clippy::unnecessary_sort_by, incomplete_features)]
+#![allow(
+	clippy::unit_arg,
+	clippy::unnested_or_patterns,
+	clippy::unnecessary_sort_by,
+	clippy::unused_unit,
+	incomplete_features
+)]
 
 use once_cell::sync::Lazy;
 
