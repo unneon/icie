@@ -1,3 +1,10 @@
+## 1.0.0
+
+No major changes since 0.7.26, but I don't anticipate any major changes in the future so might as well call it stable.
+
+- Fixed some issues with sio2 backend, though it's still kind of broken depending on the sio2 fork/version.
+- Fixed some Codeforces/AtCoder issues, maybe. Or at least I can't reproduce them now.
+
 ## 0.7.26
 
 - Fixed bug where CSS/JS in test view and stress view sometimes wouldn't load, working around some VS Code resource loading bugs.
