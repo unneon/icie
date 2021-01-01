@@ -1,3 +1,7 @@
+## 1.0.1
+
+- Fixed a CodeChef issue where the site sometimes claims the problem is "not visible", even though it clearly is. ICIE will now wait 10 seconds and retry up to 4 times, treating this similarly to a network error.
+
 ## 1.0.0
 
 No major changes since 0.7.26, but I don't anticipate any major changes in the future so might as well call it stable.
