@@ -484,8 +484,18 @@ impl CodeChef {
 		let url: Url =
 			format!("https://www.codechef.com/api/contests/{}/problems/{}", task.contest.as_virt_symbol(), task.task)
 				.parse()?;
-		let resp = json::from_resp::<api::Task>(session.client.get(url.clone()).send().await?).await?;
-		Ok(resp)
+		let resp = session.client.get(url.clone()).send().await?;
+		let obj = json::from_resp::<api::TaskOrError>(resp).await?;
+		match obj {
+			api::TaskOrError::Success { task } => Ok(task),
+			api::TaskOrError::Error { message } if message == "Problem is not visible now. Please try again later." => {
+				Err(ErrorCode::RateLimit.into())
+			},
+			api::TaskOrError::Error { message } => {
+				error!("codechef api_task unexpected error message {:?}", message);
+				Err(ErrorCode::AlienInvasion.into())
+			},
+		}
 	}
 
 	/// Queries "active" submit URL. In CodeChef, the submit URL parameters can be different from
@@ -582,6 +592,18 @@ mod api {
 		pub body: String,
 		pub time: TaskTime,
 		pub user: TaskUser,
+	}
+
+	#[derive(Debug, Deserialize)]
+	#[serde(tag = "status")]
+	pub enum TaskOrError {
+		#[serde(rename = "success")]
+		Success {
+			#[serde(flatten)]
+			task: Task,
+		},
+		#[serde(rename = "error")]
+		Error { message: String },
 	}
 
 	#[derive(Debug, Deserialize)]

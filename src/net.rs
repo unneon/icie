@@ -8,8 +8,8 @@ use unijudge::{
 };
 
 const USER_AGENT: &str = concat!("ICIE/", env!("CARGO_PKG_VERSION"), " (+https://github.com/pustaczek/icie)");
-const NETWORK_ERROR_RETRY_LIMIT: usize = 4;
-const NETWORK_ERROR_RETRY_DELAY: Duration = Duration::from_secs(5);
+const RETRY_LIMIT: usize = 4;
+const RETRY_DELAY: Duration = Duration::from_secs(10);
 
 pub static BACKENDS: [BackendMeta; 5] = [
 	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: &["C++ (GCC 9.2.1)", "C++14 (GCC 5.4.1)"] },
@@ -70,7 +70,7 @@ impl Session {
 		mut f: impl FnMut(&'static dyn DynamicBackend, &'f BoxedSession) -> F+'f,
 	) -> R<Y>
 	{
-		let mut retries = Retries::new(NETWORK_ERROR_RETRY_LIMIT, NETWORK_ERROR_RETRY_DELAY);
+		let mut retries = Retries::new(RETRY_LIMIT, RETRY_DELAY);
 		loop {
 			match f(self.backend.backend, &self.session).await {
 				Ok(y) => break Ok(y),
@@ -80,7 +80,7 @@ impl Session {
 						let (username, password) = auth::get_cached_or_ask(&self.site).await?;
 						self.login(&username, &password).await?
 					},
-					ErrorCode::NetworkFailure if retries.wait().await => (),
+					ErrorCode::NetworkFailure | ErrorCode::RateLimit if retries.wait().await => (),
 					_ => break Err(from_unijudge_error(e)),
 				},
 			}
@@ -89,7 +89,7 @@ impl Session {
 
 	pub async fn login(&self, username: &str, password: &str) -> R<()> {
 		let _status = crate::STATUS.push("Logging in");
-		let mut retries = Retries::new(NETWORK_ERROR_RETRY_LIMIT, NETWORK_ERROR_RETRY_DELAY);
+		let mut retries = Retries::new(RETRY_LIMIT, RETRY_DELAY);
 		match self.backend.backend.auth_login(&self.session, &username, &password).await {
 			Ok(()) => {
 				if let Some(cache) =
@@ -107,7 +107,7 @@ impl Session {
 					self.maybe_error_show(e);
 					self.force_login_boxed().await?;
 				},
-				ErrorCode::NetworkFailure if retries.wait().await => (),
+				ErrorCode::NetworkFailure | ErrorCode::RateLimit if retries.wait().await => (),
 				_ => return Err(from_unijudge_error(e)),
 			},
 		}
