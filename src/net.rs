@@ -68,8 +68,7 @@ impl Session {
 	pub async fn run<'f, Y, F: Future<Output=unijudge::Result<Y>>+'f>(
 		&'f self,
 		mut f: impl FnMut(&'static dyn DynamicBackend, &'f BoxedSession) -> F+'f,
-	) -> R<Y>
-	{
+	) -> R<Y> {
 		let mut retries = Retries::new(RETRY_LIMIT, RETRY_DELAY);
 		loop {
 			match f(self.backend.backend, &self.session).await {

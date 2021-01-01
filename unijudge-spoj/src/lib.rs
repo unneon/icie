@@ -176,8 +176,7 @@ impl unijudge::Backend for SPOJ {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		let resp = session
 			.post("https://www.spoj.com/submit/complete/".parse()?)
 			.multipart(

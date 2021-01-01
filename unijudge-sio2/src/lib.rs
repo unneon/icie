@@ -255,8 +255,7 @@ impl unijudge::Backend for Sio2 {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		let url: Url = format!("{}/c/{}/submit/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		let doc = debris::Document::new(&resp.text().await?);

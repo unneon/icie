@@ -78,8 +78,7 @@ impl Cookie {
 fn serialize_raw_cookie<S: Serializer>(
 	cookie: &cookie::Cookie<'static>,
 	serializer: S,
-) -> std::result::Result<S::Ok, S::Error>
-{
+) -> std::result::Result<S::Ok, S::Error> {
 	serializer.serialize_str(&cookie.to_string())
 }
 

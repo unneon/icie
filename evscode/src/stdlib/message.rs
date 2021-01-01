@@ -70,8 +70,7 @@ impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a,
 		id: T,
 		title: &'a str,
 		is_close_affordance: bool,
-	) -> Builder<'a, T, Chain<A, Once<Action<'a, T>>>>
-	{
+	) -> Builder<'a, T, Chain<A, Once<Action<'a, T>>>> {
 		Builder {
 			message: self.message,
 			kind: self.kind,

@@ -252,8 +252,7 @@ impl unijudge::Backend for Codeforces {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		let url = self.task_contest_url(task)?.join("submit")?;
 		let resp1 = session.client.get(url.clone()).send().await?;
 		let referer = resp1.url().clone();
@@ -486,8 +485,7 @@ impl ExtractedStatement {
 		session: &Session,
 		task: &Task,
 		pdf: Vec<u8>,
-	) -> Result<ExtractedStatement>
-	{
+	) -> Result<ExtractedStatement> {
 		let task = backend
 			.contest_tasks_ex(session, &task.contest)
 			.await?

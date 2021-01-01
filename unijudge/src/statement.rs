@@ -6,7 +6,7 @@ macro_rules! qn {
 	($thing:tt) => {{
 		use $crate::html5ever::{self, namespace_url};
 		html5ever::QualName::new(None, html5ever::ns!(), html5ever::local_name!($thing))
-		}};
+	}};
 }
 
 pub struct Rewrite {
@@ -48,8 +48,7 @@ impl Rewrite {
 	fn impl_fix_hide(
 		mut v: ego_tree::NodeMut<scraper::Node>,
 		f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool,
-	) -> bool
-	{
+	) -> bool {
 		let good_self = f(&mut v);
 		let good_path = good_self || v.first_child().map(|kid| Self::impl_fix_hide(kid, f)).unwrap_or(false);
 		let good_siblings = v.next_sibling().map(|sib| Self::impl_fix_hide(sib, f)).unwrap_or(false);
@@ -92,23 +91,20 @@ pub fn add_style(v: &mut scraper::node::Element, part: &str) {
 pub fn any_sibling(
 	v: &mut ego_tree::NodeMut<scraper::Node>,
 	mut f: impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool,
-) -> bool
-{
+) -> bool {
 	impl_any_sibling_prev(v, &mut f) || impl_any_sibling_next(v, &mut f)
 }
 
 fn impl_any_sibling_prev(
 	v: &mut ego_tree::NodeMut<scraper::Node>,
 	f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool,
-) -> bool
-{
+) -> bool {
 	f(v) || v.prev_sibling().map_or(false, |mut u| impl_any_sibling_prev(&mut u, f))
 }
 
 fn impl_any_sibling_next(
 	v: &mut ego_tree::NodeMut<scraper::Node>,
 	f: &mut impl FnMut(&mut ego_tree::NodeMut<scraper::Node>) -> bool,
-) -> bool
-{
+) -> bool {
 	f(v) || v.next_sibling().map_or(false, |mut u| impl_any_sibling_next(&mut u, f))
 }

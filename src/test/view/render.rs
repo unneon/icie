@@ -189,8 +189,7 @@ async fn render_cell(
 	stdout: &str,
 	note: Option<&str>,
 	folded: bool,
-) -> String
-{
+) -> String {
 	if !folded {
 		render_cell_raw(class, attrs, actions, stderr, stdout, note).await
 	} else {
@@ -206,8 +205,7 @@ async fn render_cell_raw(
 	stderr: Option<&str>,
 	stdout: &str,
 	note: Option<&str>,
-) -> String
-{
+) -> String {
 	let actions = render_actions(actions).await;
 	let note = match note {
 		Some(note) => format!("<div class=\"note\">{}</div>", html_escape(note)),

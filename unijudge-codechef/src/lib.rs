@@ -233,8 +233,7 @@ impl unijudge::Backend for CodeChef {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		let url = self.active_submit_url(task, session).await?;
 		let resp = session.client.get(url.clone()).send().await?;
 		let doc = Document::new(&resp.text().await?);
@@ -430,8 +429,7 @@ impl CodeChef {
 		&'a self,
 		session: &'a Session,
 		contest: &'a Contest,
-	) -> Pin<Box<dyn Future<Output=Result<ContestDetailsEx>>+'a>>
-	{
+	) -> Pin<Box<dyn Future<Output=Result<ContestDetailsEx>>+'a>> {
 		Box::pin(self.contest_details_ex(session, contest))
 	}
 

@@ -254,8 +254,7 @@ impl unijudge::Backend for AtCoder {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		let csrf = self.fetch_login_csrf(session).await?;
 		let url: Url = format!("https://atcoder.jp/contests/{}/submit", task.contest).parse()?;
 		session

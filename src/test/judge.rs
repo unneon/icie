@@ -9,8 +9,7 @@ pub async fn simple_test(
 	output: Option<&str>,
 	output_alt: Option<&str>,
 	task: &Task,
-) -> R<Outcome>
-{
+) -> R<Outcome> {
 	let run = exec.run(input, &[], &task.environment).await?;
 	let verdict = select_verdict(&run, input, output, output_alt, task).await?;
 	Ok(Outcome { verdict, out: run.stdout, stderr: run.stderr, time: run.time })
@@ -22,8 +21,7 @@ async fn select_verdict(
 	output: Option<&str>,
 	output_alt: Option<&str>,
 	task: &Task,
-) -> R<Verdict>
-{
+) -> R<Verdict> {
 	Ok(match run.exit_kind {
 		ExitKind::Normal => {
 			if !run.success() {

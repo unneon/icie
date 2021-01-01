@@ -79,8 +79,7 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		task: &Self::Task,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		self.task_submitx(session.0.deref(), task.0.deref(), language, code).await
 	}
 
@@ -224,8 +223,7 @@ where
 		task: &dyn AnyDebug,
 		language: &Language,
 		code: &str,
-	) -> Result<String>
-	{
+	) -> Result<String> {
 		<T as crate::Backend>::task_submit(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task), language, code)
 			.await
 	}

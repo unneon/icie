@@ -48,8 +48,7 @@ pub async fn compile(
 	standard: Standard,
 	codegen: Codegen,
 	custom_flags: &[String],
-) -> R<Status>
-{
+) -> R<Status> {
 	let compiler = find_compiler().await?;
 	let executable = Executable::new(output_path.to_owned());
 	let args = collect_compiler_flags(sources, output_path, standard, codegen, custom_flags);
@@ -98,8 +97,7 @@ fn collect_compiler_flags<'a>(
 	standard: Standard,
 	codegen: Codegen,
 	custom_flags: &'a [String],
-) -> Vec<&'a str>
-{
+) -> Vec<&'a str> {
 	let mut args = Vec::new();
 	args.push(standard.flag_clang());
 	// -Wconversion displays warnings on lossy implicit conversions between i32/i64, u32/u64 and
