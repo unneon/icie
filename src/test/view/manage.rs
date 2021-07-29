@@ -33,7 +33,7 @@ impl Behaviour for TestView {
 		webview.set_html(&render(&report).await?);
 		webview.reveal(2, true);
 		if SCROLL_TO_FIRST_FAILED.get() {
-			webview.post_message(Food::ScrollToWA).await;
+			let _ = webview.post_message(Food::ScrollToWA).await;
 		}
 		Ok(())
 	}
@@ -88,7 +88,7 @@ impl Behaviour for TestView {
 								drop(_status);
 								if run.success() {
 									add_test(&input, &run.stdout).await?;
-									webview.post_message(Food::EvalResp { id, input }).await;
+									let _ = webview.post_message(Food::EvalResp { id, input }).await;
 									Ok(())
 								} else {
 									Err(E::error("brute force solution did not evaluate test successfully"))

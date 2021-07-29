@@ -184,7 +184,7 @@ extern "C" {
 	pub fn on_did_receive_message(this: &Webview, callback: &Closure<dyn FnMut(JsValue)>);
 
 	#[wasm_bindgen(method, js_name = postMessage)]
-	pub fn post_message(this: &Webview, message: JsValue) -> Thenable<bool>;
+	pub fn post_message(this: &Webview, message: JsValue) -> Thenable<Result<bool, js_sys::Error>>;
 
 	#[wasm_bindgen(method, setter)]
 	pub fn set_html(this: &Webview, html: &str);

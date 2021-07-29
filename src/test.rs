@@ -72,7 +72,7 @@ pub async fn input() -> evscode::R<()> {
 	let webview = view::manage::COLLECTION.active_or_lazy(SourceTarget::Main).await?;
 	// FIXME: JS .focus() does not work despite the reveal.
 	webview.reveal(2, false);
-	webview.post_message(view::manage::Food::NewStart).await;
+	webview.post_message(view::manage::Food::NewStart).await?;
 	Ok(())
 }
 

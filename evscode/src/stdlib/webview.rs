@@ -6,7 +6,7 @@
 //! [official webview tutorial]: https://code.visualstudio.com/api/extension-guides/webview
 //! [predefined webview patterns]: ../../goodies/index.html
 
-use crate::Column;
+use crate::{Column, E, R};
 use futures::{
 	channel::{mpsc, oneshot}, Stream
 };
@@ -148,8 +148,8 @@ impl WebviewRef {
 	/// The messages are not guaranteed to arrive if the webview is not ["live"](https://code.visualstudio.com/api/references/vscode-api#1637) yet.
 	/// To circumvent this horrible behaviour, whenever you call this method on a fresh webview, you
 	/// must add script that sends a "I'm ready!" message and wait for it before calling.
-	pub async fn post_message(&self, msg: impl Serialize) -> bool {
-		self.panel.webview().post_message(JsValue::from_serde(&msg).unwrap()).await
+	pub async fn post_message(&self, msg: impl Serialize) -> R<bool> {
+		self.panel.webview().post_message(JsValue::from_serde(&msg).unwrap()).await.map_err(E::from)
 	}
 
 	/// Check if the webview can be seen by the user.

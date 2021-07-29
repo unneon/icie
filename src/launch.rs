@@ -51,7 +51,7 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.
 	webview.listener.next().await;
-	webview.webview.post_message(StatementData { pdf_data_base64: pdf }).await;
+	let _ = webview.webview.post_message(StatementData { pdf_data_base64: pdf }).await;
 }
 
 #[derive(Serialize)]

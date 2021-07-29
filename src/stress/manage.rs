@@ -67,7 +67,7 @@ impl Behaviour for Stress {
 					let is_counterexample = !row.outcome.success();
 					let is_smallest = best_row.as_ref().map_or(true, |best_row| row.fitness > best_row.fitness);
 					let is_new_best = is_counterexample && is_smallest;
-					webview.post_message(Food::from_row(&row, is_new_best)).await;
+					let _ = webview.post_message(Food::from_row(&row, is_new_best)).await;
 					if is_new_best {
 						best_row = Some(row);
 					}
