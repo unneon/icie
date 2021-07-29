@@ -8,7 +8,9 @@
 use futures::{
 	stream::{once, select}, Stream, StreamExt
 };
-use std::{fmt, future::Future, ops::Try, pin::Pin};
+use std::{
+	fmt, future::Future, ops::{ControlFlow, FromResidual, Try}, pin::Pin
+};
 use wasm_backtrace::Backtrace;
 
 /// Result type used for errors in Evscode. See [`E`] for details.
@@ -84,7 +86,7 @@ impl E {
 	/// Create an error representing an operation cancelled by user. This error will be logged, but
 	/// not displayed to the user.
 	pub fn cancel() -> E {
-		E::from(Cancellation)
+		E::empty().severity(Severity::Cancel)
 	}
 
 	/// Convert an error implementing [`std::error::Error`] to an Evscode error. Error messages will
@@ -310,27 +312,33 @@ pub fn cancel_on<T, A: Stream<Item=T>, B: Future<Output=()>>(a: A, b: B) -> impl
 }
 
 impl<T> Try for Cancellable<T> {
-	type Error = Cancellation;
-	type Ok = T;
+	type Output = T;
+	type Residual = Cancellation;
 
-	fn into_result(self) -> Result<Self::Ok, Self::Error> {
-		self.0.ok_or(Cancellation)
-	}
-
-	fn from_error(_: Self::Error) -> Self {
-		Cancellable(None)
-	}
-
-	fn from_ok(v: Self::Ok) -> Self {
+	fn from_output(v: Self::Output) -> Self {
 		Cancellable(Some(v))
 	}
-}
 
-impl From<Cancellation> for E {
-	fn from(_: Cancellation) -> Self {
-		E::empty().severity(Severity::Cancel)
+	fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+		match self.0 {
+			Some(v) => ControlFlow::Continue(v),
+			None => ControlFlow::Break(Cancellation),
+		}
 	}
 }
+
+impl<T> FromResidual<Cancellation> for Cancellable<T> {
+	fn from_residual(_: Cancellation) -> Self {
+		Cancellable(None)
+	}
+}
+
+impl FromResidual<Cancellation> for Result<(), E> {
+	fn from_residual(_: Cancellation) -> Self {
+		Err(E::cancel())
+	}
+}
+
 impl From<js_sys::Error> for E {
 	fn from(e: js_sys::Error) -> Self {
 		E(Box::new(ErrorData {
