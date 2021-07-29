@@ -170,6 +170,7 @@ pub mod fs {
 
 	#[derive(Serialize)]
 	pub struct MkdirOptions {
+		#[serde(skip_serializing_if = "Option::is_none")]
 		pub mode: Option<u32>,
 	}
 	wasm_abi_serde!(MkdirOptions);
