@@ -56,7 +56,7 @@ impl Library {
 	pub async fn walk_graph(&self, piece_id: &str, mut context: impl PasteContext) -> R<()> {
 		let (dg, t1, t2) = self.build_dependency_graph();
 		let og = self.build_ordering_graph(&dg, &t1);
-		let mut missing = dg.vmasked_bfs(t1[piece_id], |v| !context.has(&t2[v]));
+		let mut missing = dg.vmasked_bfs(t1[piece_id], |v| !context.has(t2[v]));
 		let ord = og.toposort().unwrap();
 		let mut pos = vec![og.len(); og.len()];
 		for i in 0..ord.len() {

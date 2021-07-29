@@ -12,7 +12,7 @@ pub fn generate(input: TokenStream) -> TokenStream {
 
 fn transform(item: &ItemEnum) -> Result<TokenStream, ProcError> {
 	let enum_name = &item.ident;
-	let variants = extract_enum_variants(&item)?;
+	let variants = extract_enum_variants(item)?;
 	let variant_idents = variants.iter().map(|variant| &variant.ident).collect::<Vec<_>>();
 	let variant_names = variants.iter().map(|variant| &variant.name).collect::<Vec<_>>();
 	Ok(TokenStream::from(quote! {

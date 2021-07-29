@@ -86,7 +86,7 @@ impl<T: Marshal, S: std::hash::BuildHasher+Default> Marshal for HashMap<String, 
 	fn to_js(&self) -> JsValue {
 		let obj = js_sys::Object::new();
 		for (key, value) in self {
-			js_sys::Reflect::set(&obj, &JsValue::from_str(&key), &value.to_js()).unwrap();
+			js_sys::Reflect::set(&obj, &JsValue::from_str(key), &value.to_js()).unwrap();
 		}
 		obj.into()
 	}

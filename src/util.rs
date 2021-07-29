@@ -81,8 +81,8 @@ pub fn time_now() -> SystemTime {
 }
 
 pub async fn open_source(path: &Path) -> R<()> {
-	let cursor = find_cursor_place(&path).await;
-	evscode::open_editor(&path).cursor(cursor).open().await
+	let cursor = find_cursor_place(path).await;
+	evscode::open_editor(path).cursor(cursor).open().await
 }
 
 pub async fn find_cursor_place(path: &Path) -> Option<Position> {
@@ -147,6 +147,7 @@ pub async fn sleep(delay: Duration) {
 	rx.await.unwrap();
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum OS {
 	Windows,
 	Linux,

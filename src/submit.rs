@@ -76,17 +76,17 @@ async fn fetch_cpp_language(task: &BoxedTask, sess: &Session) -> R<Language> {
 
 async fn fetch_languages(task: &BoxedTask, sess: &Session) -> R<Vec<Language>> {
 	let _status = crate::STATUS.push("Querying languages");
-	sess.run(|backend, sess| backend.task_languages(sess, &task)).await
+	sess.run(|backend, sess| backend.task_languages(sess, task)).await
 }
 
 async fn track(sess: &Session, task: &BoxedTask, id: &str) -> R<()> {
 	let _status = crate::STATUS.push("Tracking");
-	let submission_url = sess.run(|backend, sess| async move { Ok(backend.submission_url(sess, &task, &id)) }).await?;
+	let submission_url = sess.run(|backend, sess| async move { Ok(backend.submission_url(sess, task, id)) }).await?;
 	let progress = evscode::Progress::new().title(format!("Tracking submit [#{}]({})", id, submission_url)).show().0;
 	let mut last_verdict = None;
 	let mut not_seen_retries = Retries::new(TRACK_NOT_SEEN_RETRY_LIMIT, TRACK_NOT_SEEN_RETRY_DELAY);
 	let verdict = loop {
-		let submissions = fetch_submissions(task, &sess).await?;
+		let submissions = fetch_submissions(task, sess).await?;
 		let submission = match submissions.into_iter().find(|subm| subm.id == id) {
 			Some(submission) => submission,
 			None if not_seen_retries.wait().await => continue,
@@ -108,5 +108,5 @@ async fn track(sess: &Session, task: &BoxedTask, id: &str) -> R<()> {
 
 async fn fetch_submissions(task: &BoxedTask, sess: &Session) -> R<Vec<Submission>> {
 	let _status = crate::STATUS.push("Refreshing...");
-	sess.run(|backend, sess| backend.task_submissions(sess, &task)).await
+	sess.run(|backend, sess| backend.task_submissions(sess, task)).await
 }

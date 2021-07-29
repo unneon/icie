@@ -94,13 +94,13 @@ impl<'a, T: Unpin+Serialize+for<'d> Deserialize<'d>, A: Iterator<Item=Action<'a,
 			.map(|item| {
 				JsValue::from_serde(&vscode_sys::window::ShowMessageItem {
 					is_close_affordance: item.is_close_affordance,
-					title: &item.title,
+					title: item.title,
 					id: item.id,
 				})
 				.unwrap()
 			})
 			.collect();
-		let promise = (self.kind)(&self.message, &options, items);
+		let promise = (self.kind)(self.message, &options, items);
 		ShownMessage(promise, PhantomData)
 	}
 }

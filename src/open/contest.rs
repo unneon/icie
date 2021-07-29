@@ -101,7 +101,7 @@ fn spawn_suggest_login(site: &str, sess: &Arc<Session>) {
 }
 
 async fn suggest_login(site: &str, sess: &Session) -> R<()> {
-	if !auth::has_any_saved(&site).await {
+	if !auth::has_any_saved(site).await {
 		let message = format!("You are not logged in to {}, maybe do it now to save time when submitting?", site);
 		let dec = evscode::Message::new(&message).item((), "Log in", false).warning().show().await;
 		if dec.is_some() {
@@ -118,9 +118,9 @@ fn spawn_suggest_install_compiler() {
 
 async fn open_task(task: &BoxedTask, index: usize, count: usize, projects: &Path, sess: &Session) -> R<Path> {
 	let name = format!("{}/{}", index + 1, count);
-	let details = fetch_task(task, &name, &sess).await?;
+	let details = fetch_task(task, &name, sess).await?;
 	let url = sess.run(|backend, sess| async move { backend.task_url(sess, task) }).await?;
-	let workspace = design_task_name(&projects, Some(&details)).await?;
+	let workspace = design_task_name(projects, Some(&details)).await?;
 	files::open_task(&workspace, Some(url), Some(details)).await?;
 	Ok(workspace)
 }
@@ -179,7 +179,7 @@ async fn fetch_tasks(sess: &Session, contest: &BoxedContest) -> R<Vec<BoxedTask>
 	let mut wait_retries = NOT_YET_STARTED_RETRY_LIMIT;
 	sess.run(|backend, sess| async move {
 		loop {
-			match backend.contest_tasks(sess, &contest).await {
+			match backend.contest_tasks(sess, contest).await {
 				Err(e) if e.code == ErrorCode::NetworkFailure && wait_retries > 0 => {
 					let fmt_retries = util::fmt::plural(wait_retries, "retry", "retries");
 					let _status = crate::STATUS.push(format!("Waiting for contest start, {} left", fmt_retries));

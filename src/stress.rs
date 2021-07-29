@@ -39,7 +39,7 @@ pub async fn prepare_state() -> R<StressState> {
 }
 
 pub fn execute_runs(state: &StressState) -> impl Stream<Item=R<Row>>+'_ {
-	futures::stream::iter(1..).then(move |number| async move { execute_run(number, &state).await })
+	futures::stream::iter(1..).then(move |number| async move { execute_run(number, state).await })
 }
 
 async fn execute_run(number: usize, state: &StressState) -> R<Row> {
@@ -56,7 +56,7 @@ async fn execute_run(number: usize, state: &StressState) -> R<Row> {
 
 async fn run_test_generator(test_generator: &Executable, environment: &Environment) -> R<String> {
 	let run_test_generator =
-		test_generator.run("", &[], &environment).await.map_err(|e| e.context("executing test generator aborted"))?;
+		test_generator.run("", &[], environment).await.map_err(|e| e.context("executing test generator aborted"))?;
 	if !run_test_generator.success() {
 		return Err(E::error(format!("executing test generator failed, {:?}", run_test_generator)));
 	}
@@ -65,7 +65,7 @@ async fn run_test_generator(test_generator: &Executable, environment: &Environme
 
 async fn run_brute_force(input: &str, brute_force: &Executable, environment: &Environment) -> R<String> {
 	let run_brute_force = brute_force
-		.run(input, &[], &environment)
+		.run(input, &[], environment)
 		.await
 		.map_err(|e| e.context("executing brute force solution aborted"))?;
 	if !run_brute_force.success() {

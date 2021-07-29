@@ -401,7 +401,7 @@ impl Codeforces {
 				"https://codeforces.com/group/{}/contest/{}/problem/{}/",
 				group,
 				task.contest.id,
-				self.resolve_task_id(&task)
+				self.resolve_task_id(task)
 			),
 		}
 		.parse()?)
@@ -490,7 +490,7 @@ impl ExtractedStatement {
 			.contest_tasks_ex(session, &task.contest)
 			.await?
 			.into_iter()
-			.find(|t| t.symbol == backend.resolve_task_id(&task))
+			.find(|t| t.symbol == backend.resolve_task_id(task))
 			.ok_or(ErrorCode::AlienInvasion)?;
 		Ok(ExtractedStatement {
 			symbol: task.symbol,

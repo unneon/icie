@@ -36,7 +36,6 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 				pkg.commands.iter().filter_map(|command| {
 					command
 						.key
-						.clone()
 						.map(|key| ContributesKeybindings { command: command.id.to_string(), key: key.to_owned() })
 				}),
 				|cmd| cmd.command.clone(),

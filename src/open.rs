@@ -102,7 +102,7 @@ impl Command {
 	fn from_url(url: Option<&String>) -> R<Command> {
 		Ok(match url {
 			Some(raw_url) => {
-				let (url, backend) = net::interpret_url(&raw_url)?;
+				let (url, backend) = net::interpret_url(raw_url)?;
 				let URL { domain, site, resource } = url;
 				match resource {
 					Resource::Task(task) => {
@@ -124,7 +124,7 @@ async fn fetch_task_details(url: &Option<(BoxedTaskURL, &'static BackendMeta)>) 
 			let _status = crate::STATUS.push("Fetching task");
 			let Resource::Task(task) = &url.resource;
 			let sess = net::Session::connect(&url.domain, backend).await?;
-			let details = sess.run(|backend, sess| backend.task_details(sess, &task)).await?;
+			let details = sess.run(|backend, sess| backend.task_details(sess, task)).await?;
 			Ok(Some(details))
 		},
 		None => Ok(None),

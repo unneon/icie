@@ -23,7 +23,7 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 		let closure = Box::leak(Box::new(Closure::wrap(Box::new(move || {
 			crate::spawn((command.trigger)());
 		}) as Box<dyn FnMut()>)));
-		vscode_sys::commands::register_command(&command_id, &closure);
+		vscode_sys::commands::register_command(&command_id, closure);
 	}
 	if let Some(on_activate) = on_activate {
 		crate::spawn(on_activate());

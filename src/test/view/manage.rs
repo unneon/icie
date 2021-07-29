@@ -30,7 +30,7 @@ impl Behaviour for TestView {
 	}
 
 	async fn update(&self, _: Self::K, report: &Self::V, webview: WebviewRef) -> R<()> {
-		webview.set_html(&render(&report).await?);
+		webview.set_html(&render(report).await?);
 		webview.reveal(2, true);
 		if SCROLL_TO_FIRST_FAILED.get() {
 			let _ = webview.post_message(Food::ScrollToWA).await;

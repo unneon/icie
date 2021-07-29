@@ -118,9 +118,9 @@ async fn select_codegen() -> R<Codegen> {
 }
 
 pub async fn compile(source: &SourceTarget, codegen: Codegen, force: bool) -> R<Executable> {
-	let _status = crate::STATUS.push(util::fmt::verb_on_source("Compiling", &source));
+	let _status = crate::STATUS.push(util::fmt::verb_on_source("Compiling", source));
 	evscode::save_all().await?;
-	check_source_exists(&source).await?;
+	check_source_exists(source).await?;
 	let source = source.to_path()?;
 	let output_path = source.with_extension(&*EXECUTABLE_EXTENSION.get());
 	if !force && should_cache(&source, &output_path).await? {
@@ -183,7 +183,7 @@ fn display_compiler_stderr(stderr: &str) {
 	OUTPUT_CHANNEL.with(|output| {
 		if !stderr.is_empty() {
 			output.clear();
-			output.append(&stderr);
+			output.append(stderr);
 			output.show(true);
 		} else {
 			output.hide();

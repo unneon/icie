@@ -40,10 +40,10 @@ pub fn interpret_url(url: &str) -> R<(BoxedURL, &'static BackendMeta)> {
 			Err(e) => Some(Err(e)),
 		})
 		.next();
-	Ok(backend
+	backend
 		.wrap(format!("not yet supporting contests/tasks on site {}", url))
 		.map_err(|e| e.action("Help with URLs", help_urls()))?
-		.map_err(|e| from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url)))?)
+		.map_err(|e| from_unijudge_error(e).context(format!("not a valid task/contest URL {}", url)))
 }
 
 impl Session {
@@ -89,7 +89,7 @@ impl Session {
 	pub async fn login(&self, username: &str, password: &str) -> R<()> {
 		let _status = crate::STATUS.push("Logging in");
 		let mut retries = Retries::new(RETRY_LIMIT, RETRY_DELAY);
-		match self.backend.backend.auth_login(&self.session, &username, &password).await {
+		match self.backend.backend.auth_login(&self.session, username, password).await {
 			Ok(()) => {
 				if let Some(cache) =
 					self.backend.backend.auth_cache(&self.session).await.map_err(from_unijudge_error)?

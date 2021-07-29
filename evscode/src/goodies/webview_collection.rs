@@ -96,7 +96,7 @@ impl<T: Behaviour> Collection<T> {
 			std::collections::hash_map::Entry::Occupied(e) => {
 				if force {
 					let webview = e.get();
-					let value = self.update_old(&key, &webview).await?;
+					let value = self.update_old(&key, webview).await?;
 					(webview.deref().clone(), Some(value))
 				} else {
 					(e.get().deref().clone(), None)

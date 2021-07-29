@@ -36,7 +36,7 @@ pub async fn instantiate() -> R<()> {
 	let templates = LIST.get();
 	let template_id = select_from_list(&templates).await?;
 	let template_path = &templates[&template_id];
-	let template = load_additional(&template_path).await?;
+	let template = load_additional(template_path).await?;
 	let filename = enter_filename(&template.suggested_filename).await?;
 	let path = workspace_root()?.join(filename);
 	if fs::exists(&path).await? {
@@ -49,7 +49,7 @@ pub async fn instantiate() -> R<()> {
 async fn select_from_list(templates: &HashMap<String, String>) -> R<String> {
 	evscode::QuickPick::new()
 		.items(templates.iter().map(|(name, path)| {
-			evscode::quick_pick::Item::new(name.clone(), name.clone()).description(additional_suggested_filename(&path))
+			evscode::quick_pick::Item::new(name.clone(), name.clone()).description(additional_suggested_filename(path))
 		}))
 		.show()
 		.await

@@ -86,7 +86,7 @@ pub async fn edit_paste(path: &str, text: &str, position: (usize, usize)) -> R<(
 /// Get the path to workspace folder.
 /// Returns an error if no folder is opened.
 pub fn workspace_root() -> R<String> {
-	Ok(vscode_sys::workspace::ROOT_PATH.as_string().wrap("this operation requires a folder to be open")?)
+	vscode_sys::workspace::ROOT_PATH.as_string().wrap("this operation requires a folder to be open")
 }
 
 /// Get the path to the root directory of the extension installation.
@@ -106,7 +106,7 @@ pub async fn clipboard_write(val: &str) {
 
 /// Return an URI pointing to a given path for use with webviews.
 pub fn asset(name: &str) -> String {
-	let asset_path = node_sys::path::join(&extension_root(), name);
+	let asset_path = node_sys::path::join(extension_root(), name);
 	format!("vscode-resource:{}", asset_path)
 }
 

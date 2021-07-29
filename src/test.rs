@@ -25,7 +25,7 @@ pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let progress = evscode::Progress::new().title(util::fmt::verb_on_source("Testing", &source)).show().0;
 	let mut runs = Vec::new();
 	for input_path in &inputs {
-		let input = fs::read_to_string(&input_path).await?;
+		let input = fs::read_to_string(input_path).await?;
 		let output = load_test_output(input_path, "out").await?;
 		let output_alt = load_test_output(input_path, "alt.out").await?;
 		let outcome = simple_test(&solution, &input, output.as_deref(), output_alt.as_deref(), &task).await?;

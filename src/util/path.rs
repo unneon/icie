@@ -89,7 +89,7 @@ impl Path {
 	}
 
 	pub fn fmt_relative(&self, root: &Path) -> String {
-		self.strip_prefix(&root).unwrap_or_else(|_| self.clone()).into_string()
+		self.strip_prefix(root).unwrap_or_else(|_| self.clone()).into_string()
 	}
 }
 

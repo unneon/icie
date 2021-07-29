@@ -121,6 +121,6 @@ impl Keyring {
 	}
 
 	async fn delete_entry(entry: &str) {
-		let _ = JsFuture::from(keytar_sys::delete_password("ICIE", &entry)).await;
+		let _ = JsFuture::from(keytar_sys::delete_password("ICIE", entry)).await;
 	}
 }

@@ -12,7 +12,7 @@ impl Terminal for External {
 	async fn spawn(&self, title: &str, command: &[&str]) -> R<()> {
 		let emulator = Emulator::detect().await?;
 		let mut args = Vec::new();
-		emulator.args_title(&title, &mut args);
+		emulator.args_title(title, &mut args);
 		emulator.args_command(command, &mut args);
 		let args = args.iter().map(String::as_str).collect::<Vec<_>>();
 		let run = emulator.executable.run("", &args, &Environment { time_limit: None, cwd: None }).await?;

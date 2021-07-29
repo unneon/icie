@@ -28,7 +28,7 @@ impl Manifest {
 	}
 
 	pub fn req_statement(&self) -> R<&Statement> {
-		Ok(self.statement.as_ref().wrap("this folder has no downloaded task description").map_err(suggest_open)?)
+		self.statement.as_ref().wrap("this folder has no downloaded task description").map_err(suggest_open)
 	}
 
 	pub fn req_task_url(&self) -> R<&str> {

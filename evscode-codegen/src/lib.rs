@@ -1,4 +1,5 @@
 #![feature(proc_macro_diagnostic)]
+#![allow(clippy::upper_case_acronyms)]
 
 use proc_macro::TokenStream;
 
