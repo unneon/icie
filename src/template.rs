@@ -28,7 +28,7 @@ pub static LIST: evscode::Config<HashMap<String, String>> = vec![
 	(ID_CHECKER.to_owned(), PSEUDOPATH_CHECKER.to_owned()),
 ]
 .into_iter()
-.collect();
+.collect::<HashMap<String, String>>();
 
 #[evscode::command(title = "ICIE Template instantiate", key = "alt+=")]
 pub async fn instantiate() -> R<()> {
