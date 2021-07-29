@@ -25,7 +25,6 @@ pub struct Builder<'a> {
 	preserve_focus: bool,
 	enable_command_uris: bool,
 	enable_scripts: bool,
-	local_resource_roots: Option<&'a [&'a str]>,
 	enable_find_widget: bool,
 	retain_context_when_hidden: bool,
 }
@@ -61,14 +60,6 @@ impl<'a> Builder<'a> {
 	/// opening the tab again.
 	pub fn retain_context_when_hidden(mut self) -> Self {
 		self.retain_context_when_hidden = true;
-		self
-	}
-
-	/// Add a path from which assets created with [`crate::asset`] or `vscode-resource://` scheme
-	/// can be used. If this function is not called at all, by default the extension install
-	/// directory and the workspace directory are allowed.
-	pub fn local_resource_roots(mut self, uris: &'a [&'a str]) -> Self {
-		self.local_resource_roots = Some(uris);
 		self
 	}
 
@@ -114,7 +105,6 @@ impl Webview {
 			preserve_focus: false,
 			enable_command_uris: false,
 			enable_scripts: false,
-			local_resource_roots: None,
 			enable_find_widget: false,
 			retain_context_when_hidden: false,
 		}

@@ -7,7 +7,6 @@ use std::collections::HashMap;
 pub struct Builder {
 	files: bool,
 	folders: bool,
-	default: Option<String>,
 	filters: Option<HashMap<String, Vec<String>>>,
 	action_label: Option<String>,
 }
@@ -17,12 +16,6 @@ impl Builder {
 	pub fn directory(mut self) -> Self {
 		self.files = false;
 		self.folders = true;
-		self
-	}
-
-	/// Set a value selected by default.
-	pub fn default(mut self, p: &str) -> Self {
-		self.default = Some(p.to_owned());
 		self
 	}
 
@@ -70,6 +63,6 @@ pub struct OpenDialog {
 impl OpenDialog {
 	/// Create a new builder to configure the dialog
 	pub fn new() -> Builder {
-		Builder { files: true, folders: false, default: None, filters: None, action_label: None }
+		Builder { files: true, folders: false, filters: None, action_label: None }
 	}
 }
