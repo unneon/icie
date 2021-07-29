@@ -1,3 +1,8 @@
+## 1.0.2
+
+- Fixed an issue where closing the tab during stress tests would cause the extension to panic, due to some recent VS Code changes.
+- Fixed an issue where downloading tasks would cause ICIE to hang due to some recent Node.js changes.
+
 ## 1.0.1
 
 - Fixed a CodeChef issue where the site sometimes claims the problem is "not visible", even though it clearly is. ICIE will now wait 10 seconds and retry up to 4 times, treating this similarly to a network error.
