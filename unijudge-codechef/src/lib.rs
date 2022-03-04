@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{multipart, Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+	debris::{ Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 
 #[derive(Debug)]
@@ -95,7 +95,7 @@ impl unijudge::Backend for CodeChef {
                        .text()
                        .await?;
         let re= regex::Regex::new("id=\"(form-[_0-9A-Za-z-]+)\"").unwrap();
-        let resp_raw = json::from_str::<api::login>(&resp)?;
+        let resp_raw = json::from_str::<api::Login>(&resp)?;
         let formdata=resp_raw.form;
         if ! re.is_match(&formdata) {
             return Err(ErrorCode::AccessDenied.into());
@@ -146,7 +146,7 @@ impl unijudge::Backend for CodeChef {
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		debug!("querying task details of {:?}", task);
 		let resp = self.api_task(task, session).await?;
-		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
+		let cases = Some(resp.problem_components.sample_test_cases.iter().map(|tc|
                                                                             Ok(unijudge::Example {
                                                                                 input: tc.input.clone(),
                                                                                 output: tc.output.clone(),
@@ -154,7 +154,7 @@ impl unijudge::Backend for CodeChef {
                                                                             ).collect::<Result<_>>()?
                          );
 
-        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
+        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problem_components));
 		Ok(TaskDetails {
 			id: task.task.clone(),
 			title: resp.problem_name,
@@ -168,7 +168,7 @@ impl unijudge::Backend for CodeChef {
 
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		debug!("querying languages of {:?}", task);
-        session.req_user();
+        //session.req_user();
         let submiturl= self.active_submit_url(task, session).await?;
         let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
         let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
@@ -254,7 +254,7 @@ impl unijudge::Backend for CodeChef {
 		language: &Language,
 		code: &str,
 	) -> Result<String> {
-        session.req_user();
+        //session.req_user();
         let submiturl= self.active_submit_url(task, session).await?;
         let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
         let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
@@ -389,14 +389,14 @@ struct ContestDetailsEx {
 	title: String,
 }
 
-struct OtherSessions {
+/*struct OtherSessions {
 	others: Vec<(String, String)>,
 	form_build_id: String,
 	form_token: String,
-}
+}*/
 
 impl CodeChef {
-	fn select_other_sessions(&self, doc: &Document) -> Result<OtherSessions> {
+/*	fn select_other_sessions(&self, doc: &Document) -> Result<OtherSessions> {
 		let form = doc.find("#session-limit-page")?;
 		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
 		let form_token = form.find("[name=form_token]")?.attr("value")?.string();
@@ -431,7 +431,7 @@ impl CodeChef {
 		session.client.post("https://www.codechef.com/session/limit".parse()?).form(&payload).send().await?;
 		Ok(())
 	}
-
+*/
 	async fn contest_details_ex(&self, session: &Session, contest: &Contest) -> Result<ContestDetailsEx> {
 		let resp_raw = session
 			.client
@@ -488,19 +488,19 @@ impl CodeChef {
 		// input", which CommonMark parsers ignore. Fortunately, we can ignore the HTML because
 		// Markdown permits it. Also, we add a title so that the statement looks better.
         let mut casestr = "".to_owned();
-        for tc in compont.sampleTestCases.iter(){
+        for tc in compont.sample_test_cases.iter(){
             casestr.push_str("\r\n\n###Example Input\r\n```\r\n");casestr.push_str( &tc.input );casestr.push_str("\t\r\n```\r\n\r\n");
              casestr.push_str("\r\n\n###Example Output\r\n```\r\n");casestr.push_str( &tc.output );casestr.push_str( "\t\r\n```\r\n\r\n");
              casestr.push_str("\r\n\n###Explanations\r\n");casestr.push_str(&tc.explanation );casestr.push_str("\r\n\n");
         }
-        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.inputFormat;
-        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.outputFormat;
+        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.input_format;
+        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.output_format;
         let consf= "\r\n\n###Constraints \r\n".to_owned()+&compont.constraints;
         let subtf= "\r\n\n###Subtasks\r\n".to_owned()+ &compont.subtasks;
-        let text = compont.statement + if compont.inputFormatState  { &inpf } else {""} +
-            if compont.outputFormatState  { &outf } else {""} +
-            if compont.constraintsState  { &consf } else {""}+
-            if compont.subtasksState  { &subtf } else {""} + &casestr;
+        let text = compont.statement + if compont.input_format_state  { &inpf } else {""} +
+            if compont.output_format_state  { &outf } else {""} +
+            if compont.constraints_state  { &consf } else {""}+
+            if compont.subtasks_state  { &subtf } else {""} + &casestr;
 
 
 		//pulldown_cmark::html::push_html(
@@ -508,7 +508,7 @@ impl CodeChef {
 		//	pulldown_cmark::Parser::new(&format!("# {}\n\n{}", title, text.replace("###", "### "))),
 		//);
         
-        let mut html_out=markdown::to_html(&html_escape::decode_html_entities(&format!("# {}\n\n{}", title, text.replace("###", "### "))));
+        let  html_out=markdown::to_html(&html_escape::decode_html_entities(&format!("# {}\n\n{}", title, text.replace("###", "### "))));
 
 		Statement::HTML {
 			html: format!(
@@ -567,7 +567,7 @@ impl CodeChef {
 	/// the task URL parameters for various reasons, e.g. after a contest ends, or when submitting a
 	/// problem from a different division. This function performs an additional HTTP request to take
 	/// this into account.
-    async fn active_languages_url(&self, task: &Task, session: &Session) -> Result<Url> {
+    async fn active_languages_url(&self, task: &Task, _session: &Session) -> Result<Url> {
         let url = format!("https://www.codechef.com/api/ide/{}/languages/{}", task.contest.as_virt_symbol(), task.task);
         Ok(url.parse()?)
     }
@@ -665,7 +665,7 @@ mod api {
     }
 
     #[derive(Debug, Deserialize)]
-    pub struct Submission_details{
+    pub struct SubmissionDetails{
         pub result_code: String,
         pub score: String,
         pub upid: String,
@@ -683,15 +683,15 @@ mod api {
     #[derive(Debug, Deserialize)]
     pub struct TaskComponents{
         pub constraints:String,
-        pub constraintsState:bool,
+        pub constraints_state:bool,
         pub subtasks:String,
-        pub subtasksState:bool,
+        pub subtasks_state:bool,
         pub statement:String,
-        pub inputFormat:String,
-        pub inputFormatState:bool,
-        pub outputFormat:String,
-        pub outputFormatState:bool,
-        pub sampleTestCases: Vec<TestCase>
+        pub input_format:String,
+        pub input_format_state:bool,
+        pub output_format:String,
+        pub output_format_state:bool,
+        pub sample_test_cases: Vec<TestCase>
     }
 
 	#[derive(Debug, Deserialize)]
@@ -702,14 +702,14 @@ mod api {
 		pub body: String,
 		pub time: TaskTime,
 		pub user: TaskUser,
-        pub problemComponents: TaskComponents,
+        pub problem_components: TaskComponents,
 	}
     #[derive(Debug, Deserialize)]
     pub struct SuccessorError{
         pub status:String
     }
     #[derive(Debug, Deserialize)]
-    pub struct login{
+    pub struct Login{
         pub form: String
     }
 
