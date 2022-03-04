@@ -142,12 +142,12 @@ impl unijudge::Backend for AtCoder {
 			if let unijudge::scraper::Node::Element(v) = v.value() {
 				let is_css = v.name() == "link"
 					&& v.attr("href")
-						.map_or(false, |href| href.contains("contests.css") || href.contains("bootstrap.min.css"));
+						.map_or(false, |href| href.contains("contests.css") || href.contains("bootstrap.min.css") || href.contains("katex.min.css"));
 				if is_css {
 					unijudge::statement::fix_url(v, unijudge::qn!("href"), "//", "https:");
 					unijudge::statement::fix_url(v, unijudge::qn!("href"), "/", "https://atcoder.jp");
 				}
-				if v.name() == "script" && v.attr("src").map_or(false, |src| src.contains("MathJax.js")) {
+				if v.name() == "script" && v.attr("src").map_or(false, |src| src.contains("katex.min.js") || src.contains("auto-render.min.js")) {
 					unijudge::statement::fix_url(v, unijudge::qn!("src"), "//", "https:");
 				}
 			}
@@ -155,7 +155,7 @@ impl unijudge::Backend for AtCoder {
 			if is_tex {
 				if let Some(mut u) = v.first_child() {
 					if let unijudge::scraper::Node::Text(text) = u.value() {
-						text.text = format!("\\({}\\)", text.text).into();
+						text.text = format!("{}", text.text).into();
 					}
 				}
 			}
@@ -295,7 +295,8 @@ impl unijudge::Backend for AtCoder {
 			if alert.ends_with("Contest not found.") {
 				return Err(ErrorCode::MalformedData.into());
 			} else if alert.ends_with("Permission denied.") {
-				return Err(ErrorCode::NotYetStarted.into());
+                return Err(ErrorCode::AccessDenied.into());
+				//return Err(ErrorCode::NotYetStarted.into());
 			} else {
 				return Err(doc.error("unrecognized alert message").into());
 			}

@@ -1,5 +1,6 @@
 #![feature(try_blocks)]
-
+use markdown;
+use html_escape;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
@@ -77,55 +78,54 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
-		debug!("starting login");
+		/*debug!("starting login");
 		session.client.cookies_clear()?;
 		let resp1 = session.client.get("https://www.codechef.com".parse()?).send().await?;
 		let doc = Document::new(&resp1.text().await?);
 		debug!("received the login form");
 		let form = doc.find("#new-login-form")?;
-		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
-		let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
-		let resp2 = session
+		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();*/
+		//let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
+		//session.client.cookies_clear()?;
+        let resp = session
+                       .client
+                       .get(format!("https://www.codechef.com/api/codechef/login").parse()?)
+                       .send()
+                       .await?
+                       .text()
+                       .await?;
+        let re= regex::Regex::new("id=\"(form-[_0-9A-Za-z-]+)\"").unwrap();
+        let resp_raw = json::from_str::<api::login>(&resp)?;
+        let formdata=resp_raw.form;
+        if ! re.is_match(&formdata) {
+            return Err(ErrorCode::AccessDenied.into());
+        }
+        let cap =re.captures(&formdata).unwrap();
+        let form_build_id = cap.get(1).unwrap().as_str();
+
+        let resp2 = session
 			.client
-			.post("https://www.codechef.com/".parse()?)
+            .post(format!("https://www.codechef.com/api/codechef/login").parse()?)
 			.form(&[
 				("name", username),
 				("pass", password),
-				("csrfToken", &csrf),
 				("form_build_id", &form_build_id),
-				("form_id", "new_login_form"),
-				("op", "Login"),
+				("form_id", "ajax_login_form")
 			])
 			.send()
-			.await?;
+			.await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::SuccessorError>(&resp2)?;
 		debug!("sent the login form");
-		let resp2_url = resp2.url().clone();
-		let other_sessions = {
-			let doc = Document::new(&resp2.text().await?);
-			if doc.find("a[title=\"Edit Your Account\"]").is_ok() {
-				if resp2_url.as_str() == "https://www.codechef.com/session/limit" {
-					// CodeChef does not allow to have more than one session active at once.
-					// When this happens, disconnect all the other sessions so that ICIE's one can
-					// proceed. This can be irritating, but there is no other sensible way of doing
-					// this.
-					debug!("other active codechef sessions found");
-					Some(self.select_other_sessions(&doc)?)
-				} else {
-					debug!("no other codechef sessions found");
-					None
-				}
-			} else if doc.html().contains("Sorry, unrecognized username or password.") {
-				return Err(ErrorCode::WrongCredentials.into());
-			} else {
-				return Err(doc.error("unrecognized login outcome").into());
-			}
-		};
-		*session.username.lock()? = Some(username.to_owned());
-		if let Some(other_sessions) = other_sessions {
-			self.disconnect_other_sessions(session, other_sessions).await?;
-		}
-		debug!("seemingly logged in");
-		Ok(())
+        if resp.status== "success" {
+            debug!("OK logged in");
+        } else {
+            return Err(ErrorCode::WrongCredentials.into());
+        }
+        *session.username.lock()? = Some(username.to_owned());
+        debug!("seemingly logged in");
+        Ok(())
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
@@ -146,13 +146,21 @@ impl unijudge::Backend for CodeChef {
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		debug!("querying task details of {:?}", task);
 		let resp = self.api_task(task, session).await?;
-		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
+		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
+                                                                            Ok(unijudge::Example {
+                                                                                input: tc.input.clone(),
+                                                                                output: tc.output.clone(),
+                                                                            })
+                                                                            ).collect::<Result<_>>()?
+                         );
+
+        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
 			title: resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
-			examples: None,
+			examples: cases,
 			statement,
 			url: self.task_url(session, task)?,
 		})
@@ -160,18 +168,21 @@ impl unijudge::Backend for CodeChef {
 
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		debug!("querying languages of {:?}", task);
-		let url = self.active_submit_url(task, session).await?;
-		let resp = session.client.get(url).send().await?;
-		let doc = Document::new(&resp.text().await?);
-		if let Ok(err_msg) = doc.find("#maintable .err-message") {
-			if err_msg.text().as_str().contains("register to make a submission") {
-				return Err(ErrorCode::AccessDenied.into());
-			}
-		}
-		doc.find("#edit-language")?
-			.find_all("option")
-			.map(|opt| Ok(Language { id: opt.attr("value")?.parse()?, name: opt.text().string() }))
-			.collect()
+        session.req_user();
+        let submiturl= self.active_submit_url(task, session).await?;
+        let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
+        let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
+        let cap =re.captures(&doc).unwrap();
+        let csrf_tok=cap.get(1).unwrap().as_str();
+        let url = self.active_languages_url(task, session).await?;
+        let resp = session.client.get(url)
+            .header("x-csrf-token",csrf_tok)
+            .send().await?.text().await?;
+        let langs = json::from_str::<api::LanguageList>(&resp)?;
+        langs.languages.iter().map(|lang|
+                                   Ok(Language { id: lang.id.clone(), name: lang.full_name.clone()+"(" + &lang.version.clone()+")"}))
+            .collect()
+
 	}
 
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
@@ -198,7 +209,15 @@ impl unijudge::Backend for CodeChef {
 				let id = row.find_nth("td", 0)?.text().string();
 				let verdict_td = row.find_nth("td", 3)?;
 				let verdict_text = verdict_td.text();
-				let verdict = verdict_td.find("span")?.attr("title")?.map(|verdict| match verdict {
+                /*let check = || -> Result<(), ErrorCode> {
+                    verdict_td.find_nth("span",0)?.attr("title")?;
+                    Ok(())
+                };
+                if let Err(_err) = check() {
+                    return Ok(Submission { id, Verdict::Pending { test: None } });
+                };*/
+
+				let verdict = verdict_td.find_nth("span",0)?.attr("title")?.map(|verdict| match verdict {
 					"accepted" => Ok(Verdict::Accepted),
 					"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
 					"waiting.." => Ok(Verdict::Pending { test: None }),
@@ -218,10 +237,11 @@ impl unijudge::Backend for CodeChef {
 						let score_regex = regex::Regex::new("\\[(.*)pts\\]").unwrap();
 						let score_matches = score_regex.captures(verdict_text.as_str()).ok_or("score regex error")?;
 						let score = score_matches[1].parse().map_err(|_| "score f64 parse error")?;
-						Ok(Verdict::Scored { score, max: Some(1.), cause: None, test: None })
+						Ok(Verdict::Scored { score, max: Some(100.), cause: None, test: None })
 					},
 					_ => Err(format!("unrecognized verdict {:?}", verdict)),
 				})?;
+                //if let Err(_err) = verdict 
 				Ok(Submission { id, verdict })
 			})
 			.collect()
@@ -234,35 +254,34 @@ impl unijudge::Backend for CodeChef {
 		language: &Language,
 		code: &str,
 	) -> Result<String> {
-		let url = self.active_submit_url(task, session).await?;
-		let resp = session.client.get(url.clone()).send().await?;
-		let doc = Document::new(&resp.text().await?);
-		let form = doc.find("#problem-submission")?;
-		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
-		let form_token = form.find("[name=form_token]")?.attr("value")?.string();
+        session.req_user();
+        let submiturl= self.active_submit_url(task, session).await?;
+        let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
+        let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
+        let cap =re.captures(&doc).unwrap();
+         let csrf_tok=cap.get(1).unwrap().as_str();
+         let url = "https://www.codechef.com/api/ide/submit".parse()?;
 		let resp = session
 			.client
 			.post(url)
-			.multipart(
-				multipart::Form::new()
-					.text("form_build_id", form_build_id)
-					.text("form_token", form_token)
-					.text("form_id", "problem_submission")
-					.part(
-						"files[sourcefile]",
-						multipart::Part::text(code.to_owned()).file_name("main.cpp").mime_str("text/x-c++src")?,
-					)
-					.text("language", language.id.clone())
-					.text("problem_code", task.task.clone())
-					.text("op", "Submit"),
-			)
-			.send()
-			.await?;
-		let url_segs = resp.url().path_segments().map(|ps| ps.collect::<Vec<_>>());
-		match url_segs.as_deref() {
-			Some(["submit", "complete", submit_id]) => Ok((*submit_id).to_owned()),
-			_ => Err(ErrorCode::AlienInvasion.into()),
-		}
+			.header("x-csrf-token",csrf_tok)
+            .form(&[
+                  ("language", language.id.clone()),
+                  ("contestCode", task.contest.as_virt_symbol().to_owned()),
+                  ("problemCode", task.task.clone()),
+                  ("sourceCode",code.to_owned())
+            ])
+            .send()
+			.await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::Submit>(&resp)?;
+        if resp.status== "OK" {
+            debug!("OK submitted");
+            Ok((resp.upid.ok_or("").unwrap()).to_owned())
+        } else {
+            return Err(ErrorCode::AlienInvasion.into());
+        }
 	}
 
 	fn task_url(&self, _session: &Self::Session, task: &Self::Task) -> Result<String> {
@@ -297,7 +316,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
-		let doc = Document::new(
+		/*let doc = Document::new(
 			&session.client.get("https://www.codechef.com/contests".parse()?).send().await?.text().await?,
 		);
 		// CodeChef does not separate ongoing contests and permanent contests, so we only select the
@@ -326,6 +345,34 @@ impl unijudge::Backend for CodeChef {
 				Ok(ContestDetails { id, title, time })
 			})
 			.collect()
+            */
+        let resp_raw = session
+            .client
+            .get(format!("https://www.codechef.com/api/list/contests/all?sort_by=START&sorting_order=asc&offset=0").parse()?)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::ContestList>(&resp_raw)?;
+        let rows_ongoing = resp.present_contests.iter().map(|row| (row, true));
+        let rows_upcoming = resp.future_contests.iter().map(|row| (row, false));
+        rows_upcoming
+            .chain(rows_ongoing)
+            .map(|(row, is_ongoing)| {
+                let id = Contest::Normal(row.contest_code.to_string());
+                let title = row.contest_name.to_string();
+                let dtime= if is_ongoing { row.contest_end_date_iso.to_string() }
+                else { row.contest_start_date_iso.to_string()};
+                let datetime=unijudge::chrono::DateTime::parse_from_rfc3339(&dtime).unwrap();
+                let time = if is_ongoing {
+                    ContestTime::Ongoing { finish: datetime }
+                } else {
+                    ContestTime::Upcoming { start: datetime }
+                };
+                debug!("Contest Details {:?} {:?} {:?}", id,title,time);
+                Ok(ContestDetails { id, title, time })
+            })
+        .collect()
 	}
 
 	fn name_short(&self) -> &'static str {
@@ -417,7 +464,7 @@ impl CodeChef {
 				let contest = Contest::Normal(child.clone());
 				self.contest_details_ex_boxed(session, &contest).await
 			};
-			tasks.ok_or(ErrorCode::AlienInvasion)?
+			tasks.ok_or(ErrorCode::AccessDenied)?
 		} else {
 			// If no username is present in the previous case, codechef assumes you're div2.
 			// This behaviour is unsatisfactory, so we require a login from the user.
@@ -433,17 +480,36 @@ impl CodeChef {
 		Box::pin(self.contest_details_ex(session, contest))
 	}
 
-	fn prepare_statement(&self, title: &str, text: String) -> Statement {
-		let mut html = String::new();
+	fn prepare_statement(&self, title: &str, compont: api::TaskComponents) -> Statement {
+		//let mut html = String::new();
 		// CodeChef statements are pretty wild. They seem to follow some structure and use Markdown,
 		// but it's not true. They mix Markdown and HTML very liberally, and their Markdown
 		// implementation is not standard-compliant. So e.g. you can have sections with "###Example
 		// input", which CommonMark parsers ignore. Fortunately, we can ignore the HTML because
 		// Markdown permits it. Also, we add a title so that the statement looks better.
-		pulldown_cmark::html::push_html(
-			&mut html,
-			pulldown_cmark::Parser::new(&format!("# {}\n\n{}", title, text.replace("###", "### "))),
-		);
+        let mut casestr = "".to_owned();
+        for tc in compont.sampleTestCases.iter(){
+            casestr.push_str("\r\n\n###Example Input\r\n```\r\n");casestr.push_str( &tc.input );casestr.push_str("\t\r\n```\r\n\r\n");
+             casestr.push_str("\r\n\n###Example Output\r\n```\r\n");casestr.push_str( &tc.output );casestr.push_str( "\t\r\n```\r\n\r\n");
+             casestr.push_str("\r\n\n###Explanations\r\n");casestr.push_str(&tc.explanation );casestr.push_str("\r\n\n");
+        }
+        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.inputFormat;
+        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.outputFormat;
+        let consf= "\r\n\n###Constraints \r\n".to_owned()+&compont.constraints;
+        let subtf= "\r\n\n###Subtasks\r\n".to_owned()+ &compont.subtasks;
+        let text = compont.statement + if compont.inputFormatState  { &inpf } else {""} +
+            if compont.outputFormatState  { &outf } else {""} +
+            if compont.constraintsState  { &consf } else {""}+
+            if compont.subtasksState  { &subtf } else {""} + &casestr;
+
+
+		//pulldown_cmark::html::push_html(
+		//	&mut html,
+		//	pulldown_cmark::Parser::new(&format!("# {}\n\n{}", title, text.replace("###", "### "))),
+		//);
+        
+        let mut html_out=markdown::to_html(&html_escape::decode_html_entities(&format!("# {}\n\n{}", title, text.replace("###", "### "))));
+
 		Statement::HTML {
 			html: format!(
 				r#"
@@ -452,10 +518,11 @@ impl CodeChef {
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/3.0.1/github-markdown.min.css">
 		<script type="text/x-mathjax-config">
 			MathJax.Hub.Config({{
-				tex2jax: {{inlineMath: [['$','$']]}}
+				TeX: {{extensions: ['color.js'] }},tex2jax: {{inlineMath: [['$','$']],
+                }}
 			}});
 		</script>
-		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML' async></script>
 		<style>
 			.markdown-body {{
 				background-color: white;
@@ -473,7 +540,7 @@ impl CodeChef {
 		{}
 	<body>
 </html>"#,
-				html
+				html_out
 			),
 		}
 	}
@@ -500,18 +567,21 @@ impl CodeChef {
 	/// the task URL parameters for various reasons, e.g. after a contest ends, or when submitting a
 	/// problem from a different division. This function performs an additional HTTP request to take
 	/// this into account.
+    async fn active_languages_url(&self, task: &Task, session: &Session) -> Result<Url> {
+        let url = format!("https://www.codechef.com/api/ide/{}/languages/{}", task.contest.as_virt_symbol(), task.task);
+        Ok(url.parse()?)
+    }
 	async fn active_submit_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
-		let url = format!("https://www.codechef.com/{}submit/{}", task.contest.prefix(), task.task);
-		debug!("activated submit url is {}", url);
-		Ok(url.parse()?)
+		let url = format!("https://www.codechef.com/{}/submit/{}", task.contest.prefix(), task.task);
+        Ok(url.parse()?)
 	}
 
 	/// See [`CodeChef::active_submit_url`], but for submission list URLs.
 	async fn active_submission_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
 		let url =
-			format!("https://www.codechef.com/{}status/{},{}", task.contest.prefix(), task.task, session.req_user()?);
+			format!("https://www.codechef.com/{}/status/{},{}", task.contest.prefix(), task.task, session.req_user()?);
 		Ok(url.parse()?)
 	}
 
@@ -521,7 +591,7 @@ impl CodeChef {
 				debug!("confirming submit target");
 				let details = self.api_task(task, session).await?;
 				if session.req_user().err().map(|e| e.code) == Some(ErrorCode::AccessDenied)
-					|| details.user.username != session.req_user()?
+					|| details.user.username.ok_or("").unwrap() != session.req_user()?
 				{
 					debug!("failed to cofirm submit target, requesting login");
 					return Err(ErrorCode::AccessDenied.into());
@@ -579,8 +649,50 @@ mod api {
 
 	#[derive(Debug, Deserialize)]
 	pub struct TaskUser {
-		pub username: String,
-	}
+        pub username: Option<String>,
+    }
+    #[derive(Debug, Deserialize)]
+    pub struct Language{
+        pub id:String,
+        pub short_name:String,
+        pub full_name:String,
+        pub version:String
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct LanguageList{
+        pub languages:Vec<Language>
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct Submission_details{
+        pub result_code: String,
+        pub score: String,
+        pub upid: String,
+
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct TestCase{
+        pub id:String,
+        pub input:String,
+        pub explanation:String,
+        pub output:String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct TaskComponents{
+        pub constraints:String,
+        pub constraintsState:bool,
+        pub subtasks:String,
+        pub subtasksState:bool,
+        pub statement:String,
+        pub inputFormat:String,
+        pub inputFormatState:bool,
+        pub outputFormat:String,
+        pub outputFormatState:bool,
+        pub sampleTestCases: Vec<TestCase>
+    }
 
 	#[derive(Debug, Deserialize)]
 	pub struct Task {
@@ -590,7 +702,17 @@ mod api {
 		pub body: String,
 		pub time: TaskTime,
 		pub user: TaskUser,
+        pub problemComponents: TaskComponents,
 	}
+    #[derive(Debug, Deserialize)]
+    pub struct SuccessorError{
+        pub status:String
+    }
+    #[derive(Debug, Deserialize)]
+    pub struct login{
+        pub form: String
+    }
+
 
 	#[derive(Debug, Deserialize)]
 	#[serde(tag = "status")]
@@ -609,9 +731,20 @@ mod api {
 		pub status: String,
 		#[serde(default)]
 		pub upid: Option<String>,
-		#[serde(default)]
-		pub errors: Option<Vec<String>>,
 	}
+    #[derive(Debug, Deserialize)]
+    pub struct Contest{
+        pub contest_code:String,
+        pub contest_name:String,
+        pub contest_start_date_iso:String,
+        pub contest_end_date_iso:String
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct ContestList {
+        pub present_contests:Vec< Contest>,
+        pub future_contests:Vec< Contest>
+    }
 
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksTask {
