@@ -146,7 +146,7 @@ impl unijudge::Backend for CodeChef {
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		debug!("querying task details of {:?}", task);
 		let resp = self.api_task(task, session).await?;
-		let cases = Some(resp.problem_components.sample_test_cases.iter().map(|tc|
+		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
                                                                             Ok(unijudge::Example {
                                                                                 input: tc.input.clone(),
                                                                                 output: tc.output.clone(),
@@ -154,7 +154,7 @@ impl unijudge::Backend for CodeChef {
                                                                             ).collect::<Result<_>>()?
                          );
 
-        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problem_components));
+        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
 			title: resp.problem_name,
@@ -488,19 +488,19 @@ impl CodeChef {
 		// input", which CommonMark parsers ignore. Fortunately, we can ignore the HTML because
 		// Markdown permits it. Also, we add a title so that the statement looks better.
         let mut casestr = "".to_owned();
-        for tc in compont.sample_test_cases.iter(){
+        for tc in compont.sampleTestCases.iter(){
             casestr.push_str("\r\n\n###Example Input\r\n```\r\n");casestr.push_str( &tc.input );casestr.push_str("\t\r\n```\r\n\r\n");
              casestr.push_str("\r\n\n###Example Output\r\n```\r\n");casestr.push_str( &tc.output );casestr.push_str( "\t\r\n```\r\n\r\n");
              casestr.push_str("\r\n\n###Explanations\r\n");casestr.push_str(&tc.explanation );casestr.push_str("\r\n\n");
         }
-        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.input_format;
-        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.output_format;
+        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.inputFormat;
+        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.outputFormat;
         let consf= "\r\n\n###Constraints \r\n".to_owned()+&compont.constraints;
         let subtf= "\r\n\n###Subtasks\r\n".to_owned()+ &compont.subtasks;
-        let text = compont.statement + if compont.input_format_state  { &inpf } else {""} +
-            if compont.output_format_state  { &outf } else {""} +
-            if compont.constraints_state  { &consf } else {""}+
-            if compont.subtasks_state  { &subtf } else {""} + &casestr;
+        let text = compont.statement + if compont.inputFormatState  { &inpf } else {""} +
+            if compont.outputFormatState  { &outf } else {""} +
+            if compont.constraintsState  { &consf } else {""}+
+            if compont.subtasksState  { &subtf } else {""} + &casestr;
 
 
 		//pulldown_cmark::html::push_html(
@@ -683,15 +683,15 @@ mod api {
     #[derive(Debug, Deserialize)]
     pub struct TaskComponents{
         pub constraints:String,
-        pub constraints_state:bool,
+        pub constraintsState:bool,
         pub subtasks:String,
-        pub subtasks_state:bool,
+        pub subtasksState:bool,
         pub statement:String,
-        pub input_format:String,
-        pub input_format_state:bool,
-        pub output_format:String,
-        pub output_format_state:bool,
-        pub sample_test_cases: Vec<TestCase>
+        pub inputFormat:String,
+        pub inputFormatState:bool,
+        pub outputFormat:String,
+        pub outputFormatState:bool,
+        pub sampleTestCases: Vec<TestCase>
     }
 
 	#[derive(Debug, Deserialize)]
@@ -702,7 +702,7 @@ mod api {
 		pub body: String,
 		pub time: TaskTime,
 		pub user: TaskUser,
-        pub problem_components: TaskComponents,
+        pub problemComponents: TaskComponents,
 	}
     #[derive(Debug, Deserialize)]
     pub struct SuccessorError{
