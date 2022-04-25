@@ -61,6 +61,11 @@ impl Client {
 		debug!("building POST request for {}", url);
 		self.inner.post(url)
 	}
+	
+	pub fn patch(&self, url: Url) -> RequestBuilder {
+		debug!("building POST request for {}", url);
+		self.inner.patch(url)
+	}
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

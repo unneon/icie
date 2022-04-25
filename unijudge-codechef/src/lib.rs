@@ -636,7 +636,7 @@ impl Contest {
 mod api {
 
 	use serde::{
-		de::{self, MapAccess, SeqAccess, Unexpected}, export::PhantomData, Deserialize, Deserializer
+		de::{self, MapAccess, SeqAccess, Unexpected}, __private::PhantomData, Deserialize, Deserializer
 	};
 	use std::{collections::HashMap, fmt, hash::Hash};
 

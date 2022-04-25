@@ -198,6 +198,7 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		session.req_user()?;
 		let url = match &task.contest.source {
 			Source::Contest | Source::Gym => self.task_contest_url(task)?.join("my")?,
 			Source::Problemset => format!("https://codeforces.com/submissions/{}", session.req_user()?).parse()?,
@@ -253,6 +254,7 @@ impl unijudge::Backend for Codeforces {
 		language: &Language,
 		code: &str,
 	) -> Result<String> {
+		session.req_user()?;
 		let url = self.task_contest_url(task)?.join("submit")?;
 		let resp1 = session.client.get(url.clone()).send().await?;
 		let referer = resp1.url().clone();
@@ -367,6 +369,7 @@ pub struct ContestTaskEx {
 
 impl Codeforces {
 	pub async fn contest_tasks_ex(&self, session: &Session, contest: &Contest) -> Result<Vec<ContestTaskEx>> {
+		session.req_user()?;
 		let url: Url = self.contest_url(contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;
 		if *resp.url() != url {
