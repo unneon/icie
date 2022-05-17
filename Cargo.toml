@@ -41,10 +41,13 @@ unijudge-spoj = { path = "./unijudge-spoj" }
 vscode-sys = { path = "./vscode-sys" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+#wasm-timer = "0.1"
+
 
 [patch.crates-io]
 cookie = { git = "https://github.com/SergioBenitez/cookie-rs", rev = "50ef66357921673d8292aeecd344d2645ba65fe4" }
 time = { git = "https://github.com/pustaczek/time", branch = "icie" }
+
 
 [workspace]
 members = [

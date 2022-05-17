@@ -23,6 +23,16 @@ async fn send() -> R<()> {
 	send_after_tests_passed().await
 }
 
+#[evscode::command(title = "ICIE Get Rank List", key = "alt+-")]
+pub async fn get_rank() -> R<()> {
+	let _status = crate::STATUS.push("Getting List");
+	drop(_status);
+	let (sess, task) = connect_to_workspace_task().await?;
+	let ranklist = sess.run(|backend, sess| backend.rank_list(sess, &task)).await?;
+	evscode::Message::new::<()>(&ranklist.to_string()).show().await;
+	Ok(())
+}
+
 fn check_tests_passed(report: &[TestRun]) -> R<()> {
 	if report.iter().any(|test| !test.success()) {
 		debug!("submit aborted because of failing tests");

@@ -71,7 +71,7 @@ impl Client {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Cookie {
 	#[serde(serialize_with = "serialize_raw_cookie", deserialize_with = "deserialize_raw_cookie")]
-	cookie: cookie::Cookie<'static>,
+	pub cookie: cookie::Cookie<'static>,
 }
 
 impl Cookie {

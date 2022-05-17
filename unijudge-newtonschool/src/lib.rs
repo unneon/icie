@@ -137,6 +137,14 @@ impl unijudge::Backend for NewtonSchool {
 		Some(task.contest.clone())
 	}
 
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		return Ok("NA".to_string());
+	}
+	
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		return Err(ErrorCode::AlienInvasion.into());
+	}
+
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>{
 		session.req_token()?;
 
@@ -198,13 +206,16 @@ impl unijudge::Backend for NewtonSchool {
 		.text()
 		.await?;
 		let resp2 = json::from_str::<Vec<api::Submissions>>(&resp_raw)?;  
-		if resp2[0].current_status!=3 {
+		if resp2[0].current_status<3 {
 			Ok(vec![Submission { id:"ID_NA".to_owned(), verdict:Verdict::Pending { test: None } }])	
 		}else if resp2[0].all_test_cases_passing {
 			Ok(vec![Submission { id:"ID_NA".to_owned(), verdict:Verdict::Accepted }])
 		}
 		else if resp2[0].wrong_submission {
 			Ok(vec![Submission { id:"ID_NA".to_owned(), verdict:Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }}])
+		}
+		else if resp2[0].compilation_error {
+			Ok(vec![Submission { id:"ID_NA".to_owned(), verdict:Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None }}])
 		}else {
 			let resp_raw2 = session
 			.client
@@ -296,8 +307,8 @@ impl unijudge::Backend for NewtonSchool {
 			let title = row.title.clone();
 			let naive = NaiveDateTime::from_timestamp(row.start_timestamp/1000, 0);
     		let dt: DateTime<Utc> = DateTime::from_utc(naive, Utc);
-			let local: DateTime<Local> = Local::now();
-			let datetime= local.offset().from_local_datetime(&dt.naive_utc()).unwrap();
+			let local: DateTime<Local> = DateTime::from(dt);
+			let datetime= local.offset(). from_local_datetime(&local.naive_local()).unwrap();
 			let time = ContestTime::Upcoming { start: datetime };
 			Ok(ContestDetails { id, title, time })
 	   }).collect()
@@ -338,6 +349,7 @@ impl NewtonSchool {
 			let resp_raw = session
             .client
             .get(format!("https://my.newtonschool.co/api/v1/course/h/{}/details/public/", contest.prefix()).parse()?)
+			.header("Authorization","Bearer ".to_owned()+&session.req_token().unwrap())
             .send()
             .await?
             .text()
@@ -508,7 +520,8 @@ mod api {
 		pub all_test_cases_passing :bool,
 		pub current_status:i64,
 		pub number_of_test_cases_passing:i64,
-		pub wrong_submission:bool
+		pub wrong_submission:bool,
+		pub compilation_error:bool
 	}
 	
 	#[derive(Debug, Deserialize)]

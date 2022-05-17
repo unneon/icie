@@ -12,3 +12,4 @@ regex = { version = "1.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 html-escape = { version ="*"}
 markdown = {git = "https://github.com/georgejsh/markdown.rs"}
+node-sys = { path = "../node-sys" }

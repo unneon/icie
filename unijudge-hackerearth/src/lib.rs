@@ -161,6 +161,14 @@ impl unijudge::Backend for HackerEarth {
 		Some(task.contest.clone())
 	}
 
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		return Ok("NA".to_string());
+	}
+	
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		return Err(ErrorCode::AlienInvasion.into());
+	}
+
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>{
 		session.req_user()?;
 		if ! task.contest.ispractice() {

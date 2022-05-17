@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1.11"
 unijudge = { path = "../unijudge" }
+serde = { version = "1.0", features = ["derive"] }

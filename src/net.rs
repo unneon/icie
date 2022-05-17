@@ -13,7 +13,7 @@ const RETRY_DELAY: Duration = Duration::from_secs(10);
 
 pub static BACKENDS: [BackendMeta; 7] = [
 	BackendMeta { backend: &unijudge_atcoder::AtCoder, cpp: &["C++ (GCC 9.2.1)", "C++14 (GCC 5.4.1)"] },
-	BackendMeta { backend: &unijudge_codechef::CodeChef, cpp: &["C++17(gcc 6.3)"] },
+	BackendMeta { backend: &unijudge_codechef::CodeChef, cpp: &["C++17(gcc 9.1)"] },
 	BackendMeta { backend: &unijudge_hackerearth::HackerEarth, cpp: &["C++17"] },
 	BackendMeta { backend: &unijudge_newtonschool::NewtonSchool, cpp: &["C++ (GCC 9.2.0)"] },
 	BackendMeta { backend: &unijudge_codeforces::Codeforces, cpp: &["GNU G++17 7.3.0"] },
@@ -158,7 +158,7 @@ fn from_unijudge_error(uj_e: unijudge::Error) -> evscode::E {
 		ErrorCode::AlienInvasion | ErrorCode::MalformedData | ErrorCode::NoTLS | ErrorCode::StateCorruption => {
 			Severity::Bug
 		},
-		ErrorCode::NotRegistered | ErrorCode::NotYetStarted | ErrorCode::WrongCredentials => Severity::Workflow,
+		ErrorCode::NotRegistered | ErrorCode::NotYetStarted | ErrorCode::WrongCredentials | ErrorCode::Ended_Already=> Severity::Workflow,
 	};
 	let mut e = E::from_std_ref(&uj_e);
 	e.0.severity = severity;

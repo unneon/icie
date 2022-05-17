@@ -111,7 +111,15 @@ impl unijudge::Backend for Sio2 {
 	fn task_contest(&self, _: &Self::Task) -> Option<Self::Contest> {
 		None
 	}
+	
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		return Ok("NA".to_string());
+	}
 
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		return Err(ErrorCode::AlienInvasion.into());
+	}
+	
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("{}/c/{}/p/", session.site, task.contest).parse()?;
 		let resp = session.client.get(url.clone()).send().await?;

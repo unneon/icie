@@ -142,6 +142,8 @@ pub trait Backend: Debug+Send+Sync+'static {
 	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String>;
 	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest>;
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>;
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>;
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
 	async fn task_submit(

@@ -1,10 +1,19 @@
 use crate::{
-	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, util::{self, fs, workspace_root}
+	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep}
 };
+
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
+use vscode_sys::{window};
 use futures::StreamExt;
 use serde::Serialize;
-use unijudge::{Backend, Resource, Statement};
+use unijudge::{Backend, Resource, Statement,
+	boxed::{BoxedContest, BoxedTask}
+};
+
+
+//use wasm_timer;
+//use wasm_timer::Instant;
+use core::time::Duration;
 
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
@@ -21,7 +30,17 @@ pub async fn deactivate() -> R<()> {
 	// [1]: https://github.com/Microsoft/vscode/issues/47881
 	Ok(())
 }
-
+pub fn format_sec(secs:i64)->String{
+	let hrs=secs/3600;
+	let min=secs%3600/60;
+	let sec=secs%60;
+	if hrs>0
+	{format!("Remaining {} : {:0>2} : {:0>2} s",hrs,min,sec)}
+	else if min>0
+	{format!("Remaining {} : {:0>2} s",min,sec)}
+	else 
+	{format!("Remaining {} s",sec)}
+}
 pub async fn layout_setup() -> R<()> {
 	let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
@@ -31,7 +50,40 @@ pub async fn layout_setup() -> R<()> {
 		}
 		// Refocus the cursor, because apparently preserve_focus is useless.
 		place_cursor_in_code().await;
+		
+		let url = manifest.req_task_url()?;
+		let (url, backend) = interpret_url(url)?;
+		let url = require_task::<BoxedContest, BoxedTask>(url)?;
+		let Resource::Task(task) = url.resource;
+		let sess = Session::connect(&url.domain, backend).await?;
+		let rem_t= sess.run(|backend, sess| backend.remain_time(sess, &task)).await;
+		//let to_end:String;
+		match rem_t {
+			Ok(mut to_end) =>{
+				let statusBarItem=window::create_status_bar_item();
+				//statusBarItem.tooltip = "Time Left";
+				statusBarItem.set_text(&format_sec(to_end));
+				 //let i=wasm_timer::Interval::new(Instant::now(),Duration::new(1, 0));
+				// i.dispatch();
+				statusBarItem.show();
+				evscode::spawn(async move {
+					loop {
+						if to_end==0{
+							statusBarItem.set_text("Contest Ended");
+							return Ok(());
+						}
+						sleep( Duration::from_secs(1)).await;
+						to_end=to_end-1;
+						statusBarItem.set_text(&format_sec(to_end));
+					}
+				});
+				
+			},
+			Err(_) =>{}
+		}
+		
 	}
+	
 	Ok(())
 }
 

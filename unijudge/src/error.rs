@@ -40,6 +40,8 @@ pub enum ErrorCode {
 	WrongCredentials,
 	/// User has passed an URL that was not recognized.
 	WrongTaskUrl,
+	// Contest has ended 
+	Ended_Already
 }
 
 #[derive(Debug)]
@@ -64,6 +66,7 @@ impl fmt::Display for Error {
 			ErrorCode::StateCorruption => "internal state corrupted due to earlier errors",
 			ErrorCode::WrongCredentials => "wrong username or password",
 			ErrorCode::WrongTaskUrl => "website link was not recognized",
+			ErrorCode::Ended_Already => "Contest Ended Already",
 		};
 		write!(f, "{}", message)
 	}

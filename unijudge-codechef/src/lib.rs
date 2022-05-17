@@ -5,9 +5,11 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
+	chrono::{prelude::*,Duration},
 	debris::{ Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
-
+use node_sys::console;
+use std::collections::HashMap;
 #[derive(Debug)]
 pub struct CodeChef;
 
@@ -143,7 +145,66 @@ impl unijudge::Backend for CodeChef {
 		Some(task.contest.clone())
 	}
 
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		//session.req_user()?;
+		//console::debug(&format!("Reached Here remain time"));
+		let resp_raw = session
+			.client
+			.get(format!("https://www.codechef.com/api/contests/{}", task.contest.as_virt_symbol()).parse()?)
+			.send()
+			.await?
+			.text()
+			.await?;
+		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
+		if resp.time.current <= resp.time.start {
+			return Err(ErrorCode::NotYetStarted.into());
+		}else if resp.time.current > resp.time.end {
+			return Err(ErrorCode::Ended_Already.into());
+		}
+		let naive_end = NaiveDateTime::from_timestamp(resp.time.end, 0);
+		let end_time: DateTime<Utc> = DateTime::from_utc(naive_end, Utc);
+		let today: DateTime<Utc> = Utc::now();
+		let diff = end_time.signed_duration_since(today);
+		let secs = diff.num_seconds();
+		return Ok(secs);
+		/*
+		console::debug(&format!("time {}",result));
+		return Ok(result);*/
+	}
+	
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		session.req_user()?;
+		match task.contest {
+			Contest::Normal(_) => {
+				let submiturl= format!("https://www.codechef.com/rankings/{}?itemsPerPage=100&order=asc&page=1&sortBy=rank",task.contest.as_virt_symbol()).parse()?;
+				let doc = session.client.get(submiturl).send().await?.text().await?;
+				let re= regex::Regex::new("window.csrfToken=\"([_0-9A-Za-z-]+)\"").unwrap();
+				let cap =re.captures(&doc).unwrap();
+				let csrf_tok=cap.get(1).unwrap().as_str();
+				let list_rank=self.get_next_page_list(session,task,1,csrf_tok.to_string()).await?;
+				return Ok("Rank: ".to_owned()+&list_rank.rank_and_score.rank+" , Score: "+&list_rank.rank_and_score.score);
+					
+				/*let mut i_rank=1;
+				for p in 1..=list_rank.availablePages{
+					let page =self.get_next_page_list(session,task,p,csrf_tok.to_string()).await?;
+					for user in page.list.iter(){
+						if user.user_handle==session.req_user()?{
+							return Ok("Rank: ".to_owned()+&user.rank.to_string()+" ("+&i_rank.to_string()+") , Score: "+&user.score.to_string());
+						}
+						if user.country=="India"
+							{i_rank+=1;}
+					}
+				}*/
+				//Ok("user not found".to_string())
+			},
+			Contest::Practice => Ok("Practice contest has no ranklist".to_string()),
+		}
+		
+	}
+	
+	
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
+		session.req_user()?;
 		debug!("querying task details of {:?}", task);
 		let resp = self.api_task(task, session).await?;
 		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
@@ -186,6 +247,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		session.req_user()?;
 		// There is also an API to query a specific submission, but it is not available in other
 		// sites and would require refactoring unijudge. However, using it would possible make
 		// things faster and also get rid of the insanity that is querying all these submission
@@ -203,12 +265,53 @@ impl unijudge::Backend for CodeChef {
 		// If the code was submitted as a team, but tracking is done after logout, this will return
 		// an empty list every time. But I don't think this is a common situation so let's just
 		// ignore it, until the huge tracking refactor fixes that.
+		let mut output:String="".to_string();
+		if doc.find(".dataTable")?.find_nth("tbody > tr",0).is_ok(){
+			let first_id=doc.find(".dataTable")?.find_nth("tbody > tr",0)?.find_nth("td", 0)?.text().string();
+			let ver_txt=doc.find(".dataTable")?.find_nth("tbody > tr",0)?.find_nth("td", 3)?.find_nth("span",0)?.attr("title")?.string();
+			
+			if ver_txt == "wrong answer" || ver_txt=="time limit exceeded" {
+				//console::debug(&format!("Quering {}",first_id));
+				let status=self.error_table(first_id).await?;
+				let table_stat = Document::new(&session.client.get(status)
+				.send().await?.text().await?);
+				//console::debug(&format!("Response {:?}",table_stat));
+				let mut setofans: HashMap<String, i64> = HashMap::new();
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")));
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")?.find("tr")));
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")?.find("tbody")?.find_nth("tr",3)));
+				
+				
+				let vals:Vec<_> = table_stat.find(".status-table")?.find("tbody")?.find_all("tr").map(|row| {
+					//console::debug(&format!("R {:?}",row));
+					if row.find_nth("td",2).is_ok() {
+						//console::debug(&format!("RR {:?}",row));
+						let verdict_td = row.find_nth("td", 2).unwrap().text().string();
+						//console::debug(&format!("Verdict {}",verdict_td));
+						let re= regex::Regex::new("([A-Z]+).*").unwrap();
+						let cap =re.captures(&verdict_td).unwrap();
+						let verdict=cap.get(1).unwrap().as_str();
+						*setofans.entry(verdict.to_string()).or_insert(0) += 1;	
+					};
+				}).collect();
+				//console::debug(&format!("{}",first_id));
+				for (key, value) in setofans {
+					//console::debug(&format!("keys {}-{}",key,value.to_string()));
+					output+=&(key+" : "+&value.to_string()+",");
+				}
+				//console::debug(&format!("Output {}",output));
+			}
+		}
+		
+		
+		
 		doc.find(".dataTable")?
-			.find_all("tbody > tr")
-			.map(|row| {
+			.find_all("tbody > tr").enumerate()
+			.map(|(i,row)| {
 				let id = row.find_nth("td", 0)?.text().string();
 				let verdict_td = row.find_nth("td", 3)?;
 				let verdict_text = verdict_td.text();
+				let stat=output.clone();
                 /*let check = || -> Result<(), ErrorCode> {
                     verdict_td.find_nth("span",0)?.attr("title")?;
                     Ok(())
@@ -216,10 +319,15 @@ impl unijudge::Backend for CodeChef {
                 if let Err(_err) = check() {
                     return Ok(Submission { id, Verdict::Pending { test: None } });
                 };*/
-
-				let verdict = verdict_td.find_nth("span",0)?.attr("title")?.map(|verdict| match verdict {
+				
+				let verdict = verdict_td.find_nth("span",0)?.attr("title")?.map( |verdict| match verdict {
 					"accepted" => Ok(Verdict::Accepted),
-					"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
+					"wrong answer" =>{
+						if i==0
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: Some(stat) })}
+						else 
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None })}
+					}, 
 					"waiting.." => Ok(Verdict::Pending { test: None }),
 					"compilation error" => {
 						Ok(Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None })
@@ -228,7 +336,10 @@ impl unijudge::Backend for CodeChef {
 					"running.." => Ok(Verdict::Pending { test: None }),
 					"running judge.." => Ok(Verdict::Pending { test: None }),
 					"time limit exceeded" => {
-						Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })
+						if i==0
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test:  Some(stat) })}
+						else 
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })}
 					},
 					re if re.starts_with("runtime error") => {
 						Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None })
@@ -241,6 +352,7 @@ impl unijudge::Backend for CodeChef {
 					},
 					_ => Err(format!("unrecognized verdict {:?}", verdict)),
 				})?;
+				
                 //if let Err(_err) = verdict 
 				Ok(Submission { id, verdict })
 			})
@@ -254,6 +366,7 @@ impl unijudge::Backend for CodeChef {
 		language: &Language,
 		code: &str,
 	) -> Result<String> {
+		session.req_user()?;
         //session.req_user();
         let submiturl= self.active_submit_url(task, session).await?;
         let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
@@ -432,7 +545,19 @@ impl CodeChef {
 		Ok(())
 	}
 */
+async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf_tok:String) -> Result<api::Ranklist>{
+	let url =format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page).parse()?;
+	//console::debug(&format!("Task url:{}",format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page)));
+	let resp=session.client.get(url)
+		.header("x-csrf-token",csrf_tok)
+		.send()
+		.await?
+		.text()
+		.await?;
+	Ok(json::from_str::<api::Ranklist>(&resp)?)
+}
 	async fn contest_details_ex(&self, session: &Session, contest: &Contest) -> Result<ContestDetailsEx> {
+		session.req_user()?;
 		let resp_raw = session
 			.client
 			.get(format!("https://www.codechef.com/api/contests/{}", contest.as_virt_symbol()).parse()?)
@@ -585,6 +710,13 @@ impl CodeChef {
 		Ok(url.parse()?)
 	}
 
+	async fn error_table(&self, id:String) -> Result<Url> {
+		
+		let url =
+			format!("https://www.codechef.com/error_status_table/{}/",id);
+		Ok(url.parse()?)
+	}
+
 	async fn activate_task(&self, task: &Task, session: &Session) -> Result<Task> {
 		let active_contest = match &task.contest {
 			Contest::Normal(contest) => {
@@ -732,6 +864,24 @@ mod api {
 		#[serde(default)]
 		pub upid: Option<String>,
 	}
+	#[derive(Debug, Deserialize)]
+	pub struct Ranklist {
+		pub availablePages: u64,
+		pub list: Vec<Ranks>,
+		pub rank_and_score:Userrank
+	}
+	#[derive(Debug, Deserialize)]
+	pub struct Ranks {
+		pub country:String,
+		pub user_handle:String,
+		pub rank:u64,
+		pub score:f64
+	}
+	#[derive(Debug, Deserialize)]
+	pub struct Userrank {
+		pub rank:String,
+		pub score:String
+	}
     #[derive(Debug, Deserialize)]
     pub struct Contest{
         pub contest_code:String,
@@ -759,6 +909,7 @@ mod api {
 	pub struct ContestTasksTime {
 		pub start: i64,
 		pub current: i64,
+		pub end: i64,
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksDivision {

@@ -8,3 +8,9 @@ edition = "2018"
 async-trait = "0.1.11"
 serde = "1.0"
 unijudge = { path = "../unijudge" }
+node-sys = { path = "../node-sys" }
+regex = { version = "1.0", default-features = false }
+hex = "0.4.3"
+cbc = "0.1.2"
+aes = "0.8.1"
+cookie = "0.12"

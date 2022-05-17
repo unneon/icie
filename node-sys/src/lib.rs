@@ -308,4 +308,11 @@ pub mod timers {
 		pub fn set_timeout(callback: JsValue, delay: f64);
 
 	}
+	#[wasm_bindgen(module = timers)]
+	extern "C" {
+
+		#[wasm_bindgen(js_name = setInterval)]
+		pub fn set_interval(callback: JsValue, delay: f64);
+
+	}
 }

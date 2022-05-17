@@ -5,11 +5,22 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
-	chrono::{FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
+	chrono::{prelude::*,Duration,FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
-	}, Backend, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
+	}, json,Backend, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
 };
+//use openssl::symm::*;
+use cookie::Cookie as OtherCookie;
+use hex::encode;
+use hex::FromHex;
+use aes::cipher::{block_padding::*, BlockDecryptMut, KeyIvInit,generic_array::GenericArray};
 
+
+ 
+ type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
+//use crypto::{ aes::{cbc_decryptor,KeySize} , blockmodes::NoPadding, buffer::{RefReadBuffer,RefWriteBuffer} };
+
+use node_sys::console;
 #[derive(Debug)]
 pub struct Codeforces;
 
@@ -30,6 +41,20 @@ pub struct Contest {
 	source: Source,
 	id: String,
 }
+
+#[derive(Debug, Clone,Deserialize)]
+pub struct ContestList {
+	result:Vec<ConstestIds>
+}
+#[derive(Debug, Clone,Deserialize)]
+pub struct ConstestIds {
+	id:i64,
+	name:String,
+	phase:String,
+	startTimeSeconds:i64,
+	durationSeconds:i64
+}
+
 #[derive(Debug)]
 pub struct Task {
 	contest: Contest,
@@ -44,7 +69,7 @@ pub struct Session {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CachedAuth {
-	jsessionid: Cookie,
+	jsessionid: [Cookie; 2],
 	username: String,
 }
 
@@ -97,7 +122,8 @@ impl unijudge::Backend for Codeforces {
 	async fn auth_cache(&self, session: &Self::Session) -> Result<Option<Self::CachedAuth>> {
 		let username = session.username.lock()?.clone();
 		let jsessionid = session.client.cookie_get("JSESSIONID")?;
-		Ok(try { CachedAuth { jsessionid: jsessionid?, username: username? } })
+		let rcpc = session.client.cookie_get("RCPC")?;
+		Ok(try { CachedAuth { jsessionid: [jsessionid?,rcpc?], username: username? } })
 	}
 
 	fn auth_deserialize(&self, data: &str) -> Result<Self::CachedAuth> {
@@ -138,7 +164,9 @@ impl unijudge::Backend for Codeforces {
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
 		*session.username.lock()? = Some(auth.username.clone());
-		session.client.cookie_set(auth.jsessionid.clone(), "https://codeforces.com")?;
+		let [c1, c2] = &auth.jsessionid;
+		session.client.cookie_set(c1.clone(), "https://codeforces.com")?;
+		session.client.cookie_set(c2.clone(), "https://codeforces.com")?;
 		Ok(())
 	}
 
@@ -150,6 +178,84 @@ impl unijudge::Backend for Codeforces {
 		Some(task.contest.clone())
 	}
 
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		let url: Url = "https://codeforces.com/api/contest.list".parse()?;
+			let resp = session.client.get(url).send().await?.text().await?;
+			let contests = json::from_str::<ContestList>(&resp)?;
+			let result:Vec<_>=contests.result.iter().filter(|contest| {
+				contest.phase=="CODING" && contest.id.to_string()==task.contest.id
+			}).map(|contest| {
+				let naive_end = NaiveDateTime::from_timestamp(contest.startTimeSeconds+ contest.durationSeconds, 0);
+				let end_time: DateTime<Utc> = DateTime::from_utc(naive_end, Utc);
+				let today: DateTime<Utc> = Utc::now();
+				let diff = end_time.signed_duration_since(today);
+				let secs = diff.num_seconds();
+				secs
+			})
+			.collect();
+			if result.len()==0 {
+				return Err(ErrorCode::AlienInvasion.into());
+			}
+			return Ok(result[0]);
+
+	}
+	
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		session.req_user()?;	
+		match &task.contest.source {
+			Source::Gym =>return Ok("Gym has no ranklist".to_string()),
+			Source::Problemset => return Ok("Problemset has no ranklist".to_string()),
+			Source::Group { group } => return Ok("Group has no ranklist".to_string()),
+			Source::Contest =>{
+				let csrf = self.fetch_csrf(session).await?;
+				let resp = session
+					.client
+					.post(format!("https://codeforces.com/contest/{}/standings/friends/true",task.contest.id).parse()?)
+					.form(&[
+						("action", "toggleShowUnofficial"),
+						("csrf_token", &csrf),
+						("newShowUnofficialValue", "true"),
+						("showUnofficial", "on"),
+					])
+					.send();
+				let resp = session
+					.client
+					.get(format!("https://codeforces.com/contest/{}/standings/friends/true",task.contest.id).parse()?)
+					.header(REFERER, format!("https://codeforces.com/contest/{}/standings/friends/true",task.contest.id))
+					.send()
+					.await?;
+				let doc = unijudge::debris::Document::new(resp.text().await?.as_str());
+				let result:Vec<_>=doc.find_nth(".datatable",0)?.find_all("tr").filter(|row|{
+					row.find_nth("td",1).is_ok() && row.find_nth("td",1).unwrap().text().as_str().trim().contains(session.req_user().unwrap().as_str())
+				}).map(|row|{
+						//console::debug(&format!("Users {:?}",row));
+						let ranks=row.find_nth("td",0).unwrap();
+						let rankid=ranks.text();
+						let re= regex::Regex::new(".*[(](.*)[)]").unwrap();
+						let mut count = 0;
+						row.find_all(".cell-accepted").map(|_| { count += 1;}).collect::<Vec<_>>();
+
+						match re.captures(&rankid.as_str()) {
+							Some(cap) => {
+								let verdict=cap.get(1).unwrap().as_str();
+								"Rank: ".to_string()+verdict+", Solved: "+&count.to_string()
+							}
+							None => {
+								"".to_string()
+							}
+						}
+						
+				}).collect();
+				if result.len()==0 {
+					return Ok("User not found".to_string());
+				}
+				return Ok(result[0].to_string());
+			}
+		}
+		
+		//return Ok("NA".to_string());
+	}
+	
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.xtask_url(task)?;
 		let resp = session.client.get(url.clone()).send().await?;
@@ -324,17 +430,20 @@ impl unijudge::Backend for Codeforces {
 	}
 
 	async fn contest_title(&self, session: &Self::Session, contest: &Self::Contest) -> Result<String> {
+		session.req_user()?;
 		let url: Url = format!("{}/countdown", self.contest_url(contest)).parse()?;
 		let doc = Document::new(&session.client.get(url).send().await?.text().await?);
 		Ok(doc.find("#pageContent .caption")?.text().string())
 	}
 
 	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
+		/*self.fetch_csrf(session).await?;
 		let moscow_standard_time = FixedOffset::east(3 * 3600);
-		let url: Url = "https://codeforces.com/contests".parse()?;
-		let resp = session.client.get(url).send().await?;
-		let doc = unijudge::debris::Document::new(&resp.text().await?);
-		doc.find("#pageContent > .contestList")?
+		let url: Url = "https://codeforces.com/contests?complete=true".parse()?;
+		let resp = session.client.get(url).send().await?.text().await?;
+		let doc = unijudge::debris::Document::new(&resp);
+		console::debug(&format!("{:?}",resp));
+		doc.find("#pageContent")?.find(".contestList")?
 			.find_first(".datatable")?
 			.find("table")?
 			.find_all("tr[data-contestid]")
@@ -350,7 +459,29 @@ impl unijudge::Backend for Codeforces {
 				let time = ContestTime::Upcoming { start };
 				Ok(ContestDetails { id, title, time })
 			})
+			.collect()*/
+			
+			let url: Url = "https://codeforces.com/api/contest.list".parse()?;
+			let resp = session.client.get(url).send().await?.text().await?;
+			let contests = json::from_str::<ContestList>(&resp)?;
+			contests.result.iter().filter(|contest| {
+				contest.phase=="BEFORE" || contest.phase=="CODING"
+			}).map(|contest| {
+				let id = Contest { source: Source::Contest, id: contest.id.to_string() };
+				let title = contest.name.clone();
+				let sttime= if contest.phase=="BEFORE" {  contest.startTimeSeconds }
+				else  { contest.startTimeSeconds+ contest.durationSeconds};
+				let naive = NaiveDateTime::from_timestamp(sttime, 0);
+				let dt: DateTime<Utc> = DateTime::from_utc(naive, Utc);
+				let local: DateTime<Local> = DateTime::from(dt);
+				let datetime= local.offset(). from_local_datetime(&local.naive_local()).unwrap();
+				let time = if contest.phase=="BEFORE" {  ContestTime::Upcoming { start: datetime } }
+						 else  { ContestTime::Ongoing { finish: datetime }};
+						 
+				Ok(ContestDetails { id, title, time })
+			})
 			.collect()
+		
 	}
 
 	fn name_short(&self) -> &'static str {
@@ -424,10 +555,48 @@ impl Codeforces {
 	}
 
 	async fn fetch_csrf(&self, session: &Session) -> Result<String> {
-		let resp = session.client.get("https://codeforces.com".parse()?).send().await?;
-		let doc = unijudge::debris::Document::new(&resp.text().await?);
-		let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
-		Ok(csrf)
+		match session.req_user() {
+			Ok(_) =>{
+				let resp = session.client.get("https://codeforces.com".parse()?).send().await?;
+				let doc = unijudge::debris::Document::new(&resp.text().await?);
+				let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
+				Ok(csrf)
+			}
+			Err(_)=>{
+				let mut resp = session.client.get("https://codeforces.com".parse()?).send().await?.text().await?;
+				let re= regex::Regex::new("c=toNumbers[(]\"(.*)\"[)]").unwrap();
+				if  re.is_match(&resp) {
+					let cap =re.captures(&resp).unwrap();
+					let ciphertext = cap.get(1).unwrap().as_str();
+					let decoded = Vec::from_hex(ciphertext).unwrap();
+					let  mut buffer:[u8;16]= [0x0; 16];
+					buffer[..16].copy_from_slice(&decoded);
+					const KEY:  [u8;16] = [233,238,75,3,193,208,130,41,135,24,93,39,188,162,51,120];
+					const IV:  [u8;16] = [24,143,175,219,224,248,126,240,252,40,16,213,179,227,71,5];
+					let key = GenericArray::from(KEY);
+					let iv = GenericArray::from(IV);
+					let ct = Aes128CbcDec::new(&key.into(), &iv.into())
+					.decrypt_padded_mut::<NoPadding>(&mut buffer)
+					.unwrap();
+					//console::debug(&format!("RCPC {:?}",hex::encode(buffer)));
+					//let rcpc="RCPC=".to_owned()+&hex::encode(buffer);
+					let cokk=OtherCookie::new("RCPC",hex::encode(buffer));
+					session.client.cookie_set(Cookie{cookie:cokk}, "https://codeforces.com")?;
+					resp = session.client.get("https://codeforces.com".parse()?).send().await?.text().await?;	
+				}else {
+					let cokk=OtherCookie::new("RCPC","");
+					session.client.cookie_set(Cookie{cookie:cokk}, "https://codeforces.com")?;
+				}
+				
+				//console::debug(&format!("Next call {:?}",resp));
+				let doc = unijudge::debris::Document::new(&resp);
+				let csrf = doc.find(".csrf-token")?.attr("data-csrf")?.string();
+				Ok(csrf)
+			}
+		}
+		
+
+		
 	}
 }
 

@@ -78,6 +78,14 @@ impl unijudge::Backend for SPOJ {
 		None
 	}
 
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		return Ok("NA".to_string());
+	}
+
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		return Err(ErrorCode::AlienInvasion.into());
+	}
+	
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url: Url = format!("https://www.spoj.com/problems/{}/", task).parse()?;
 		let resp = session.get(url.clone()).send().await?;
