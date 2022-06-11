@@ -20,6 +20,9 @@ jobs:
       uses: actions/setup-node@v3.3.0
       with:
         node-version: 16.x
+    - name: wasm-pack-action
+      uses: jetli/wasm-pack-action@v0.3.0
+        
     - name: wasm-bindgen-action
       uses: jetli/wasm-bindgen-action@v0.1.0
        
