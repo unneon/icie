@@ -26,9 +26,9 @@ async fn send() -> R<()> {
 #[evscode::command(title = "ICIE Get Rank List", key = "alt+-")]
 pub async fn get_rank() -> R<()> {
 	let _status = crate::STATUS.push("Getting List");
-	drop(_status);
 	let (sess, task) = connect_to_workspace_task().await?;
 	let ranklist = sess.run(|backend, sess| backend.rank_list(sess, &task)).await?;
+	drop(_status);
 	evscode::Message::new::<()>(&ranklist.to_string()).show().await;
 	Ok(())
 }
