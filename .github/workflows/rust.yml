@@ -31,8 +31,7 @@ jobs:
         
     - name: wasm-bindgen-action
       uses: jetli/wasm-bindgen-action@v0.1.0
-    - name: wasm-opt action
-      uses: NiklasEi/wasm-opt-action@v2
+
     - name: Build
       run: BUILDSH_RELEASE=1 ./build.sh
     
