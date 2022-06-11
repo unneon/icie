@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "ci_test" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "ci_test" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,6 +19,9 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
+        override: true
+        components: rustfmt, clippy
+
     - name: Setup Node.js environment
       uses: actions/setup-node@v3.3.0
       with:
