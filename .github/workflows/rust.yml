@@ -33,7 +33,7 @@ jobs:
       uses: jetli/wasm-bindgen-action@v0.1.0
 
     - name: Build
-      run: npm i wasm-opt -g;BUILDSH_RELEASE=1 ./build.sh package
+      run: npm i wasm-opt -g;npm install --global vsce;BUILDSH_RELEASE=1 ./build.sh package
     - uses: actions/upload-artifact@v3
       with:
         name: vsix
