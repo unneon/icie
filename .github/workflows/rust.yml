@@ -33,5 +33,5 @@ jobs:
       uses: jetli/wasm-bindgen-action@v0.1.0
 
     - name: Build
-      run: BUILDSH_RELEASE=1 ./build.sh
+      run: npm i wasm-opt -g;BUILDSH_RELEASE=1 ./build.sh
     
