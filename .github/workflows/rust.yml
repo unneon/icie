@@ -37,5 +37,5 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: vsix
-        path: icie/icie/target/evscode/icie*.vsix
+        path: target/evscode/icie*.vsix
     
