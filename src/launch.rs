@@ -97,8 +97,8 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	webview.webview.set_html(&format!(
 		"<html><head>{}{}</head><body id=\"body\" style=\"padding: 0;\"></body></html>",
-		assets::html_js_dynamic(include_str!("../assets/pdf-2.2.228.min.js")),
-		assets::html_js_dynamic(include_str!("pdf.js")),
+		assets::html_js_dynamic("pdf-2.2.228.min.js"),
+		assets::html_js_dynamic("pdf.js"),
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.
