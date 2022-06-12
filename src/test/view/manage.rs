@@ -11,7 +11,7 @@ use futures::StreamExt;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-pub static COLLECTION: Collection<TestView> = Collection::new(TestView);
+pub static COLLECTION: Collection<TestView> = Collection::new(TestView+ Send);
 
 pub struct TestView;
 
