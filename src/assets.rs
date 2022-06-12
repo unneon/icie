@@ -1,7 +1,7 @@
 use crate::util::OS;
 
 pub fn html_js_dynamic(source: &str) -> String {
-	format!("<script>{}</script>", source)
+	format!("<script type=\"application/javascript\">{}</script>", source)
 }
 
 pub fn html_css_dynamic(source: &str) -> String {
