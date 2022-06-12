@@ -109,6 +109,7 @@ impl<T: Behaviour> Collection<T> {
 		let worker = comp.manage(key.clone(), webview.deref().clone(), listener, disposer);
 		let key = key.clone();
 		let handle = webview.clone();
+		drop(comp);
 		crate::spawn(async move {
 			let resultmap: &'static Collection<T> = self;
 			let delayed_error = worker.await;
