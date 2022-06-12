@@ -32,7 +32,7 @@ enum Food<'a> {
 
 pub static WEBVIEW: Lazy<Collection<Stress>> = Lazy::new(|| Collection::new(Stress));
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Behaviour for Stress {
 	type K = ();
 	type V = ();

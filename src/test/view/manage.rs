@@ -15,7 +15,7 @@ pub static COLLECTION: Lazy<Collection<TestView>> = Lazy::new(|| Collection::new
 
 pub struct TestView;
 
-#[async_trait(?Send)]
+#[async_trait]
 impl Behaviour for TestView {
 	type K = SourceTarget;
 	type V = Vec<TestRun>;
