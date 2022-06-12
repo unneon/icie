@@ -8,7 +8,7 @@ use futures::{future::join_all, lock::Mutex};
 use std::{collections::HashMap, future::Future, hash::Hash, ops::Deref};
 
 /// Trait controlling the webview collection behaviour.
-#[async_trait(?Send)]
+#[async_trait]
 pub trait Behaviour: Send+Sync {
 	/// Key type provided to the computation.
 	type K: Eq+Hash+Clone+Send+Sync;
@@ -29,7 +29,6 @@ pub struct Collection<T: Behaviour> {
 	computation: T,
 	collection: Mutex<HashMap<T::K, Webview>>,
 }
-
 
 
 impl<T: Behaviour> Collection<T> {
