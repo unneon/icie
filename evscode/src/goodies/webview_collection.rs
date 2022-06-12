@@ -102,7 +102,7 @@ impl<T: Behaviour> Collection<T> {
 	}
 
 	async fn make_new(&'static self, key: &T::K) -> R<(Webview, T::V)> {
-		let comp=self.computation.lock().await;
+		let comp:&'static=self.computation.lock().await;
 		let value = comp.compute(key.clone()).await?;
 		let WebviewMeta { webview, listener, disposer } = comp.create_empty(key.clone())?;
 		comp.update(key.clone(), &value, webview.deref().clone()).await?;
