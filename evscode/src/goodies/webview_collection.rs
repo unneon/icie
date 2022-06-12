@@ -107,7 +107,7 @@ impl<T: Behaviour> Collection<T> {
 		let value = comp.compute(key.clone()).await?;
 		let WebviewMeta { webview, listener, disposer } = comp.create_empty(key.clone())?;
 		let worker = comp.manage(key.clone(), webview.deref().clone(), listener, disposer);
-		comp.update(key.clone(), &value, webview.deref().clone()).await?;
+		comp.clone().update(key.clone(), &value, webview.deref().clone()).await?;
 		let key = key.clone();
 		let handle = webview.clone();
 		crate::spawn(async move {
