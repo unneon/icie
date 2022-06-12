@@ -30,7 +30,7 @@ enum Food<'a> {
 	},
 }
 
-pub static WEBVIEW: Collection<Stress> = Collection::new(Stress+ Send);
+pub static WEBVIEW: Collection<Stress+ Send> = Collection::new(Stress);
 
 #[async_trait]
 impl Behaviour for Stress {
