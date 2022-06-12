@@ -23,7 +23,7 @@ async fn send() -> R<()> {
 	send_after_tests_passed().await
 }
 
-#[evscode::command(title = "ICIE Get Rank List", key = "alt+-")]
+#[evscode::command(title = "ICIE Get Rank List", key = "alt+*")]
 pub async fn get_rank() -> R<()> {
 	let _status = crate::STATUS.push("Getting List");
 	let (sess, task) = connect_to_workspace_task().await?;
@@ -55,10 +55,14 @@ fn check_any_tests_ran(report: &[TestRun]) -> R<()> {
 async fn send_after_tests_passed() -> R<()> {
 	let _status = crate::STATUS.push("Submitting");
 	let code = fs::read_to_string(&dir::solution()?).await?;
+	let _status1 = crate::STATUS.push("Submitting1");
 	let (sess, task) = connect_to_workspace_task().await?;
+	let _status2 = crate::STATUS.push("Submitting2");
 	let language = fetch_cpp_language(&task, &sess).await?;
 	let submit_id = sess.run(|backend, sess| backend.task_submit(sess, &task, &language, &code)).await?;
 	drop(_status);
+	drop(_status1);
+	drop(_status2);
 	track(&sess, &task, &submit_id).await?;
 	Ok(())
 }
