@@ -62,12 +62,12 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 		r#"
 		<html>
 			<head>
+				{js}
 				{material_icons}
 				{css_layout}
 				{css_paint}
 			</head>
 			<body>
-				{js}
 				<table class="table">
 					{table}
 				</table>
