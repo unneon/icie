@@ -102,14 +102,14 @@ impl<T: Behaviour> Collection<T> {
 	}
 
 	async fn make_new(&'static self, key: &T::K) -> R<(Webview, T::V)> {
-		let comp:&'static=self.computation.lock().await;
+		let rmap: &'static Collection<T> = self;
+		let comp=rmap.computation.lock().await;
 		let value = comp.compute(key.clone()).await?;
 		let WebviewMeta { webview, listener, disposer } = comp.create_empty(key.clone())?;
-		comp.update(key.clone(), &value, webview.deref().clone()).await?;
 		let worker = comp.manage(key.clone(), webview.deref().clone(), listener, disposer);
+		comp.update(key.clone(), &value, webview.deref().clone()).await?;
 		let key = key.clone();
 		let handle = webview.clone();
-		drop(comp);
 		crate::spawn(async move {
 			let resultmap: &'static Collection<T> = self;
 			let delayed_error = worker.await;
