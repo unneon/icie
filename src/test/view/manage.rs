@@ -11,7 +11,7 @@ use futures::StreamExt;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-pub static COLLECTION: Collection<TestView+ Send> = Collection::new(TestView);
+pub static COLLECTION: Lazy<Collection<TestView>> = Lazy::new(|| Collection::new(TestView));
 
 pub struct TestView;
 
@@ -22,9 +22,8 @@ impl Behaviour for TestView {
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
 		let title = util::fmt::verb_on_source("ICIE Test View", &source);
-		Ok(Webview::new("icie.test.view", &title, 2).enable_scripts().enable_find_widget()
-		.retain_context_when_hidden()
-		.preserve_focus().create())
+		Ok(Webview::new("icie.test.view", &title, 2.enable_scripts()
+		.retain_context_when_hidden().create())
 	}
 
 	async fn compute(&self, source: Self::K) -> R<Self::V> {
