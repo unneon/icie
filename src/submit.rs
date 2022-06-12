@@ -17,8 +17,8 @@ async fn send() -> R<()> {
 	debug!("requesting submit");
 	let _status = crate::STATUS.push("Submitting");
 	let report = crate::test::view::manage::COLLECTION.get_force(SourceTarget::Main).await?.1;
-	check_tests_passed(&report)?;
 	check_any_tests_ran(&report)?;
+	check_tests_passed(&report)?;
 	drop(_status);
 	send_after_tests_passed().await
 }
@@ -53,7 +53,7 @@ fn check_any_tests_ran(report: &[TestRun]) -> R<()> {
 }
 
 async fn send_after_tests_passed() -> R<()> {
-	let _status = crate::STATUS.push("Submitting");
+	let _status = crate::STATUS.push("Submitting to site");
 	let code = fs::read_to_string(&dir::solution()?).await?;
 	let (sess, task) = connect_to_workspace_task().await?;
 	let language = fetch_cpp_language(&task, &sess).await?;
