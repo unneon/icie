@@ -35,7 +35,7 @@ pub struct Collection<T: Behaviour> {
 impl<T: Behaviour> Collection<T> {
 	/// Create a new instance of the webview collection.
 	pub fn new(computation: T) -> Collection<T> {
-		Collection { Mutex::new(computation), collection: Mutex::new(HashMap::new()) }
+		Collection { computation:Mutex::new(computation), collection: Mutex::new(HashMap::new()) }
 	}
 
 	/// Run the computation, update the view and return both the webview and the computed values.
