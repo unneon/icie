@@ -30,11 +30,7 @@ pub struct Collection<T: Behaviour> {
 	collection: Mutex<HashMap<T::K, Webview>>,
 }
 
-// Safe because WebAssembly has no threads... yet.
-unsafe impl<T: Behaviour+Sync> Send for Collection<T> {
-}
-unsafe impl<T: Behaviour+Sync> Sync for Collection<T> {
-}
+
 
 impl<T: Behaviour> Collection<T> {
 	/// Create a new instance of the webview collection.
