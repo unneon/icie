@@ -30,7 +30,7 @@ enum Food<'a> {
 	},
 }
 
-pub static WEBVIEW: Lazy<Collection<Stress>> = Lazy::new(|| Collection::new(Stress));
+pub static WEBVIEW: Collection<Stress> = Collection::new(Stress);
 
 #[async_trait]
 impl Behaviour for Stress {
