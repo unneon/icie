@@ -23,7 +23,7 @@ async fn send() -> R<()> {
 	send_after_tests_passed().await
 }
 
-#[evscode::command(title = "ICIE Get Rank List", key = "alt+7")]
+#[evscode::command(title = "ICIE Get Rank List", key = "alt+-")]
 pub async fn get_rank() -> R<()> {
 	let _status = crate::STATUS.push("Getting List");
 	let (sess, task) = connect_to_workspace_task().await?;
