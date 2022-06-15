@@ -8,6 +8,7 @@ use unijudge::{
 	chrono::{prelude::*,Duration},
 	debris::{ Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
+use urlencoding::decode;
 use node_sys::console;
 use std::collections::HashMap;
 #[derive(Debug)]
@@ -273,8 +274,13 @@ impl unijudge::Backend for CodeChef {
 			if ver_txt == "wrong answer" || ver_txt=="time limit exceeded" {
 				//console::debug(&format!("Quering {}",first_id));
 				let status=self.error_table(first_id).await?;
-				let table_stat = Document::new(&session.client.get(status)
-				.send().await?.text().await?);
+				let tab_res=session.client.get(status)
+						.send().await?.text().await?;
+				
+				let re= regex::Regex::new("\"testInfo\":\"([^\"]*)\"").unwrap();
+				let cap =re.captures(&tab_res).unwrap();
+         		let tab_info=cap.get(1).unwrap().as_str();
+				let table_stat = Document::new(&decode(&tab_info).unwrap());
 				//console::debug(&format!("Response {:?}",table_stat));
 				let mut setofans: HashMap<String, i64> = HashMap::new();
 				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")));
@@ -713,7 +719,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 	async fn error_table(&self, id:String) -> Result<Url> {
 		
 		let url =
-			format!("https://www.codechef.com/error_status_table/{}/",id);
+			format!("https://www.codechef.com/viewsolution/{}/",id);
 		Ok(url.parse()?)
 	}
 

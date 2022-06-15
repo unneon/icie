@@ -145,6 +145,9 @@ window.onload = () => {
 			vscode.postMessage({ tag: 'eval_req', input: input, id: eval_id });
 		}
 	});
+	vscode.postMessage({
+		tag: "after_load"
+	});
 };
 
 function eval_finish(msg) {
