@@ -4,7 +4,7 @@ pub mod scan;
 pub mod view;
 
 use crate::{
-	compile::{self, Codegen}, dir, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget}
+	compile::{self, Codegen}, dir, test::{judge::simple_test, scan::scan_for_tests}, util, util::{fs, path::Path, SourceTarget, workspace_root_vscode}
 };
 use evscode::R;
 use std::time::Duration;
@@ -21,7 +21,8 @@ pub async fn run(source: SourceTarget) -> R<Vec<TestRun>> {
 	let _status = crate::STATUS.push("Testing");
 	let solution = compile::compile(&source, Codegen::Debug, false).await?;
 	let task = Task::simple().await?;
-	let inputs = scan_for_tests(&dir::TESTS_DIRECTORY.get()).await;
+	let test_dir=&dir::tests()?.fmt_workspace();
+	let inputs = scan_for_tests(test_dir).await;
 	let progress = evscode::Progress::new().title(util::fmt::verb_on_source("Testing", &source)).show().0;
 	let mut runs = Vec::new();
 	for input_path in &inputs {

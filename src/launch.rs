@@ -1,5 +1,5 @@
 use crate::{
-	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep}
+	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep,set_workspace_root}
 };
 
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
@@ -19,6 +19,12 @@ pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
 	evscode::spawn(crate::newsletter::check());
+	if open::contest::is_contest().await?==true{
+		let _status = crate::STATUS.push("Launching from contest");
+		let sub_dirs=fs::find_a_dir(&workspace_root()?).await?;
+		set_workspace_root(sub_dirs.as_str());
+		util::listener();
+	}
 	layout_setup().await?;
 	open::contest::check_for_manifest().await?;
 	Ok(())

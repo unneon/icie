@@ -366,6 +366,9 @@ pub mod window {
 		#[wasm_bindgen(js_namespace = window, js_name = activeTextEditor)]
 		pub static ACTIVE_TEXT_EDITOR: Option<TextEditor>;
 
+		#[wasm_bindgen(js_namespace = window, js_name = onDidChangeActiveTextEditor)]
+		pub fn on_did_change_active_text_editor(callback: &Closure<dyn FnMut(JsValue)>);
+
 		#[wasm_bindgen(js_namespace = window, js_name = createOutputChannel)]
 		pub fn create_output_channel(name: &str) -> OutputChannel;
 

@@ -4,6 +4,7 @@ use futures::channel::oneshot;
 use std::{
 	future::Future, pin::Pin, time::{Duration, SystemTime}
 };
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::{closure::Closure, JsCast, JsValue};
 
 pub async fn read_dir(path: &Path) -> R<Vec<Path>> {
@@ -21,6 +22,36 @@ pub async fn read_dir(path: &Path) -> R<Vec<Path>> {
 		.into_iter()
 		.map(|file| path.join(file.unwrap().as_string().unwrap()))
 		.collect())
+}
+#[derive(Debug, Deserialize)]
+pub struct Dirent {
+	pub name: String,
+	pub ftype: u8,
+}
+pub async fn is_directory(path: Path) -> R<bool> {
+	let (tx, rx) = make_callback2();
+	node_sys::fs::stat(path.as_str(), node_sys::fs::StatOptions { bigint: false }, tx);
+	let stat = rx.await?;
+	let nlink = js_sys::Reflect::get(&stat, &JsValue::from_str("nlink"))
+		.map_err(|_| E::error("javascript file stats object has no nlink "))?
+		.as_f64()
+		.unwrap();
+	//let modified = SystemTime::UNIX_EPOCH + Duration::from_millis(mtime_ms as u64);
+	if nlink>1.0{
+		Ok(true)
+	}
+	else{
+		Ok(false)
+	}
+}
+pub async fn find_a_dir(path: &Path) -> R<Path> {
+	let lists=read_dir(path).await?;
+	for dir in lists.into_iter() {
+        if is_directory(dir.clone()).await?==true && exists(&dir.clone().join(".icie")).await?{
+			return Ok(dir);
+		}
+    }
+	return Err(E::cancel());
 }
 
 pub async fn read_to_string(path: &Path) -> R<String> {

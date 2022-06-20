@@ -6,6 +6,8 @@ use serde::{Deserializer, Serializer};
 use std::{fmt, ops};
 use wasm_bindgen::JsValue;
 
+use super::workspace_root_vscode;
+
 #[derive(Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
 pub struct Path {
 	buf: String,
@@ -82,7 +84,7 @@ impl Path {
 	}
 
 	pub fn fmt_workspace(&self) -> String {
-		match workspace_root() {
+		match workspace_root_vscode() {
 			Ok(workspace) => self.fmt_relative(&workspace),
 			Err(_) => self.as_str().to_owned(),
 		}
