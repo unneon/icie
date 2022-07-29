@@ -172,9 +172,9 @@ async fn open_remaining_tasks(manifest: &Path) -> R<()> {
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let projects = workspace_root()?.parent();
 	for (i, task) in tasks.iter().enumerate() {
-		if i > 0 {
+		//if i > 0 {
 			open_task(task, i, tasks.len(), &projects, &sess).await?;
-		}
+		//}
 	}
 	Ok(())
 }
