@@ -6,6 +6,7 @@ use std::{
 };
 pub use tempfile::Tempfile;
 use wasm_bindgen::{closure::Closure, JsValue};
+use std::sync::atomic::AtomicBool;
 
 pub mod fmt;
 pub mod fs;
@@ -164,8 +165,114 @@ impl OS {
 		}
 	}
 }
+static mut root_path:Option<String> = None;
+static mut terminal:Option<Terminal> = None;
+pub  static mut is_contest : AtomicBool =  AtomicBool::new(false);
+ pub  fn set_workspace_root(path:&str) -> () {
+	/*unsafe{
+	  root_path=Some(path.to_string());
+	}*/
+	unsafe{
+		*is_contest.get_mut() = true;
+		root_path=Some(path.to_string());
+		match  &terminal{
+			Some(ter)=>{
+				ter.send_text(&("cd ".to_owned()+path),Some(true));
+				ter.send_text("clear",Some(true));
+			},
+			_ => {}
+		} 
+		//is_contest.
+	}
+}
+pub fn set_terminal(ter:Option<Terminal>)-> (){
+	unsafe{
+		//match  &terminal{
+		//	Some(from)=>
+			match &ter{
+				Some(to)=> {
+					to.send_text(&("cd ".to_owned()+workspace_root().unwrap().as_str()),Some(true));
+					to.send_text("clear",Some(true));
+			},
+				_ =>{}
+			}
+			//_ => {}
+		//} 
+		terminal=ter;
+		//is_contest.
+	}
+}
 
-pub fn workspace_root() -> R<Path> {
+use vscode_sys::TextEditor;
+use vscode_sys::Terminal;
+use wasm_bindgen::JsCast;
+/// A stream that will contain JSON messages sent by [JS inside the Window].
+pub fn listener() -> () {
+	
+	let closure = Box::leak(Box::new(Closure::wrap(Box::new(move |obj:JsValue| {
+		//crate::spawn(obj.unchecked_into::<TextEditor>());
+		if !obj.is_undefined() {
+			let edi=obj.unchecked_into::<TextEditor>();
+			set_workspace_root(&Path::from_native(edi.document().file_name()).parent().into_string());
+		}
+		
+		//console::log(console::Level::Info,&("Changed into:".to_owned()+&edi.document().file_name()));
+	}) as Box<dyn FnMut(JsValue)>)));
+	vscode_sys::window::on_did_change_active_text_editor(&closure);
+	let closure2 = Box::leak(Box::new(Closure::wrap(Box::new(move |obj:JsValue| {
+		//crate::spawn(obj.unchecked_into::<TextEditor>());
+		if !obj.is_undefined() {
+			let edi=obj.unchecked_into::<Terminal>();
+			//edi.send_text(&("cd ".to_owned()+workspace_root().unwrap().as_str()),Some(true));
+			set_terminal(Some(edi));
+		}else {
+			set_terminal(None::<Terminal>);
+		}
+
+		//console::log(console::Level::Info,&("Changed into:".to_owned()+&edi.document().file_name()));
+	}) as Box<dyn FnMut(JsValue)>)));
+	vscode_sys::window::on_did_change_terminal(&closure2);
+}
+ pub fn workspace_root() -> R<Path> {
+	/*unsafe{
+		match  &root_path{
+			Some(path)=> Ok(Path::from_native(path.to_string())),
+			_ => {
+				let buf = evscode::workspace_root().map_err(suggest_open)?;
+				Ok(Path::from_native(buf))
+			}
+		} 
+	}*/
+	let buf = evscode::workspace_root().map_err(suggest_open)?;
+	unsafe{
+		if(*is_contest.get_mut()==true){
+			//console::log(console::Level::Info ,"Enter contest" );
+			//console::log(console::Level::Info ,&buf );
+			/*let res=evscode::active_editor_file().await;
+			match res{
+				Some(base)=>{
+					console::log(console::Level::Info ,&Path::from_native(base.clone()).parent().into_string() );
+					return Ok(Path::from_native(base).parent());
+				},
+				_ => {
+					console::log(console::Level::Info ,"root_path" );*/
+					match  &root_path{
+						Some(path)=> return Ok(Path::from_native(path.to_string())),
+						_ => {}
+					} 
+				}
+			//}
+			
+			/*evscode::spawn(async move {
+				
+				Ok(())
+			});*/
+			//Ok(path);
+		//}
+	}
+	Ok(Path::from_native(buf))
+}
+pub  fn workspace_root_vscode() -> R<Path> {
 	let buf = evscode::workspace_root().map_err(suggest_open)?;
 	Ok(Path::from_native(buf))
 }

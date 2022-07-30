@@ -33,9 +33,7 @@ impl Behaviour for TestView {
 	async fn update(&self, _: Self::K, report: &Self::V, webview: WebviewRef) -> R<()> {
 		webview.set_html(&render(report).await?);
 		webview.reveal(2, true);
-		if SCROLL_TO_FIRST_FAILED.get() {
-			let _ = webview.post_message(Food::ScrollToWA).await;
-		}
+		
 		Ok(())
 	}
 
@@ -77,6 +75,11 @@ impl Behaviour for TestView {
 					util::open_source(&path).await?;
 				},
 				Note::ActionNotice => SKILL_ACTIONS.add_use().await,
+				Note::AfterLoad => {
+					if SCROLL_TO_FIRST_FAILED.get() {
+							let _ = webview.post_message(Food::ScrollToWA).await;
+					}
+				},
 				Note::EvalReq { id, input } => {
 					if let Ok(brute_force) = dir::brute_force() {
 						if fs::exists(&brute_force).await? {
@@ -123,6 +126,8 @@ enum Note {
 	ActionNotice,
 	#[serde(rename = "eval_req")]
 	EvalReq { id: i64, input: String },
+	#[serde(rename = "after_load")]
+	AfterLoad
 }
 
 #[derive(Serialize)]

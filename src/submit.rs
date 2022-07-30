@@ -30,6 +30,7 @@ pub async fn get_rank() -> R<()> {
 	let ranklist = sess.run(|backend, sess| backend.rank_list(sess, &task)).await?;
 	drop(_status);
 	evscode::Message::new::<()>(&ranklist.to_string()).show().await;
+	drop(_status);
 	Ok(())
 }
 
@@ -90,7 +91,7 @@ async fn fetch_languages(task: &BoxedTask, sess: &Session) -> R<Vec<Language>> {
 }
 
 async fn track(sess: &Session, task: &BoxedTask, id: &str) -> R<()> {
-	let _status = crate::STATUS.push("Tracking");
+	//let _status = crate::STATUS.push("Tracking");
 	let submission_url = sess.run(|backend, sess| async move { Ok(backend.submission_url(sess, task, id)) }).await?;
 	let progress = evscode::Progress::new().title(format!("Tracking submit [#{}]({})", id, submission_url)).show().0;
 	let mut last_verdict = None;
@@ -113,6 +114,7 @@ async fn track(sess: &Session, task: &BoxedTask, id: &str) -> R<()> {
 	};
 	progress.end();
 	evscode::Message::new::<()>(&verdict.to_string()).show().await;
+	//drop(_status);
 	Ok(())
 }
 
