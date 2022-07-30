@@ -15,14 +15,14 @@ pub static COLLECTION: Lazy<Collection<TestView>> = Lazy::new(|| Collection::new
 
 pub struct TestView;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Behaviour for TestView {
 	type K = SourceTarget;
 	type V = Vec<TestRun>;
 
 	fn create_empty(&self, source: Self::K) -> R<WebviewMeta> {
 		let title = util::fmt::verb_on_source("ICIE Test View", &source);
-		Ok(Webview::new("icie.test.view", &title, 2.enable_scripts()
+		Ok(Webview::new("icie.test.view", &title, 2).enable_scripts()
 		.retain_context_when_hidden().create())
 	}
 

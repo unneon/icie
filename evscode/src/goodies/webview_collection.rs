@@ -8,7 +8,7 @@ use futures::{future::join_all, lock::Mutex};
 use std::{collections::HashMap, future::Future, hash::Hash, ops::Deref};
 
 /// Trait controlling the webview collection behaviour.
-#[async_trait]
+#[async_trait(?Send)]
 pub trait Behaviour: Send+Sync {
 	/// Key type provided to the computation.
 	type K: Eq+Hash+Clone+Send+Sync;
@@ -26,16 +26,20 @@ pub trait Behaviour: Send+Sync {
 
 /// State of the webview collection.
 pub struct Collection<T: Behaviour> {
-	computation: Mutex<T>,
+	computation: T,
 	collection: Mutex<HashMap<T::K, Webview>>,
 }
 
-
+// Safe because WebAssembly has no threads... yet.
+unsafe impl<T: Behaviour+Sync> Send for Collection<T> {
+}
+unsafe impl<T: Behaviour+Sync> Sync for Collection<T> {
+}
 
 impl<T: Behaviour> Collection<T> {
 	/// Create a new instance of the webview collection.
 	pub fn new(computation: T) -> Collection<T> {
-		Collection { computation:Mutex::new(computation), collection: Mutex::new(HashMap::new()) }
+		Collection { computation, collection: Mutex::new(HashMap::new()) }
 	}
 
 	/// Run the computation, update the view and return both the webview and the computed values.
@@ -102,12 +106,10 @@ impl<T: Behaviour> Collection<T> {
 	}
 
 	async fn make_new(&'static self, key: &T::K) -> R<(Webview, T::V)> {
-		let rmap: &'static Collection<T> = self;
-		let comp=rmap.computation.lock().await;
-		let value = comp.compute(key.clone()).await?;
-		let WebviewMeta { webview, listener, disposer } = comp.create_empty(key.clone())?;
-		let worker = comp.manage(key.clone(), webview.deref().clone(), listener, disposer);
-		comp.clone().update(key.clone(), &value, webview.deref().clone()).await?;
+		let value = self.computation.compute(key.clone()).await?;
+		let WebviewMeta { webview, listener, disposer } = self.computation.create_empty(key.clone())?;
+		self.computation.update(key.clone(), &value, webview.deref().clone()).await?;
+		let worker = self.computation.manage(key.clone(), webview.deref().clone(), listener, disposer);
 		let key = key.clone();
 		let handle = webview.clone();
 		crate::spawn(async move {
@@ -126,9 +128,8 @@ impl<T: Behaviour> Collection<T> {
 
 	fn update_old<'a>(&'static self, key: &'a T::K, webview: &'a Webview) -> impl Future<Output=R<T::V>>+'a {
 		async move {
-			let mut comp=self.computation.lock().await;
-			let value = comp.compute(key.clone()).await?;
-			comp.update(key.clone(), &value, webview.deref().clone()).await?;
+			let value = self.computation.compute(key.clone()).await?;
+			self.computation.update(key.clone(), &value, webview.deref().clone()).await?;
 			Ok(value)
 		}
 	}

@@ -28,7 +28,7 @@ pub async fn get_rank() -> R<()> {
 	let _status = crate::STATUS.push("Getting List");
 	let (sess, task) = connect_to_workspace_task().await?;
 	let ranklist = sess.run(|backend, sess| backend.rank_list(sess, &task)).await?;
-	drop(_status);
+	//drop(_status);
 	evscode::Message::new::<()>(&ranklist.to_string()).show().await;
 	drop(_status);
 	Ok(())
