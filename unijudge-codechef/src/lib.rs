@@ -54,7 +54,9 @@ impl unijudge::Backend for CodeChef {
 		// This is the only place where PRACTICE doesn't work, it's treated as a normal contest
 		// everywhere else.
 		match segments {
+			["problems-old", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
 			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
+			["submit", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
 			["PRACTICE", "problems", task] => {
 				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() }))
 			},
@@ -179,7 +181,7 @@ impl unijudge::Backend for CodeChef {
 			Contest::Normal(_) => {
 				let submiturl= format!("https://www.codechef.com/rankings/{}?itemsPerPage=100&order=asc&page=1&sortBy=rank",task.contest.as_virt_symbol()).parse()?;
 				let doc = session.client.get(submiturl).send().await?.text().await?;
-				let re= regex::Regex::new("window.csrfToken=\"([_0-9A-Za-z-]+)\"").unwrap();
+				let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
 				let cap =re.captures(&doc).unwrap();
 				let csrf_tok=cap.get(1).unwrap().as_str();
 				let list_rank=self.get_next_page_list(session,task,1,csrf_tok.to_string()).await?;
@@ -233,7 +235,7 @@ impl unijudge::Backend for CodeChef {
         //session.req_user();
         let submiturl= self.active_submit_url(task, session).await?;
         let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
-        let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
+        let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
         let cap =re.captures(&doc).unwrap();
         let csrf_tok=cap.get(1).unwrap().as_str();
         let url = self.active_languages_url(task, session).await?;
@@ -376,7 +378,7 @@ impl unijudge::Backend for CodeChef {
         //session.req_user();
         let submiturl= self.active_submit_url(task, session).await?;
         let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
-        let re= regex::Regex::new("window.csrfToken = '([_0-9A-Za-z-]+)'").unwrap();
+        let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
         let cap =re.captures(&doc).unwrap();
          let csrf_tok=cap.get(1).unwrap().as_str();
          let url = "https://www.codechef.com/api/ide/submit".parse()?;

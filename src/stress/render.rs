@@ -41,6 +41,6 @@ pub async fn render() -> String {
 	"#,
 		css = assets::html_css_dynamic(include_str!("style.css")),
 		material_icons = assets::html_material_icons(),
-		js = assets::html_js_dynamic(include_str!("script.js")),
+		js = assets::html_js_dynamic("script_stress.js"),
 	)
 }

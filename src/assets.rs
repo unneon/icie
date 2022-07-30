@@ -1,7 +1,7 @@
 use crate::util::OS;
 
 pub fn html_js_dynamic(source: &str) -> String {
-	format!("<script>{}</script>", source)
+	format!("<script type=\"application/javascript\" src=\"{}\"></script>", evscode::asset(&("assets/".to_owned()+source)))
 }
 
 pub fn html_css_dynamic(source: &str) -> String {
@@ -11,8 +11,8 @@ pub fn html_css_dynamic(source: &str) -> String {
 pub fn html_material_icons() -> String {
 	let mut woff2_asset = evscode::asset("assets/material-icons.woff2");
 	if let Ok(OS::Windows) = OS::query() {
-		woff2_asset = evscode::asset("assets\\material-icons.woff2");
-		woff2_asset = woff2_asset.replace('\\', "\\\\");
+		woff2_asset = evscode::asset("assets/material-icons.woff2");
+		//woff2_asset = woff2_asset.replace('\\', "\\\\");
 	}
 	html_css_dynamic(&format!(
 		r#"

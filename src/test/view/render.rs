@@ -75,7 +75,7 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 			</body>
 		</html>
 		"#,
-		js = assets::html_js_dynamic(include_str!("script.js")),
+		js = assets::html_js_dynamic("script_view.js"),
 		material_icons = assets::html_material_icons(),
 		css_layout = assets::html_css_dynamic(include_str!("layout.css")),
 		css_paint = assets::html_css_dynamic(include_str!("paint.css")),
