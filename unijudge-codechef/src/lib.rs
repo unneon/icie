@@ -282,7 +282,7 @@ impl unijudge::Backend for CodeChef {
 				//let re= regex::Regex::new("\"testInfo\":\"([^\"]*)\"").unwrap();
 				//let cap =re.captures(&tab_res).unwrap();
          		//let tab_info=cap.get(1).unwrap().as_str();
-				let table_stat = Document::new(&tab_info);
+				let table_stat = Document::new(&tab_res);
 				//console::debug(&format!("Response {:?}",table_stat));
 				let mut setofans: HashMap<String, i64> = HashMap::new();
 				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")));
