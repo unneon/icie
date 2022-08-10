@@ -279,10 +279,10 @@ impl unijudge::Backend for CodeChef {
 				let tab_res=session.client.get(status)
 						.send().await?.text().await?;
 				
-				let re= regex::Regex::new("\"testInfo\":\"([^\"]*)\"").unwrap();
-				let cap =re.captures(&tab_res).unwrap();
-         		let tab_info=cap.get(1).unwrap().as_str();
-				let table_stat = Document::new(&decode(&tab_info).unwrap());
+				//let re= regex::Regex::new("\"testInfo\":\"([^\"]*)\"").unwrap();
+				//let cap =re.captures(&tab_res).unwrap();
+         		//let tab_info=cap.get(1).unwrap().as_str();
+				let table_stat = Document::new(&tab_info);
 				//console::debug(&format!("Response {:?}",table_stat));
 				let mut setofans: HashMap<String, i64> = HashMap::new();
 				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")));
@@ -721,7 +721,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 	async fn error_table(&self, id:String) -> Result<Url> {
 		
 		let url =
-			format!("https://www.codechef.com/viewsolution/{}/",id);
+			format!("https://www.codechef.com/error_status_table/{}/",id);
 		Ok(url.parse()?)
 	}
 
