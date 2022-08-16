@@ -620,7 +620,7 @@ impl ExtractedStatement {
 				.zip(doc.find_all(".sample-test .output"))
 				.map(|(input, output)| {
 					Ok(unijudge::Example {
-						input: input.find("pre")?.text_multiline().string(),
+						input: input.find_all("pre > div").map(|line| line.text().string()).collect::<Vec<String>>().join("\n"),
 						output: output.find("pre")?.text_multiline().string(),
 					})
 				})
