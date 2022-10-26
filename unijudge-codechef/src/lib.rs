@@ -223,7 +223,7 @@ impl unijudge::Backend for CodeChef {
         let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title: self.tostring(task.prefix)+&resp.problem_name,
+			title: self.tostringconvert(task.prefix)+&resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
 			examples: cases,
@@ -555,10 +555,10 @@ impl CodeChef {
 		Ok(())
 	}
 */
-fn tostring(val:i64)-> String{
+fn tostringconvert(val:i64)-> String{
 	let mut num=val;
 	if num==-1{
-		"unscored_".to_owned()
+		return "unscored_".to_owned();
 	}
 	let mut to_str:String="_".to_string();
 	let mut base=26;
