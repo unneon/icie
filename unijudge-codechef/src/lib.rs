@@ -1,6 +1,7 @@
 #![feature(try_blocks)]
 use markdown;
 use html_escape;
+use std::convert::TryInto;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
@@ -206,9 +207,10 @@ impl unijudge::Backend for CodeChef {
 		
 	}
 	
-	fn to_string(mut num:u64)-> String{
+	fn tostring(val:u64)-> String{
+		let mut num=val;
 		if num==-1{
-			("unscored_".to_owned())
+			"unscored_".to_owned()
 		}
 		let mut to_str:String="_".to_string();
 		let mut base=26;
@@ -242,7 +244,7 @@ impl unijudge::Backend for CodeChef {
         let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title: to_string(task.prefix)+&resp.problem_name,
+			title: tostring(task.prefix)+&resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
 			examples: cases,
