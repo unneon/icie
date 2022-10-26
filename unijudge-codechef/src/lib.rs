@@ -25,7 +25,7 @@ pub enum Contest {
 pub struct Task {
 	contest: Contest,
 	task: String,
-	prefix: u64,
+	prefix: i64,
 }
 
 #[derive(Debug)]
@@ -56,14 +56,14 @@ impl unijudge::Backend for CodeChef {
 		// This is the only place where PRACTICE doesn't work, it's treated as a normal contest
 		// everywhere else.
 		match segments {
-			["problems-old", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
-			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
-			["submit", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
+			["problems-old", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:-1})),
+			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned(), prefix:-1 })),
+			["submit", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:-1})),
 			["PRACTICE", "problems", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:-1}))
 			},
 			[contest, "problems", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned() , prefix:-1}))
 			},
 			[contest] => Ok(Resource::Contest(Contest::Normal((*contest).to_owned()))),
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
@@ -207,28 +207,7 @@ impl unijudge::Backend for CodeChef {
 		
 	}
 	
-	fn tostring(val:u64)-> String{
-		let mut num=val;
-		if num==-1{
-			"unscored_".to_owned()
-		}
-		let mut to_str:String="_".to_string();
-		let mut base=26;
-		while(num!=0){
-			let mut intVar:u8  = (97+num%base).try_into().unwrap();
-			let mut charVar:char;
-			
-			//println!("{}-{}",num,intVar);
-			
-			if to_str.len()>=1 && num<base {intVar-=1;}
-			num/=base;
-			if to_str.len()==0 { base+=1;}
-			charVar=intVar as char;
-			to_str.push(charVar);
-			
-		}
-		to_str.chars().rev().collect()
-	}
+	
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		session.req_user()?;
 		debug!("querying task details of {:?}", task);
@@ -244,7 +223,7 @@ impl unijudge::Backend for CodeChef {
         let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title: tostring(task.prefix)+&resp.problem_name,
+			title: self.tostring(task.prefix)+&resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
 			examples: cases,
@@ -576,6 +555,28 @@ impl CodeChef {
 		Ok(())
 	}
 */
+fn tostring(val:i64)-> String{
+	let mut num=val;
+	if num==-1{
+		"unscored_".to_owned()
+	}
+	let mut to_str:String="_".to_string();
+	let mut base=26;
+	while(num!=0){
+		let mut intVar:u8  = (97+num%base).try_into().unwrap();
+		let mut charVar:char;
+		
+		//println!("{}-{}",num,intVar);
+		
+		if to_str.len()>=1 && num<base {intVar-=1;}
+		num/=base;
+		if to_str.len()==0 { base+=1;}
+		charVar=intVar as char;
+		to_str.push(charVar);
+		
+	}
+	to_str.chars().rev().collect()
+}
 async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf_tok:String) -> Result<api::Ranklist>{
 	let url =format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page).parse()?;
 	//console::debug(&format!("Task url:{}",format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page)));
@@ -781,7 +782,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			},
 			Contest::Practice => Contest::Practice,
 		};
-		Ok(Task { contest: active_contest, task: task.task.clone() })
+		Ok(Task { contest: active_contest, task: task.task.clone(), prefix:-1 })
 	}
 }
 impl Session {
