@@ -555,7 +555,7 @@ impl CodeChef {
 		Ok(())
 	}
 */
-fn tostringconvert(val:i64)-> String{
+fn tostringconvert(&self, val:i64)-> String{
 	let mut num=val;
 	if num==-1{
 		return "unscored_".to_owned();
