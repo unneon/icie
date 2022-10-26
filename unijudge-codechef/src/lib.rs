@@ -24,6 +24,7 @@ pub enum Contest {
 pub struct Task {
 	contest: Contest,
 	task: String,
+	prefix: u64,
 }
 
 #[derive(Debug)]
@@ -205,7 +206,27 @@ impl unijudge::Backend for CodeChef {
 		
 	}
 	
-	
+	fn to_string(mut num:u64)-> String{
+		if num==-1{
+			("unscored_".to_owned())
+		}
+		let mut to_str:String="_".to_string();
+		let mut base=26;
+		while(num!=0){
+			let mut intVar:u8  = (97+num%base).try_into().unwrap();
+			let mut charVar:char;
+			
+			//println!("{}-{}",num,intVar);
+			
+			if to_str.len()>=1 && num<base {intVar-=1;}
+			num/=base;
+			if to_str.len()==0 { base+=1;}
+			charVar=intVar as char;
+			to_str.push(charVar);
+			
+		}
+		to_str.chars().rev().collect()
+	}
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		session.req_user()?;
 		debug!("querying task details of {:?}", task);
@@ -221,7 +242,7 @@ impl unijudge::Backend for CodeChef {
         let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title: resp.problem_name,
+			title: to_string(task.prefix)+&resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
 			examples: cases,
@@ -575,9 +596,19 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			.await?;
 		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
 		if let Some(tasks) = resp.problems {
+			let mut prb_id = 0;
 			let mut tasks: Vec<_> = tasks
 				.into_iter()
-				.map(|kv| (Task { contest: contest.clone(), task: kv.1.code }, kv.1.successful_submissions))
+				.map(|kv| {
+					prb_id += 1; 
+					if kv.1.category_name=="unscored"{
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:-1}, kv.1.successful_submissions)
+					}else {
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:prb_id}, kv.1.successful_submissions)
+					}
+					
+				}
+				)
 				.collect();
 			// CodeChef does not sort problems by estimated difficulty, contrary to
 			// Codeforces/AtCoder. Instead, it sorts them by submission count. This is problematic
@@ -907,6 +938,7 @@ mod api {
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksTask {
 		pub code: String,
+		pub category_name:String,
 		// This field is sometimes returned as an integer, and sometimes as a string.
 		// The pattern seems to be that zeroes are returned as integers, and anything else as
 		// strings. I don't even want to know why on earth does the backend do that.
