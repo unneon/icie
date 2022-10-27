@@ -578,14 +578,15 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			.await?;
 		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
 		if let Some(tasks) = resp.problems {
-			let mut prb_id = 0;
+			let mut prb_id = -1;
 			let mut tasks: Vec<_> = tasks
 				.into_iter()
 				.map(|kv| {
-					prb_id += 1; 
+					
 					if kv.1.category_name=="unscored"{
 						(Task { contest: contest.clone(), task: kv.1.code , prefix:-1}, kv.1.successful_submissions)
 					}else {
+						prb_id += 1; 
 						(Task { contest: contest.clone(), task: kv.1.code , prefix:prb_id}, kv.1.successful_submissions)
 					}
 					

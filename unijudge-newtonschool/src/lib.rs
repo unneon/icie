@@ -370,9 +370,10 @@ impl NewtonSchool {
 			let resp = json::from_str::<api::Assign>(&resp_raw)?; 
 			t.hash=resp.hash;
 		}
-		 
-        let tasks=resp.assignment_questions.iter().map(|(i,row)|{
-				Task { contest: contest.clone(), task: row.hash.to_owned(),prefix:i }
+		let mut prb_id = -1;
+        let tasks=resp.assignment_questions.iter().map(|row|{
+				prb_id += 1; 
+				Task { contest: contest.clone(), task: row.hash.to_owned(),prefix:prb_id }
 	   }).collect();
 	   Ok(ContestDetailsEx { title: resp.title, tasks: tasks })
 	}
