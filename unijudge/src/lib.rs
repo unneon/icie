@@ -24,7 +24,7 @@ use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Debug};
 use url::Url;
-
+use std::convert::TryInto;
 #[derive(Clone, Debug)]
 pub struct Example {
 	pub input: String,
