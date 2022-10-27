@@ -216,3 +216,25 @@ fn fmt_verdict_cause(cause: &Option<RejectionCause>, test: &Option<String>) -> S
 fn fmt_verdict_test(test: &Option<String>) -> String {
 	test.as_ref().map(|test| format!(" on {}", test)).unwrap_or_default()
 }
+pub fn fmt_title(val:i64)-> String{
+	let mut num=val;
+	if num==-1{
+		return "unscored_".to_owned();
+	}
+	let mut to_str:String="_".to_string();
+	let mut base=26;
+	while(num!=0){
+		let mut intVar:u8  = (97+num%base).try_into().unwrap();
+		let mut charVar:char;
+		
+		//println!("{}-{}",num,intVar);
+		
+		if to_str.len()>=1 && num<base {intVar-=1;}
+		num/=base;
+		if to_str.len()==0 { base+=1;}
+		charVar=intVar as char;
+		to_str.push(charVar);
+		
+	}
+	to_str.chars().rev().collect()
+}

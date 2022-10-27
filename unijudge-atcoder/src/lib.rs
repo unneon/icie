@@ -235,7 +235,7 @@ impl unijudge::Backend for AtCoder {
 		});
 		Ok(TaskDetails {
 			id: symbol,
-			title,
+			title: symbol+"_"+title,
 			contest_id: task.contest.clone(),
 			site_short: "atcoder".to_owned(),
 			examples,

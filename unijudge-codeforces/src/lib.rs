@@ -276,7 +276,7 @@ impl unijudge::Backend for Codeforces {
 		};
 		Ok(unijudge::TaskDetails {
 			id: statement.symbol,
-			title: statement.title,
+			title: statement.symbol+"_"+statement.title,
 			contest_id: self.pretty_contest(task),
 			site_short: "codeforces".to_owned(),
 			examples: statement.examples,

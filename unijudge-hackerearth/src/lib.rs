@@ -25,6 +25,7 @@ pub enum Contest {
 pub struct Task {
 	contest: Contest,
 	task: String,
+	prefix: i64,
 }
 
 #[derive(Debug)]
@@ -58,12 +59,12 @@ impl unijudge::Backend for HackerEarth {
 		//https://www.hackerearth.com/challenges/competitive/march-circuits-22/
 		//https://www.hackerearth.com/problem/algorithm/the-sum-of-squares-4e03818e-3dcd3383/
 		match segments {
-			["practice", maintopic,subtopic,topic,"practice-problems","algorithm",task] => Ok(Resource::Task(Task { contest: Contest::Practice((*maintopic).to_owned(),(*subtopic).to_owned(),(*topic).to_owned()), task: (*task).to_owned()})),
+			["practice", maintopic,subtopic,topic,"practice-problems","algorithm",task] => Ok(Resource::Task(Task { contest: Contest::Practice((*maintopic).to_owned(),(*subtopic).to_owned(),(*topic).to_owned()), task: (*task).to_owned(),prefix:0})),
 			["challenges","competitive",contest, "algorithm", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned()  }))
+				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned(),prefix:0  }))
 			},
 			["problem", "algorithm", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Normal("problem".to_owned()), task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Normal("problem".to_owned()), task: (*task).to_owned(),prefix:0 }))
 			}
 			["challenges","competitive",contest] => Ok(Resource::Contest(Contest::Normal((*contest).to_owned()))),
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
@@ -271,7 +272,7 @@ impl unijudge::Backend for HackerEarth {
 			});
 			Ok(TaskDetails {
 				id: task.task.clone(),
-				title: title.to_string(),
+				title: unijudge::fmt_title(task.prefix)+&title,
 				contest_id: task.contest.as_virt_symbol().to_owned(),
 				site_short: "hackerearth".to_owned(),
 				examples: Some(vec![unijudge::Example {
@@ -624,6 +625,7 @@ struct ContestDetailsEx {
 
 impl HackerEarth {
 
+
 	async fn contest_details_ex(&self, session: &Session, contest: &Contest) -> Result<ContestDetailsEx> {
 		session.req_user()?;
 		//let  taks: Vec<Task> =Vec::new();
@@ -650,7 +652,7 @@ impl HackerEarth {
 				//if row_class == "empty-tr" || row_class== "disabled-problem" {return Some(None);}
 				//let ind=if i==0 || i==4 || i==7 || i==10 {3} else {2};
 				let name = row.find_nth("a",1)?.attr("id")?.string().replace("-accuracy", "");
-				Ok(Task { contest: contest.clone(), task: name })
+				Ok(Task { contest: contest.clone(), task: name, prefix:i })
 			}).collect();
 			console::debug(&format!("Taks Count:{}",tasks.len()));
 			Ok(ContestDetailsEx { title: contest.as_virt_symbol().to_string(), tasks: tasks.into_iter().map(|kv| kv.unwrap()).collect() })

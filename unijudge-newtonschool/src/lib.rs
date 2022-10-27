@@ -26,6 +26,7 @@ pub enum Contest {
 pub struct Task {
 	contest: Contest,
 	task: String,
+	prefix:i64,
 }
 
 #[derive(Debug)]
@@ -67,10 +68,10 @@ impl unijudge::Backend for NewtonSchool {
 				Ok(Resource::Contest(Contest::Normal((*main).to_owned(),(*course).to_owned())))
 			},
 			["course",main,"assignment","h", course,"question",task] => {
-				Ok(Resource::Task(Task { contest:Contest::Normal((*main).to_owned(),(*course).to_owned()), task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest:Contest::Normal((*main).to_owned(),(*course).to_owned()), task: (*task).to_owned(),prefix:0 }))
 			},
 			["playground", "code", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Practice(), task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Practice(), task: (*task).to_owned(),prefix:0 }))
 			}
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
 		}
@@ -180,7 +181,7 @@ impl unijudge::Backend for NewtonSchool {
 		let statement = Some(self.prepare_statement( resp2.assignment_question));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title:title ,
+			title:unijudge::fmt_title(task.prefix)+&title ,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "newtonschool".to_owned(),
 			examples: Some(cases),
@@ -370,8 +371,8 @@ impl NewtonSchool {
 			t.hash=resp.hash;
 		}
 		 
-        let tasks=resp.assignment_questions.iter().map(|row|{
-				Task { contest: contest.clone(), task: row.hash.to_owned() }
+        let tasks=resp.assignment_questions.iter().map(|(i,row)|{
+				Task { contest: contest.clone(), task: row.hash.to_owned(),prefix:i }
 	   }).collect();
 	   Ok(ContestDetailsEx { title: resp.title, tasks: tasks })
 	}

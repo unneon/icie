@@ -6,7 +6,7 @@ use unijudge::TaskDetails;
 
 pub async fn design_task_name(projects: &Path, meta: Option<&TaskDetails>) -> R<Path> {
 	Ok(match meta {
-		Some(meta) => projects.join(&format!("{}-{}", Case::Kebab.apply(&meta.title), Case::Upper.apply(&meta.id))),
+		Some(meta) => projects.join(&format!("{}", Case::Kebab.apply(&meta.title))),
 		None => query(projects).await?,
 	})
 }
