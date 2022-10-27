@@ -597,7 +597,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			// Codeforces/AtCoder. Instead, it sorts them by submission count. This is problematic
 			// when contest begin, as all problems have a submit count of 0. But since this naive
 			// sort is as good as what you get with a browser, let's just ignore this.
-			tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
+			//tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
 			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().map(|kv| kv.0).collect() })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
