@@ -275,8 +275,8 @@ impl unijudge::Backend for Codeforces {
 			ExtractedStatement::from_html(doc)?
 		};
 		Ok(unijudge::TaskDetails {
-			id: statement.symbol,
-			title: statement.symbol+"_"+&statement.title,
+			id: statement.symbol.clone(),
+			title: statement.symbol.clone()+"_"+&statement.title,
 			contest_id: self.pretty_contest(task),
 			site_short: "codeforces".to_owned(),
 			examples: statement.examples,
