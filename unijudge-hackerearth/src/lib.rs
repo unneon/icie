@@ -652,7 +652,7 @@ impl HackerEarth {
 				//if row_class == "empty-tr" || row_class== "disabled-problem" {return Some(None);}
 				//let ind=if i==0 || i==4 || i==7 || i==10 {3} else {2};
 				let name = row.find_nth("a",1)?.attr("id")?.string().replace("-accuracy", "");
-				Ok(Task { contest: contest.clone(), task: name, prefix:i })
+				Ok(Task { contest: contest.clone(), task: name, prefix:i as i64})
 			}).collect();
 			console::debug(&format!("Taks Count:{}",tasks.len()));
 			Ok(ContestDetailsEx { title: contest.as_virt_symbol().to_string(), tasks: tasks.into_iter().map(|kv| kv.unwrap()).collect() })
