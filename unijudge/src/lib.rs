@@ -221,17 +221,20 @@ pub fn fmt_title(val:i64)-> String{
 	if num==-1{
 		return "unscored_".to_owned();
 	}
+	if num==0{
+		return "a_".to_owned();
+	}
 	let mut to_str:String="_".to_string();
 	let mut base=26;
 	while(num!=0){
 		let mut intVar:u8  = (97+num%base).try_into().unwrap();
 		let mut charVar:char;
 		
-		//println!("{}-{}",num,intVar);
+		println!("{}-{}-{}",num,intVar,base);
 		
-		if to_str.len()>=1 && num<base {intVar-=1;}
+		if to_str.len()>=2 && num<base {intVar-=1;}
 		num/=base;
-		if to_str.len()==0 { base+=1;}
+		if to_str.len()==1 { base+=1;}
 		charVar=intVar as char;
 		to_str.push(charVar);
 		
