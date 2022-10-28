@@ -9,7 +9,7 @@ use serde::Serialize;
 use std::cmp::min;
 use crate::util::time_now;
 use unijudge::{Backend, Resource, Statement,
-	boxed::{BoxedContest, BoxedTask}
+	boxed::{BoxedContest, BoxedTask},ErrorCode
 };
 use std::convert::TryInto;
 //use wasm_timer;
@@ -24,9 +24,9 @@ pub async fn activate() -> R<()> {
 		let _status = crate::STATUS.push("Launching from contest");
 		let sub_dirs=fs::find_a_dir(&workspace_root()?).await?;
 		set_workspace_root(sub_dirs.as_str());
-		util::listener();
-	}
-	layout_setup().await?;
+		util::listener(); 
+    }
+    layout_setup().await?;
 	open::contest::check_for_manifest().await?;
 	Ok(())
 }
@@ -49,37 +49,37 @@ pub fn format_sec(secs:i64)->String{
 	{format!("Remaining {} s",sec)}
 }
 pub async fn layout_setup() -> R<()> {
-	let _status = crate::STATUS.push("Opening");
+    let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
-		place_cursor_in_code().await;
+        place_cursor_in_code().await;
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
 		// Refocus the cursor, because apparently preserve_focus is useless.
 		place_cursor_in_code().await;
-		
+        	
 		let url = manifest.req_task_url()?;
-		let (url, backend) = interpret_url(url)?;
+        let (url, backend) = interpret_url(url)?;
 		let url = require_task::<BoxedContest, BoxedTask>(url)?;
-		let Resource::Task(task) = url.resource;
+        let Resource::Task(task) = url.resource;
 		let sess = Session::connect(&url.domain, backend).await?;
+        
 		let rem_t= sess.run(|backend, sess| backend.remain_time(sess, &task)).await;
+        
 		//let to_end:String;
-		
+		let statusBarItem=window::create_status_bar_item();
+        
+        statusBarItem.show();
 		match rem_t {
-			Ok(mut to_end) =>{
+			Ok(to_end) =>{
 				let deadline = time_now() + Duration::from_secs(to_end.try_into().unwrap());
-				let statusBarItem=window::create_status_bar_item();
-				//statusBarItem.tooltip = "Time Left";
-				statusBarItem.set_text(&format_sec(to_end));
-					//let i=wasm_timer::Interval::new(Instant::now(),Duration::new(1, 0));
-				// i.dispatch();
-				statusBarItem.show();
+				
+                statusBarItem.set_text(&format_sec(to_end));
 				evscode::spawn(async move {
 					while let Ok(left) = deadline.duration_since(time_now()) {
 						
 						let delay = min(left, Duration::from_secs(1));
-						let mut delay = Box::pin(sleep(delay).fuse());
+						sleep(delay).await;
 						statusBarItem.set_text(&format_sec(left.as_secs().try_into().unwrap()));
 						
 					}
@@ -88,9 +88,17 @@ pub async fn layout_setup() -> R<()> {
 				});
 				
 			},
-			Err(_) =>{}
+			Err(err) =>{
+                //match err.0 {
+                //     ErrorCode::NotYetStarted =>  {statusBarItem.set_text("Contest Not Started");},
+                     //ErrorCode::Ended_Already =>  {
+                         statusBarItem.set_text("Contest Ended");
+                        //},
+                //     _                          => {statusBarItem.set_text("Contest Fetch Error");},
+                //}
+            }
 		}			
-		
+
 	}
 	
 	Ok(())

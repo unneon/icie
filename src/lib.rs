@@ -31,12 +31,12 @@ pub static STATUS: Lazy<evscode::goodies::MultiStatus> = Lazy::new(|| evscode::g
 
 evscode::plugin! {
 	name: "ICIE",
-	publisher: "pustaczek",
+	publisher: "georgejsh",
 	description: "Competitive programming IDE-as-a-VS-Code-plugin",
 	keywords: &["competitive", "contest", "codeforces", "atcoder", "codechef"],
 	categories: &["Other"],
 	license: "MPL-2.0",
-	repository: "https://github.com/pustaczek/icie",
+	repository: "https://github.com/georgejsh/icie",
 	gallery: evscode::meta::Gallery {
 		color: "#6d0759",
 		theme: evscode::meta::GalleryTheme::Dark,

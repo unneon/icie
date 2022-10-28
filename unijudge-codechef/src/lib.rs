@@ -160,12 +160,15 @@ impl unijudge::Backend for CodeChef {
 			.await?
 			.text()
 			.await?;
+        //    console::debug(&format!("Reached Here remain time {}", resp_raw));
 		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
-		if resp.time.current <= resp.time.start {
+		//console::debug(&format!("Reached Here remain time {}", task.contest.as_virt_symbol()));
+        if resp.time.current <= resp.time.start {
 			return Err(ErrorCode::NotYetStarted.into());
 		}else if resp.time.current > resp.time.end {
 			return Err(ErrorCode::Ended_Already.into());
 		}
+
 		let naive_end = NaiveDateTime::from_timestamp(resp.time.end, 0);
 		let end_time: DateTime<Utc> = DateTime::from_utc(naive_end, Utc);
 		let today: DateTime<Utc> = Utc::now();
@@ -601,7 +604,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().map(|kv| kv.0).collect() })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
-		} else if !resp.user.username.is_empty() {
+		} else if !resp.user.username.expect("username is null").is_empty() {
 			// If no tasks are present, that means CodeChef would present us with a "choose your
 			// division" screen. Fortunately, it also checks which division are you so we can just
 			// choose that one.
@@ -948,7 +951,7 @@ mod api {
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksUser {
-		pub username: String,
+		pub username: Option<String>,
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasks {
