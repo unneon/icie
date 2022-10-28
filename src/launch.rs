@@ -1,16 +1,17 @@
 use crate::{
 	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep,set_workspace_root}
 };
-
+use futures::FutureExt;
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
 use vscode_sys::{window};
 use futures::StreamExt;
 use serde::Serialize;
+use std::cmp::min;
+use crate::util::time_now;
 use unijudge::{Backend, Resource, Statement,
 	boxed::{BoxedContest, BoxedTask}
 };
-
-
+use std::convert::TryInto;
 //use wasm_timer;
 //use wasm_timer::Instant;
 use core::time::Duration;
@@ -64,29 +65,31 @@ pub async fn layout_setup() -> R<()> {
 		let sess = Session::connect(&url.domain, backend).await?;
 		let rem_t= sess.run(|backend, sess| backend.remain_time(sess, &task)).await;
 		//let to_end:String;
+		
 		match rem_t {
 			Ok(mut to_end) =>{
+				let deadline = time_now() + Duration::from_secs(to_end.try_into().unwrap());
 				let statusBarItem=window::create_status_bar_item();
 				//statusBarItem.tooltip = "Time Left";
 				statusBarItem.set_text(&format_sec(to_end));
-				 //let i=wasm_timer::Interval::new(Instant::now(),Duration::new(1, 0));
+					//let i=wasm_timer::Interval::new(Instant::now(),Duration::new(1, 0));
 				// i.dispatch();
 				statusBarItem.show();
 				evscode::spawn(async move {
-					loop {
-						if to_end==0{
-							statusBarItem.set_text("Contest Ended");
-							return Ok(());
-						}
-						sleep( Duration::from_secs(1)).await;
-						to_end=to_end-1;
-						statusBarItem.set_text(&format_sec(to_end));
+					while let Ok(left) = deadline.duration_since(time_now()) {
+						
+						let delay = min(left, Duration::from_secs(1));
+						let mut delay = Box::pin(sleep(delay).fuse());
+						statusBarItem.set_text(&format_sec(left.as_secs().try_into().unwrap()));
+						
 					}
+					statusBarItem.set_text("Contest Ended");
+					return Ok(());
 				});
 				
 			},
 			Err(_) =>{}
-		}
+		}			
 		
 	}
 	
