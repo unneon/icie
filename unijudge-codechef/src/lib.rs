@@ -166,7 +166,7 @@ impl unijudge::Backend for CodeChef {
         if resp.time.current <= resp.time.start {
 			return Err(ErrorCode::NotYetStarted.into());
 		}else if resp.time.current > resp.time.end {
-			return Err(ErrorCode::Ended_Already.into());
+			return Ok(0);
 		}
 
 		let naive_end = NaiveDateTime::from_timestamp(resp.time.end, 0);
@@ -587,10 +587,10 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 				.map(|kv| {
 					
 					if kv.1.category_name=="unscored"{
-						(Task { contest: contest.clone(), task: kv.1.code , prefix:-1}, kv.1.successful_submissions)
+						Task { contest: contest.clone(), task: kv.1.code , prefix:-1}
 					}else {
 						prb_id += 1; 
-						(Task { contest: contest.clone(), task: kv.1.code , prefix:prb_id}, kv.1.successful_submissions)
+						Task { contest: contest.clone(), task: kv.1.code , prefix:prb_id}
 					}
 					
 				}
@@ -601,7 +601,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			// when contest begin, as all problems have a submit count of 0. But since this naive
 			// sort is as good as what you get with a browser, let's just ignore this.
 			//tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
-			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().map(|kv| kv.0).collect() })
+			Ok(ContestDetailsEx { title: resp.name, tasks })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
 		} else if !resp.user.username.expect("username is null").is_empty() {
