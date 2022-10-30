@@ -289,7 +289,25 @@ extern "C" {
 		configuration_target: ConfigurationTarget,
 	) -> Thenable<()>;
 
+    pub type TreeView;
+
+    #[wasm_bindgen(method, setter)]
+	pub fn set_visible(this: &TreeView, visible: bool);
 }
+
+#[repr(i32)]
+pub enum TreeItemCollapsibleState {
+	Collapsed = 0,
+	Expanded = 1,
+	None = 2,
+}
+wasm_abi_enumi32!(TreeItemCollapsibleState);
+
+#[derive(Serialize)]
+pub struct TreeItem<'a> {
+    pub label: &'a str,
+}
+wasm_abi_serde!(TreeItem<'_>);
 
 #[derive(Deserialize)]
 pub struct ItemRet<T> {
@@ -355,7 +373,7 @@ pub mod env {
 
 pub mod window {
 
-	use crate::{OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel};
+	use crate::{OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel, TreeView};
 	use serde::{Serialize, Serializer};
 	use std::collections::HashMap;
 	use wasm_bindgen::prelude::*;
@@ -389,6 +407,12 @@ pub mod window {
 			options: CreateWebviewPanelOptions,
 		) -> WebviewPanel;
 
+        #[wasm_bindgen(js_namespace = window, js_name = createTreeView)]
+		pub fn create_treeview(
+			view_id: &str,
+			options: TreeViewOptions,
+		) -> TreeView;
+
 		#[wasm_bindgen(js_namespace = window, js_name = showErrorMessage, variadic)]
 		pub fn show_error_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
@@ -417,8 +441,22 @@ pub mod window {
 		pub fn with_progress(options: ProgressOptions, task: JsValue);
 
 	}
+    #[derive(Serialize)]
+    pub struct TreeViewOptions {
+        pub canSelectMany: bool,
+        pub showCollapseAll: bool,
+        #[serde(flatten)]
+        pub treeDataProvider:  TreeDataProvider,
+    }
+    wasm_abi_serde!(TreeViewOptions);
+    
+    #[derive(Serialize)]
+    pub struct TreeDataProvider {
+        pub isload: bool,
+    }
+    wasm_abi_serde!(TreeDataProvider);
 
-	#[derive(Serialize)]
+    #[derive(Serialize)]
 	pub struct CreateWebviewPanelOptions {
 		#[serde(flatten)]
 		pub general: WebviewOptions,

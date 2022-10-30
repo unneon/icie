@@ -25,6 +25,39 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		repository: pkg.repository.to_owned(),
 		main: "icie.js".to_owned(),
 		contributes: Contributes {
+            views:{
+                let mut vcons =  ViewContributes{
+                    explorer:Vec::new(),
+                    scm:Vec::new(),
+                    debug:Vec::new(),
+                    test:Vec::new(),
+                };
+                pkg.views.iter().map(|view| {
+                match view.addto {
+                    "explorer" => 
+                            vcons.explorer.push(ViewItem{
+                            id: view.id.to_string(),
+                            name: view.name.to_owned(),
+                        }),
+                    "scm" =>
+                            vcons.scm.push(ViewItem{
+                            id: view.id.to_string(),
+                            name: view.name.to_owned(),
+                        }),
+                    "test" => 
+                            vcons.test.push(ViewItem{
+                            id: view.id.to_string(),
+                            name: view.name.to_owned(),
+                        }),
+                    &_ =>
+                            vcons.debug.push(ViewItem{
+                            id: view.id.to_string(),
+                            name: view.name.to_owned(),
+                        }),
+                    }
+                });
+                vcons
+            },
 			commands: SortedVec::new(
 				pkg.commands.iter().map(|command| ContributesCommands {
 					command: command.id.to_string(),
@@ -98,8 +131,25 @@ struct GalleryBanner {
 	theme: &'static str,
 }
 
+
+#[derive(Debug, Serialize)]
+struct ViewItem {
+    id: String,
+	name: String,
+}
+
+
+#[derive(Debug, Serialize)]
+struct ViewContributes {
+    explorer : Vec<ViewItem>,
+	debug: Vec<ViewItem>,
+	scm: Vec<ViewItem>,
+	test: Vec<ViewItem>,
+}
+
 #[derive(Debug, Serialize)]
 struct Contributes {
+    views : ViewContributes,
 	commands: SortedVec<ContributesCommands>,
 	keybindings: SortedVec<ContributesKeybindings>,
 	configuration: ContributesConfiguration,

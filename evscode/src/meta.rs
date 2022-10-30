@@ -48,6 +48,14 @@ pub struct Command {
 	pub trigger: fn() -> BoxFuture<'static, R<()>>,
 }
 
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct Views {
+	pub id: Identifier,
+	pub name: &'static str,
+	pub addto: &'static str,
+}
+
 /// Metadata of a configuration entry.
 #[derive(Clone)]
 pub struct ConfigEntry {
@@ -129,6 +137,8 @@ pub struct Package {
 	pub version: &'static str,
 	#[doc(hidden)]
 	pub commands: Vec<Command>,
+    #[doc(hidden)]
+	pub views: Vec<Views>,
 	#[doc(hidden)]
 	pub configuration: Vec<ConfigEntry>,
 	/// Display name seen by end users.
