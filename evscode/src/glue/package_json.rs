@@ -32,30 +32,30 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
                     debug:Vec::new(),
                     test:Vec::new(),
                 };
-                pkg.views.iter().map(|view| {
-                match view.addto {
-                    "explorer" => 
-                            vcons.explorer.push(ViewItem{
-                            id: view.id.to_string(),
-                            name: view.name.to_owned(),
-                        }),
-                    "scm" =>
-                            vcons.scm.push(ViewItem{
-                            id: view.id.to_string(),
-                            name: view.name.to_owned(),
-                        }),
-                    "test" => 
-                            vcons.test.push(ViewItem{
-                            id: view.id.to_string(),
-                            name: view.name.to_owned(),
-                        }),
-                    &_ =>
-                            vcons.debug.push(ViewItem{
-                            id: view.id.to_string(),
-                            name: view.name.to_owned(),
-                        }),
-                    }
-                });
+                for view in pkg.views.iter() {
+                    match view.addto {
+                        "explorer" => 
+                                vcons.explorer.push(ViewItem{
+                                id: view.id.to_string(),
+                                name: view.name.to_owned(),
+                            }),
+                        "scm" =>
+                                vcons.scm.push(ViewItem{
+                                id: view.id.to_string(),
+                                name: view.name.to_owned(),
+                            }),
+                        "test" => 
+                                vcons.test.push(ViewItem{
+                                id: view.id.to_string(),
+                                name: view.name.to_owned(),
+                            }),
+                        &_ =>
+                                vcons.debug.push(ViewItem{
+                                id: view.id.to_string(),
+                                name: view.name.to_owned(),
+                            }),
+                        }
+                }
                 vcons
             },
 			commands: SortedVec::new(

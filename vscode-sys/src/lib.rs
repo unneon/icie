@@ -119,7 +119,8 @@ thenable_impl_jscast!(JsValue);
 thenable_impl_jscast!(TextEditor);
 thenable_impl_jscast!(TextDocument);
 thenable_impl_jscast!(Uri);
-
+//thenable_impl_jscast!(TreeDataProvider);
+//unsafe impl Sync for TreeDataProvider {}
 #[wasm_bindgen(module = vscode)]
 extern "C" {
 
@@ -288,11 +289,28 @@ extern "C" {
 		value: &JsValue,
 		configuration_target: ConfigurationTarget,
 	) -> Thenable<()>;
+    
+    //pub type TreeDataProvider;
 
-    pub type TreeView;
+    pub type TreeItem;
+    #[wasm_bindgen(constructor)]
+	pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeItem;
+    /*
+    #[wasm_bindgen(method)]
+	pub fn get_children(this: &TreeDataProvider, element: &TreeItem) -> TreeItem;
+
+    #[wasm_bindgen(method)]
+	pub fn get_element(this: &TreeDataProvider) -> TreeItem;
+    */
+
+    /*pub type TreeView;
 
     #[wasm_bindgen(method, setter)]
 	pub fn set_visible(this: &TreeView, visible: bool);
+
+    #[wasm_bindgen(method, js_name = onDidChangeVisibility)]
+	pub fn on_did_change_visibility(this: &TreeView, callback: &Closure<dyn FnMut(JsValue)>);
+    */
 }
 
 #[repr(i32)]
@@ -302,12 +320,6 @@ pub enum TreeItemCollapsibleState {
 	None = 2,
 }
 wasm_abi_enumi32!(TreeItemCollapsibleState);
-
-#[derive(Serialize)]
-pub struct TreeItem<'a> {
-    pub label: &'a str,
-}
-wasm_abi_serde!(TreeItem<'_>);
 
 #[derive(Deserialize)]
 pub struct ItemRet<T> {
@@ -373,7 +385,7 @@ pub mod env {
 
 pub mod window {
 
-	use crate::{OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel, TreeView};
+	use crate::{OutputChannel, StatusBarItem, Terminal, TextDocument, TextEditor, Thenable, Uri, WebviewPanel};
 	use serde::{Serialize, Serializer};
 	use std::collections::HashMap;
 	use wasm_bindgen::prelude::*;
@@ -407,12 +419,12 @@ pub mod window {
 			options: CreateWebviewPanelOptions,
 		) -> WebviewPanel;
 
-        #[wasm_bindgen(js_namespace = window, js_name = createTreeView)]
+      /*  #[wasm_bindgen(js_namespace = window, js_name = createTreeView)]
 		pub fn create_treeview(
 			view_id: &str,
 			options: TreeViewOptions,
 		) -> TreeView;
-
+        */
 		#[wasm_bindgen(js_namespace = window, js_name = showErrorMessage, variadic)]
 		pub fn show_error_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
@@ -440,8 +452,10 @@ pub mod window {
 		#[wasm_bindgen(js_namespace = window, js_name = withProgress)]
 		pub fn with_progress(options: ProgressOptions, task: JsValue);
 
+        #[wasm_bindgen(js_namespace = window, js_name = registerTreeDataProvider)]
+		pub fn register_tree_data_provider(viewid: &str, treedataprovider: JsValue);
 	}
-    #[derive(Serialize)]
+   /* #[derive(Serialize)]
     pub struct TreeViewOptions {
         pub canSelectMany: bool,
         pub showCollapseAll: bool,
@@ -455,7 +469,7 @@ pub mod window {
         pub isload: bool,
     }
     wasm_abi_serde!(TreeDataProvider);
-
+    */
     #[derive(Serialize)]
 	pub struct CreateWebviewPanelOptions {
 		#[serde(flatten)]

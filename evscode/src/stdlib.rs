@@ -12,6 +12,7 @@ pub mod state;
 pub mod terminal;
 pub mod types;
 pub mod webview;
+pub mod treedata;
 
 pub use input_box::InputBox;
 pub use message::Message;
@@ -23,6 +24,7 @@ pub use state::State;
 pub use terminal::Terminal;
 pub use types::*;
 pub use webview::Webview;
+pub use treedata::TreeData;
 
 use crate::{error::ResultExt, E, R};
 use std::cell::RefCell;

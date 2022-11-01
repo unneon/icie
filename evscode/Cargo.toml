@@ -18,3 +18,5 @@ vscode-sys = { path = "../vscode-sys" }
 wasm-backtrace = { git = "https://github.com/pustaczek/wasm-backtrace" }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+serde_closure = "0.3.2"
+serde-wasm-bindgen = "0.4"

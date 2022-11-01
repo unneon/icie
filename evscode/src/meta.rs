@@ -2,6 +2,8 @@
 
 use crate::{config::ErasedConfig, BoxFuture, E, R};
 use std::fmt::{self, Write};
+use crate::stdlib::TreeData;
+//use vscode_sys::TreeDataProvider;
 
 /// Returns a vector with metadata on all configuration entries in the plugin.
 pub fn config_entries() -> &'static [ConfigEntry] {
@@ -49,11 +51,11 @@ pub struct Command {
 }
 
 #[doc(hidden)]
-#[derive(Debug)]
 pub struct Views {
 	pub id: Identifier,
 	pub name: &'static str,
 	pub addto: &'static str,
+    pub reference: &'static TreeData,
 }
 
 /// Metadata of a configuration entry.

@@ -6,7 +6,7 @@ use proc_macro::TokenStream;
 mod command;
 mod config;
 mod configurable;
-mod views;
+mod contribviews;
 mod plugin;
 mod util;
 
@@ -88,13 +88,13 @@ pub fn plugin(input: TokenStream) -> TokenStream {
 ///  Invoking this macro will automatically add the view within the VS Code primary side views.
 ///
 /// ```ignore
-/// #[evscode::view(name = "Successfull Submissions", addto = "explorer")]
+/// #[evscode::contribview(name = "Successfull Submissions", addto = "explorer")]
 /// fn spawn() -> evscode::R<()> {
 ///     evscode::Message::new("Hello, world!").build().spawn();
 ///     Ok(())
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn view(params: TokenStream, item: TokenStream) -> TokenStream {
-	views::generate(params, item)
+pub fn contribview(params: TokenStream, item: TokenStream) -> TokenStream {
+	contribviews::generate(params, item)
 }

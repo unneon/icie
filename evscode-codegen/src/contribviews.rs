@@ -4,25 +4,27 @@ use crate::util::{
 use proc_macro::{Span, TokenStream};
 use quote::quote;
 use syn::{
-	parse::{Parse, ParseStream}, parse_macro_input, ItemFn, LitStr
+	parse::{Parse, ParseStream}, parse_macro_input, ItemFn, LitStr, ItemStatic
 };
 
-pub static VIEW_INVOKELIST: InvocationList = InvocationList::new("View");
+pub static VIEW_INVOKELIST: InvocationList = InvocationList::new("Views");
 
 pub fn generate(params: TokenStream, item: TokenStream) -> TokenStream {
 	let params: Params = parse_macro_input!(params);
-	let item: ItemFn = parse_macro_input!(item);
-	let local_name = &item.sig.ident;
+	let item: ItemStatic = parse_macro_input!(item);
+	let local_name = &item.ident;
 	let name = LitStr::new(&params.name, Span::call_site().into());
-    let addto = LitStr::new(&params.addto, Span::call_site().into());
+    let addto =  LitStr::new(&params.addto, Span::call_site().into());
+    //println!("Here {}",local_name);
 	let machinery = VIEW_INVOKELIST.invoke(quote! {
-		evscode::meta::View {
+		evscode::meta::Views {
 			id: evscode::meta::Identifier {
 				module_path: module_path!(),
 				local_name: stringify!(#local_name),
 			},
 			name: #name,
 			addto: #addto,
+            reference: &#local_name,
 		}
 	});
 	TokenStream::from(quote! {

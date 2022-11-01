@@ -4,11 +4,12 @@ use crate::{
 use once_cell::sync::OnceCell;
 use std::{cell::RefCell, panic::PanicInfo};
 use wasm_bindgen::{closure::Closure, JsValue};
-
+use log::info;
 mod package_json;
-
+use serde_wasm_bindgen;
 #[doc(hidden)]
 pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
+	info!("hello there123!{}",pkg.views.iter().len());
 	std::panic::set_hook(Box::new(panic_hook));
 	let on_activate = pkg.on_activate.take();
 	let on_deactivate = pkg.on_deactivate.take();
@@ -25,6 +26,12 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 		}) as Box<dyn FnMut()>)));
 		vscode_sys::commands::register_command(&command_id, closure);
 	}
+    for view in &pkg.views {
+        info!("hello there!{:#?}",serde_wasm_bindgen::to_value(view.reference).unwrap());
+    }
+    for view in &pkg.views {
+        vscode_sys::window::register_tree_data_provider(&view.id.to_string(),serde_wasm_bindgen::to_value(view.reference).unwrap());
+    }
 	if let Some(on_activate) = on_activate {
 		crate::spawn(on_activate());
 	}
@@ -32,7 +39,15 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 		ON_DEACTIVATE.with(|od| od.replace(Some(on_deactivate)));
 	}
 }
-
+/*impl std::fmt::Display for JsValue {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for part in self.module_path.split("::") {
+			crate::marshal::camel_case(part, f)?;
+			f.write_char('.')?;
+		}
+		crate::marshal::camel_case(self.local_name, f)
+	}
+}*/
 #[doc(hidden)]
 pub async fn deactivate() {
 	if let Some(on_deactivate) = ON_DEACTIVATE.with(|on_deactivate| on_deactivate.borrow_mut().take()) {
@@ -46,7 +61,7 @@ pub async fn deactivate() {
 #[doc(hidden)]
 pub fn generate_package_json(path: &str, pkg: Package) {
 	let pkg = Box::leak(Box::new(pkg));
-	let package_json = package_json::construct_package_json(pkg);
+    let package_json = package_json::construct_package_json(pkg);
 	node_sys::fs::write_file_sync(path, &serde_json::to_string_pretty(&package_json).unwrap()).unwrap();
 }
 

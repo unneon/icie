@@ -1,4 +1,4 @@
-use crate::{views::VIEW_INVOKELIST, command::COMMAND_INVOKELIST, config::CONFIG_INVOKELIST};
+use crate::{contribviews::VIEW_INVOKELIST, command::COMMAND_INVOKELIST, config::CONFIG_INVOKELIST};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse::Parser, punctuated::Punctuated, token::Comma, FieldValue};
