@@ -118,8 +118,10 @@ fn spawn_suggest_install_compiler() {
 
 async fn open_task(task: &BoxedTask, index: usize, count: usize, projects: &Path, sess: &Session) -> R<Path> {
 	let name = format!("{}/{}", index + 1, count);
+    //let _status = crate::STATUS.push(format!("task title {:?}", task));
 	let details = fetch_task(task, &name, sess).await?;
 	let url = sess.run(|backend, sess| async move { backend.task_url(sess, task) }).await?;
+    
 	let workspace = design_task_name(projects, Some(&details)).await?;
 	files::open_task(&workspace, Some(url), Some(details)).await?;
 	Ok(workspace)

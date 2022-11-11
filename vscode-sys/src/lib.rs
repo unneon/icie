@@ -119,7 +119,6 @@ thenable_impl_jscast!(JsValue);
 thenable_impl_jscast!(TextEditor);
 thenable_impl_jscast!(TextDocument);
 thenable_impl_jscast!(Uri);
-//thenable_impl_jscast!(TreeDataProvider);
 //unsafe impl Sync for TreeDataProvider {}
 #[wasm_bindgen(module = vscode)]
 extern "C" {
@@ -291,10 +290,14 @@ extern "C" {
 	) -> Thenable<()>;
     
     //pub type TreeDataProvider;
-
-    pub type TreeItem;
-    #[wasm_bindgen(constructor)]
-	pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeItem;
+    //#[wasm_bindgen(constructor)]
+	//pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeDataProvider;
+    //#[derive(Deserialize)]
+    //pub type TreeItem;
+    //#[wasm_bindgen(constructor)]
+	//pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeItem;
+    
+    
     /*
     #[wasm_bindgen(method)]
 	pub fn get_children(this: &TreeDataProvider, element: &TreeItem) -> TreeItem;
@@ -313,13 +316,24 @@ extern "C" {
     */
 }
 
+#[derive(Deserialize,Serialize)]
 #[repr(i32)]
 pub enum TreeItemCollapsibleState {
-	Collapsed = 0,
-	Expanded = 1,
-	None = 2,
+	Collapsed = 1,
+	Expanded = 2,
+	None = 0,
 }
 wasm_abi_enumi32!(TreeItemCollapsibleState);
+
+#[derive(Serialize,Deserialize)]
+pub struct TreeItem {
+	pub label: String,
+    #[serde(rename= "collapsibleState")]
+    pub collapse:i32,
+    #[serde(rename = "iconPath")]
+    pub icon: String,
+}
+wasm_abi_serde!(TreeItem);
 
 #[derive(Deserialize)]
 pub struct ItemRet<T> {
@@ -349,6 +363,13 @@ pub struct ProgressProgressValue<'a> {
 	pub message: Option<&'a str>,
 }
 wasm_abi_serde!(ProgressProgressValue<'_>);
+
+/*
+pub struct TreeDataProvider {
+    pub getChildren: &'static Closure<dyn FnMut(JsValue)>,
+    pub getTreeItem: &'static Closure<dyn FnMut(JsValue)>,
+}
+wasm_abi_serde!(TreeDataProvider);*/
 
 pub mod commands {
 	use crate::Thenable;
@@ -470,6 +491,7 @@ pub mod window {
     }
     wasm_abi_serde!(TreeDataProvider);
     */
+   
     #[derive(Serialize)]
 	pub struct CreateWebviewPanelOptions {
 		#[serde(flatten)]

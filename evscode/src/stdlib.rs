@@ -112,6 +112,10 @@ pub fn asset(name: &str) -> String {
 	format!("vscode-resource:{}", asset_path)
 }
 
+/// Return an URI pointing to a given path for use with webviews.
+pub fn get_path(name: &str) -> String {
+	node_sys::path::join(extension_root(), name)
+}
 /// Set the status message on a global widget.
 ///
 /// This will interfere with other threads, use [`crate::goodies::MultiStatus`] instead.

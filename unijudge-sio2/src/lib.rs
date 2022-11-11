@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
+    Problem,
 	debris::{self, Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		header::{HeaderValue, CONTENT_TYPE, REFERER}, multipart, Url
 	}, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
@@ -114,6 +115,10 @@ impl unijudge::Backend for Sio2 {
 	
 	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
 		return Ok("NA".to_string());
+	}
+    
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
 	}
 
 	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{

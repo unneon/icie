@@ -9,6 +9,7 @@ use http::{
 };
 use node_sys::console;
 use unijudge::{
+    Problem,
 	chrono::{prelude::*,Duration},
 	debris::{ Document, Find, Context}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url,header::{CONTENT_TYPE, REFERER}}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
@@ -166,6 +167,10 @@ impl unijudge::Backend for HackerEarth {
 		return Ok("NA".to_string());
 	}
 	
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
+	}
+
 	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
 		return Err(ErrorCode::AlienInvasion.into());
 	}

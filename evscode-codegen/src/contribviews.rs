@@ -6,6 +6,7 @@ use quote::quote;
 use syn::{
 	parse::{Parse, ParseStream}, parse_macro_input, ItemFn, LitStr, ItemStatic
 };
+//use wasm_bindgen::{closure::Closure, JsValue,TreeDataProvider};
 
 pub static VIEW_INVOKELIST: InvocationList = InvocationList::new("Views");
 
@@ -15,6 +16,7 @@ pub fn generate(params: TokenStream, item: TokenStream) -> TokenStream {
 	let local_name = &item.ident;
 	let name = LitStr::new(&params.name, Span::call_site().into());
     let addto =  LitStr::new(&params.addto, Span::call_site().into());
+    //let raw_name = &item.sig.ident;
     //println!("Here {}",local_name);
 	let machinery = VIEW_INVOKELIST.invoke(quote! {
 		evscode::meta::Views {
@@ -25,6 +27,12 @@ pub fn generate(params: TokenStream, item: TokenStream) -> TokenStream {
 			name: #name,
 			addto: #addto,
             reference: &#local_name,
+           /* reference: &evscode::TreeData{
+                getTreeItem:&|element| {
+                    return element;
+                },
+                getChildren:&|element| Box::pin(#raw_name(element)),
+            },*/
 		}
 	});
 	TokenStream::from(quote! {

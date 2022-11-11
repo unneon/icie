@@ -4,7 +4,7 @@ use crate::{config::ErasedConfig, BoxFuture, E, R};
 use std::fmt::{self, Write};
 use crate::stdlib::TreeData;
 //use vscode_sys::TreeDataProvider;
-
+//use wasm_bindgen::JsValue;
 /// Returns a vector with metadata on all configuration entries in the plugin.
 pub fn config_entries() -> &'static [ConfigEntry] {
 	crate::glue::CONFIG_ENTRIES.get().unwrap()

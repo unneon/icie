@@ -26,6 +26,7 @@ mod terminal;
 mod test;
 mod tutorial;
 mod util;
+mod submissions;
 
 pub static STATUS: Lazy<evscode::goodies::MultiStatus> = Lazy::new(|| evscode::goodies::MultiStatus::new("❄️"));
 

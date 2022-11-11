@@ -1,10 +1,10 @@
+#![feature(async_closure)]
 use crate::{
 	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep,set_workspace_root}
 };
 use futures::FutureExt;
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
-use vscode_sys::{window,TreeItem,TreeItemCollapsibleState};
-use evscode::TreeData;
+use vscode_sys::{window,TreeItemCollapsibleState};
 use futures::StreamExt;
 use serde::Serialize;
 use std::cmp::min;
@@ -15,10 +15,11 @@ use unijudge::{Backend, Resource, Statement,
 use wasm_bindgen::closure::Closure;
 use std::convert::TryInto;
 use once_cell::sync::Lazy;
+
 //use wasm_timer;
 //use wasm_timer::Instant;
 use core::time::Duration;
-
+use std::future::Future;
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
@@ -186,19 +187,4 @@ async fn web_contest() -> R<()> {
 	evscode::open_external(&url).await?;
 	Ok(())
 }
-#[evscode::contribview(name = "Submissions", addto = "explorer")]
-static treedataprovider:TreeData = TreeData{
-    getTreeItem:&|element| {
-        return element;
-    },
-    getChildren:&|element|->Option<Vec<TreeItem>>{
-        match element{
-            Some(elem)=>{
-                None
-            },
-            _ =>{
-                Some(vec![TreeItem::new("First",TreeItemCollapsibleState::None)])
-            }
-        }
-    },
-};
+//use futures::future::BoxFuture;

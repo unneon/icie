@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use unijudge::{
+    Problem,
 	chrono::{prelude::*,Duration,FixedOffset, TimeZone}, debris::{Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		self, header::{ORIGIN, REFERER}, Url
 	}, json,Backend, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, Resource, Result, Statement, Submission, TaskDetails
@@ -256,6 +257,10 @@ impl unijudge::Backend for Codeforces {
 		//return Ok("NA".to_string());
 	}
 	
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
+	}
+    
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		let url = self.xtask_url(task)?;
 		let resp = session.client.get(url.clone()).send().await?;
