@@ -258,7 +258,27 @@ impl unijudge::Backend for Codeforces {
 	}
 	
     async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
-		return Ok(Vec::new());
+        let url: Url = self.task_contest_url(task)?;
+		let resp = session.client.get(url.clone()).send().await?;
+		if *resp.url() != url {
+			return Err(ErrorCode::NotYetStarted.into());
+		}
+		let doc = unijudge::debris::Document::new(&resp.text().await?);
+		doc.find(".problems")?
+			.find_all("tr")
+			.skip(1)
+			.map(|row| {
+				let submissions:String = row.find_nth("a", 3)?.text().string().chars().skip(1).collect();
+                //console::debug(&format!("count {:?}",submissions));
+				let title = row.find_nth("a", 1)?.text().string();
+                let status= if let Ok(tr_class) = row.attr("class") {
+                    if tr_class.string() == "accepted-problem" {0}
+                    else {1}
+                    }else {2};
+				Ok(Problem{  name:title, status, total_submissions:submissions.parse::<i32>().unwrap() })
+			})
+			.collect()
+		//return Ok(Vec::new());
 	}
     
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
