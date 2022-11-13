@@ -28,12 +28,16 @@ pub fn activate(ctx: &vscode_sys::ExtensionContext, mut pkg: Package) {
 		}) as Box<dyn FnMut()>)));
 		vscode_sys::commands::register_command(&command_id, closure);
 	}
-	console::debug(&format!("hello there123!{}",pkg.views.iter().len()));
-    for view in &pkg.views {
-        //console::debug(&format!("hello there!{:#?}",serde_wasm_bindgen::to_value(view.reference).unwrap()));
-    }
-    for view in &pkg.views {
+	//console::debug(&format!("hello there123!{}",pkg.views.iter().len()));
+    
+    for  view in &pkg.views {
+        //let refreshevent=EventEmitter::new();
         vscode_sys::window::register_tree_data_provider(&view.id.to_string(),to_JsValue(view.reference));
+        let command_id = view.id.to_string()+".refresh";
+		let closure = Box::leak(Box::new(Closure::wrap(Box::new(move || {
+			crate::spawn((view.reference.refresh)());
+		}) as Box<dyn FnMut()>)));
+		vscode_sys::commands::register_command(&command_id, closure);
     }
 	if let Some(on_activate) = on_activate {
 		crate::spawn(on_activate());

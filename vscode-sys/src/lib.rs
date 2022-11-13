@@ -119,6 +119,7 @@ thenable_impl_jscast!(JsValue);
 thenable_impl_jscast!(TextEditor);
 thenable_impl_jscast!(TextDocument);
 thenable_impl_jscast!(Uri);
+thenable_impl_jscast!(EventEmitter);
 //unsafe impl Sync for TreeDataProvider {}
 #[wasm_bindgen(module = vscode)]
 extern "C" {
@@ -289,6 +290,21 @@ extern "C" {
 		configuration_target: ConfigurationTarget,
 	) -> Thenable<()>;
     
+   
+    pub type EventEmitter;
+
+
+    #[wasm_bindgen(constructor)]
+	pub fn new() -> EventEmitter;
+
+    #[wasm_bindgen(method, getter, js_name = event)]
+    pub fn get_event(this: &EventEmitter) -> Event;
+
+    #[wasm_bindgen(method)]
+    pub fn fire(this: &EventEmitter);
+
+
+
     //pub type TreeDataProvider;
     //#[wasm_bindgen(constructor)]
 	//pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeDataProvider;

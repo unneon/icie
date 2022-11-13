@@ -1,4 +1,5 @@
 use crate::meta::{Activation, GalleryTheme, Package};
+use crate::extension_root;
 use serde::{Serialize, Serializer};
 use std::{
 	collections::{BTreeMap, HashMap}, fmt
@@ -25,6 +26,17 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
 		repository: pkg.repository.to_owned(),
 		main: "icie.js".to_owned(),
 		contributes: Contributes {
+            menus: MenuItems{
+                view_title:SortedVec::new(
+                    pkg.views.iter().map(|view| ContributesCommands {
+                        command: view.id.to_string()+".refresh",
+                        title: "".to_owned(),
+                        when: "view ==".to_owned()+&view.id.to_string(),
+                        group: "navigation".to_owned(),
+                        icon: "".to_owned(),
+                    }),
+                    |cmd| cmd.title.clone(),
+                )},
             views:{
                 let mut vcons =  ViewContributes{
                     explorer:Vec::new(),
@@ -38,33 +50,56 @@ pub fn construct_package_json(pkg: &Package) -> PackageJson {
                                 vcons.explorer.push(ViewItem{
                                 id: view.id.to_string(),
                                 name: view.name.to_owned(),
+                              //  when: view.id.to_string()+".isvisible",
                             }),
                         "scm" =>
                                 vcons.scm.push(ViewItem{
                                 id: view.id.to_string(),
                                 name: view.name.to_owned(),
+                              //  when: view.id.to_string()+".isvisible",
                             }),
                         "test" => 
                                 vcons.test.push(ViewItem{
                                 id: view.id.to_string(),
                                 name: view.name.to_owned(),
+                              //  when: view.id.to_string()+".isvisible",
                             }),
                         &_ =>
                                 vcons.debug.push(ViewItem{
                                 id: view.id.to_string(),
                                 name: view.name.to_owned(),
+                               // when: view.id.to_string()+".isvisible",
                             }),
                         }
                 }
                 vcons
             },
-			commands: SortedVec::new(
-				pkg.commands.iter().map(|command| ContributesCommands {
+			commands: {
+                let mut cmds=Vec::new();
+				for command in pkg.commands.iter(){
+                    cmds.push( ContributesCommands {
 					command: command.id.to_string(),
 					title: command.title.to_owned(),
-				}),
-				|cmd| cmd.command.clone(),
-			),
+                    when: "".to_owned(),
+                    group: "".to_owned(),
+                    icon: "".to_owned(),
+				    });
+                };
+                for view in pkg.views.iter(){
+                    cmds.push({
+                        ContributesCommands {
+                            command: view.id.to_string()+".refresh",
+                            title: "Refresh Submissions".to_owned(),
+                            when: "".to_owned(),
+                            group: "".to_owned(),
+                            icon: "$(refresh)".to_owned(),
+                        }
+                    });
+                }
+                SortedVec {
+                    inner:cmds,
+                }
+           },
 			keybindings: SortedVec::new(
 				pkg.commands.iter().filter_map(|command| {
 					command
@@ -136,6 +171,12 @@ struct GalleryBanner {
 struct ViewItem {
     id: String,
 	name: String,
+   // when: String,
+}
+#[derive(Debug, Serialize)]
+struct MenuItems {
+    #[serde(rename = "view/title")]
+    view_title: SortedVec<ContributesCommands>
 }
 
 
@@ -150,15 +191,19 @@ struct ViewContributes {
 #[derive(Debug, Serialize)]
 struct Contributes {
     views : ViewContributes,
+    menus : MenuItems,
 	commands: SortedVec<ContributesCommands>,
 	keybindings: SortedVec<ContributesKeybindings>,
 	configuration: ContributesConfiguration,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize,Clone)]
 struct ContributesCommands {
 	command: String,
 	title: String,
+    when :String,
+    group: String,
+    icon: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -205,6 +250,9 @@ fn collect_activation_events(pkg: &Package) -> Vec<Activation<String>> {
 	let mut events = Vec::new();
 	for command in &pkg.commands {
 		events.push(Activation::OnCommand { command: command.id });
+	}
+    for view in &pkg.views {
+		events.push(Activation::OnView { view: view.id });
 	}
 	events.extend(pkg.extra_activations.iter().map(|ev| ev.own()));
 	events

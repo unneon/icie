@@ -56,6 +56,7 @@ pub struct Views {
 	pub name: &'static str,
 	pub addto: &'static str,
     pub reference: &'static TreeData,
+  //  pub isrefresh:bool,
 }
 
 /// Metadata of a configuration entry.
@@ -79,6 +80,8 @@ pub struct ConfigEntry {
 pub enum Activation<S: AsRef<str>> {
 	#[doc(hidden)]
 	OnCommand { command: Identifier },
+    #[doc(hidden)]
+	OnView { view: Identifier },
 	/// Fires when a folder is opened and it contains at least one file that matched the given
 	/// selector. See [official documentation](https://code.visualstudio.com/api/references/activation-events#workspaceContains).
 	WorkspaceContains {
@@ -94,6 +97,10 @@ impl Activation<&'static str> {
 			Activation::WorkspaceContains { selector } => {
 				Activation::WorkspaceContains { selector: (*selector).to_owned() }
 			},
+            Activation::OnView { view } => Activation::OnView{ view: *view },
+			Activation::WorkspaceContains { selector } => {
+				Activation::WorkspaceContains { selector: (*selector).to_owned() }
+			},
 		}
 	}
 }
@@ -102,6 +109,8 @@ impl Activation<String> {
 	pub fn package_json_format(&self) -> String {
 		match self {
 			Activation::OnCommand { command } => format!("onCommand:{}", command),
+			Activation::WorkspaceContains { selector } => format!("workspaceContains:{}", selector),
+            Activation::OnView { view } => format!("onView:{}", view),
 			Activation::WorkspaceContains { selector } => format!("workspaceContains:{}", selector),
 		}
 	}

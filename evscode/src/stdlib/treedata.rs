@@ -5,8 +5,13 @@ use vscode_sys::{TreeItem, TreeItemCollapsibleState};
 use wasm_bindgen::{closure::Closure, JsValue};
 use std::ops::Deref;
 use once_cell::sync::Lazy;
-use crate::{BoxFuture,R};
+use crate::{BoxFuture,R,State};
 use js_sys;
+use std::future::Future;
+use core::time::Duration;
+use vscode_sys::{Event,EventEmitter,Thenable};
+use core::marker::PhantomData;
+use std::thread::LocalKey;
 /// TreeData functions for TreeView
 
 //pub type LazyFutureChildren = dyn (Fn(Option<TreeItem>) -> Future<Output=Vec<TreeItem>>) +Sync;
@@ -16,8 +21,14 @@ pub type LazyFutureChildren =   (Fn(Option<TreeItem>) -> BoxFuture<'static,Vec<T
 
 /// TreeData functions for TreeView
 pub type LazyFutureItem = dyn (Fn(TreeItem)->TreeItem)+Sync;
-use std::future::Future;
-use core::time::Duration;
+/// TreeData functions for TreeView
+pub type LazyRefresh = dyn (Fn()->BoxFuture<'static,R<()>>)+Sync;
+/// TreeData functions for TreeView
+pub type Lazyisvisible =   (Fn() -> BoxFuture<'static,bool>) +Sync;
+/// TreeData functions for TreeView
+pub type Refreshevent = (Fn() ->LocalKey<EventEmitter>) +Sync;
+
+
 //use serde_closure::desugar;
 /// TreeData functions for TreeView
 //#[derive(Serialize)]
@@ -29,7 +40,27 @@ pub struct TreeData{
     pub getTreeItem:&'static LazyFutureItem,
     /// TreeData functions for TreeView
     pub getChildren:&'static LazyFutureChildren,
+    
+    ///TreeData functions for TreeView
+   pub refresh:&'static LazyRefresh,
+     ///   TreeData functions for TreeView
+    pub refreshevent:LocalKey<EventEmitter>,
+  // pub isvisible:&'static Lazyisvisible,
+ 
 }
+
+/*impl TreeData{
+    pub fn set_fire_event(&mut self)->EventEmitter{
+        let refreshevent:EventEmitter= EventEmitter::new();
+        let clos=Closure::new(|| {
+            refreshevent.fire();
+        });
+        self.refresh=&||{
+            //(clos)();
+        };
+        refreshevent
+    }
+}*/
 //#[wasm_bindgen::prelude::wasm_bindgen]
 /*pub struct TreeDataProvider{
     pub getChildren:Closure<dyn FnMut()>,
@@ -48,7 +79,8 @@ use wasm_bindgen_futures::JsFuture;
 use js_sys::Promise;
 use std::sync::Arc;
 /// convert to jsvalue
-
+/*const Treedata_event: evscode::State<String> =
+	evscode::State::new("icie.newsletter.lastAcknowledgedVersion", evscode::state::Scope::Global);*/
     /// convert to jsvalue
     pub fn to_JsValue(treedataobj:&'static TreeData)->JsValue{
         //let close=Closure::wrap(Box::new(self.getTreeItem));
@@ -127,13 +159,38 @@ use std::sync::Arc;
                 //let objar = js_sys::Array::new();
                 JsValue::from_serde(&ret).unwrap()
             }));
-        
+                
+        /*let f3= Closure::<FnMut()->Promise>::wrap(Box::new(move ||{
+            wasm_bindgen_futures::future_to_promise(async move {
+                let ret=(treedataobj.isvisible)().await;
+                Ok(ret.into())
+            })
+                
+                
+        }) as Box<dyn FnMut()->Promise>);*/
+
         let obj = js_sys::Object::new();
         //js_sys::Reflect::set(&obj, &"getTreeItem".into(), &Closure::once_into_js(self.clone().getTreeItem));
         js_sys::Reflect::set(&obj, &"getChildren".into(), &f1.as_ref().unchecked_ref());
         js_sys::Reflect::set(&obj, &"getTreeItem".into(), &f2.as_ref().unchecked_ref());
+        //js_sys::Reflect::set(&obj, &"isvisible".into(), &f3.as_ref().unchecked_ref());
         f1.forget();
         f2.forget();
+        //f3.forget();
+        //let refreshevent:EventEmitter= EventEmitter::new();
+        treedataobj.refreshevent.with(|event|{
+            js_sys::Reflect::set(&obj, &"onDidChangeTreeData".into(), &event.get_event());
+        });
+        
+        /*treedataobj.refresh=& || {
+            //refreshevent.fire();
+        };*/
+        //let f4= Closure::<FnMut()>::wrap(Box::new(move ||{
+        //        refreshevent.fire();
+        //    }));
+       // js_sys::Reflect::set(&obj, &"refresh".into(), &f4.as_ref().unchecked_ref());     
+
+
         /*js_sys::Reflect::set(&obj, &"getChildren".into(), &Closure::once_into_js(async{
             Ok((self.getChildren)().await)
         });*/

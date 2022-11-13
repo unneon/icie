@@ -1,5 +1,6 @@
+
 use evscode::TreeData;
-use vscode_sys::{TreeItem,TreeItemCollapsibleState};
+use vscode_sys::{TreeItem,TreeItemCollapsibleState,EventEmitter};
 use crate::submit::connect_to_workspace_task;
 use unijudge::{Backend, Resource, Statement,Problem,
 	boxed::{BoxedContest, BoxedTask},ErrorCode
@@ -59,6 +60,24 @@ async fn get_child(element:Option<TreeItem>) -> Vec<TreeItem> {
 
     }
 }
+async fn isvisible() -> bool {
+    if let Ok(manifest) = Manifest::load().await {
+        true
+    }else {
+        false
+    }
+}
+
+
+
+thread_local!{
+    static SUBMISSIONS_VIEW_EVENT:EventEmitter = EventEmitter::new();
+}
+
+async fn refresh() -> R<()> {
+    SUBMISSIONS_VIEW_EVENT.with(|x| x.fire());
+    Ok(())
+}
 
 #[evscode::contribview(name = "Submissions", addto = "explorer")]
 static treedataprovider:TreeData = TreeData{
@@ -66,4 +85,13 @@ static treedataprovider:TreeData = TreeData{
         return element;
     },
     getChildren:&|element| Box::pin(get_child(element)),
+    refreshevent:SUBMISSIONS_VIEW_EVENT,
+    refresh:&|| Box::pin(refresh()),
+    /*isvisible:&|| Box::pin(isvisible()),*/
 };
+/*impl TreeData{
+    // refreshevet:;
+    refresh:&||{
+        
+    },
+}*/
