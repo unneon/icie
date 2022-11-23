@@ -13,6 +13,7 @@ use unijudge::{
 use urlencoding::decode;
 use node_sys::console;
 use std::collections::HashMap;
+use linked_hash_map::LinkedHashMap;
 #[derive(Debug)]
 pub struct CodeChef;
 
@@ -220,9 +221,9 @@ impl unijudge::Backend for CodeChef {
 			.text()
 			.await?;
 		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
-        let attempted= if let Some(attempted) = resp.problemsstats.attempted {attempted} else {HashMap::new()};
+        let attempted= if let Some(attempted) = resp.problemsstats.attempted {attempted} else {LinkedHashMap::new()};
         let solved = if let Some(solved) = resp.problemsstats.solved {solved}
-                else {HashMap::new()};
+                else {LinkedHashMap::new()};
         if let Some(tasks)=resp.problems {
             let mut res:Vec<Problem>=tasks.into_iter().filter(|prob|{
                 if prob.1.category_name=="unscored" {false}
@@ -839,6 +840,7 @@ mod api {
 		de::{self, MapAccess, SeqAccess, Unexpected}, __private::PhantomData, Deserialize, Deserializer
 	};
 	use std::{collections::HashMap, fmt, hash::Hash};
+    use linked_hash_map::LinkedHashMap;
 
 	#[derive(Debug, Deserialize)]
 	pub struct TaskTime {
@@ -1000,9 +1002,9 @@ mod api {
     #[derive(Debug, Deserialize)]
 	pub struct TaskStats {
         #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
-		pub attempted: Option<HashMap<String, bool>>,
+		pub attempted: Option<LinkedHashMap<String, bool>>,
         #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
-        pub solved: Option<HashMap<String, bool>>,
+        pub solved: Option<LinkedHashMap<String, bool>>,
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasks {
@@ -1012,7 +1014,7 @@ mod api {
 		// particular order. However, it can also be an empty array - which means the contest has
 		// not started or is a parent contest.
 		#[serde(deserialize_with = "de_hash_map_or_empty_vec")]
-		pub problems: Option<HashMap<String, ContestTasksTask>>,
+		pub problems: Option<LinkedHashMap<String, ContestTasksTask>>,
 		pub time: ContestTasksTime,
 		#[serde(default)]
 		pub child_contests: Option<HashMap<String, ContestTasksChildContest>>,
@@ -1023,17 +1025,17 @@ mod api {
 
 	fn de_hash_map_or_empty_vec<'d, D: Deserializer<'d>>(
 		d: D,
-	) -> Result<Option<HashMap<String, ContestTasksTask>>, D::Error> {
+	) -> Result<Option<LinkedHashMap<String, ContestTasksTask>>, D::Error> {
 		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
 	}
     fn de_hash_map_stat_or_empty_vec<'d, D: Deserializer<'d>>(
 		d: D,
-	) -> Result<Option<HashMap<String, bool>>, D::Error> {
+	) -> Result<Option<LinkedHashMap<String, bool>>, D::Error> {
 		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
 	}
 	struct HashMapOrEmptyVec<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>>(PhantomData<&'d (K, V)>);
 	impl<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>> serde::de::Visitor<'d> for HashMapOrEmptyVec<'d, K, V> {
-		type Value = Option<HashMap<K, V>>;
+		type Value = Option<LinkedHashMap<K, V>>;
 
 		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 			write!(formatter, "a hash map or an empty vector")
@@ -1048,7 +1050,7 @@ mod api {
 		}
 
 		fn visit_map<A: MapAccess<'d>>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'d>>::Error> {
-			let mut acc = HashMap::new();
+			let mut acc = LinkedHashMap::new();
 			while let Some(kv) = map.next_entry::<K, V>()? {
 				acc.insert(kv.0, kv.1);
 			}
