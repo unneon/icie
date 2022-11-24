@@ -99,7 +99,7 @@ impl unijudge::Backend for HackerEarth {
                        .await?
                        .text()
                        .await?;
-        let re= regex::Regex::new("\'csrfmiddlewaretoken\' value=\'([_0-9A-Za-z-]+)\'").unwrap();
+        let re= regex::Regex::new("\"csrfmiddlewaretoken\" value=\"([_0-9A-Za-z-]+)\"").unwrap();
         
         if ! re.is_match(&resp) {
             return Err(ErrorCode::AccessDenied.into());
@@ -647,11 +647,10 @@ impl HackerEarth {
 			);
 			let tasks:Vec<Result<Task>>= doc.find("#problems-list-table")?
 			.find_all("tbody > tr")
-			.enumerate()
-			.filter(|(i,row)| {
+			.filter(|row| {
 				let row_class=row.attr("class").unwrap().string();
 				row_class != "empty-tr" && row_class!= "disabled-problem" 
-			})
+			}).enumerate()
     		.map(|(i,row)| {
 				//let row_class=row.attr("class")?.string();
 				//if row_class == "empty-tr" || row_class== "disabled-problem" {return Some(None);}
