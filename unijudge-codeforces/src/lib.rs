@@ -258,8 +258,10 @@ impl unijudge::Backend for Codeforces {
 	}
 	
     async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+        //self.fetch_csrf(session).await?;
         let url: Url = self.task_contest_url(task)?;
 		let resp = session.client.get(url.clone()).send().await?;
+        //console::debug(&format!("count {:?} {:?}",url,resp.url()));
 		if *resp.url() != url {
 			return Err(ErrorCode::NotYetStarted.into());
 		}
@@ -268,8 +270,12 @@ impl unijudge::Backend for Codeforces {
 			.find_all("tr")
 			.skip(1)
 			.map(|row| {
-				let submissions:String = row.find_nth("a", 3)?.text().string().chars().skip(1).collect();
-                //console::debug(&format!("count {:?}",submissions));
+                //console::debug(&format!("count {:?}",row));
+				let submissions:String = if let Ok(sub_count) = row.find_nth("a", 3){
+                    sub_count.text().string().chars().skip(1).collect()
+                }else {
+                    "0".to_string()
+                };
 				let title = row.find_nth("a", 1)?.text().string();
                 let status= if let Ok(tr_class) = row.attr("class") {
                     if tr_class.string() == "accepted-problem" {0}
