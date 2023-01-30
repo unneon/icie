@@ -133,6 +133,10 @@ impl WebviewRef {
 		self.panel.webview().set_html(html);
 	}
 
+    /// Get file uri.
+	pub fn as_webview_uri(&self, file_path: &str) -> String{
+		return self.panel.webview().as_webview_uri(vscode_sys::Uri::file(file_path)).to_string();
+	}
 	/// Send a message which can be [received by the JS inside the webview](https://code.visualstudio.com/api/extension-guides/webview#passing-messages-from-an-extension-to-a-webview).
 	///
 	/// The messages are not guaranteed to arrive if the webview is not ["live"](https://code.visualstudio.com/api/references/vscode-api#1637) yet.

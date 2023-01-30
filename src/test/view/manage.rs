@@ -31,9 +31,8 @@ impl Behaviour for TestView {
 	}
 
 	async fn update(&self, _: Self::K, report: &Self::V, webview: WebviewRef) -> R<()> {
-		webview.set_html(&render(report).await?);
+		webview.set_html(&render(report,webview.clone()).await?);
 		webview.reveal(2, true);
-		
 		Ok(())
 	}
 

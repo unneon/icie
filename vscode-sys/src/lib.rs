@@ -132,6 +132,9 @@ extern "C" {
 	#[wasm_bindgen(method, getter, js_name = fsPath)]
 	pub fn fs_path(this: &Uri) -> String;
 
+    #[wasm_bindgen(method, js_name = toString)]
+	pub fn to_string(this: &Uri) -> String;
+
 	#[wasm_bindgen(static_method_of = Uri)]
 	pub fn parse(path: &str, strict: bool) -> Uri;
 
@@ -189,6 +192,9 @@ extern "C" {
 
 	#[wasm_bindgen(method, setter)]
 	pub fn set_html(this: &Webview, html: &str);
+
+    #[wasm_bindgen(method, js_name = asWebviewUri)]
+	pub fn as_webview_uri(this: &Webview, file: Uri)->Uri;
 
 	pub type TextDocument;
 
