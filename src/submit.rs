@@ -64,7 +64,7 @@ async fn send_after_tests_passed() -> R<()> {
 	Ok(())
 }
 
-async fn connect_to_workspace_task() -> R<(Session, BoxedTask)> {
+pub async fn connect_to_workspace_task() -> R<(Session, BoxedTask)> {
 	let manifest = Manifest::load().await?;
 	let url = manifest.req_task_url()?;
 	let (url, backend) = net::interpret_url(url)?;

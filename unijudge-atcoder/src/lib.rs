@@ -1,6 +1,7 @@
 #![feature(try_blocks)]
 use async_trait::async_trait;
 use unijudge::{
+    Problem,
 	chrono::{prelude::*,Duration,FixedOffset, TimeZone}, debris::{self, Context, Document, Find}, http::{Client, Cookie}, reqwest::{
 		header::{ORIGIN, REFERER}, StatusCode, Url
 	}, ContestDetails, ContestTime, Error, ErrorCode, Example, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict,json
@@ -156,6 +157,10 @@ impl unijudge::Backend for AtCoder {
 		return Ok(result[0].to_string())
 	}
 
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
+	}
+    
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		session.req_user()?;
 		let url: Url = format!("https://atcoder.jp/contests/{}/tasks/{}", task.contest, task.task).parse()?;

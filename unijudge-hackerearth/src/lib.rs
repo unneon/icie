@@ -9,6 +9,7 @@ use http::{
 };
 use node_sys::console;
 use unijudge::{
+    Problem,
 	chrono::{prelude::*,Duration},
 	debris::{ Document, Find, Context}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url,header::{CONTENT_TYPE, REFERER}}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
@@ -98,7 +99,7 @@ impl unijudge::Backend for HackerEarth {
                        .await?
                        .text()
                        .await?;
-        let re= regex::Regex::new("\'csrfmiddlewaretoken\' value=\'([_0-9A-Za-z-]+)\'").unwrap();
+        let re= regex::Regex::new("\"csrfmiddlewaretoken\" value=\"([_0-9A-Za-z-]+)\"").unwrap();
         
         if ! re.is_match(&resp) {
             return Err(ErrorCode::AccessDenied.into());
@@ -166,6 +167,10 @@ impl unijudge::Backend for HackerEarth {
 		return Ok("NA".to_string());
 	}
 	
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
+	}
+
 	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
 		return Err(ErrorCode::AlienInvasion.into());
 	}
@@ -642,11 +647,10 @@ impl HackerEarth {
 			);
 			let tasks:Vec<Result<Task>>= doc.find("#problems-list-table")?
 			.find_all("tbody > tr")
-			.enumerate()
-			.filter(|(i,row)| {
+			.filter(|row| {
 				let row_class=row.attr("class").unwrap().string();
 				row_class != "empty-tr" && row_class!= "disabled-problem" 
-			})
+			}).enumerate()
     		.map(|(i,row)| {
 				//let row_class=row.attr("class")?.string();
 				//if row_class == "empty-tr" || row_class== "disabled-problem" {return Some(None);}

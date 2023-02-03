@@ -6,12 +6,14 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
+    Problem,
 	chrono::{prelude::*,Duration},
 	debris::{ Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
 use urlencoding::decode;
 use node_sys::console;
 use std::collections::HashMap;
+use linked_hash_map::LinkedHashMap;
 #[derive(Debug)]
 pub struct CodeChef;
 
@@ -210,10 +212,41 @@ impl unijudge::Backend for CodeChef {
 		
 	}
 	
-	
+	async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+        let resp_raw = session
+			.client
+			.get(format!("https://www.codechef.com/api/contests/{}", task.contest.as_virt_symbol()).parse()?)
+			.send()
+			.await?
+			.text()
+			.await?;
+		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
+        let attempted= if let Some(attempted) = resp.problemsstats.attempted {attempted} else {LinkedHashMap::new()};
+        let solved = if let Some(solved) = resp.problemsstats.solved {solved}
+                else {LinkedHashMap::new()};
+        if let Some(tasks)=resp.problems {
+            let mut res:Vec<Problem>=tasks.into_iter().filter(|prob|{
+                if prob.1.category_name=="unscored" {false}
+                else {true}
+            }).map(|prob|{
+                Problem{
+                    name:prob.1.name,
+                    status: if let Some(_) = solved.get(&prob.0) {0}
+                            else if let Some(_) = attempted.get(&prob.0) {1}
+                            else {2},
+                    total_submissions:prob.1.successful_submissions as i32,
+                }
+            }).collect();
+            res.sort_by_key(|task| i32::max_value() - task.total_submissions);
+            return Ok(res);
+        }
+        
+		return Err(ErrorCode::AccessDenied.into());
+	}
+
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
 		session.req_user()?;
-		debug!("querying task details of {:?}", task);
+		//console::debug(&format!("querying task details of {:?}", task));
 		let resp = self.api_task(task, session).await?;
 		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
                                                                             Ok(unijudge::Example {
@@ -484,10 +517,16 @@ impl unijudge::Backend for CodeChef {
         let rows_upcoming = resp.future_contests.iter().map(|row| (row, false));
         rows_upcoming
             .chain(rows_ongoing)
+            .filter(|(row, is_ongoing)| {
+                match &row.contest_end_date_iso{
+                    Some(val)=> true,
+                    _ => false
+                }
+            })
             .map(|(row, is_ongoing)| {
                 let id = Contest::Normal(row.contest_code.to_string());
                 let title = row.contest_name.to_string();
-                let dtime= if is_ongoing { row.contest_end_date_iso.to_string() }
+                let dtime= if is_ongoing { row.contest_end_date_iso.as_ref().expect("Not present").to_string() }
                 else { row.contest_start_date_iso.to_string()};
                 let datetime=unijudge::chrono::DateTime::parse_from_rfc3339(&dtime).unwrap();
                 let time = if is_ongoing {
@@ -583,14 +622,13 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 		if let Some(tasks) = resp.problems {
 			let mut prb_id = -1;
 			let mut tasks: Vec<_> = tasks
-				.into_iter()
-				.map(|kv| {
+				.into_iter().enumerate()
+				.map(|(i,kv)| {
 					
 					if kv.1.category_name=="unscored"{
-						Task { contest: contest.clone(), task: kv.1.code , prefix:-1}
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:-1}, 1000000)
 					}else {
-						prb_id += 1; 
-						Task { contest: contest.clone(), task: kv.1.code , prefix:prb_id}
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:0}, kv.1.successful_submissions)
 					}
 					
 				}
@@ -600,8 +638,14 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			// Codeforces/AtCoder. Instead, it sorts them by submission count. This is problematic
 			// when contest begin, as all problems have a submit count of 0. But since this naive
 			// sort is as good as what you get with a browser, let's just ignore this.
-			//tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
-			Ok(ContestDetailsEx { title: resp.name, tasks })
+			tasks.sort_by_key(|task| u64::max_value() - task.1);
+			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().enumerate().map(|(i,mut kv)| {
+                if kv.0.prefix!=-1{
+					prb_id += 1; 
+                    kv.0.prefix=prb_id;
+                }
+                 kv.0   
+            }).collect() })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
 		} else if !resp.user.username.expect("username is null").is_empty() {
@@ -765,7 +809,7 @@ async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf
 			},
 			Contest::Practice => Contest::Practice,
 		};
-		Ok(Task { contest: active_contest, task: task.task.clone(), prefix:0 })
+		Ok(Task { contest: active_contest, task: task.task.clone(), prefix:task.prefix })
 	}
 }
 impl Session {
@@ -796,6 +840,7 @@ mod api {
 		de::{self, MapAccess, SeqAccess, Unexpected}, __private::PhantomData, Deserialize, Deserializer
 	};
 	use std::{collections::HashMap, fmt, hash::Hash};
+    use linked_hash_map::LinkedHashMap;
 
 	#[derive(Debug, Deserialize)]
 	pub struct TaskTime {
@@ -912,7 +957,7 @@ mod api {
         pub contest_code:String,
         pub contest_name:String,
         pub contest_start_date_iso:String,
-        pub contest_end_date_iso:String
+        pub contest_end_date_iso:Option<String>
     }
 
     #[derive(Debug, Deserialize)]
@@ -924,6 +969,7 @@ mod api {
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksTask {
 		pub code: String,
+        pub name: String,
 		pub category_name:String,
 		// This field is sometimes returned as an integer, and sometimes as a string.
 		// The pattern seems to be that zeroes are returned as integers, and anything else as
@@ -953,6 +999,13 @@ mod api {
 	pub struct ContestTasksUser {
 		pub username: Option<String>,
 	}
+    #[derive(Debug, Deserialize)]
+	pub struct TaskStats {
+        #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
+		pub attempted: Option<LinkedHashMap<String, bool>>,
+        #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
+        pub solved: Option<LinkedHashMap<String, bool>>,
+	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasks {
 		pub user: ContestTasksUser,
@@ -961,22 +1014,28 @@ mod api {
 		// particular order. However, it can also be an empty array - which means the contest has
 		// not started or is a parent contest.
 		#[serde(deserialize_with = "de_hash_map_or_empty_vec")]
-		pub problems: Option<HashMap<String, ContestTasksTask>>,
+		pub problems: Option<LinkedHashMap<String, ContestTasksTask>>,
 		pub time: ContestTasksTime,
 		#[serde(default)]
 		pub child_contests: Option<HashMap<String, ContestTasksChildContest>>,
 		#[serde(default)]
 		pub user_rating_div: Option<ContestTasksUserRatingDiv>,
+        pub problemsstats: TaskStats,
 	}
 
 	fn de_hash_map_or_empty_vec<'d, D: Deserializer<'d>>(
 		d: D,
-	) -> Result<Option<HashMap<String, ContestTasksTask>>, D::Error> {
+	) -> Result<Option<LinkedHashMap<String, ContestTasksTask>>, D::Error> {
+		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
+	}
+    fn de_hash_map_stat_or_empty_vec<'d, D: Deserializer<'d>>(
+		d: D,
+	) -> Result<Option<LinkedHashMap<String, bool>>, D::Error> {
 		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
 	}
 	struct HashMapOrEmptyVec<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>>(PhantomData<&'d (K, V)>);
 	impl<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>> serde::de::Visitor<'d> for HashMapOrEmptyVec<'d, K, V> {
-		type Value = Option<HashMap<K, V>>;
+		type Value = Option<LinkedHashMap<K, V>>;
 
 		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 			write!(formatter, "a hash map or an empty vector")
@@ -991,7 +1050,7 @@ mod api {
 		}
 
 		fn visit_map<A: MapAccess<'d>>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'d>>::Error> {
-			let mut acc = HashMap::new();
+			let mut acc = LinkedHashMap::new();
 			while let Some(kv) = map.next_entry::<K, V>()? {
 				acc.insert(kv.0, kv.1);
 			}

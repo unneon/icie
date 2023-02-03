@@ -1,6 +1,6 @@
 use crate::assets;
-
-pub async fn render() -> String {
+use evscode::webview::WebviewRef;
+pub async fn render(webview:WebviewRef) -> String {
 	format!(
 		r#"
 		<html>
@@ -40,7 +40,7 @@ pub async fn render() -> String {
 		</html>
 	"#,
 		css = assets::html_css_dynamic(include_str!("style.css")),
-		material_icons = assets::html_material_icons(),
-		js = assets::html_js_dynamic("script_stress.js"),
+		material_icons = assets::html_material_icons(webview.clone()),
+		js = assets::html_js_dynamic(webview.clone(),"script_stress.js"),
 	)
 }

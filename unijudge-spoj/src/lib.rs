@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use unijudge::{
+    Problem,
 	self, debris::{self, Context, Find}, http::{Client, Cookie}, reqwest::{
 		header::{ORIGIN, REFERER}, multipart
 	}, url::Url, ContestDetails, ErrorCode, Language, RejectionCause, Resource, Result, Submission, TaskDetails, Verdict
@@ -80,6 +81,10 @@ impl unijudge::Backend for SPOJ {
 
 	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
 		return Ok("NA".to_string());
+	}
+
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+		return Ok(Vec::new());
 	}
 
 	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{

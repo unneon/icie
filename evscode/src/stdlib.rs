@@ -12,6 +12,7 @@ pub mod state;
 pub mod terminal;
 pub mod types;
 pub mod webview;
+pub mod treedata;
 
 pub use input_box::InputBox;
 pub use message::Message;
@@ -23,6 +24,7 @@ pub use state::State;
 pub use terminal::Terminal;
 pub use types::*;
 pub use webview::Webview;
+pub use treedata::TreeData;
 
 use crate::{error::ResultExt, E, R};
 use std::cell::RefCell;
@@ -107,9 +109,13 @@ pub async fn clipboard_write(val: &str) {
 /// Return an URI pointing to a given path for use with webviews.
 pub fn asset(name: &str) -> String {
 	let asset_path = node_sys::path::join(extension_root(), name);
-	format!("vscode-resource:{}", asset_path)
+	format!("{}", asset_path)
 }
 
+/// Return an URI pointing to a given path for use with webviews.
+pub fn get_path(name: &str) -> String {
+	node_sys::path::join(extension_root(), name)
+}
 /// Set the status message on a global widget.
 ///
 /// This will interfere with other threads, use [`crate::goodies::MultiStatus`] instead.

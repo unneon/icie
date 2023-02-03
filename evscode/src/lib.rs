@@ -1,9 +1,10 @@
 //! Evscode is a Rust framework for writing WebAssembly-based Visual Studio Code extensions. More information is
 //! included in CONTRIBUTING.md file.
 
-#![feature(const_fn_trait_bound, try_trait_v2)]
+#![feature(const_fn_trait_bound, try_trait_v2,async_closure)]
 #![allow(clippy::new_ret_no_self)]
 #![deny(missing_docs)]
+#![feature(type_alias_impl_trait)]
 
 pub mod config;
 pub mod error;

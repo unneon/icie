@@ -26,6 +26,7 @@ mod terminal;
 mod test;
 mod tutorial;
 mod util;
+mod submissions;
 
 pub static STATUS: Lazy<evscode::goodies::MultiStatus> = Lazy::new(|| evscode::goodies::MultiStatus::new("❄️"));
 
@@ -50,7 +51,6 @@ evscode::plugin! {
 	],
 	vscode_version: "^1.33.0",
 	node_dependencies: &[
-		("keytar", "5.4.0"),
 		("node-fetch", "2.6.0"),
 	],
 }

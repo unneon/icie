@@ -1,9 +1,11 @@
+#![feature(async_closure)]
 use crate::{
 	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep,set_workspace_root}
 };
 use futures::FutureExt;
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
-use vscode_sys::{window};
+
+use vscode_sys::{window,TreeItemCollapsibleState};
 use futures::StreamExt;
 use serde::Serialize;
 use std::cmp::min;
@@ -11,11 +13,14 @@ use crate::util::time_now;
 use unijudge::{Backend, Resource, Statement,
 	boxed::{BoxedContest, BoxedTask},ErrorCode
 };
+use wasm_bindgen::closure::Closure;
 use std::convert::TryInto;
+use once_cell::sync::Lazy;
+
 //use wasm_timer;
 //use wasm_timer::Instant;
 use core::time::Duration;
-
+use std::future::Future;
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
@@ -114,8 +119,8 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	webview.webview.set_html(&format!(
 		"<html><head>{}{}</head><body id=\"body\" style=\"padding: 0;\"></body></html>",
-		assets::html_js_dynamic("pdf-2.2.228.min.js"),
-		assets::html_js_dynamic("pdf.js"),
+		assets::html_js_dynamic((*webview.webview).clone(),"pdf-2.2.228.min.js"),
+		assets::html_js_dynamic((*webview.webview).clone(),"pdf.js"),
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.
@@ -183,3 +188,4 @@ async fn web_contest() -> R<()> {
 	evscode::open_external(&url).await?;
 	Ok(())
 }
+//use futures::future::BoxFuture;

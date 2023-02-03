@@ -6,6 +6,7 @@ use proc_macro::TokenStream;
 mod command;
 mod config;
 mod configurable;
+mod contribviews;
 mod plugin;
 mod util;
 
@@ -79,4 +80,21 @@ pub fn derive_configurable(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn plugin(input: TokenStream) -> TokenStream {
 	plugin::generate(input)
+}
+
+
+/// Register a view to one of the four contribute views.
+///
+///  Invoking this macro will automatically add the view within the VS Code primary side views.
+///
+/// ```ignore
+/// #[evscode::contribview(name = "Successfull Submissions", addto = "explorer")]
+/// fn spawn() -> evscode::R<()> {
+///     evscode::Message::new("Hello, world!").build().spawn();
+///     Ok(())
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn contribview(params: TokenStream, item: TokenStream) -> TokenStream {
+	contribviews::generate(params, item)
 }
