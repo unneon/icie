@@ -168,7 +168,7 @@ impl unijudge::Backend for CodeChef {
         if resp.time.current <= resp.time.start {
 			return Err(ErrorCode::NotYetStarted.into());
 		}else if resp.time.current > resp.time.end {
-			return Err(ErrorCode::Ended_Already.into());
+			return Ok(0);
 		}
 
 		let naive_end = NaiveDateTime::from_timestamp(resp.time.end, 0);

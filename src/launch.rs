@@ -97,7 +97,7 @@ pub async fn layout_setup() -> R<()> {
                 //match err.0 {
                 //     ErrorCode::NotYetStarted =>  {statusBarItem.set_text("Contest Not Started");},
                      //ErrorCode::Ended_Already =>  {
-                         statusBarItem.set_text("Contest Ended");
+                         //statusBarItem.set_text("Contest Ended");
                         //},
                 //     _                          => {statusBarItem.set_text("Contest Fetch Error");},
                 //}
