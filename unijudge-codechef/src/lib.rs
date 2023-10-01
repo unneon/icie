@@ -1,12 +1,19 @@
 #![feature(try_blocks)]
-
+use markdown;
+use html_escape;
+use std::convert::TryInto;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{future::Future, pin::Pin, sync::Mutex};
 use unijudge::{
-	debris::{Context, Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{multipart, Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
+    Problem,
+	chrono::{prelude::*,Duration},
+	debris::{ Document, Find}, http::{Client, Cookie}, json, log::{debug, error}, reqwest::{ Url}, ContestDetails, ContestTime, ErrorCode, Language, RejectionCause, Resource, Result, Statement, Submission, TaskDetails, Verdict
 };
-
+use urlencoding::decode;
+use node_sys::console;
+use std::collections::HashMap;
+use linked_hash_map::LinkedHashMap;
 #[derive(Debug)]
 pub struct CodeChef;
 
@@ -20,6 +27,7 @@ pub enum Contest {
 pub struct Task {
 	contest: Contest,
 	task: String,
+	prefix: i64,
 }
 
 #[derive(Debug)]
@@ -50,12 +58,14 @@ impl unijudge::Backend for CodeChef {
 		// This is the only place where PRACTICE doesn't work, it's treated as a normal contest
 		// everywhere else.
 		match segments {
-			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() })),
+			["problems-old", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:0})),
+			["problems", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned(), prefix:0 })),
+			["submit", task] => Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:0})),
 			["PRACTICE", "problems", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Practice, task: (*task).to_owned() , prefix:0}))
 			},
 			[contest, "problems", task] => {
-				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned() }))
+				Ok(Resource::Task(Task { contest: Contest::Normal((*contest).to_owned()), task: (*task).to_owned() , prefix:0}))
 			},
 			[contest] => Ok(Resource::Contest(Contest::Normal((*contest).to_owned()))),
 			_ => Err(ErrorCode::WrongTaskUrl.into()),
@@ -77,55 +87,54 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn auth_login(&self, session: &Self::Session, username: &str, password: &str) -> Result<()> {
-		debug!("starting login");
+		/*debug!("starting login");
 		session.client.cookies_clear()?;
 		let resp1 = session.client.get("https://www.codechef.com".parse()?).send().await?;
 		let doc = Document::new(&resp1.text().await?);
 		debug!("received the login form");
 		let form = doc.find("#new-login-form")?;
-		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
-		let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
-		let resp2 = session
+		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();*/
+		//let csrf = form.find("[name=csrfToken]")?.attr("value")?.string();
+		//session.client.cookies_clear()?;
+        let resp = session
+                       .client
+                       .get(format!("https://www.codechef.com/api/codechef/login").parse()?)
+                       .send()
+                       .await?
+                       .text()
+                       .await?;
+        let re= regex::Regex::new("id=\"(form-[_0-9A-Za-z-]+)\"").unwrap();
+        let resp_raw = json::from_str::<api::Login>(&resp)?;
+        let formdata=resp_raw.form;
+        if ! re.is_match(&formdata) {
+            return Err(ErrorCode::AccessDenied.into());
+        }
+        let cap =re.captures(&formdata).unwrap();
+        let form_build_id = cap.get(1).unwrap().as_str();
+
+        let resp2 = session
 			.client
-			.post("https://www.codechef.com/".parse()?)
+            .post(format!("https://www.codechef.com/api/codechef/login").parse()?)
 			.form(&[
 				("name", username),
 				("pass", password),
-				("csrfToken", &csrf),
 				("form_build_id", &form_build_id),
-				("form_id", "new_login_form"),
-				("op", "Login"),
+				("form_id", "ajax_login_form")
 			])
 			.send()
-			.await?;
+			.await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::SuccessorError>(&resp2)?;
 		debug!("sent the login form");
-		let resp2_url = resp2.url().clone();
-		let other_sessions = {
-			let doc = Document::new(&resp2.text().await?);
-			if doc.find("a[title=\"Edit Your Account\"]").is_ok() {
-				if resp2_url.as_str() == "https://www.codechef.com/session/limit" {
-					// CodeChef does not allow to have more than one session active at once.
-					// When this happens, disconnect all the other sessions so that ICIE's one can
-					// proceed. This can be irritating, but there is no other sensible way of doing
-					// this.
-					debug!("other active codechef sessions found");
-					Some(self.select_other_sessions(&doc)?)
-				} else {
-					debug!("no other codechef sessions found");
-					None
-				}
-			} else if doc.html().contains("Sorry, unrecognized username or password.") {
-				return Err(ErrorCode::WrongCredentials.into());
-			} else {
-				return Err(doc.error("unrecognized login outcome").into());
-			}
-		};
-		*session.username.lock()? = Some(username.to_owned());
-		if let Some(other_sessions) = other_sessions {
-			self.disconnect_other_sessions(session, other_sessions).await?;
-		}
-		debug!("seemingly logged in");
-		Ok(())
+        if resp.status== "success" {
+            debug!("OK logged in");
+        } else {
+            return Err(ErrorCode::WrongCredentials.into());
+        }
+        *session.username.lock()? = Some(username.to_owned());
+        debug!("seemingly logged in");
+        Ok(())
 	}
 
 	async fn auth_restore(&self, session: &Self::Session, auth: &Self::CachedAuth) -> Result<()> {
@@ -143,16 +152,117 @@ impl unijudge::Backend for CodeChef {
 		Some(task.contest.clone())
 	}
 
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>{
+		//session.req_user()?;
+		//console::debug(&format!("Reached Here remain time"));
+		let resp_raw = session
+			.client
+			.get(format!("https://www.codechef.com/api/contests/{}", task.contest.as_virt_symbol()).parse()?)
+			.send()
+			.await?
+			.text()
+			.await?;
+        //    console::debug(&format!("Reached Here remain time {}", resp_raw));
+		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
+		//console::debug(&format!("Reached Here remain time {}", task.contest.as_virt_symbol()));
+        if resp.time.current <= resp.time.start {
+			return Err(ErrorCode::NotYetStarted.into());
+		}else if resp.time.current > resp.time.end {
+			return Ok(0);
+		}
+
+		let naive_end = NaiveDateTime::from_timestamp(resp.time.end, 0);
+		let end_time: DateTime<Utc> = DateTime::from_utc(naive_end, Utc);
+		let today: DateTime<Utc> = Utc::now();
+		let diff = end_time.signed_duration_since(today);
+		let secs = diff.num_seconds();
+		return Ok(secs);
+		/*
+		console::debug(&format!("time {}",result));
+		return Ok(result);*/
+	}
+	
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>{
+		session.req_user()?;
+		match task.contest {
+			Contest::Normal(_) => {
+				let submiturl= format!("https://www.codechef.com/rankings/{}?itemsPerPage=100&order=asc&page=1&sortBy=rank",task.contest.as_virt_symbol()).parse()?;
+				let doc = session.client.get(submiturl).send().await?.text().await?;
+				let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
+				let cap =re.captures(&doc).unwrap();
+				let csrf_tok=cap.get(1).unwrap().as_str();
+				let list_rank=self.get_next_page_list(session,task,1,csrf_tok.to_string()).await?;
+				return Ok("Rank: ".to_owned()+&list_rank.rank_and_score.rank+" , Score: "+&list_rank.rank_and_score.score);
+					
+				/*let mut i_rank=1;
+				for p in 1..=list_rank.availablePages{
+					let page =self.get_next_page_list(session,task,p,csrf_tok.to_string()).await?;
+					for user in page.list.iter(){
+						if user.user_handle==session.req_user()?{
+							return Ok("Rank: ".to_owned()+&user.rank.to_string()+" ("+&i_rank.to_string()+") , Score: "+&user.score.to_string());
+						}
+						if user.country=="India"
+							{i_rank+=1;}
+					}
+				}*/
+				//Ok("user not found".to_string())
+			},
+			Contest::Practice => Ok("Practice contest has no ranklist".to_string()),
+		}
+		
+	}
+	
+	async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>{
+        let resp_raw = session
+			.client
+			.get(format!("https://www.codechef.com/api/contests/{}", task.contest.as_virt_symbol()).parse()?)
+			.send()
+			.await?
+			.text()
+			.await?;
+		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
+        let attempted= if let Some(attempted) = resp.problemsstats.attempted {attempted} else {LinkedHashMap::new()};
+        let solved = if let Some(solved) = resp.problemsstats.solved {solved}
+                else {LinkedHashMap::new()};
+        if let Some(tasks)=resp.problems {
+            let mut res:Vec<Problem>=tasks.into_iter().filter(|prob|{
+                if prob.1.category_name=="unscored" {false}
+                else {true}
+            }).map(|prob|{
+                Problem{
+                    name:prob.1.name,
+                    status: if let Some(_) = solved.get(&prob.0) {0}
+                            else if let Some(_) = attempted.get(&prob.0) {1}
+                            else {2},
+                    total_submissions:prob.1.successful_submissions as i32,
+                }
+            }).collect();
+            res.sort_by_key(|task| i32::max_value() - task.total_submissions);
+            return Ok(res);
+        }
+        
+		return Err(ErrorCode::AccessDenied.into());
+	}
+
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails> {
-		debug!("querying task details of {:?}", task);
+		session.req_user()?;
+		//console::debug(&format!("querying task details of {:?}", task));
 		let resp = self.api_task(task, session).await?;
-		let statement = Some(self.prepare_statement(&resp.problem_name, resp.body));
+		let cases = Some(resp.problemComponents.sampleTestCases.iter().map(|tc|
+                                                                            Ok(unijudge::Example {
+                                                                                input: tc.input.clone(),
+                                                                                output: tc.output.clone(),
+                                                                            })
+                                                                            ).collect::<Result<_>>()?
+                         );
+
+        let statement = Some(self.prepare_statement(&resp.problem_name, resp.problemComponents));
 		Ok(TaskDetails {
 			id: task.task.clone(),
-			title: resp.problem_name,
+			title: unijudge::fmt_title(task.prefix)+&resp.problem_name,
 			contest_id: task.contest.as_virt_symbol().to_owned(),
 			site_short: "codechef".to_owned(),
-			examples: None,
+			examples: cases,
 			statement,
 			url: self.task_url(session, task)?,
 		})
@@ -160,21 +270,25 @@ impl unijudge::Backend for CodeChef {
 
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		debug!("querying languages of {:?}", task);
-		let url = self.active_submit_url(task, session).await?;
-		let resp = session.client.get(url).send().await?;
-		let doc = Document::new(&resp.text().await?);
-		if let Ok(err_msg) = doc.find("#maintable .err-message") {
-			if err_msg.text().as_str().contains("register to make a submission") {
-				return Err(ErrorCode::AccessDenied.into());
-			}
-		}
-		doc.find("#edit-language")?
-			.find_all("option")
-			.map(|opt| Ok(Language { id: opt.attr("value")?.parse()?, name: opt.text().string() }))
-			.collect()
+        //session.req_user();
+        let submiturl= self.active_submit_url(task, session).await?;
+        let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
+        let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
+        let cap =re.captures(&doc).unwrap();
+        let csrf_tok=cap.get(1).unwrap().as_str();
+        let url = self.active_languages_url(task, session).await?;
+        let resp = session.client.get(url)
+            .header("x-csrf-token",csrf_tok)
+            .send().await?.text().await?;
+        let langs = json::from_str::<api::LanguageList>(&resp)?;
+        langs.languages.iter().map(|lang|
+                                   Ok(Language { id: lang.id.clone(), name: lang.full_name.clone()+"(" + &lang.version.clone()+")"}))
+            .collect()
+
 	}
 
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>> {
+		session.req_user()?;
 		// There is also an API to query a specific submission, but it is not available in other
 		// sites and would require refactoring unijudge. However, using it would possible make
 		// things faster and also get rid of the insanity that is querying all these submission
@@ -192,15 +306,74 @@ impl unijudge::Backend for CodeChef {
 		// If the code was submitted as a team, but tracking is done after logout, this will return
 		// an empty list every time. But I don't think this is a common situation so let's just
 		// ignore it, until the huge tracking refactor fixes that.
+		let mut output:String="".to_string();
+		if doc.find(".dataTable")?.find_nth("tbody > tr",0).is_ok(){
+			let first_id=doc.find(".dataTable")?.find_nth("tbody > tr",0)?.find_nth("td", 0)?.text().string();
+			let ver_txt=doc.find(".dataTable")?.find_nth("tbody > tr",0)?.find_nth("td", 3)?.find_nth("span",0)?.attr("title")?.string();
+			
+			if ver_txt == "wrong answer" || ver_txt=="time limit exceeded" {
+				//console::debug(&format!("Quering {}",first_id));
+				let status=self.error_table(first_id).await?;
+				let tab_res=session.client.get(status)
+						.send().await?.text().await?;
+				
+				//let re= regex::Regex::new("\"testInfo\":\"([^\"]*)\"").unwrap();
+				//let cap =re.captures(&tab_res).unwrap();
+         		//let tab_info=cap.get(1).unwrap().as_str();
+				let table_stat = Document::new(&tab_res);
+				//console::debug(&format!("Response {:?}",table_stat));
+				let mut setofans: HashMap<String, i64> = HashMap::new();
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")));
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")?.find("tr")));
+				//console::debug(&format!("Response {:?}",table_stat.find(".status-table")?.find("tbody")?.find_nth("tr",3)));
+				
+				
+				let vals:Vec<_> = table_stat.find(".status-table")?.find("tbody")?.find_all("tr").map(|row| {
+					//console::debug(&format!("R {:?}",row));
+					if row.find_nth("td",2).is_ok() {
+						//console::debug(&format!("RR {:?}",row));
+						let verdict_td = row.find_nth("td", 2).unwrap().text().string();
+						//console::debug(&format!("Verdict {}",verdict_td));
+						let re= regex::Regex::new("([A-Z]+).*").unwrap();
+						let cap =re.captures(&verdict_td).unwrap();
+						let verdict=cap.get(1).unwrap().as_str();
+						*setofans.entry(verdict.to_string()).or_insert(0) += 1;	
+					};
+				}).collect();
+				//console::debug(&format!("{}",first_id));
+				for (key, value) in setofans {
+					//console::debug(&format!("keys {}-{}",key,value.to_string()));
+					output+=&(key+" : "+&value.to_string()+",");
+				}
+				//console::debug(&format!("Output {}",output));
+			}
+		}
+		
+		
+		
 		doc.find(".dataTable")?
-			.find_all("tbody > tr")
-			.map(|row| {
+			.find_all("tbody > tr").enumerate()
+			.map(|(i,row)| {
 				let id = row.find_nth("td", 0)?.text().string();
 				let verdict_td = row.find_nth("td", 3)?;
 				let verdict_text = verdict_td.text();
-				let verdict = verdict_td.find("span")?.attr("title")?.map(|verdict| match verdict {
+				let stat=output.clone();
+                /*let check = || -> Result<(), ErrorCode> {
+                    verdict_td.find_nth("span",0)?.attr("title")?;
+                    Ok(())
+                };
+                if let Err(_err) = check() {
+                    return Ok(Submission { id, Verdict::Pending { test: None } });
+                };*/
+				
+				let verdict = verdict_td.find_nth("span",0)?.attr("title")?.map( |verdict| match verdict {
 					"accepted" => Ok(Verdict::Accepted),
-					"wrong answer" => Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None }),
+					"wrong answer" =>{
+						if i==0
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: Some(stat) })}
+						else 
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::WrongAnswer), test: None })}
+					}, 
 					"waiting.." => Ok(Verdict::Pending { test: None }),
 					"compilation error" => {
 						Ok(Verdict::Rejected { cause: Some(RejectionCause::CompilationError), test: None })
@@ -209,7 +382,10 @@ impl unijudge::Backend for CodeChef {
 					"running.." => Ok(Verdict::Pending { test: None }),
 					"running judge.." => Ok(Verdict::Pending { test: None }),
 					"time limit exceeded" => {
-						Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })
+						if i==0
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test:  Some(stat) })}
+						else 
+						{Ok(Verdict::Rejected { cause: Some(RejectionCause::TimeLimitExceeded), test: None })}
 					},
 					re if re.starts_with("runtime error") => {
 						Ok(Verdict::Rejected { cause: Some(RejectionCause::RuntimeError), test: None })
@@ -218,10 +394,12 @@ impl unijudge::Backend for CodeChef {
 						let score_regex = regex::Regex::new("\\[(.*)pts\\]").unwrap();
 						let score_matches = score_regex.captures(verdict_text.as_str()).ok_or("score regex error")?;
 						let score = score_matches[1].parse().map_err(|_| "score f64 parse error")?;
-						Ok(Verdict::Scored { score, max: Some(1.), cause: None, test: None })
+						Ok(Verdict::Scored { score, max: Some(100.), cause: None, test: None })
 					},
 					_ => Err(format!("unrecognized verdict {:?}", verdict)),
 				})?;
+				
+                //if let Err(_err) = verdict 
 				Ok(Submission { id, verdict })
 			})
 			.collect()
@@ -234,35 +412,35 @@ impl unijudge::Backend for CodeChef {
 		language: &Language,
 		code: &str,
 	) -> Result<String> {
-		let url = self.active_submit_url(task, session).await?;
-		let resp = session.client.get(url.clone()).send().await?;
-		let doc = Document::new(&resp.text().await?);
-		let form = doc.find("#problem-submission")?;
-		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
-		let form_token = form.find("[name=form_token]")?.attr("value")?.string();
+		session.req_user()?;
+        //session.req_user();
+        let submiturl= self.active_submit_url(task, session).await?;
+        let doc = session.client.get(submiturl.clone()).send().await?.text().await?;
+        let re= regex::Regex::new("window.csrfToken = \"([_0-9A-Za-z-]+)\"").unwrap();
+        let cap =re.captures(&doc).unwrap();
+         let csrf_tok=cap.get(1).unwrap().as_str();
+         let url = "https://www.codechef.com/api/ide/submit".parse()?;
 		let resp = session
 			.client
 			.post(url)
-			.multipart(
-				multipart::Form::new()
-					.text("form_build_id", form_build_id)
-					.text("form_token", form_token)
-					.text("form_id", "problem_submission")
-					.part(
-						"files[sourcefile]",
-						multipart::Part::text(code.to_owned()).file_name("main.cpp").mime_str("text/x-c++src")?,
-					)
-					.text("language", language.id.clone())
-					.text("problem_code", task.task.clone())
-					.text("op", "Submit"),
-			)
-			.send()
-			.await?;
-		let url_segs = resp.url().path_segments().map(|ps| ps.collect::<Vec<_>>());
-		match url_segs.as_deref() {
-			Some(["submit", "complete", submit_id]) => Ok((*submit_id).to_owned()),
-			_ => Err(ErrorCode::AlienInvasion.into()),
-		}
+			.header("x-csrf-token",csrf_tok)
+            .form(&[
+                  ("language", language.id.clone()),
+                  ("contestCode", task.contest.as_virt_symbol().to_owned()),
+                  ("problemCode", task.task.clone()),
+                  ("sourceCode",code.to_owned())
+            ])
+            .send()
+			.await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::Submit>(&resp)?;
+        if resp.status== "OK" {
+            debug!("OK submitted");
+            Ok((resp.upid.ok_or("").unwrap()).to_owned())
+        } else {
+            return Err(ErrorCode::AlienInvasion.into());
+        }
 	}
 
 	fn task_url(&self, _session: &Self::Session, task: &Self::Task) -> Result<String> {
@@ -297,7 +475,7 @@ impl unijudge::Backend for CodeChef {
 	}
 
 	async fn contests(&self, session: &Self::Session) -> Result<Vec<ContestDetails<Self::Contest>>> {
-		let doc = Document::new(
+		/*let doc = Document::new(
 			&session.client.get("https://www.codechef.com/contests".parse()?).send().await?.text().await?,
 		);
 		// CodeChef does not separate ongoing contests and permanent contests, so we only select the
@@ -326,6 +504,40 @@ impl unijudge::Backend for CodeChef {
 				Ok(ContestDetails { id, title, time })
 			})
 			.collect()
+            */
+        let resp_raw = session
+            .client
+            .get(format!("https://www.codechef.com/api/list/contests/all?sort_by=START&sorting_order=asc&offset=0").parse()?)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let resp = json::from_str::<api::ContestList>(&resp_raw)?;
+        let rows_ongoing = resp.present_contests.iter().map(|row| (row, true));
+        let rows_upcoming = resp.future_contests.iter().map(|row| (row, false));
+        rows_upcoming
+            .chain(rows_ongoing)
+            .filter(|(row, is_ongoing)| {
+                match &row.contest_end_date_iso{
+                    Some(val)=> true,
+                    _ => false
+                }
+            })
+            .map(|(row, is_ongoing)| {
+                let id = Contest::Normal(row.contest_code.to_string());
+                let title = row.contest_name.to_string();
+                let dtime= if is_ongoing { row.contest_end_date_iso.as_ref().expect("Not present").to_string() }
+                else { row.contest_start_date_iso.to_string()};
+                let datetime=unijudge::chrono::DateTime::parse_from_rfc3339(&dtime).unwrap();
+                let time = if is_ongoing {
+                    ContestTime::Ongoing { finish: datetime }
+                } else {
+                    ContestTime::Upcoming { start: datetime }
+                };
+                debug!("Contest Details {:?} {:?} {:?}", id,title,time);
+                Ok(ContestDetails { id, title, time })
+            })
+        .collect()
 	}
 
 	fn name_short(&self) -> &'static str {
@@ -342,14 +554,14 @@ struct ContestDetailsEx {
 	title: String,
 }
 
-struct OtherSessions {
+/*struct OtherSessions {
 	others: Vec<(String, String)>,
 	form_build_id: String,
 	form_token: String,
-}
+}*/
 
 impl CodeChef {
-	fn select_other_sessions(&self, doc: &Document) -> Result<OtherSessions> {
+/*	fn select_other_sessions(&self, doc: &Document) -> Result<OtherSessions> {
 		let form = doc.find("#session-limit-page")?;
 		let form_build_id = form.find("[name=form_build_id]")?.attr("value")?.string();
 		let form_token = form.find("[name=form_token]")?.attr("value")?.string();
@@ -384,8 +596,21 @@ impl CodeChef {
 		session.client.post("https://www.codechef.com/session/limit".parse()?).form(&payload).send().await?;
 		Ok(())
 	}
+*/
 
+async fn get_next_page_list(&self, session: &Session, task: &Task, page:u64,csrf_tok:String) -> Result<api::Ranklist>{
+	let url =format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page).parse()?;
+	//console::debug(&format!("Task url:{}",format!("https://www.codechef.com/api/rankings/{}?itemsPerPage=100&order=asc&page={}&sortBy=rank", task.contest.as_virt_symbol(),page)));
+	let resp=session.client.get(url)
+		.header("x-csrf-token",csrf_tok)
+		.send()
+		.await?
+		.text()
+		.await?;
+	Ok(json::from_str::<api::Ranklist>(&resp)?)
+}
 	async fn contest_details_ex(&self, session: &Session, contest: &Contest) -> Result<ContestDetailsEx> {
+		session.req_user()?;
 		let resp_raw = session
 			.client
 			.get(format!("https://www.codechef.com/api/contests/{}", contest.as_virt_symbol()).parse()?)
@@ -395,19 +620,35 @@ impl CodeChef {
 			.await?;
 		let resp = json::from_str::<api::ContestTasks>(&resp_raw)?;
 		if let Some(tasks) = resp.problems {
+			let mut prb_id = -1;
 			let mut tasks: Vec<_> = tasks
-				.into_iter()
-				.map(|kv| (Task { contest: contest.clone(), task: kv.1.code }, kv.1.successful_submissions))
+				.into_iter().enumerate()
+				.map(|(i,kv)| {
+					
+					if kv.1.category_name=="unscored"{
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:-1}, 1000000)
+					}else {
+						(Task { contest: contest.clone(), task: kv.1.code , prefix:0}, kv.1.successful_submissions)
+					}
+					
+				}
+				)
 				.collect();
 			// CodeChef does not sort problems by estimated difficulty, contrary to
 			// Codeforces/AtCoder. Instead, it sorts them by submission count. This is problematic
 			// when contest begin, as all problems have a submit count of 0. But since this naive
 			// sort is as good as what you get with a browser, let's just ignore this.
-			tasks.sort_unstable_by_key(|task| u64::max_value() - task.1);
-			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().map(|kv| kv.0).collect() })
+			tasks.sort_by_key(|task| u64::max_value() - task.1);
+			Ok(ContestDetailsEx { title: resp.name, tasks: tasks.into_iter().enumerate().map(|(i,mut kv)| {
+                if kv.0.prefix!=-1{
+					prb_id += 1; 
+                    kv.0.prefix=prb_id;
+                }
+                 kv.0   
+            }).collect() })
 		} else if resp.time.current <= resp.time.start {
 			Err(ErrorCode::NotYetStarted.into())
-		} else if !resp.user.username.is_empty() {
+		} else if !resp.user.username.expect("username is null").is_empty() {
 			// If no tasks are present, that means CodeChef would present us with a "choose your
 			// division" screen. Fortunately, it also checks which division are you so we can just
 			// choose that one.
@@ -417,7 +658,7 @@ impl CodeChef {
 				let contest = Contest::Normal(child.clone());
 				self.contest_details_ex_boxed(session, &contest).await
 			};
-			tasks.ok_or(ErrorCode::AlienInvasion)?
+			tasks.ok_or(ErrorCode::AccessDenied)?
 		} else {
 			// If no username is present in the previous case, codechef assumes you're div2.
 			// This behaviour is unsatisfactory, so we require a login from the user.
@@ -433,17 +674,36 @@ impl CodeChef {
 		Box::pin(self.contest_details_ex(session, contest))
 	}
 
-	fn prepare_statement(&self, title: &str, text: String) -> Statement {
-		let mut html = String::new();
+	fn prepare_statement(&self, title: &str, compont: api::TaskComponents) -> Statement {
+		//let mut html = String::new();
 		// CodeChef statements are pretty wild. They seem to follow some structure and use Markdown,
 		// but it's not true. They mix Markdown and HTML very liberally, and their Markdown
 		// implementation is not standard-compliant. So e.g. you can have sections with "###Example
 		// input", which CommonMark parsers ignore. Fortunately, we can ignore the HTML because
 		// Markdown permits it. Also, we add a title so that the statement looks better.
-		pulldown_cmark::html::push_html(
-			&mut html,
-			pulldown_cmark::Parser::new(&format!("# {}\n\n{}", title, text.replace("###", "### "))),
-		);
+        let mut casestr = "".to_owned();
+        for tc in compont.sampleTestCases.iter(){
+            casestr.push_str("\r\n\n###Example Input\r\n```\r\n");casestr.push_str( &tc.input );casestr.push_str("\t\r\n```\r\n\r\n");
+             casestr.push_str("\r\n\n###Example Output\r\n```\r\n");casestr.push_str( &tc.output );casestr.push_str( "\t\r\n```\r\n\r\n");
+             casestr.push_str("\r\n\n###Explanations\r\n");casestr.push_str(&tc.explanation );casestr.push_str("\r\n\n");
+        }
+        let inpf= "\r\n\n###Input Format\r\n".to_owned() + &compont.inputFormat;
+        let outf= "\r\n\n###Output Format\r\n".to_owned()+ &compont.outputFormat;
+        let consf= "\r\n\n###Constraints \r\n".to_owned()+&compont.constraints;
+        let subtf= "\r\n\n###Subtasks\r\n".to_owned()+ &compont.subtasks;
+        let text = compont.statement + if compont.inputFormatState  { &inpf } else {""} +
+            if compont.outputFormatState  { &outf } else {""} +
+            if compont.constraintsState  { &consf } else {""}+
+            if compont.subtasksState  { &subtf } else {""} + &casestr;
+
+
+		//pulldown_cmark::html::push_html(
+		//	&mut html,
+		//	pulldown_cmark::Parser::new(&format!("# {}\n\n{}", title, text.replace("###", "### "))),
+		//);
+        
+        let  html_out=markdown::to_html(&html_escape::decode_html_entities(&format!("# {}\n\n{}", title, text.replace("###", "### "))));
+
 		Statement::HTML {
 			html: format!(
 				r#"
@@ -452,10 +712,11 @@ impl CodeChef {
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/3.0.1/github-markdown.min.css">
 		<script type="text/x-mathjax-config">
 			MathJax.Hub.Config({{
-				tex2jax: {{inlineMath: [['$','$']]}}
+				TeX: {{extensions: ['color.js'] }},tex2jax: {{inlineMath: [['$','$']],
+                }}
 			}});
 		</script>
-		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.3/MathJax.js?config=TeX-AMS-MML_HTMLorMML' async></script>
 		<style>
 			.markdown-body {{
 				background-color: white;
@@ -473,7 +734,7 @@ impl CodeChef {
 		{}
 	<body>
 </html>"#,
-				html
+				html_out
 			),
 		}
 	}
@@ -500,18 +761,28 @@ impl CodeChef {
 	/// the task URL parameters for various reasons, e.g. after a contest ends, or when submitting a
 	/// problem from a different division. This function performs an additional HTTP request to take
 	/// this into account.
+    async fn active_languages_url(&self, task: &Task, _session: &Session) -> Result<Url> {
+        let url = format!("https://www.codechef.com/api/ide/{}/languages/{}", task.contest.as_virt_symbol(), task.task);
+        Ok(url.parse()?)
+    }
 	async fn active_submit_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
-		let url = format!("https://www.codechef.com/{}submit/{}", task.contest.prefix(), task.task);
-		debug!("activated submit url is {}", url);
-		Ok(url.parse()?)
+		let url = format!("https://www.codechef.com/{}/submit/{}", task.contest.prefix(), task.task);
+        Ok(url.parse()?)
 	}
 
 	/// See [`CodeChef::active_submit_url`], but for submission list URLs.
 	async fn active_submission_url(&self, task: &Task, session: &Session) -> Result<Url> {
 		let task = self.activate_task(task, session).await?;
 		let url =
-			format!("https://www.codechef.com/{}status/{},{}", task.contest.prefix(), task.task, session.req_user()?);
+			format!("https://www.codechef.com/{}/status/{},{}", task.contest.prefix(), task.task, session.req_user()?);
+		Ok(url.parse()?)
+	}
+
+	async fn error_table(&self, id:String) -> Result<Url> {
+		
+		let url =
+			format!("https://www.codechef.com/error_status_table/{}/",id);
 		Ok(url.parse()?)
 	}
 
@@ -521,7 +792,7 @@ impl CodeChef {
 				debug!("confirming submit target");
 				let details = self.api_task(task, session).await?;
 				if session.req_user().err().map(|e| e.code) == Some(ErrorCode::AccessDenied)
-					|| details.user.username != session.req_user()?
+					|| details.user.username.ok_or("").unwrap() != session.req_user()?
 				{
 					debug!("failed to cofirm submit target, requesting login");
 					return Err(ErrorCode::AccessDenied.into());
@@ -538,7 +809,7 @@ impl CodeChef {
 			},
 			Contest::Practice => Contest::Practice,
 		};
-		Ok(Task { contest: active_contest, task: task.task.clone() })
+		Ok(Task { contest: active_contest, task: task.task.clone(), prefix:task.prefix })
 	}
 }
 impl Session {
@@ -566,9 +837,10 @@ impl Contest {
 mod api {
 
 	use serde::{
-		de::{self, MapAccess, SeqAccess, Unexpected}, export::PhantomData, Deserialize, Deserializer
+		de::{self, MapAccess, SeqAccess, Unexpected}, __private::PhantomData, Deserialize, Deserializer
 	};
 	use std::{collections::HashMap, fmt, hash::Hash};
+    use linked_hash_map::LinkedHashMap;
 
 	#[derive(Debug, Deserialize)]
 	pub struct TaskTime {
@@ -579,8 +851,50 @@ mod api {
 
 	#[derive(Debug, Deserialize)]
 	pub struct TaskUser {
-		pub username: String,
-	}
+        pub username: Option<String>,
+    }
+    #[derive(Debug, Deserialize)]
+    pub struct Language{
+        pub id:String,
+        pub short_name:String,
+        pub full_name:String,
+        pub version:String
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct LanguageList{
+        pub languages:Vec<Language>
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct SubmissionDetails{
+        pub result_code: String,
+        pub score: String,
+        pub upid: String,
+
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct TestCase{
+        pub id:String,
+        pub input:String,
+        pub explanation:String,
+        pub output:String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct TaskComponents{
+        pub constraints:String,
+        pub constraintsState:bool,
+        pub subtasks:String,
+        pub subtasksState:bool,
+        pub statement:String,
+        pub inputFormat:String,
+        pub inputFormatState:bool,
+        pub outputFormat:String,
+        pub outputFormatState:bool,
+        pub sampleTestCases: Vec<TestCase>
+    }
 
 	#[derive(Debug, Deserialize)]
 	pub struct Task {
@@ -590,7 +904,17 @@ mod api {
 		pub body: String,
 		pub time: TaskTime,
 		pub user: TaskUser,
+        pub problemComponents: TaskComponents,
 	}
+    #[derive(Debug, Deserialize)]
+    pub struct SuccessorError{
+        pub status:String
+    }
+    #[derive(Debug, Deserialize)]
+    pub struct Login{
+        pub form: String
+    }
+
 
 	#[derive(Debug, Deserialize)]
 	#[serde(tag = "status")]
@@ -609,13 +933,44 @@ mod api {
 		pub status: String,
 		#[serde(default)]
 		pub upid: Option<String>,
-		#[serde(default)]
-		pub errors: Option<Vec<String>>,
 	}
+	#[derive(Debug, Deserialize)]
+	pub struct Ranklist {
+		pub availablePages: u64,
+		pub list: Vec<Ranks>,
+		pub rank_and_score:Userrank
+	}
+	#[derive(Debug, Deserialize)]
+	pub struct Ranks {
+		pub country:String,
+		pub user_handle:String,
+		pub rank:u64,
+		pub score:f64
+	}
+	#[derive(Debug, Deserialize)]
+	pub struct Userrank {
+		pub rank:String,
+		pub score:String
+	}
+    #[derive(Debug, Deserialize)]
+    pub struct Contest{
+        pub contest_code:String,
+        pub contest_name:String,
+        pub contest_start_date_iso:String,
+        pub contest_end_date_iso:Option<String>
+    }
+
+    #[derive(Debug, Deserialize)]
+    pub struct ContestList {
+        pub present_contests:Vec< Contest>,
+        pub future_contests:Vec< Contest>
+    }
 
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksTask {
 		pub code: String,
+        pub name: String,
+		pub category_name:String,
 		// This field is sometimes returned as an integer, and sometimes as a string.
 		// The pattern seems to be that zeroes are returned as integers, and anything else as
 		// strings. I don't even want to know why on earth does the backend do that.
@@ -626,6 +981,7 @@ mod api {
 	pub struct ContestTasksTime {
 		pub start: i64,
 		pub current: i64,
+		pub end: i64,
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksDivision {
@@ -641,7 +997,14 @@ mod api {
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasksUser {
-		pub username: String,
+		pub username: Option<String>,
+	}
+    #[derive(Debug, Deserialize)]
+	pub struct TaskStats {
+        #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
+		pub attempted: Option<LinkedHashMap<String, bool>>,
+        #[serde(deserialize_with = "de_hash_map_stat_or_empty_vec")]
+        pub solved: Option<LinkedHashMap<String, bool>>,
 	}
 	#[derive(Debug, Deserialize)]
 	pub struct ContestTasks {
@@ -651,22 +1014,28 @@ mod api {
 		// particular order. However, it can also be an empty array - which means the contest has
 		// not started or is a parent contest.
 		#[serde(deserialize_with = "de_hash_map_or_empty_vec")]
-		pub problems: Option<HashMap<String, ContestTasksTask>>,
+		pub problems: Option<LinkedHashMap<String, ContestTasksTask>>,
 		pub time: ContestTasksTime,
 		#[serde(default)]
 		pub child_contests: Option<HashMap<String, ContestTasksChildContest>>,
 		#[serde(default)]
 		pub user_rating_div: Option<ContestTasksUserRatingDiv>,
+        pub problemsstats: TaskStats,
 	}
 
 	fn de_hash_map_or_empty_vec<'d, D: Deserializer<'d>>(
 		d: D,
-	) -> Result<Option<HashMap<String, ContestTasksTask>>, D::Error> {
+	) -> Result<Option<LinkedHashMap<String, ContestTasksTask>>, D::Error> {
+		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
+	}
+    fn de_hash_map_stat_or_empty_vec<'d, D: Deserializer<'d>>(
+		d: D,
+	) -> Result<Option<LinkedHashMap<String, bool>>, D::Error> {
 		d.deserialize_any(HashMapOrEmptyVec(PhantomData))
 	}
 	struct HashMapOrEmptyVec<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>>(PhantomData<&'d (K, V)>);
 	impl<'d, K: Eq+Hash+Deserialize<'d>, V: Deserialize<'d>> serde::de::Visitor<'d> for HashMapOrEmptyVec<'d, K, V> {
-		type Value = Option<HashMap<K, V>>;
+		type Value = Option<LinkedHashMap<K, V>>;
 
 		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 			write!(formatter, "a hash map or an empty vector")
@@ -681,7 +1050,7 @@ mod api {
 		}
 
 		fn visit_map<A: MapAccess<'d>>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'d>>::Error> {
-			let mut acc = HashMap::new();
+			let mut acc = LinkedHashMap::new();
 			while let Some(kv) = map.next_entry::<K, V>()? {
 				acc.insert(kv.0, kv.1);
 			}

@@ -24,7 +24,7 @@ use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::{fmt, fmt::Debug};
 use url::Url;
-
+use std::convert::TryInto;
 #[derive(Clone, Debug)]
 pub struct Example {
 	pub input: String,
@@ -114,6 +114,13 @@ pub struct URL<C, T> {
 	pub resource: Resource<C, T>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Problem {
+	pub name: String,
+    pub status: i32,
+    pub total_submissions: i32,
+}
+
 #[async_trait(?Send)]
 pub trait Backend: Debug+Send+Sync+'static {
 	type CachedAuth: Debug+Send+Sync+'static;
@@ -142,6 +149,9 @@ pub trait Backend: Debug+Send+Sync+'static {
 	fn auth_serialize(&self, auth: &Self::CachedAuth) -> Result<String>;
 	fn task_contest(&self, task: &Self::Task) -> Option<Self::Contest>;
 	async fn task_details(&self, session: &Self::Session, task: &Self::Task) -> Result<TaskDetails>;
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String>;
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>>;
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64>;
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>>;
 	async fn task_submissions(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Submission>>;
 	async fn task_submit(
@@ -213,4 +223,29 @@ fn fmt_verdict_cause(cause: &Option<RejectionCause>, test: &Option<String>) -> S
 
 fn fmt_verdict_test(test: &Option<String>) -> String {
 	test.as_ref().map(|test| format!(" on {}", test)).unwrap_or_default()
+}
+pub fn fmt_title(val:i64)-> String{
+	let mut num=val;
+	if num==-1{
+		return "unscored_".to_owned();
+	}
+	if num==0{
+		return "a_".to_owned();
+	}
+	let mut to_str:String="_".to_string();
+	let mut base=26;
+	while(num!=0){
+		let mut intVar:u8  = (97+num%base).try_into().unwrap();
+		let mut charVar:char;
+		
+		println!("{}-{}-{}",num,intVar,base);
+		
+		if to_str.len()>=2 && num<base {intVar-=1;}
+		num/=base;
+		if to_str.len()==1 { base+=1;}
+		charVar=intVar as char;
+		to_str.push(charVar);
+		
+	}
+	to_str.chars().rev().collect()
 }

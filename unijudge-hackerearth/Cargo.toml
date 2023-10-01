@@ -1,10 +1,11 @@
 [package]
-name = "unijudge-codechef"
+name = "unijudge-hackerearth"
 version = "0.1.0"
 authors = ["Mateusz Cegiełka <mateusz@cegla.net>"]
 edition = "2018"
 
 [dependencies]
+
 async-trait = "0.1.11"
 unijudge = { path = "../unijudge" }
 pulldown-cmark = { version = "0.8", default-features = false }
@@ -12,6 +13,6 @@ regex = { version = "1.0", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 html-escape = { version ="*"}
 markdown = {git = "https://github.com/georgejsh/markdown.rs"}
+unescape = "0.1.0"
+http = "0.1"
 node-sys = { path = "../node-sys" }
-urlencoding = "2.1.0"
-linked-hash-map = "0.5.6"

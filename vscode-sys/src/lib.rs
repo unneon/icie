@@ -119,7 +119,8 @@ thenable_impl_jscast!(JsValue);
 thenable_impl_jscast!(TextEditor);
 thenable_impl_jscast!(TextDocument);
 thenable_impl_jscast!(Uri);
-
+thenable_impl_jscast!(EventEmitter);
+//unsafe impl Sync for TreeDataProvider {}
 #[wasm_bindgen(module = vscode)]
 extern "C" {
 
@@ -130,6 +131,9 @@ extern "C" {
 
 	#[wasm_bindgen(method, getter, js_name = fsPath)]
 	pub fn fs_path(this: &Uri) -> String;
+
+    #[wasm_bindgen(method, js_name = toString)]
+	pub fn to_string(this: &Uri) -> String;
 
 	#[wasm_bindgen(static_method_of = Uri)]
 	pub fn parse(path: &str, strict: bool) -> Uri;
@@ -188,6 +192,9 @@ extern "C" {
 
 	#[wasm_bindgen(method, setter)]
 	pub fn set_html(this: &Webview, html: &str);
+
+    #[wasm_bindgen(method, js_name = asWebviewUri)]
+	pub fn as_webview_uri(this: &Webview, file: Uri)->Uri;
 
 	pub type TextDocument;
 
@@ -288,8 +295,67 @@ extern "C" {
 		value: &JsValue,
 		configuration_target: ConfigurationTarget,
 	) -> Thenable<()>;
+    
+   
+    pub type EventEmitter;
 
+
+    #[wasm_bindgen(constructor)]
+	pub fn new() -> EventEmitter;
+
+    #[wasm_bindgen(method, getter, js_name = event)]
+    pub fn get_event(this: &EventEmitter) -> Event;
+
+    #[wasm_bindgen(method)]
+    pub fn fire(this: &EventEmitter);
+
+
+
+    //pub type TreeDataProvider;
+    //#[wasm_bindgen(constructor)]
+	//pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeDataProvider;
+    //#[derive(Deserialize)]
+    //pub type TreeItem;
+    //#[wasm_bindgen(constructor)]
+	//pub fn new(label: &str,  collapsibleState: TreeItemCollapsibleState) -> TreeItem;
+    
+    
+    /*
+    #[wasm_bindgen(method)]
+	pub fn get_children(this: &TreeDataProvider, element: &TreeItem) -> TreeItem;
+
+    #[wasm_bindgen(method)]
+	pub fn get_element(this: &TreeDataProvider) -> TreeItem;
+    */
+
+    /*pub type TreeView;
+
+    #[wasm_bindgen(method, setter)]
+	pub fn set_visible(this: &TreeView, visible: bool);
+
+    #[wasm_bindgen(method, js_name = onDidChangeVisibility)]
+	pub fn on_did_change_visibility(this: &TreeView, callback: &Closure<dyn FnMut(JsValue)>);
+    */
 }
+
+#[derive(Deserialize,Serialize)]
+#[repr(i32)]
+pub enum TreeItemCollapsibleState {
+	Collapsed = 1,
+	Expanded = 2,
+	None = 0,
+}
+wasm_abi_enumi32!(TreeItemCollapsibleState);
+
+#[derive(Serialize,Deserialize)]
+pub struct TreeItem {
+	pub label: String,
+    #[serde(rename= "collapsibleState")]
+    pub collapse:i32,
+    #[serde(rename = "iconPath")]
+    pub icon: String,
+}
+wasm_abi_serde!(TreeItem);
 
 #[derive(Deserialize)]
 pub struct ItemRet<T> {
@@ -319,6 +385,13 @@ pub struct ProgressProgressValue<'a> {
 	pub message: Option<&'a str>,
 }
 wasm_abi_serde!(ProgressProgressValue<'_>);
+
+/*
+pub struct TreeDataProvider {
+    pub getChildren: &'static Closure<dyn FnMut(JsValue)>,
+    pub getTreeItem: &'static Closure<dyn FnMut(JsValue)>,
+}
+wasm_abi_serde!(TreeDataProvider);*/
 
 pub mod commands {
 	use crate::Thenable;
@@ -366,6 +439,12 @@ pub mod window {
 		#[wasm_bindgen(js_namespace = window, js_name = activeTextEditor)]
 		pub static ACTIVE_TEXT_EDITOR: Option<TextEditor>;
 
+		#[wasm_bindgen(js_namespace = window, js_name = onDidChangeActiveTextEditor)]
+		pub fn on_did_change_active_text_editor(callback: &Closure<dyn FnMut(JsValue)>);
+
+		#[wasm_bindgen(js_namespace = window, js_name = onDidChangeActiveTerminal)]
+		pub fn on_did_change_terminal(callback: &Closure<dyn FnMut(JsValue)>);
+
 		#[wasm_bindgen(js_namespace = window, js_name = createOutputChannel)]
 		pub fn create_output_channel(name: &str) -> OutputChannel;
 
@@ -383,6 +462,12 @@ pub mod window {
 			options: CreateWebviewPanelOptions,
 		) -> WebviewPanel;
 
+      /*  #[wasm_bindgen(js_namespace = window, js_name = createTreeView)]
+		pub fn create_treeview(
+			view_id: &str,
+			options: TreeViewOptions,
+		) -> TreeView;
+        */
 		#[wasm_bindgen(js_namespace = window, js_name = showErrorMessage, variadic)]
 		pub fn show_error_message(message: &str, options: &JsValue, items: Vec<JsValue>) -> Thenable<JsValue>;
 
@@ -410,9 +495,26 @@ pub mod window {
 		#[wasm_bindgen(js_namespace = window, js_name = withProgress)]
 		pub fn with_progress(options: ProgressOptions, task: JsValue);
 
+        #[wasm_bindgen(js_namespace = window, js_name = registerTreeDataProvider)]
+		pub fn register_tree_data_provider(viewid: &str, treedataprovider: JsValue);
 	}
-
-	#[derive(Serialize)]
+   /* #[derive(Serialize)]
+    pub struct TreeViewOptions {
+        pub canSelectMany: bool,
+        pub showCollapseAll: bool,
+        #[serde(flatten)]
+        pub treeDataProvider:  TreeDataProvider,
+    }
+    wasm_abi_serde!(TreeViewOptions);
+    
+    #[derive(Serialize)]
+    pub struct TreeDataProvider {
+        pub isload: bool,
+    }
+    wasm_abi_serde!(TreeDataProvider);
+    */
+   
+    #[derive(Serialize)]
 	pub struct CreateWebviewPanelOptions {
 		#[serde(flatten)]
 		pub general: WebviewOptions,

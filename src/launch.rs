@@ -1,16 +1,37 @@
+#![feature(async_closure)]
 use crate::{
-	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task}, open, util::{self, fs, workspace_root}
+	assets, dir, logger, manifest::Manifest, net::{interpret_url, require_task,Session}, open, util::{self, fs, workspace_root,sleep,set_workspace_root}
 };
+use futures::FutureExt;
 use evscode::{error::ResultExt, quick_pick, webview::WebviewMeta, QuickPick, E, R};
+
+use vscode_sys::{window,TreeItemCollapsibleState};
 use futures::StreamExt;
 use serde::Serialize;
-use unijudge::{Backend, Resource, Statement};
+use std::cmp::min;
+use crate::util::time_now;
+use unijudge::{Backend, Resource, Statement,
+	boxed::{BoxedContest, BoxedTask},ErrorCode
+};
+use wasm_bindgen::closure::Closure;
+use std::convert::TryInto;
+use once_cell::sync::Lazy;
 
+//use wasm_timer;
+//use wasm_timer::Instant;
+use core::time::Duration;
+use std::future::Future;
 pub async fn activate() -> R<()> {
 	let _status = crate::STATUS.push("Launching");
 	logger::initialize()?;
 	evscode::spawn(crate::newsletter::check());
-	layout_setup().await?;
+	if open::contest::is_contest().await?==true{
+		let _status = crate::STATUS.push("Launching from contest");
+		let sub_dirs=fs::find_a_dir(&workspace_root()?).await?;
+		set_workspace_root(sub_dirs.as_str());
+		util::listener(); 
+    }
+    layout_setup().await?;
 	open::contest::check_for_manifest().await?;
 	Ok(())
 }
@@ -21,17 +42,70 @@ pub async fn deactivate() -> R<()> {
 	// [1]: https://github.com/Microsoft/vscode/issues/47881
 	Ok(())
 }
-
+pub fn format_sec(secs:i64)->String{
+	let hrs=secs/3600;
+	let min=secs%3600/60;
+	let sec=secs%60;
+	if hrs>0
+	{format!("Remaining {} : {:0>2} : {:0>2} s",hrs,min,sec)}
+	else if min>0
+	{format!("Remaining {} : {:0>2} s",min,sec)}
+	else 
+	{format!("Remaining {} s",sec)}
+}
 pub async fn layout_setup() -> R<()> {
-	let _status = crate::STATUS.push("Opening");
+    let _status = crate::STATUS.push("Opening");
 	if let Ok(manifest) = Manifest::load().await {
-		place_cursor_in_code().await;
+        place_cursor_in_code().await;
 		if manifest.statement.is_some() {
 			statement().await?;
 		}
 		// Refocus the cursor, because apparently preserve_focus is useless.
 		place_cursor_in_code().await;
+        	
+		let url = manifest.req_task_url()?;
+        let (url, backend) = interpret_url(url)?;
+		let url = require_task::<BoxedContest, BoxedTask>(url)?;
+        let Resource::Task(task) = url.resource;
+		let sess = Session::connect(&url.domain, backend).await?;
+        
+		let rem_t= sess.run(|backend, sess| backend.remain_time(sess, &task)).await;
+        
+		//let to_end:String;
+		let statusBarItem=window::create_status_bar_item();
+        
+        statusBarItem.show();
+		match rem_t {
+			Ok(to_end) =>{
+				let deadline = time_now() + Duration::from_secs(to_end.try_into().unwrap());
+				
+                statusBarItem.set_text(&format_sec(to_end));
+				evscode::spawn(async move {
+					while let Ok(left) = deadline.duration_since(time_now()) {
+						
+						let delay = min(left, Duration::from_secs(1));
+						sleep(delay).await;
+						statusBarItem.set_text(&format_sec(left.as_secs().try_into().unwrap()));
+						
+					}
+					statusBarItem.set_text("Contest Ended");
+					return Ok(());
+				});
+				
+			},
+			Err(err) =>{
+                //match err.0 {
+                //     ErrorCode::NotYetStarted =>  {statusBarItem.set_text("Contest Not Started");},
+                     //ErrorCode::Ended_Already =>  {
+                         //statusBarItem.set_text("Contest Ended");
+                        //},
+                //     _                          => {statusBarItem.set_text("Contest Fetch Error");},
+                //}
+            }
+		}			
+
 	}
+	
 	Ok(())
 }
 
@@ -45,8 +119,8 @@ async fn display_pdf(mut webview: WebviewMeta, pdf: &[u8]) {
 	let _status = crate::STATUS.push("Rendering PDF");
 	webview.webview.set_html(&format!(
 		"<html><head>{}{}</head><body id=\"body\" style=\"padding: 0;\"></body></html>",
-		assets::html_js_dynamic(include_str!("../assets/pdf-2.2.228.min.js")),
-		assets::html_js_dynamic(include_str!("pdf.js")),
+		assets::html_js_dynamic((*webview.webview).clone(),"pdf-2.2.228.min.js"),
+		assets::html_js_dynamic((*webview.webview).clone(),"pdf.js"),
 	));
 	// This webview script sends a message indicating that it is ready to receive messages. See
 	// [`evscode::Webview::post_message`] docs.
@@ -114,3 +188,4 @@ async fn web_contest() -> R<()> {
 	evscode::open_external(&url).await?;
 	Ok(())
 }
+//use futures::future::BoxFuture;

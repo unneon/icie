@@ -38,7 +38,7 @@ pub async fn sprint(sess: Arc<Session>, contest: &BoxedContest, contest_title: O
 	let Resource::Contest(contest) = url.resource;
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let task0 = tasks.get(0).wrap("could not find any tasks in contest")?;
-	let task0_path = open_task(task0, 0, tasks.len(), &projects, &sess).await?;
+	let task0_path = open_task(task0, 0, tasks.len(), &projects, &sess).await?.parent();
 	create_contest_manifest(&task0_path, &url_raw).await?;
 	evscode::open_folder(task0_path.as_str(), false).await;
 	Ok(())
@@ -118,8 +118,10 @@ fn spawn_suggest_install_compiler() {
 
 async fn open_task(task: &BoxedTask, index: usize, count: usize, projects: &Path, sess: &Session) -> R<Path> {
 	let name = format!("{}/{}", index + 1, count);
+    //let _status = crate::STATUS.push(format!("task title {:?}", task));
 	let details = fetch_task(task, &name, sess).await?;
 	let url = sess.run(|backend, sess| async move { backend.task_url(sess, task) }).await?;
+    
 	let workspace = design_task_name(projects, Some(&details)).await?;
 	files::open_task(&workspace, Some(url), Some(details)).await?;
 	Ok(workspace)
@@ -131,9 +133,11 @@ async fn fetch_task(task: &BoxedTask, name: &str, sess: &Session) -> R<TaskDetai
 }
 
 async fn create_contest_manifest(workspace: &Path, contest_url: &str) -> R<()> {
-	let path = workspace.join(".icie-contest");
+	let path = workspace.join(".icie-load");
 	let manifest_data = Manifest { contest_url: contest_url.to_owned() };
 	let manifest = serde_json::to_string(&manifest_data).wrap("serialization of contest manifest failed")?;
+	fs::write(&path, manifest.clone()).await?;
+	let path = workspace.join(".icie-contest");
 	fs::write(&path, manifest).await?;
 	Ok(())
 }
@@ -141,13 +145,23 @@ async fn create_contest_manifest(workspace: &Path, contest_url: &str) -> R<()> {
 /// Check if a contest manifest exists, and if it does, start the rest of the contest setup.
 pub async fn check_for_manifest() -> R<()> {
 	if let Ok(workspace) = workspace_root() {
-		let manifest = workspace.join(".icie-contest");
+		let manifest = workspace.parent().join(".icie-load");
 		if fs::exists(&manifest).await? {
 			open_remaining_tasks(&manifest).await?;
 		}
 	}
 	Ok(())
 }
+pub async fn is_contest() -> R<bool> {
+	if let Ok(workspace) = workspace_root() {
+		let manifest = workspace.join(".icie-contest");
+		if fs::exists(&manifest).await? {
+			return Ok(true);
+		}
+	}
+	Ok(false)
+}
+
 
 /// Do the setup for the rest of the contest tasks.
 async fn open_remaining_tasks(manifest: &Path) -> R<()> {
@@ -160,9 +174,9 @@ async fn open_remaining_tasks(manifest: &Path) -> R<()> {
 	let tasks = fetch_tasks(&sess, &contest).await?;
 	let projects = workspace_root()?.parent();
 	for (i, task) in tasks.iter().enumerate() {
-		if i > 0 {
+		//if i > 0 {
 			open_task(task, i, tasks.len(), &projects, &sess).await?;
-		}
+		//}
 	}
 	Ok(())
 }

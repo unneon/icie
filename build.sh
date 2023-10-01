@@ -84,11 +84,12 @@ X wasm-opt ${wasmopt_profile} -o "${dir_vscode}/icie_bg.wasm" "${dir_wasmpack}/i
 # However, this requires importing the relevant stuff manually.
 # Also, there is some annoying type checking so just remove it.
 printf "global.fetch = require('node-fetch');\nconst { Headers, Request, Response } = fetch;\n\n" > "${dir_vscode}/icie.js"
+#printf "const { XMLHttpRequest,FormData } = require('web_sys');\n\n" >> "${dir_vscode}/icie.js"
 cat "${dir_wasmpack}/icie.js" >> "${dir_vscode}/icie.js"
 sed -i 's/getObject(arg0) instanceof Window;/true;/mg' "${dir_vscode}/icie.js"
 
 # Copy resources to the target directory.
-cp "${dir_root}/README.md" "${dir_root}/CHANGELOG.md" "${dir_vscode}/"
+cp "${dir_root}/README.md" "${dir_root}/CHANGELOG.md" "${dir_root}/LICENSE" "${dir_vscode}/"
 
 # Copy runtime assets to the target directory
 X rsync -rv "${dir_root}/assets" "${dir_vscode}"

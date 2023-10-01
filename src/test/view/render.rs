@@ -5,7 +5,7 @@ use crate::{
 };
 use evscode::R;
 use std::cmp::max;
-
+use evscode::webview::WebviewRef;
 struct Action {
 	onclick: &'static str,
 	icon: &'static str,
@@ -57,7 +57,7 @@ static MAX_TEST_HEIGHT: evscode::Config<Option<u64>> = 720;
 #[evscode::config]
 static TIME_DISPLAY_THRESHOLD: evscode::Config<u64> = 100u64;
 
-pub async fn render(tests: &[TestRun]) -> R<String> {
+pub async fn render(tests: &[TestRun],webview:WebviewRef) -> R<String> {
 	Ok(format!(
 		r#"
 		<html>
@@ -75,8 +75,8 @@ pub async fn render(tests: &[TestRun]) -> R<String> {
 			</body>
 		</html>
 		"#,
-		js = assets::html_js_dynamic(include_str!("script.js")),
-		material_icons = assets::html_material_icons(),
+		js = assets::html_js_dynamic(webview.clone(),"script_view.js"),
+		material_icons = assets::html_material_icons(webview.clone()),
 		css_layout = assets::html_css_dynamic(include_str!("layout.css")),
 		css_paint = assets::html_css_dynamic(include_str!("paint.css")),
 		table = render_test_table(tests).await?,

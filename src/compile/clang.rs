@@ -12,15 +12,15 @@ struct Compiler {
 }
 
 const CLANG: Service = Service {
-	human_name: "Clang",
-	exec_linuxmac: Some("clang++"),
+	human_name: "GCC",
+	exec_linuxmac: Some("g++"),
 	exec_windows: None,
-	package_apt: Some("clang"),
+	package_apt: Some("g++"),
 	// On macOS, Clang is supposed to be installed along with some part of Xcode.
 	// Also trying to run the command will display a dialog asking the user to install it.
 	// In this very specific situation, macOS seems pretty nice.
 	package_brew: None,
-	package_pacman: Some("clang"),
+	package_pacman: Some("g++"),
 	tutorial_url_windows: None,
 	supports_linux: true,
 	supports_windows: false,

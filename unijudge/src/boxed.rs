@@ -1,4 +1,4 @@
-use crate::{http::Client, ContestDetails, Language, Resource, Result, Submission, TaskDetails, URL};
+use crate::{http::Client, ContestDetails, Language, Resource, Result, Submission, TaskDetails, URL, Problem };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -65,6 +65,17 @@ impl crate::Backend for (dyn DynamicBackend+'static) {
 		self.task_detailsx(session.0.deref(), task.0.deref()).await
 	}
 
+	async fn rank_list(&self, session: &Self::Session, task: &Self::Task) -> Result<String> {
+		self.rank_listx(session.0.deref(), task.0.deref()).await
+	}
+
+    async fn problems_list(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Problem>> {
+		self.problems_listx(session.0.deref(), task.0.deref()).await
+	}
+	
+	async fn remain_time(&self, session: &Self::Session, task: &Self::Task) -> Result<i64> {
+		self.remain_timex(session.0.deref(), task.0.deref()).await
+	}
 	async fn task_languages(&self, session: &Self::Session, task: &Self::Task) -> Result<Vec<Language>> {
 		self.task_languagesx(session.0.deref(), task.0.deref()).await
 	}
@@ -136,6 +147,9 @@ pub trait DynamicBackend: Debug+Send+Sync {
 	fn auth_serializex(&self, auth: &dyn AnyDebug) -> Result<String>;
 	fn task_contestx(&self, task: &dyn AnyDebug) -> Option<BoxedContest>;
 	async fn task_detailsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<TaskDetails>;
+	async fn rank_listx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<String>;
+    async fn problems_listx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Problem>>;
+	async fn remain_timex(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<i64>;
 	async fn task_languagesx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Language>>;
 	async fn task_submissionsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Submission>>;
 	async fn task_submitx(
@@ -207,6 +221,19 @@ where
 
 	async fn task_detailsx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<TaskDetails> {
 		<T as crate::Backend>::task_details(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
+	}
+
+	async fn rank_listx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<String> {
+		<T as crate::Backend>::rank_list(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
+	}
+
+    async fn problems_listx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Problem>> {
+		<T as crate::Backend>::problems_list(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
+	}
+
+
+	async fn remain_timex(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<i64> {
+		<T as crate::Backend>::remain_time(self, ujcast::<T::Session>(session), ujcast::<T::Task>(task)).await
 	}
 
 	async fn task_languagesx(&self, session: &dyn AnyDebug, task: &dyn AnyDebug) -> Result<Vec<Language>> {

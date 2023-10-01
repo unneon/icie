@@ -2,7 +2,9 @@
 
 use crate::{config::ErasedConfig, BoxFuture, E, R};
 use std::fmt::{self, Write};
-
+use crate::stdlib::TreeData;
+//use vscode_sys::TreeDataProvider;
+//use wasm_bindgen::JsValue;
 /// Returns a vector with metadata on all configuration entries in the plugin.
 pub fn config_entries() -> &'static [ConfigEntry] {
 	crate::glue::CONFIG_ENTRIES.get().unwrap()
@@ -48,6 +50,15 @@ pub struct Command {
 	pub trigger: fn() -> BoxFuture<'static, R<()>>,
 }
 
+#[doc(hidden)]
+pub struct Views {
+	pub id: Identifier,
+	pub name: &'static str,
+	pub addto: &'static str,
+    pub reference: &'static TreeData,
+  //  pub isrefresh:bool,
+}
+
 /// Metadata of a configuration entry.
 #[derive(Clone)]
 pub struct ConfigEntry {
@@ -69,6 +80,8 @@ pub struct ConfigEntry {
 pub enum Activation<S: AsRef<str>> {
 	#[doc(hidden)]
 	OnCommand { command: Identifier },
+    #[doc(hidden)]
+	OnView { view: Identifier },
 	/// Fires when a folder is opened and it contains at least one file that matched the given
 	/// selector. See [official documentation](https://code.visualstudio.com/api/references/activation-events#workspaceContains).
 	WorkspaceContains {
@@ -84,6 +97,10 @@ impl Activation<&'static str> {
 			Activation::WorkspaceContains { selector } => {
 				Activation::WorkspaceContains { selector: (*selector).to_owned() }
 			},
+            Activation::OnView { view } => Activation::OnView{ view: *view },
+			Activation::WorkspaceContains { selector } => {
+				Activation::WorkspaceContains { selector: (*selector).to_owned() }
+			},
 		}
 	}
 }
@@ -92,6 +109,8 @@ impl Activation<String> {
 	pub fn package_json_format(&self) -> String {
 		match self {
 			Activation::OnCommand { command } => format!("onCommand:{}", command),
+			Activation::WorkspaceContains { selector } => format!("workspaceContains:{}", selector),
+            Activation::OnView { view } => format!("onView:{}", view),
 			Activation::WorkspaceContains { selector } => format!("workspaceContains:{}", selector),
 		}
 	}
@@ -129,6 +148,8 @@ pub struct Package {
 	pub version: &'static str,
 	#[doc(hidden)]
 	pub commands: Vec<Command>,
+    #[doc(hidden)]
+	pub views: Vec<Views>,
 	#[doc(hidden)]
 	pub configuration: Vec<ConfigEntry>,
 	/// Display name seen by end users.
